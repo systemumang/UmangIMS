@@ -1,0 +1,689 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PrStatus {
+  pending
+  partially_approved
+  approved
+  rejected
+  cancelled
+}
+
+enum PrItemStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum PoStatus {
+  draft
+  issued
+  partial
+  closed
+}
+
+enum InvoiceStatus {
+  pending
+  verified
+  hold
+  approved
+}
+
+model Firm {
+  id         String   @id @default(cuid())
+  name       String
+  gstNumber  String?  @map("gst_number")
+  pan        String?
+  address    String?
+  phone      String?
+  email      String?
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedBy  String?  @map("updated_by")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  stores    Store[]
+  projects  Project[]
+
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  grns                 Grn[]
+  stockLedger          StockLedger[]
+  itemIssues           ItemIssue[]
+  itemTransfers        ItemTransfer[]
+  damagedItems         DamagedItem[]
+
+  @@map("firms")
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  firmId    String   @map("firm_id")
+  name      String
+  location  String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  firm Firm @relation(fields: [firmId], references: [id], onDelete: Restrict)
+
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  grns                 Grn[]
+  stockLedger          StockLedger[]
+  itemIssues           ItemIssue[]
+  damagedItems         DamagedItem[]
+  transfersFrom        ItemTransfer[] @relation("TransferFromStore")
+  transfersTo          ItemTransfer[] @relation("TransferToStore")
+
+  @@index([firmId])
+  @@map("stores")
+}
+
+model User {
+  id       String   @id @default(cuid())
+  name     String
+  role     String
+  phone    String?
+  email    String?  @unique
+  isActive Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model ItemName {
+  id        String   @id @default(cuid())
+  name      String
+  category  String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  items Item[]
+
+  @@unique([name])
+  @@map("item_names")
+}
+
+model Specification {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  values SpecificationValue[]
+
+  @@unique([name])
+  @@map("specifications")
+}
+
+model SpecificationValue {
+  id              String   @id @default(cuid())
+  specificationId String   @map("specification_id")
+  value           String
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       String?  @map("updated_by")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  specification Specification @relation(fields: [specificationId], references: [id], onDelete: Restrict)
+
+  @@index([specificationId])
+  @@unique([specificationId, value])
+  @@map("specification_values")
+}
+
+model Item {
+  id                 String   @id @default(cuid())
+  itemNameId         String   @map("item_name_id")
+  itemCode           String   @unique @map("item_code")
+  specificationsJson String   @map("specifications_json")
+  uniqueKey          String   @unique @map("unique_key")
+  description        String?
+  unit               String?
+  isActive           Boolean  @default(true) @map("is_active")
+  createdBy          String?  @map("created_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedBy          String?  @map("updated_by")
+  updatedAt          DateTime @default(now()) @map("updated_at")
+
+  itemName ItemName @relation(fields: [itemNameId], references: [id], onDelete: Restrict)
+
+  prItems       PurchaseRequisitionItem[]
+  poItems       PurchaseOrderItem[]
+  invoiceItems  InvoiceItem[]
+  grnItems      GrnItem[]
+  qcRecords     QcRecord[]
+  stockLedger   StockLedger[]
+  issueItems    ItemIssueItem[]
+  transferItems ItemTransferItem[]
+  damagedItems  DamagedItem[]
+
+  @@index([itemNameId])
+  @@map("items")
+}
+
+model Supplier {
+  id                String   @id @default(cuid())
+  name              String
+  gstNumber         String?  @map("gst_number")
+  phone             String?
+  email             String?
+  address           String?
+  defaultCreditDays Int?     @map("default_credit_days")
+  createdBy         String?  @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedBy         String?  @map("updated_by")
+  updatedAt         DateTime @default(now()) @map("updated_at")
+
+  purchaseOrders PurchaseOrder[]
+  invoices       Invoice[]
+  payments       Payment[]
+
+  @@unique([name])
+  @@map("suppliers")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  gstNumber String?  @map("gst_number")
+  phone     String?
+  email     String?
+  address   String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@unique([name])
+  @@map("customers")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  firmId    String   @map("firm_id")
+  name      String
+  clientName String? @map("client_name")
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  status    String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  firm Firm @relation(fields: [firmId], references: [id], onDelete: Restrict)
+
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  itemIssues           ItemIssue[]
+
+  @@index([firmId])
+  @@unique([firmId, name])
+  @@map("projects")
+}
+
+model IssueType {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  itemIssues ItemIssue[]
+
+  @@unique([name])
+  @@map("issue_types")
+}
+
+model PurchaseRequisition {
+  id          String   @id @default(cuid())
+  prNumber    String   @unique @map("pr_number")
+  firmId      String   @map("firm_id")
+  storeId     String   @map("store_id")
+  projectId   String?  @map("project_id")
+  requestedBy String   @map("requested_by")
+  status      PrStatus
+  remarks     String?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+  approvedBy  String?  @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+
+  firm    Firm   @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  items PurchaseRequisitionItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([firmId])
+  @@index([storeId])
+  @@index([projectId])
+  @@map("purchase_requisitions")
+}
+
+model PurchaseRequisitionItem {
+  id          String   @id @default(cuid())
+  prId        String   @map("pr_id")
+  itemId      String   @map("item_id")
+  requestedQty Float   @map("requested_qty")
+  approvedQty  Float?  @map("approved_qty")
+  requiredDate DateTime? @map("required_date")
+  remarks      String?
+  status       PrItemStatus
+  approvedBy   String?  @map("approved_by")
+  approvedAt   DateTime? @map("approved_at")
+  createdBy    String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedBy    String?  @map("updated_by")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  pr   PurchaseRequisition @relation(fields: [prId], references: [id], onDelete: Cascade)
+  item Item               @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([prId])
+  @@index([itemId])
+  @@map("purchase_requisition_items")
+}
+
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  poNumber    String   @unique @map("po_number")
+  firmId      String   @map("firm_id")
+  storeId     String   @map("store_id")
+  projectId   String?  @map("project_id")
+  supplierId  String   @map("supplier_id")
+  prId        String   @map("pr_id")
+  status      PoStatus
+  orderDate   DateTime @map("order_date")
+  paymentTerms String? @map("payment_terms")
+  creditDays  Int?     @map("credit_days")
+  remarks     String?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+  approvedBy  String?  @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+
+  firm     Firm     @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  pr       PurchaseRequisition @relation(fields: [prId], references: [id], onDelete: Restrict)
+
+  items    PurchaseOrderItem[]
+  invoices Invoice[]
+  payments Payment[]
+  grns     Grn[]
+
+  @@index([firmId])
+  @@index([storeId])
+  @@index([projectId])
+  @@index([supplierId])
+  @@index([prId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  poId            String   @map("po_id")
+  itemId          String   @map("item_id")
+  quantity        Float
+  rate            Float
+  discountPercent Float?  @map("discount_percent")
+  taxPercent      Float?  @map("tax_percent")
+  goodsAmount     Float   @map("goods_amount")
+  taxAmount       Float   @map("tax_amount")
+  totalAmount     Float   @map("total_amount")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       String?  @map("updated_by")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  po   PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  item Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([poId])
+  @@index([itemId])
+  @@unique([poId, itemId])
+  @@map("purchase_order_items")
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  poId            String   @map("po_id")
+  supplierId      String   @map("supplier_id")
+  invoiceNumber   String   @map("invoice_number")
+  invoiceDate     DateTime @map("invoice_date")
+
+  dispatchDate    DateTime? @map("dispatch_date")
+  transporterName String?   @map("transporter_name")
+  cnNumber        String?   @map("cn_number")
+  courierNumber   String?   @map("courier_number")
+  vehicleNumber   String?   @map("vehicle_number")
+  ewayBillNumber  String?   @map("eway_bill_number")
+
+  goodsAmount      Float   @map("goods_amount")
+  taxAmount        Float   @map("tax_amount")
+  totalAmount      Float   @map("total_amount")
+  transportCharges Float?  @map("transport_charges")
+  otherCharges     Float?  @map("other_charges")
+
+  status       InvoiceStatus
+  documentUrl  String? @map("document_url")
+
+  createdBy    String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedBy    String?  @map("updated_by")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  po       PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Restrict)
+  supplier Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@index([poId])
+  @@index([supplierId])
+  @@unique([supplierId, invoiceNumber])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id        String   @id @default(cuid())
+  invoiceId String   @map("invoice_id")
+  itemId    String   @map("item_id")
+  quantity  Float
+  rate      Float
+  amount    Float
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item    Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  grnLinks GrnInvoiceItemLink[]
+
+  @@index([invoiceId])
+  @@index([itemId])
+  @@unique([invoiceId, itemId])
+  @@map("invoice_items")
+}
+
+model Grn {
+  id         String   @id @default(cuid())
+  grnNumber  String   @unique @map("grn_number")
+  poId       String   @map("po_id")
+  firmId     String   @map("firm_id")
+  storeId    String   @map("store_id")
+  receivedBy String   @map("received_by")
+  receivedDate DateTime @map("received_date")
+  remarks    String?
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedBy  String?  @map("updated_by")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  po    PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Restrict)
+  firm  Firm          @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  items     GrnItem[]
+  qcRecords QcRecord[]
+
+  @@index([poId])
+  @@index([firmId])
+  @@index([storeId])
+  @@map("grns")
+}
+
+model GrnItem {
+  id          String   @id @default(cuid())
+  grnId       String   @map("grn_id")
+  itemId      String   @map("item_id")
+  orderedQty  Float    @map("ordered_qty")
+  receivedQty Float    @map("received_qty")
+  shortQty    Float?   @map("short_qty")
+  damagedQty  Float?   @map("damaged_qty")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  grn  Grn  @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  links GrnInvoiceItemLink[]
+
+  @@index([grnId])
+  @@index([itemId])
+  @@unique([grnId, itemId])
+  @@map("grn_items")
+}
+
+model GrnInvoiceItemLink {
+  id            String   @id @default(cuid())
+  grnItemId     String   @map("grn_item_id")
+  invoiceItemId String   @map("invoice_item_id")
+  linkedQty     Float    @map("linked_qty")
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  grnItem     GrnItem     @relation(fields: [grnItemId], references: [id], onDelete: Cascade)
+  invoiceItem InvoiceItem @relation(fields: [invoiceItemId], references: [id], onDelete: Cascade)
+
+  @@index([grnItemId])
+  @@index([invoiceItemId])
+  @@unique([grnItemId, invoiceItemId])
+  @@map("grn_invoice_item_links")
+}
+
+model QcRecord {
+  id          String   @id @default(cuid())
+  grnId       String   @map("grn_id")
+  itemId      String   @map("item_id")
+  acceptedQty Float    @map("accepted_qty")
+  rejectedQty Float    @map("rejected_qty")
+  holdQty     Float    @map("hold_qty")
+  remarks     String?
+  qcBy        String   @map("qc_by")
+  qcDate      DateTime @map("qc_date")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  grn  Grn  @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([grnId])
+  @@index([itemId])
+  @@unique([grnId, itemId])
+  @@map("qc_records")
+}
+
+model StockLedger {
+  id              String   @id @default(cuid())
+  firmId          String   @map("firm_id")
+  storeId         String   @map("store_id")
+  itemId          String   @map("item_id")
+  transactionType String   @map("transaction_type")
+  quantity        Float
+  referenceType   String   @map("reference_type")
+  referenceId     String   @map("reference_id")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  firm  Firm  @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  item  Item  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([firmId])
+  @@index([storeId])
+  @@index([itemId])
+  @@map("stock_ledger")
+}
+
+model ItemIssue {
+  id         String   @id @default(cuid())
+  firmId     String   @map("firm_id")
+  storeId    String   @map("store_id")
+  projectId  String?  @map("project_id")
+  issueTypeId String  @map("issue_type_id")
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedBy  String?  @map("updated_by")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  firm      Firm      @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  issueType IssueType @relation(fields: [issueTypeId], references: [id], onDelete: Restrict)
+
+  items ItemIssueItem[]
+
+  @@index([firmId])
+  @@index([storeId])
+  @@index([projectId])
+  @@index([issueTypeId])
+  @@map("item_issues")
+}
+
+model ItemIssueItem {
+  id        String   @id @default(cuid())
+  issueId   String   @map("issue_id")
+  itemId    String   @map("item_id")
+  quantity  Float
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  issue ItemIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  item  Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([issueId])
+  @@index([itemId])
+  @@map("item_issue_items")
+}
+
+model ItemTransfer {
+  id          String   @id @default(cuid())
+  firmId      String   @map("firm_id")
+  fromStoreId String   @map("from_store_id")
+  toStoreId   String   @map("to_store_id")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  firm      Firm  @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  fromStore Store @relation("TransferFromStore", fields: [fromStoreId], references: [id], onDelete: Restrict)
+  toStore   Store @relation("TransferToStore", fields: [toStoreId], references: [id], onDelete: Restrict)
+
+  items ItemTransferItem[]
+
+  @@index([firmId])
+  @@index([fromStoreId])
+  @@index([toStoreId])
+  @@map("item_transfers")
+}
+
+model ItemTransferItem {
+  id        String   @id @default(cuid())
+  transferId String  @map("transfer_id")
+  itemId    String   @map("item_id")
+  quantity  Float
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  transfer ItemTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  item     Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([transferId])
+  @@index([itemId])
+  @@map("item_transfer_items")
+}
+
+model DamagedItem {
+  id        String   @id @default(cuid())
+  firmId    String   @map("firm_id")
+  storeId   String   @map("store_id")
+  itemId    String   @map("item_id")
+  quantity  Float
+  reason    String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  firm  Firm  @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  item  Item  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([firmId])
+  @@index([storeId])
+  @@index([itemId])
+  @@map("damaged_items")
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  supplierId String   @map("supplier_id")
+  poId       String   @map("po_id")
+  invoiceId  String   @map("invoice_id")
+  amountPaid Float    @map("amount_paid")
+  paymentDate DateTime @map("payment_date")
+  dueDate    DateTime? @map("due_date")
+  status     String?
+  remarks    String?
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedBy  String?  @map("updated_by")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  supplier Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  po       PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Restrict)
+  invoice  Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([supplierId])
+  @@index([poId])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  module      String
+  recordId    String   @map("record_id")
+  action      String
+  performedBy String   @map("performed_by")
+  timestamp   DateTime @default(now())
+  remarks     String?
+
+  @@index([module])
+  @@index([recordId])
+  @@index([performedBy])
+  @@map("audit_logs")
+}
