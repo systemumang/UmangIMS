@@ -2,7 +2,6 @@ node_modules/
 build/
 dist/
 coverage/
-data/
 tmp/
 .sqlite
 *.sqlite
@@ -11,3 +10,11 @@ tmp/
 *.log
 .env*
 !.env.example
+
+# App data: keep databases out, allow spreadsheets/exports
+data/**
+!data/**/
+!data/**/*.xlsx
+!data/**/*.xls
+!data/**/*.xlsm
+!data/**/*.csv
