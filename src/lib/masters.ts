@@ -1,7 +1,44 @@
-export type Firm = { id: string; name: string };
+export type Firm = {
+  id: string;
+  name: string;
+  cin?: string | null;
+  gstNumber?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  logoUrl?: string | null;
+  termsConditions?: string | null;
+};
 export type Store = { id: string; firmId: string; name: string; location?: string | null };
-export type Supplier = { id: string; name: string; gstNumber?: string | null; paymentTerms?: string | null };
-export type ItemName = { id: string; name: string; category?: string | null };
+export type Supplier = {
+  id: string;
+  name: string;
+  gstNumber?: string | null;
+  gstType?: 'Intra-State' | 'Inter-State' | null;
+  address?: string | null;
+  phone?: string | null;
+  paymentTerms?: string | null;
+};
+export type Transporter = { id: string; name: string; phone?: string | null };
+export type Department = { id: string; name: string };
+export type Project = {
+  id: string;
+  firmId: string;
+  name: string;
+  clientName?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string | null;
+};
+export type Unit = { id: string; name: string };
+export type ItemCategory = { id: string; name: string };
+export type ItemName = {
+  id: string;
+  name: string;
+  unitId?: string | null;
+  unitName?: string | null;
+  itemCategoryId?: string | null;
+  itemCategoryName?: string | null;
+};
 export type Specification = { id: string; name: string };
 export type SpecificationValue = { id: string; specificationId: string; value: string; isActive: boolean };
 export type User = {
@@ -44,10 +81,20 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
 export async function fetchFirms(signal?: AbortSignal): Promise<Firm[]> {
   const res = await fetch('/api/masters/firms', { signal });
   const data = await requireOk<{ firms?: Firm[] }>(res, 'Failed to load firms');
-  return Array.isArray(data.firms) ? data.firms : [];
+  const rows = Array.isArray(data.firms) ? data.firms : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createFirm(input: { name: string; createdBy?: string }) {
+export async function createFirm(input: {
+  name: string;
+  cin?: string | null;
+  gstNumber?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  logoUrl?: string | null;
+  termsConditions?: string | null;
+  createdBy?: string;
+}) {
   const res = await fetch('/api/masters/firms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -56,7 +103,19 @@ export async function createFirm(input: { name: string; createdBy?: string }) {
   return requireOk<{ firm?: Firm }>(res, 'Failed to create firm');
 }
 
-export async function updateFirm(id: string, input: { name: string; updatedBy?: string }) {
+export async function updateFirm(
+  id: string,
+  input: {
+    name: string;
+    cin?: string | null;
+    gstNumber?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    logoUrl?: string | null;
+    termsConditions?: string | null;
+    updatedBy?: string;
+  }
+) {
   const res = await fetch(`/api/masters/firms/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -77,13 +136,102 @@ export async function deleteFirm(id: string, input?: { deletedBy?: string }) {
 export async function fetchStores(signal?: AbortSignal): Promise<Store[]> {
   const res = await fetch('/api/masters/stores', { signal });
   const data = await requireOk<{ stores?: Store[] }>(res, 'Failed to load stores');
-  return Array.isArray(data.stores) ? data.stores : [];
+  const rows = Array.isArray(data.stores) ? data.stores : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function fetchUsers(signal?: AbortSignal): Promise<User[]> {
   const res = await fetch('/api/masters/users', { signal });
   const data = await requireOk<{ users?: User[] }>(res, 'Failed to load users');
-  return Array.isArray(data.users) ? data.users : [];
+  const rows = Array.isArray(data.users) ? data.users : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function fetchDepartments(signal?: AbortSignal): Promise<Department[]> {
+  const res = await fetch('/api/masters/departments', { signal });
+  const data = await requireOk<{ departments?: Department[] }>(res, 'Failed to load departments');
+  const rows = Array.isArray(data.departments) ? data.departments : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function fetchProjects(signal?: AbortSignal): Promise<Project[]> {
+  const res = await fetch('/api/masters/projects', { signal });
+  const data = await requireOk<{ projects?: Project[] }>(res, 'Failed to load projects');
+  const rows = Array.isArray(data.projects) ? data.projects : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createProject(input: {
+  firmId: string;
+  name: string;
+  clientName?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string | null;
+  createdBy?: string;
+}) {
+  const res = await fetch('/api/masters/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ project?: Project }>(res, 'Failed to create project');
+}
+
+export async function updateProject(
+  id: string,
+  input: {
+    firmId: string;
+    name: string;
+    clientName?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    status?: string | null;
+    updatedBy?: string;
+  }
+) {
+  const res = await fetch(`/api/masters/projects/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ project?: Project }>(res, 'Failed to update project');
+}
+
+export async function deleteProject(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/projects/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete project');
+}
+
+export async function createDepartment(input: { name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/departments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ department?: Department }>(res, 'Failed to create department');
+}
+
+export async function updateDepartment(id: string, input: { name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/departments/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ department?: Department }>(res, 'Failed to update department');
+}
+
+export async function deleteDepartment(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/departments/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete department');
 }
 
 export async function createUser(input: { name: string; email: string; designation: string; password: string; mobile?: string; createdBy?: string }) {
@@ -146,10 +294,19 @@ export async function deleteStore(id: string, input?: { deletedBy?: string }) {
 export async function fetchSuppliers(signal?: AbortSignal): Promise<Supplier[]> {
   const res = await fetch('/api/masters/suppliers', { signal });
   const data = await requireOk<{ suppliers?: Supplier[] }>(res, 'Failed to load suppliers');
-  return Array.isArray(data.suppliers) ? data.suppliers : [];
+  const rows = Array.isArray(data.suppliers) ? data.suppliers : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createSupplier(input: { name: string; gstNumber?: string; paymentTerms?: string; createdBy?: string }) {
+export async function createSupplier(input: {
+  name: string;
+  gstNumber?: string;
+  gstType?: 'Intra-State' | 'Inter-State';
+  address?: string;
+  phone?: string;
+  paymentTerms?: string;
+  createdBy?: string;
+}) {
   const res = await fetch('/api/masters/suppliers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -158,7 +315,18 @@ export async function createSupplier(input: { name: string; gstNumber?: string; 
   return requireOk<{ supplier?: Supplier }>(res, 'Failed to create supplier');
 }
 
-export async function updateSupplier(id: string, input: { name: string; gstNumber?: string; paymentTerms?: string; updatedBy?: string }) {
+export async function updateSupplier(
+  id: string,
+  input: {
+    name: string;
+    gstNumber?: string;
+    gstType?: 'Intra-State' | 'Inter-State';
+    address?: string;
+    phone?: string;
+    paymentTerms?: string;
+    updatedBy?: string;
+  }
+) {
   const res = await fetch(`/api/masters/suppliers/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -176,13 +344,116 @@ export async function deleteSupplier(id: string, input?: { deletedBy?: string })
   return requireOk<{ ok: boolean }>(res, 'Failed to delete supplier');
 }
 
+export async function fetchTransporters(signal?: AbortSignal): Promise<Transporter[]> {
+  const res = await fetch('/api/masters/transporters', { signal });
+  const data = await requireOk<{ transporters?: Transporter[] }>(res, 'Failed to load transporters');
+  const rows = Array.isArray(data.transporters) ? data.transporters : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createTransporter(input: { name: string; phone?: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/transporters', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ transporter?: Transporter }>(res, 'Failed to create transporter');
+}
+
+export async function updateTransporter(id: string, input: { name: string; phone?: string | null; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/transporters/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ transporter?: Transporter }>(res, 'Failed to update transporter');
+}
+
+export async function deleteTransporter(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/transporters/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete transporter');
+}
+
 export async function fetchItemNames(signal?: AbortSignal): Promise<ItemName[]> {
   const res = await fetch('/api/masters/item-names', { signal });
   const data = await requireOk<{ itemNames?: ItemName[] }>(res, 'Failed to load item names');
-  return Array.isArray(data.itemNames) ? data.itemNames : [];
+  const rows = Array.isArray(data.itemNames) ? data.itemNames : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createItemName(input: { name: string; category?: string; createdBy?: string }) {
+export async function fetchUnits(signal?: AbortSignal): Promise<Unit[]> {
+  const res = await fetch('/api/masters/units', { signal });
+  const data = await requireOk<{ units?: Unit[] }>(res, 'Failed to load units');
+  const rows = Array.isArray(data.units) ? data.units : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createUnit(input: { name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/units', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ unit?: Unit }>(res, 'Failed to create unit');
+}
+
+export async function updateUnit(id: string, input: { name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/units/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ unit?: Unit }>(res, 'Failed to update unit');
+}
+
+export async function deleteUnit(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/units/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete unit');
+}
+
+export async function fetchItemCategories(signal?: AbortSignal): Promise<ItemCategory[]> {
+  const res = await fetch('/api/masters/item-categories', { signal });
+  const data = await requireOk<{ itemCategories?: ItemCategory[] }>(res, 'Failed to load item categories');
+  const rows = Array.isArray(data.itemCategories) ? data.itemCategories : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createItemCategory(input: { name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/item-categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ itemCategory?: ItemCategory }>(res, 'Failed to create item category');
+}
+
+export async function updateItemCategory(id: string, input: { name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/item-categories/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ itemCategory?: ItemCategory }>(res, 'Failed to update item category');
+}
+
+export async function deleteItemCategory(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/item-categories/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete item category');
+}
+
+export async function createItemName(input: { name: string; unitId?: string | null; itemCategoryId?: string | null; createdBy?: string }) {
   const res = await fetch('/api/masters/item-names', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,7 +462,7 @@ export async function createItemName(input: { name: string; category?: string; c
   return requireOk<{ itemName?: ItemName }>(res, 'Failed to create item name');
 }
 
-export async function updateItemName(id: string, input: { name: string; category?: string; updatedBy?: string }) {
+export async function updateItemName(id: string, input: { name: string; unitId?: string | null; itemCategoryId?: string | null; updatedBy?: string }) {
   const res = await fetch(`/api/masters/item-names/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -212,7 +483,8 @@ export async function deleteItemName(id: string, input?: { deletedBy?: string })
 export async function fetchSpecifications(signal?: AbortSignal): Promise<Specification[]> {
   const res = await fetch('/api/masters/specifications', { signal });
   const data = await requireOk<{ specifications?: Specification[] }>(res, 'Failed to load specifications');
-  return Array.isArray(data.specifications) ? data.specifications : [];
+  const rows = Array.isArray(data.specifications) ? data.specifications : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createSpecification(input: { name: string; createdBy?: string }) {

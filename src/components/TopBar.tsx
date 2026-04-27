@@ -1,18 +1,31 @@
 import React from 'react';
-import { Search, Bell, Settings, HelpCircle } from 'lucide-react';
+import { Search, Menu, X } from 'lucide-react';
 
 export default function TopBar({
   title,
   subtitle,
   showSearch,
+  sidebarOpen,
+  onToggleSidebar,
 }: {
   title: string;
   subtitle?: string;
   showSearch?: boolean;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }) {
   return (
-    <header className="glass docked full-width top-0 sticky z-50 flex justify-between items-center w-full px-6 py-3 border-b border-outline-variant/10">
+    <header className="bg-surface-container-lowest top-0 sticky z-50 flex justify-between items-center w-full px-4 py-3 border-b border-outline-variant/20">
       <div className="flex items-center gap-6">
+        <button
+          type="button"
+          className="text-on-surface-variant hover:text-on-surface transition-colors p-1.5 rounded-full hover:bg-surface-container-high"
+          aria-label={sidebarOpen ? 'Hide menu' : 'Show menu'}
+          title={sidebarOpen ? 'Hide menu' : 'Show menu'}
+          onClick={onToggleSidebar}
+        >
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
         <h1 className="font-headline text-on-surface font-semibold text-lg tracking-tight">
           {title}
           {subtitle ? (
@@ -37,20 +50,8 @@ export default function TopBar({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 pr-4 border-r border-outline-variant/20">
-          <button className="text-on-surface-variant hover:text-on-surface transition-colors p-1.5 rounded-full hover:bg-surface-container-high">
-            <Bell size={18} />
-          </button>
-          <button className="text-on-surface-variant hover:text-on-surface transition-colors p-1.5 rounded-full hover:bg-surface-container-high">
-            <Settings size={18} />
-          </button>
-          <button className="text-on-surface-variant hover:text-on-surface transition-colors p-1.5 rounded-full hover:bg-surface-container-high">
-            <HelpCircle size={18} />
-          </button>
-        </div>
-        
-        <div className="flex items-center gap-3 pl-2">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="text-right hidden lg:block">
             <p className="text-xs font-bold text-on-surface">Marcus Chen</p>
             <p className="text-[10px] text-on-surface-variant">Sr. Procurement Manager</p>

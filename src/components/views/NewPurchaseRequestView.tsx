@@ -2,22 +2,33 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createPurchaseRequest, fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
-	import {
-		  createItem,
-		  createItemName,
-	  createSpecification,
-	  createSpecificationValue,
-	  fetchUsers,
-	  fetchItemNames,
-	  fetchItems,
-	  fetchSpecifications,
-	  fetchSpecificationValues,
-	  type Item,
-	  type ItemName,
-	  type Specification,
-	  type SpecificationValue,
-	  type User,
-	} from '@/src/lib/masters';
+import Spinner from '@/src/components/common/Spinner';
+import { Trash2 } from 'lucide-react';
+				import {
+				  createItem,
+				  createDepartment,
+				  createItemName,
+				  createSpecification,
+				  createSpecificationValue,
+				  fetchDepartments,
+				  fetchProjects,
+				  fetchUsers,
+				  fetchItemNames,
+				  fetchUnits,
+				  createUnit,
+				  fetchItems,
+				  fetchSpecifications,
+				  fetchSpecificationValues,
+				  updateItem,
+				  type Department,
+				  type Project,
+				  type Item,
+				  type ItemName,
+				  type Specification,
+				  type SpecificationValue,
+				  type Unit,
+				  type User,
+				} from '@/src/lib/masters';
 
 export default function NewPurchaseRequestView({
   onCreated,
@@ -46,27 +57,37 @@ export default function NewPurchaseRequestView({
     return [itemName, ...specs].join(' - ');
   }
 
-	  const [firms, setFirms] = useState<Firm[]>([]);
-	  const [loadingFirms, setLoadingFirms] = useState(true);
-	  const [department, setDepartment] = useState('');
-	  const [users, setUsers] = useState<User[]>([]);
-	  const [loadingUsers, setLoadingUsers] = useState(true);
-	  const [requestedByUserId, setRequestedByUserId] = useState('');
-	  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
-	  const [firmId, setFirmId] = useState('');
-	  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '' }]);
-  const [itemNames, setItemNames] = useState<ItemName[]>([]);
-  const [loadingItemNames, setLoadingItemNames] = useState(true);
-  const [masterItems, setMasterItems] = useState<Item[]>([]);
-  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
+		  const [firms, setFirms] = useState<Firm[]>([]);
+		  const [loadingFirms, setLoadingFirms] = useState(true);
+			  const [departments, setDepartments] = useState<Department[]>([]);
+			  const [loadingDepartments, setLoadingDepartments] = useState(true);
+			  const [departmentId, setDepartmentId] = useState('');
+			  const [projects, setProjects] = useState<Project[]>([]);
+			  const [loadingProjects, setLoadingProjects] = useState(true);
+			  const [requestType, setRequestType] = useState<'Stock' | 'Project'>('Stock');
+			  const [projectId, setProjectId] = useState('');
+			  const [users, setUsers] = useState<User[]>([]);
+			  const [loadingUsers, setLoadingUsers] = useState(true);
+			  const [requestedByUserId, setRequestedByUserId] = useState('');
+		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
+		  const [firmId, setFirmId] = useState('');
+		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '' }]);
+	  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
+	  const [itemNames, setItemNames] = useState<ItemName[]>([]);
+	  const [loadingItemNames, setLoadingItemNames] = useState(true);
+	  const [units, setUnits] = useState<Unit[]>([]);
+	  const [loadingUnits, setLoadingUnits] = useState(true);
+	  const [masterItems, setMasterItems] = useState<Item[]>([]);
+	  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
-  const [createItemOpen, setCreateItemOpen] = useState(false);
-  const [createItemRowIndex, setCreateItemRowIndex] = useState<number | null>(null);
-  const [newItemItemNameId, setNewItemItemNameId] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState('');
-  const [newItemDescription, setNewItemDescription] = useState('');
+	  const [createItemOpen, setCreateItemOpen] = useState(false);
+	  const [createItemRowIndex, setCreateItemRowIndex] = useState<number | null>(null);
+	  const [editingMasterItemId, setEditingMasterItemId] = useState<string | null>(null);
+	  const [newItemItemNameId, setNewItemItemNameId] = useState('');
+	  const [newItemUnit, setNewItemUnit] = useState('');
+	  const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string }>>([{ specificationId: '', value: '' }]);
   const [creatingItem, setCreatingItem] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,17 +108,16 @@ export default function NewPurchaseRequestView({
 	  const [createValueInlineBusy, setCreateValueInlineBusy] = useState(false);
 	  const [createValueInlineError, setCreateValueInlineError] = useState<string | null>(null);
 
-	  const inputClass =
-	    'w-full bg-surface-container-lowest border border-blue-600/40 rounded-lg px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20';
+				  const inputClass =
+				    'w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
 
 		  useEffect(() => {
 		    const ac = new AbortController();
 		    setLoadingFirms(true);
-	    fetchFirms(ac.signal)
-      .then((rows) => {
-        setFirms(rows);
-        setFirmId(rows[0]?.id ?? '');
-      })
+		    fetchFirms(ac.signal)
+	      .then((rows) => {
+	        setFirms(rows);
+	      })
       .catch((e) => {
         if (ac.signal.aborted) return;
         if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -105,13 +125,57 @@ export default function NewPurchaseRequestView({
         setError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setLoadingFirms(false));
+		    return () => ac.abort();
+		  }, []);
+
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingDepartments(true);
+			    fetchDepartments(ac.signal)
+			      .then((rows) => setDepartments(rows))
+		      .catch((e) => {
+		        if (ac.signal.aborted) return;
+		        if (e instanceof DOMException && e.name === 'AbortError') return;
+		        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+		        setError(e instanceof Error ? e.message : String(e));
+		      })
+		      .finally(() => setLoadingDepartments(false));
+			    return () => ac.abort();
+			  }, []);
+
+	  useEffect(() => {
+	    const ac = new AbortController();
+	    setLoadingUnits(true);
+	    fetchUnits(ac.signal)
+	      .then((rows) => setUnits(rows))
+	      .catch(() => {})
+	      .finally(() => setLoadingUnits(false));
 	    return () => ac.abort();
 	  }, []);
 
-		  useEffect(() => {
-		    const ac = new AbortController();
-		    setLoadingItemNames(true);
-		    fetchItemNames(ac.signal)
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingProjects(true);
+			    fetchProjects(ac.signal)
+			      .then((rows) => setProjects(rows))
+			      .catch((e) => {
+			        if (ac.signal.aborted) return;
+			        if (e instanceof DOMException && e.name === 'AbortError') return;
+			        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+			        setError(e instanceof Error ? e.message : String(e));
+			      })
+			      .finally(() => setLoadingProjects(false));
+			    return () => ac.abort();
+			  }, []);
+
+			  useEffect(() => {
+			    if (requestType !== 'Project' && projectId) setProjectId('');
+			  }, [projectId, requestType]);
+
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingItemNames(true);
+			    fetchItemNames(ac.signal)
 		      .then((rows) => setItemNames(rows))
 	      .catch((e) => {
 	        if (ac.signal.aborted) return;
@@ -126,12 +190,11 @@ export default function NewPurchaseRequestView({
 		  useEffect(() => {
 		    const ac = new AbortController();
 		    setLoadingUsers(true);
-		    fetchUsers(ac.signal)
-		      .then((rows) => {
-		        const next = Array.isArray(rows) ? rows : [];
-		        setUsers(next);
-		        setRequestedByUserId((prev) => prev || next[0]?.id || '');
-		      })
+			    fetchUsers(ac.signal)
+			      .then((rows) => {
+			        const next = Array.isArray(rows) ? rows : [];
+			        setUsers(next);
+			      })
 		      .catch((e) => {
 		        if (ac.signal.aborted) return;
 		        if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -165,14 +228,9 @@ export default function NewPurchaseRequestView({
 	    return () => ac.abort();
 	  }, []);
 
-		  useEffect(() => {
-		    if (!createItemOpen) return;
-		    if (!newItemItemNameId) setNewItemItemNameId(itemNames[0]?.id ?? '');
-		  }, [createItemOpen, itemNames, newItemItemNameId]);
-
-	      useEffect(() => {
-	        if (!createItemOpen) {
-	          setCreateItemNameInlineOpen(false);
+		      useEffect(() => {
+		        if (!createItemOpen) {
+		          setCreateItemNameInlineOpen(false);
 	          setCreateItemNameInlineValue('');
 	          setCreateItemNameInlineBusy(false);
 	          setCreateItemNameInlineError(null);
@@ -187,17 +245,18 @@ export default function NewPurchaseRequestView({
 	        }
 	      }, [createItemOpen]);
 
-			  const canSubmit = useMemo(() => {
-			    if (!firmId || !department.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-			    const normalized = items
-			      .map((it) => ({
-			        item: it.item.trim(),
-			        quantity: Number(it.quantity),
-	        specification: it.specification.trim(),
-				    }))
-				    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
-			    return normalized.length > 0;
-			  }, [department, firmId, items, requestedByUserId, requiredDate]);
+					  const canSubmit = useMemo(() => {
+					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+					    if (requestType === 'Project' && !projectId.trim()) return false;
+					    const normalized = items
+					      .map((it) => ({
+					        item: it.item.trim(),
+					        quantity: Number(it.quantity),
+			        specification: it.specification.trim(),
+						    }))
+						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
+					    return normalized.length > 0;
+					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType]);
 
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
@@ -270,7 +329,7 @@ export default function NewPurchaseRequestView({
 		    setCreateValueInlineError(null);
 		  };
 
-		  const submitCreateValue = () => {
+			  const submitCreateValue = () => {
 		    const idx = createValueInlineIndex;
 		    if (idx == null) return;
 		    const specId = newItemSpecs[idx]?.specificationId ?? '';
@@ -315,38 +374,57 @@ export default function NewPurchaseRequestView({
 		        closeCreateValue();
 		      })
 		      .finally(() => setCreateValueInlineBusy(false));
-		  };
+			  };
 
-	  return (
-	    <div className="bg-surface-container-lowest rounded-2xl border border-blue-600/25 p-6 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.35)] space-y-5">
-	      <div>
-        <h3 className="font-headline font-bold text-base text-on-surface">New Purchase Requisition (PR)</h3>
-        <p className="text-sm text-on-surface-variant">Create PR without any rate (rates start from PO stage).</p>
-      </div>
+			  const projectOptions = useMemo(() => {
+			    const list = firmId ? projects.filter((p) => p.firmId === firmId) : projects;
+			    return list.map((p) => ({ value: p.id, label: p.name }));
+			  }, [firmId, projects]);
 
-      {error ? (
-        <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">
-          {error}
-        </div>
-      ) : null}
+				  return (
+				    <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.35)] space-y-5">
+			      {error ? (
+			        <div className="bg-error-container/40 rounded-xl border border-outline-variant p-3 text-sm text-on-surface-variant">
+			          {error}
+			        </div>
+		      ) : null}
 
-	      <div className="rounded-2xl border border-blue-600/20 bg-surface-container-low p-4 shadow-sm">
-	        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+				      <div className="rounded-2xl bg-surface-container-low p-3 shadow-sm">
+		        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 	          <label className="space-y-1">
 	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
 	            <SearchableSelect
 	              value={firmId}
 	              options={firms.map((f) => ({ value: f.id, label: f.name }))}
-              onChange={setFirmId}
-              disabled={loadingFirms}
-              placeholder="Search firm..."
-            />
+	              onChange={setFirmId}
+	              disabled={loadingFirms}
+	              placeholder="Select firm..."
+	            />
 	          </label>
 
-          <label className="space-y-1">
-            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
-            <input className={inputClass} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" />
-          </label>
+	          <label className="space-y-1">
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
+	            <SearchableSelect
+	              value={departmentId}
+	              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+	              onChange={setDepartmentId}
+	              disabled={loadingDepartments}
+	              placeholder="Select department..."
+	              onCreate={(label) =>
+	                createDepartment({ name: label.trim(), createdBy: 'system' }).then((res) => {
+	                  const created = res.department;
+	                  if (!created?.id) return null;
+	                  setDepartments((prev) => {
+	                    if (prev.some((p) => p.id === created.id)) return prev;
+	                    return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+	                  });
+	                  return { value: created.id, label: created.name };
+	                })
+	              }
+	              createLabel={(q) => (q.trim() ? `+ Add Department \"${q.trim()}\"` : '+ Add Department')}
+	              closeOnCreate
+	            />
+	          </label>
 
 	          <label className="space-y-1">
 	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Requested By</div>
@@ -359,211 +437,279 @@ export default function NewPurchaseRequestView({
 	            />
 	          </label>
 
-	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Required Date</div>
-	            <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
-	          </label>
-	        </div>
-	      </div>
+		          <label className="space-y-1">
+		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Required Date</div>
+		            <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
+		          </label>
+		        </div>
 
-			      <div className="bg-surface-container-low rounded-2xl border border-blue-600/20 p-4 shadow-sm space-y-3">
-			        <div className="flex items-center justify-between">
-			          <div>
-			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
-			            <div className="text-xs text-on-surface-variant">Select item (specifications are shown under item).</div>
-			          </div>
-			        </div>
+			        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+			          <label className="space-y-1">
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request Type</div>
+			            <SearchableSelect
+			              value={requestType}
+			              options={[
+			                { value: 'Stock', label: 'Stock' },
+			                { value: 'Project', label: 'Project' },
+			              ]}
+			              onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
+			              placeholder="Search request type..."
+			            />
+			          </label>
 
-				        <div className="rounded-lg border border-blue-600 overflow-hidden">
-				          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-blue-600">
-				            <div className="md:col-span-9 px-3 py-2 md:border-r md:border-blue-600">Item</div>
-				            <div className="md:col-span-2 px-3 py-2 md:border-r md:border-blue-600">Qty</div>
-				            <div className="md:col-span-1 px-3 py-2 text-right">Action</div>
+		          {requestType === 'Project' ? (
+		            <label className="space-y-1 md:col-span-3">
+		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
+		              <SearchableSelect
+		                value={projectId}
+		                options={projectOptions}
+		                onChange={setProjectId}
+		                disabled={loadingProjects}
+		                placeholder={loadingProjects ? 'Loading projects...' : projectOptions.length ? 'Select project...' : 'No projects available'}
+		              />
+		            </label>
+		          ) : null}
+		        </div>
+		      </div>
+
+						      <div className="bg-surface-container-low rounded-2xl p-2 shadow-sm space-y-2">
+				        <div className="flex items-center justify-between">
+				          <div>
+				            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
 				          </div>
+				        </div>
 
-				          {items.map((row, idx) => (
-				            <div
-				              key={idx}
-				              className={[
-				                'grid grid-cols-1 md:grid-cols-12 gap-0 bg-surface-container-lowest',
-				                idx === 0 ? '' : 'border-t border-blue-600',
-				              ].join(' ')}
-				            >
-			              <div className="md:col-span-9 px-3 py-3 md:border-r md:border-blue-600 space-y-2">
-			                <SearchableSelect
-			                  value={row.itemId}
-			                  options={masterItems.map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson) }))}
-			                  onChange={(id) => {
-		                    const found = masterItems.find((it) => it.id === id);
-		                    setItems((prev) =>
-		                      prev.map((p, i) => {
-		                        if (i !== idx) return p;
-		                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
-		                        return {
-		                          ...p,
-		                          itemId: id,
-		                          item: found.itemName,
-		                          specification: formatSpecsLines(found.specificationsJson).join('\n').trim(),
-		                        };
-		                      })
-		                    );
-		                  }}
-			                  disabled={loadingMasterItems}
-			                  placeholder="Search item..."
-			                  createLabel={() => `+ Create New Item`}
-			                  showCreateWhenEmpty
-			                  alwaysShowCreate
-			                  allowEmptyCreate
-			                  closeOnCreate
-		                  onCreate={async (label) => {
-		                    const name = label.trim();
-		                    setCreateItemRowIndex(idx);
-		                    setNewItemUnit('');
-		                    setNewItemDescription('');
-		                    setNewItemSpecs([{ specificationId: '', value: '' }]);
-		                    if (!name) {
-		                      setNewItemItemNameId((prev) => prev || itemNames[0]?.id || '');
-		                      setCreateItemOpen(true);
-		                      return null;
-		                    }
+							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
+							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
+							            <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
+							            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+							            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
+							          </div>
 
-		                    try {
-		                      const created = await createItemName({ name, createdBy: 'system' });
-		                      const next = created.itemName;
-		                      if (next?.id) {
-		                        setItemNames((prev) => {
-		                          if (prev.some((p) => p.id === next.id)) return prev;
-		                          return [...prev, next].sort((a, b) => a.name.localeCompare(b.name));
-		                        });
-		                        setNewItemItemNameId(next.id);
-		                      }
-		                    } catch (e) {
-		                      setError(e instanceof Error ? e.message : String(e));
-		                    }
+					          {items.map((row, idx) => (
+					            <div
+					              key={idx}
+							              className={[
+							                'grid grid-cols-1 md:grid-cols-12 gap-0 bg-surface-container-lowest',
+							                idx === 0 ? '' : 'border-t border-outline-variant',
+							              ].join(' ')}
+							            >
+						              <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
+						                <SearchableSelect
+				                  value={row.itemId}
+				                  options={masterItems
+				                    .filter((it) => {
+				                      if (it.id === row.itemId) return true;
+				                      return !items.some((r, j) => j !== idx && r.itemId && r.itemId === it.id);
+				                    })
+				                    .map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson) }))}
+				                  onChange={(id) => {
+			                    const found = masterItems.find((it) => it.id === id);
+			                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+			                    setItems((prev) =>
+			                      prev.map((p, i) => {
+			                        if (i !== idx) return p;
+			                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
+			                        return {
+			                          ...p,
+			                          itemId: id,
+			                          item: found.itemName,
+			                          specification: formatSpecsLines(found.specificationsJson).join('\n').trim(),
+			                        };
+			                      })
+			                    );
+				                  }}
+				                  disabled={loadingMasterItems}
+				                  placeholder="Search item..."
+				                  allowClear
+				                  createLabel={() => `+ Create New Item`}
+				                  showCreateWhenEmpty
+				                  alwaysShowCreate
+				                  allowEmptyCreate
+				                  closeOnCreate
+			                  onCreate={async (label) => {
+			            const name = label.trim();
+			            setCreateItemRowIndex(idx);
+			                    setNewItemUnit('');
+				                    setNewItemDescription('');
+				                    setNewItemSpecs([{ specificationId: '', value: '' }]);
+			                    setEditingMasterItemId(null);
+			                    if (!name) {
+			                      setNewItemItemNameId('');
+			                      setCreateItemOpen(true);
+			                      return null;
+			                    }
 
-		                    setNewItemUnit('');
-		                    setNewItemDescription('');
-		                    setCreateItemOpen(true);
-		                    return null;
-		                  }}
+			            try {
+			                      const created = await createItemName({ name, createdBy: 'system' });
+			                      const next = created.itemName;
+			                      if (next?.id) {
+			                        setItemNames((prev) => {
+			                          if (prev.some((p) => p.id === next.id)) return prev;
+			                          return [...prev, next].sort((a, b) => a.name.localeCompare(b.name));
+			                        });
+			                        setNewItemItemNameId(next.id);
+			                      }
+			            } catch (e) {
+			                      setError(e instanceof Error ? e.message : String(e));
+			            }
+
+			            setNewItemUnit('');
+			            setNewItemDescription('');
+			            setCreateItemOpen(true);
+			            return null;
+			                  }}
 		                />
-		              </div>
-			              <div className="md:col-span-2 px-3 py-3 md:border-r md:border-blue-600">
-			                <input
-			                  className={inputClass}
-		                  placeholder="Qty"
-		                  inputMode="numeric"
-		                  value={row.quantity}
-		                  onChange={(e) =>
-		                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: e.target.value } : p)))
-		                  }
-			                />
 			              </div>
-				              <div className="md:col-span-1 px-3 py-3 flex md:justify-end">
-			                <button
-		                  type="button"
-		                  className="px-3 py-2 text-xs font-semibold text-on-surface-variant border border-blue-600/30 rounded-lg hover:bg-surface-container-high transition-colors disabled:opacity-50"
-		                  onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-		                  disabled={items.length === 1}
-	                  title={items.length === 1 ? 'At least one item required' : 'Remove item'}
-	                >
-				              Delete
-				            </button>
-				          </div>
-				            </div>
-				          ))}
-					          <div className="border-t border-blue-600 bg-surface-container-lowest px-3 py-2 flex items-center justify-between gap-3">
-						            <div className="flex items-center gap-3">
-						              <button
-						                type="button"
-						                className="px-4 py-2 text-xs font-semibold text-on-primary bg-secondary hover:bg-secondary/90 rounded-lg transition-colors shadow-sm"
-						                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '' }])}
-						              >
+						              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+						                <input
+						                  className={inputClass}
+				                  placeholder="Qty"
+				                  type="number"
+				                  inputMode="numeric"
+				                  min={0}
+				                  step={1}
+				                  value={row.quantity}
+				                  onChange={(e) => {
+				                    const v = String(e.target.value ?? '');
+				                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+				                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: v } : p)));
+				                  }}
+				                />
+				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
+				              </div>
+							              <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
+							                <div className="flex items-center gap-2">
+						                  <button
+						                    type="button"
+						                    className="btn-icon-danger"
+						                    onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
+					                    disabled={items.length === 1}
+					                    title={items.length === 1 ? 'At least one item required' : 'Remove item'}
+					                  >
+				                    <Trash2 size={16} />
+				                  </button>
+					                </div>
+					          </div>
+					            </div>
+						          ))}
+								          <div className="border-t border-outline-variant bg-surface-container-lowest px-2 py-2 flex items-center justify-between gap-3">
+								            <div className="flex items-center gap-3">
+									              <button
+								                type="button"
+								                className="btn-primary"
+								                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '' }])}
+							              >
 						                + Add Item
 						              </button>
 					            </div>
 
 						            <div className="flex items-center gap-2">
-						              <button
-						                type="button"
-					                onClick={onCancel}
-					                className="px-4 py-2 text-xs font-semibold text-on-surface bg-surface-container-high hover:bg-surface-container-highest rounded-lg transition-colors shadow-sm"
-					              >
-					                Cancel
-					              </button>
+								              <button
+								                type="button"
+							                onClick={onCancel}
+							                className="btn"
+							              >
+						                Cancel
+						              </button>
 				              <button
 				                type="button"
 				                onClick={() => {
 				                  if (saving) return;
 					                  setError(null);
+					                  const rowMessages: string[] = [];
+					                  const usedItemIds = new Set<string>();
 					                  const normalizedItems = items
-					                    .map((it) => ({
-					                      item: it.item.trim(),
-					                      quantity: Number(it.quantity),
-					                      specification: it.specification.trim(),
-					                    }))
-					                    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
+					                    .map((it, i) => {
+					                      const itemName = it.item.trim();
+					                      const itemId = String(it.itemId ?? '').trim();
+					                      const quantityNumber = Number(it.quantity);
+					                      const specification = it.specification.trim();
+					                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
+					                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
+					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+					                      else if (!specification) rowMessages[i] = 'Missing specification.';
+					                      if (itemId) usedItemIds.add(itemId);
+					                      return { item: itemName, quantity: quantityNumber, specification };
+					                    })
+					                    .filter((_, i) => !rowMessages[i]);
+					                  setItemRowErrors(rowMessages);
 
-					                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
-					                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-					                    setError('Please fill Firm, Department, Requested By, Required Date, and at least one valid item.');
-					                    return;
-					                  }
+								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
+								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
+								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
+								                    setError('Please fill Firm, Department, Requested By, Required Date, and at least one valid item.');
+								                    return;
+						                  }
+							                  if (requestType === 'Project' && !projectId.trim()) {
+							                    setError('Please select a Project Name for Project-type requisitions.');
+							                    return;
+							                  }
 
-				                  setSaving(true);
-					                  createPurchaseRequest({
-					                    firmId,
-					                    department,
-					                    requestedBy,
-					                    requiredDate,
-					                    items: normalizedItems,
-					                  })
+					                  setSaving(true);
+						                  createPurchaseRequest({
+						                    firmId,
+						                    requestType,
+						                    projectId: requestType === 'Project' ? projectId.trim() : null,
+						                    department,
+						                    requestedBy,
+						                    requiredDate,
+						                    items: normalizedItems,
+						                  })
 				                    .then((created) => onCreated(created.pr.id))
 				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}
-					                className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-					                disabled={saving || !canSubmit}
-					              >
-					                {saving ? 'Creating...' : 'Create'}
-					              </button>
+							                className="btn-primary"
+							                disabled={saving || !canSubmit}
+							              >
+						                {saving ? (
+						                  <span className="inline-flex items-center gap-2">
+						                    <Spinner className="h-3 w-3" />
+						                    Creating...
+						                  </span>
+						                ) : (
+						                  'Create'
+						                )}
+						              </button>
 				            </div>
 				          </div>
 				        </div>
 	      </div>
 
-		      {createItemOpen ? (
-		        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-		          <button
-		            type="button"
-		            className="absolute inset-0 bg-black/40"
-		            aria-label="Close"
+			      {createItemOpen ? (
+			        <div className="fixed inset-0 z-50">
+			          <button
+			            type="button"
+			            className="absolute inset-0 bg-black/40"
+			            aria-label="Close"
 	            onClick={() => {
 	              setCreateItemOpen(false);
 	              setCreateItemRowIndex(null);
 	            }}
 	          />
-			          <div className="relative w-full max-w-3xl bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl max-h-[85vh] overflow-auto">
-		            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
-		              <div className="text-sm font-bold text-on-surface">Create Item</div>
-		              <button
-		                type="button"
-	                className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-	                onClick={() => {
-	                  setCreateItemOpen(false);
-	                  setCreateItemRowIndex(null);
-	                }}
-	              >
-	                Close
-		              </button>
-		            </div>
+					          <div className="relative w-full h-full bg-surface-container-lowest border border-outline-variant shadow-xl flex flex-col">
+				            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
+					              <div className="text-sm font-bold text-on-surface">{editingMasterItemId ? 'Edit Item' : 'Create Item'}</div>
+				              <button
+			                type="button"
+		                className="btn btn-sm"
+		                onClick={() => {
+		                  setCreateItemOpen(false);
+		                  setCreateItemRowIndex(null);
+		                  setEditingMasterItemId(null);
+		                }}
+		              >
+		                Close
+			              </button>
+			            </div>
 
-			            <div className="p-5 space-y-3">
-			              {error ? (
-			                <div className="bg-error-container/30 rounded-xl border border-outline-variant/10 p-3 text-sm text-on-surface">
-			                  {error}
-			                </div>
-			              ) : null}
+				            <div className="flex-1 overflow-auto p-5 space-y-3">
+					              {error ? (
+					                <div className="bg-error-container/30 rounded-xl border border-outline-variant p-3 text-sm text-on-surface-variant">
+					                  {error}
+					                </div>
+				              ) : null}
 
 			              {createItemNameInlineOpen
 			                ? createPortal(
@@ -574,12 +720,12 @@ export default function NewPurchaseRequestView({
 			                        aria-label="Close"
 			                        onClick={closeCreateItemName}
 			                      />
-			                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl">
-			                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
+				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
+				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
 			                          <div className="text-sm font-bold text-on-surface">Create new Item Name</div>
 			                          <button
 			                            type="button"
-			                            className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                            className="btn btn-sm"
 			                            onClick={closeCreateItemName}
 			                          >
 			                            Close
@@ -603,7 +749,7 @@ export default function NewPurchaseRequestView({
 			                          <div className="flex justify-end gap-2">
 			                            <button
 			                              type="button"
-			                              className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                              className="btn btn-sm"
 			                              onClick={closeCreateItemName}
 			                            >
 			                              Cancel
@@ -633,12 +779,12 @@ export default function NewPurchaseRequestView({
 			                        aria-label="Close"
 			                        onClick={closeCreateSpec}
 			                      />
-			                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl">
-			                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
+				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
+				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
 			                          <div className="text-sm font-bold text-on-surface">Create new Specification</div>
 			                          <button
 			                            type="button"
-			                            className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                            className="btn btn-sm"
 			                            onClick={closeCreateSpec}
 			                          >
 			                            Close
@@ -660,7 +806,7 @@ export default function NewPurchaseRequestView({
 			                          <div className="flex justify-end gap-2">
 			                            <button
 			                              type="button"
-			                              className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                              className="btn btn-sm"
 			                              onClick={closeCreateSpec}
 			                            >
 			                              Cancel
@@ -690,12 +836,12 @@ export default function NewPurchaseRequestView({
 			                        aria-label="Close"
 			                        onClick={closeCreateValue}
 			                      />
-			                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl">
-			                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
+				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
+				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
 			                          <div className="text-sm font-bold text-on-surface">Add new Value</div>
 			                          <button
 			                            type="button"
-			                            className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                            className="btn btn-sm"
 			                            onClick={closeCreateValue}
 			                          >
 			                            Close
@@ -717,7 +863,7 @@ export default function NewPurchaseRequestView({
 			                          <div className="flex justify-end gap-2">
 			                            <button
 			                              type="button"
-			                              className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+			                              className="btn btn-sm"
 			                              onClick={closeCreateValue}
 			                            >
 			                              Cancel
@@ -757,15 +903,32 @@ export default function NewPurchaseRequestView({
 			                />
 			              </label>
 
-		              <label className="space-y-1">
-		                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
-		                <input
-		                  className={inputClass}
-		                  value={newItemUnit}
-		                  onChange={(e) => setNewItemUnit(e.target.value)}
-		                  placeholder="Nos"
-		                />
-		              </label>
+			              <label className="space-y-1">
+			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
+			                <SearchableSelect
+			                  value={newItemUnit}
+			                  options={units.map((u) => ({ value: u.name, label: u.name }))}
+			                  onChange={setNewItemUnit}
+			                  placeholder={loadingUnits ? 'Loading units...' : 'Select unit...'}
+			                  disabled={loadingUnits}
+			                  showCreateWhenEmpty
+			                  allowEmptyCreate
+			                  closeOnCreate
+			                  createLabel={(q) => (q.trim() ? `+ Create Unit "${q.trim()}"` : '+ Create Unit')}
+			                  onCreate={async (label) => {
+			                    const name = label.trim();
+			                    if (!name) return null;
+			                    const created = await createUnit({ name, createdBy: 'system' });
+			                    const unit = created.unit;
+			                    if (!unit?.id) return null;
+			                    setUnits((prev) => {
+			                      if (prev.some((p) => p.id === unit.id)) return prev;
+			                      return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+			                    });
+			                    return { value: unit.name, label: unit.name };
+			                  }}
+			                />
+			              </label>
 
 		              <label className="space-y-1">
 		                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
@@ -780,12 +943,12 @@ export default function NewPurchaseRequestView({
 	              <div className="space-y-2">
 	                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
 		                {newItemSpecs.map((row, sIdx) => (
-		                  <div key={sIdx} className="bg-surface-container-low rounded-lg border border-outline-variant/10 p-3 space-y-2">
+				                  <div key={sIdx} className="bg-surface-container-low rounded-lg border border-outline-variant p-3 space-y-2">
 	                    <div className="flex items-center justify-between gap-2">
 	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Spec Row {sIdx + 1}</div>
 	                      <button
 	                        type="button"
-	                        className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
+                        className="btn btn-sm disabled:opacity-50"
 	                        disabled={newItemSpecs.length === 1}
 	                        onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== sIdx))}
 	                      >
@@ -849,7 +1012,7 @@ export default function NewPurchaseRequestView({
 
 	                <button
 	                  type="button"
-	                  className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+	                  className="btn btn-sm"
 	                  onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '' }])}
 	                >
 	                  + Add Spec Row
@@ -857,16 +1020,17 @@ export default function NewPurchaseRequestView({
 	              </div>
 
 		              <div className="flex justify-end gap-2">
-	                <button
-	                  type="button"
-	                  className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-	                  onClick={() => {
-	                    setCreateItemOpen(false);
-	                    setCreateItemRowIndex(null);
-	                  }}
-	                >
-	                  Cancel
-	                </button>
+		                <button
+		                  type="button"
+		                  className="btn btn-sm"
+		                  onClick={() => {
+		                    setCreateItemOpen(false);
+		                    setCreateItemRowIndex(null);
+		                    setEditingMasterItemId(null);
+		                  }}
+		                >
+		                  Cancel
+		                </button>
 	                <button
 	                  type="button"
 	                  className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
@@ -876,46 +1040,58 @@ export default function NewPurchaseRequestView({
 	                    newItemSpecs.filter((s) => s.specificationId.trim() && s.value.trim()).length === 0
 	                  }
 	                  onClick={() => {
-	                    if (creatingItem) return;
-	                    setCreatingItem(true);
-	                    setError(null);
-	                    createItem({
-	                      itemNameId: newItemItemNameId,
-	                      unit: newItemUnit,
-	                      description: newItemDescription,
-	                      specs: newItemSpecs,
-	                      createdBy: 'system',
-	                    })
-	                      .then(() => fetchItems())
-	                      .then((rows) => {
-	                        setMasterItems(rows);
-	                        const rowIdx = createItemRowIndex;
-	                        if (rowIdx == null) return;
-	                        const created = rows[0];
-	                        if (!created) return;
+		                    if (creatingItem) return;
+		                    setCreatingItem(true);
+		                    setError(null);
+		                    const action = editingMasterItemId
+		                      ? updateItem(editingMasterItemId, {
+		                          itemNameId: newItemItemNameId,
+		                          unit: newItemUnit,
+		                          description: newItemDescription,
+		                          specs: newItemSpecs,
+		                          updatedBy: 'system',
+		                        })
+		                      : createItem({
+		                          itemNameId: newItemItemNameId,
+		                          unit: newItemUnit,
+		                          description: newItemDescription,
+		                          specs: newItemSpecs,
+		                          createdBy: 'system',
+		                        });
+		                    action
+		                      .then(() => fetchItems())
+		                      .then((rows) => {
+		                        setMasterItems(rows);
+		                        const rowIdx = createItemRowIndex;
+		                        if (rowIdx == null) return;
+		                        const updatedOrCreated = editingMasterItemId
+		                          ? rows.find((r) => r.id === editingMasterItemId) ?? null
+		                          : rows[0] ?? null;
+		                        if (!updatedOrCreated) return;
 		                        setItems((prev) =>
 		                          prev.map((p, i) =>
 		                            i === rowIdx
 		                              ? {
 		                                  ...p,
-		                                  itemId: created.id,
-		                                  item: created.itemName,
-		                                  specification: formatSpecsLines(created.specificationsJson).join('\n').trim(),
+		                                  itemId: updatedOrCreated.id,
+		                                  item: updatedOrCreated.itemName,
+		                                  specification: formatSpecsLines(updatedOrCreated.specificationsJson).join('\n').trim(),
 		                                }
 		                              : p
 		                          )
 		                        );
-	                      })
-	                      .then(() => {
-	                        setCreateItemOpen(false);
-	                        setCreateItemRowIndex(null);
-	                      })
-	                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-	                      .finally(() => setCreatingItem(false));
-	                  }}
-	                >
-	                  {creatingItem ? 'Creating...' : 'Create Item'}
-	                </button>
+		                      })
+		                      .then(() => {
+		                        setCreateItemOpen(false);
+		                        setCreateItemRowIndex(null);
+		                        setEditingMasterItemId(null);
+		                      })
+		                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                      .finally(() => setCreatingItem(false));
+		                  }}
+		                >
+		                  {creatingItem ? 'Saving...' : editingMasterItemId ? 'Save Item' : 'Create Item'}
+		                </button>
 	              </div>
 			            </div>
 		                  </div>

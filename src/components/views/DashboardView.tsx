@@ -7,7 +7,7 @@ export default function DashboardView() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard label="Active Requests" value="18" icon={ClipboardList} trend={{ value: '4.2% from last week', isUp: false }} />
-        <StatCard label="Total Monthly Spend" value="$142,502.20" icon={CreditCard} subtext="Budget: $180,000 max" progress={79} />
+        <StatCard label="Total Monthly Spend" value="142,502.20" icon={CreditCard} subtext="Budget: 180,000 max" progress={79} />
         <StatCard label="Avg Approval Time" value="1.4 Days" icon={Timer} trend={{ value: '0.2d increase this period', isUp: true }} />
       </div>
 
@@ -20,4 +20,3 @@ export default function DashboardView() {
     </div>
   );
 }
-

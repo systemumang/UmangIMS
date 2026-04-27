@@ -1,8 +1,10 @@
-import React from 'react';
-import { MoreVertical, ChevronLeft, ChevronRight, Download, Filter, Calendar } from 'lucide-react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Download, Filter, Calendar } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { avatarColorClass, getInitials, statusPillClass, type Firm, type PurchaseRequest } from '@/src/lib/purchaseRequests';
-import { formatDateDDMMYYYY } from '@/src/lib/date';
+import { formatDateDDMMYYYY, formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import SearchableSelect from '@/src/components/common/SearchableSelect';
+import Pagination from '@/src/components/common/Pagination';
 
 import { motion } from 'motion/react';
 			
@@ -11,56 +13,143 @@ export default function PurchaseTable({
   firms,
   onSelectRequest,
   onExportExcel,
+  showStatusFilter = true,
 }: {
   requests: PurchaseRequest[];
   firms: Firm[];
   onSelectRequest?: (id: string) => void;
 	onExportExcel?: () => void;
-	}) {
-		  return (
-		    <div className="space-y-6">
+  showStatusFilter?: boolean;
+		}) {
+  const [statusFilter, setStatusFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+	  const departmentOptions = useMemo(() => {
+	    const set = new Set<string>();
+	    for (const r of requests) {
+	      const d = String(r.department ?? '').trim();
+	      if (d) set.add(d);
+	    }
+	    return Array.from(set).sort((a, b) => a.localeCompare(b));
+	  }, [requests]);
+
+	  const statusFilterOptions = useMemo(
+	    () => [
+	      { value: '', label: 'All Statuses' },
+	      { value: 'Pending Approval', label: 'Pending Approval' },
+	      { value: 'Approved', label: 'Approved' },
+	      { value: 'Rejected', label: 'Rejected' },
+	    ],
+	    []
+	  );
+
+	  const departmentFilterOptions = useMemo(
+	    () => [{ value: '', label: 'All Depts' }, ...departmentOptions.map((d) => ({ value: d, label: d }))],
+	    [departmentOptions]
+	  );
+
+	  const compactControlClass =
+	    'w-full h-6 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-xs font-medium text-on-surface-variant outline-none focus:ring-0';
+
+	  const firmNameById = useMemo(() => Object.fromEntries(firms.map((f) => [f.id, f.name])), [firms]);
+
+	  const filteredRequests = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+    const list = requests.filter((r) => {
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (departmentFilter && r.department !== departmentFilter) return false;
+      if (from || to) {
+        const rd = r.requiredDate ? new Date(r.requiredDate) : null;
+        if (!rd || Number.isNaN(rd.getTime())) return false;
+        if (from && rd < from) return false;
+        if (to) {
+          const end = new Date(to);
+          end.setHours(23, 59, 59, 999);
+          if (rd > end) return false;
+        }
+      }
+      return true;
+    });
+
+    return list
+      .slice()
+      .sort((a, b) => String(b.requisitionDate ?? '').localeCompare(String(a.requisitionDate ?? '')));
+	  }, [dateFrom, dateTo, departmentFilter, requests, statusFilter]);
+
+	  const pageSize = 20;
+	  const [page, setPage] = useState(1);
+
+	  useEffect(() => {
+	    setPage(1);
+	  }, [statusFilter, departmentFilter, dateFrom, dateTo]);
+
+	  const pagedRequests = useMemo(() => {
+	    const start = (page - 1) * pageSize;
+	    return filteredRequests.slice(start, start + pageSize);
+	  }, [filteredRequests, page, pageSize]);
+
+			  return (
+			    <div className="space-y-6">
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
-            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Status</label>
-	            <select className="bg-transparent border-none text-xs font-medium focus:ring-0 cursor-pointer p-0 pr-6 outline-none">
-	              <option>All Statuses</option>
-	              <option>Pending Approval</option>
-	              <option>Approved</option>
-	              <option>Rejected</option>
-	            </select>
-          </div>
+              {showStatusFilter ? (
+		            <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
+		              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Status</label>
+				              <SearchableSelect
+				                className="w-[160px]"
+				                options={statusFilterOptions}
+				                value={statusFilter}
+				                onChange={setStatusFilter}
+				                placeholder="All Statuses"
+				                controlClassName={compactControlClass}
+				              />
+			            </div>
+              ) : null}
           <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
             <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Date Range</label>
             <div className="flex items-center gap-2 text-xs font-medium">
-              <span>Oct 01, 2023</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-transparent border-none text-xs font-medium focus:ring-0 outline-none"
+              />
               <span className="text-outline-variant">—</span>
-              <span>Dec 31, 2023</span>
+	              <input
+	                type="date"
+	                value={dateTo}
+	                onChange={(e) => setDateTo(e.target.value)}
+	                className="bg-transparent border-none text-xs font-medium focus:ring-0 outline-none"
+	              />
               <Calendar size={14} className="text-outline-variant" />
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
-            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</label>
-            <select className="bg-transparent border-none text-xs font-medium focus:ring-0 cursor-pointer p-0 pr-6 outline-none">
-              <option>All Depts</option>
-              <option>Operations</option>
-              <option>R&D</option>
-              <option>Marketing</option>
-              <option>Logistics</option>
-            </select>
-          </div>
+	          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
+	            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</label>
+		            <SearchableSelect
+		              className="w-[160px]"
+		              options={departmentFilterOptions}
+		              value={departmentFilter}
+		              onChange={setDepartmentFilter}
+		              placeholder="All Depts"
+		              controlClassName={compactControlClass}
+		            />
+		          </div>
         </div>
 	        <div className="flex items-center gap-2">
 	          <button
 	            type="button"
 	            onClick={onExportExcel}
-	            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors"
+            className="btn btn-sm"
 	          >
 	            <Download size={14} />
 	            Export Excel
 	          </button>
-	          <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors">
+          <button className="btn btn-sm">
 	            <Filter size={14} />
             Advanced Filters
           </button>
@@ -72,18 +161,18 @@ export default function PurchaseTable({
 	        <div className="overflow-x-auto">
 	          <table className="w-full text-left border-collapse">
 	            <thead>
-		              <tr className="bg-surface-container-low/50 border-b border-blue-600">
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">PR ID</th>
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Firm</th>
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Department</th>
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requested By</th>
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Required Date</th>
-		                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Status</th>
-		                <th className="px-6 py-4 border border-blue-600"></th>
-		              </tr>
+			              <tr className="bg-surface-container-low/50 border-b border-blue-600">
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">PR ID</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Firm</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Department</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requested By</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requisition Date</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Required Date</th>
+			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Status</th>
+			              </tr>
 	            </thead>
 		            <tbody>
-		              {requests.map((req, idx) => (
+				              {pagedRequests.map((req, idx) => (
 		                <motion.tr 
 		                  key={req.id} 
 	                  initial={{ opacity: 0, y: 10 }}
@@ -103,7 +192,7 @@ export default function PurchaseTable({
 		                >
 		                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{req.id}</td>
 		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">
-		                    {firms.find((f) => f.id === req.firmId)?.name ?? req.firmId}
+			                    {firmNameById[req.firmId] ?? req.firmId}
 		                  </td>
 		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">{req.department}</td>
 		                  <td className="px-6 py-4 border border-blue-600">
@@ -111,11 +200,12 @@ export default function PurchaseTable({
 		                      <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold", avatarColorClass(req.requestedBy))}>
 		                        {getInitials(req.requestedBy)}
 		                      </div>
-		                      <span className="text-sm font-medium text-on-surface">{req.requestedBy}</span>
-		                    </div>
-		                  </td>
-			                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">{formatDateDDMMYYYY(req.requiredDate)}</td>
-		                  <td className="px-6 py-4 border border-blue-600">
+			                      <span className="text-sm font-medium text-on-surface">{req.requestedBy}</span>
+			                    </div>
+			                  </td>
+				                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">{formatDateDDMMYYYYOnly(req.requisitionDate)}</td>
+				                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">{formatDateDDMMYYYYOnly(req.requiredDate)}</td>
+			                  <td className="px-6 py-4 border border-blue-600">
 		                    <span className={cn(
 		                      "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
 		                      statusPillClass(req.status)
@@ -123,41 +213,17 @@ export default function PurchaseTable({
 		                      {req.status}
 		                    </span>
 	                  </td>
-		                  <td className="px-6 py-4 text-right border border-blue-600">
-		                    <button
-		                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-outline-variant hover:text-primary"
-		                      type="button"
-		                      onClick={(e) => e.stopPropagation()}
-	                    >
-	                      <MoreVertical size={16} />
-	                    </button>
-	                  </td>
 	                </motion.tr>
 	              ))}
 	            </tbody>
           </table>
         </div>
 
-	        {/* Pagination */}
-		        <div className="px-6 py-4 bg-surface-container-low/30 border-t border-blue-600 flex items-center justify-between">
-	          <span className="text-xs text-on-surface-variant">
-	            {requests.length ? `Showing 1 to ${requests.length} of ${requests.length} entries` : 'Showing 0 entries'}
-	          </span>
-	          <div className="flex items-center gap-1">
-            <button className="p-1.5 rounded hover:bg-surface-container transition-colors disabled:opacity-30" disabled>
-              <ChevronLeft size={16} />
-            </button>
-            <button className="px-3 py-1 text-xs font-bold bg-primary text-on-primary rounded shadow-sm">1</button>
-            <button className="px-3 py-1 text-xs font-medium text-on-surface-variant hover:bg-surface-container rounded transition-colors">2</button>
-            <button className="px-3 py-1 text-xs font-medium text-on-surface-variant hover:bg-surface-container rounded transition-colors">3</button>
-            <span className="px-2 text-outline-variant">...</span>
-            <button className="px-3 py-1 text-xs font-medium text-on-surface-variant hover:bg-surface-container rounded transition-colors">25</button>
-            <button className="p-1.5 rounded hover:bg-surface-container transition-colors">
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+		        <div className="px-6 py-4 bg-surface-container-low/30 border-t border-blue-600">
+		          <Pagination totalItems={filteredRequests.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+		        </div>
       </div>
     </div>
   );
 }
+

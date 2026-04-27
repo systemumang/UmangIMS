@@ -1,47 +1,73 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import { Trash2 } from 'lucide-react';
 import {
+  createDepartment,
   createFirm,
-  createItem,
-  createItemName,
-	  createSpecification,
-	  createSpecificationValue,
-	  createStore,
-	  createSupplier,
+	  createProject,
+	  createItem,
+	  createUnit,
+	  createItemCategory,
+	  createItemName,
+		  createSpecification,
+		  createSpecificationValue,
+		  createStore,
+		  createSupplier,
+	  createTransporter,
 	  createUser,
-	  deleteFirm,
+  deleteDepartment,
+  deleteFirm,
+	  deleteProject,
 	  deleteItem,
+	  deleteUnit,
+	  deleteItemCategory,
 	  deleteItemName,
-	  deleteSpecification,
-	  deleteSpecificationValue,
-	  deleteStore,
+		  deleteSpecification,
+		  deleteSpecificationValue,
+		  deleteStore,
 	  deleteSupplier,
+	  deleteTransporter,
 	  deleteUser,
-	  fetchFirms,
+  fetchDepartments,
+  fetchFirms,
+	  fetchProjects,
+	  fetchUnits,
+	  fetchItemCategories,
 	  fetchItemNames,
 	  fetchItems,
-	  fetchSpecifications,
-	  fetchSpecificationValues,
+		  fetchSpecifications,
+		  fetchSpecificationValues,
 	  fetchStores,
 	  fetchSuppliers,
+	  fetchTransporters,
 	  fetchUsers,
-	  type Firm,
+  type Department,
+  type Firm,
+	  type Project,
 	  type Item,
+	  type Unit,
+	  type ItemCategory,
 	  type ItemName,
-	  type Specification,
-	  type SpecificationValue,
-	  type Store,
+		  type Specification,
+		  type SpecificationValue,
+		  type Store,
 	  type Supplier,
+	  type Transporter,
 	  type User,
-	  updateFirm,
+  updateDepartment,
+  updateFirm,
+	  updateProject,
 	  updateItem,
+	  updateUnit,
+	  updateItemCategory,
 	  updateItemName,
-	  updateSpecification,
-	  updateSpecificationValue,
-	  updateStore,
+		  updateSpecification,
+		  updateSpecificationValue,
+		  updateStore,
 	  updateSupplier,
+	  updateTransporter,
 	  updateUser,
-	} from '@/src/lib/masters';
+		} from '@/src/lib/masters';
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
@@ -77,27 +103,56 @@ export default function MastersView({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-	  const [firms, setFirms] = useState<Firm[]>([]);
-	  const [stores, setStores] = useState<Store[]>([]);
-	  const [users, setUsers] = useState<User[]>([]);
-	  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-	  const [itemNames, setItemNames] = useState<ItemName[]>([]);
-	  const [specs, setSpecs] = useState<Specification[]>([]);
-	  const [specValues, setSpecValues] = useState<SpecificationValue[]>([]);
-	  const [items, setItems] = useState<Item[]>([]);
+		  const [firms, setFirms] = useState<Firm[]>([]);
+		  const [stores, setStores] = useState<Store[]>([]);
+			  const [departments, setDepartments] = useState<Department[]>([]);
+			  const [users, setUsers] = useState<User[]>([]);
+			  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+			  const [transporters, setTransporters] = useState<Transporter[]>([]);
+			  const [projects, setProjects] = useState<Project[]>([]);
+			  const [units, setUnits] = useState<Unit[]>([]);
+			  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
+			  const [itemNames, setItemNames] = useState<ItemName[]>([]);
+		  const [specs, setSpecs] = useState<Specification[]>([]);
+		  const [specValues, setSpecValues] = useState<SpecificationValue[]>([]);
+			  const [items, setItems] = useState<Item[]>([]);
 
-	  const [newFirmName, setNewFirmName] = useState('');
-	  const [newStoreFirmId, setNewStoreFirmId] = useState('');
-	  const [newStoreName, setNewStoreName] = useState('');
-	  const [newUserName, setNewUserName] = useState('');
-	  const [newUserEmail, setNewUserEmail] = useState('');
-	  const [newUserDesignation, setNewUserDesignation] = useState('');
+			  const [newFirmName, setNewFirmName] = useState('');
+			  const [newFirmCin, setNewFirmCin] = useState('');
+			  const [newFirmGstNumber, setNewFirmGstNumber] = useState('');
+			  const [newFirmAddress, setNewFirmAddress] = useState('');
+			  const [newFirmPhone, setNewFirmPhone] = useState('');
+			  const [newFirmLogoUrl, setNewFirmLogoUrl] = useState('');
+			  const [newFirmTermsConditions, setNewFirmTermsConditions] = useState('');
+				  const [newDepartmentName, setNewDepartmentName] = useState('');
+				  const [newStoreFirmId, setNewStoreFirmId] = useState('');
+				  const [newStoreName, setNewStoreName] = useState('');
+				  const [newStoreLocation, setNewStoreLocation] = useState('');
+			  const [newProjectFirmId, setNewProjectFirmId] = useState('');
+			  const [newProjectName, setNewProjectName] = useState('');
+			  const [newProjectClientName, setNewProjectClientName] = useState('');
+			  const [newProjectStartDate, setNewProjectStartDate] = useState('');
+		  const [newProjectEndDate, setNewProjectEndDate] = useState('');
+		  const [newProjectStatus, setNewProjectStatus] = useState('');
+		  const [newUserName, setNewUserName] = useState('');
+		  const [newUserEmail, setNewUserEmail] = useState('');
+		  const [newUserDesignation, setNewUserDesignation] = useState('');
 		  const [newUserPassword, setNewUserPassword] = useState('');
 		  const [newUserMobile, setNewUserMobile] = useState('');
-		  const [newSupplierName, setNewSupplierName] = useState('');
-		  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
-		  const [newItemName, setNewItemName] = useState('');
-		  const [newSpecName, setNewSpecName] = useState('');
+				  const [newSupplierName, setNewSupplierName] = useState('');
+				  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
+				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
+				  const [newSupplierAddress, setNewSupplierAddress] = useState('');
+				  const [newSupplierPhone, setNewSupplierPhone] = useState('');
+				  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
+				  const [newTransporterName, setNewTransporterName] = useState('');
+				  const [newTransporterPhone, setNewTransporterPhone] = useState('');
+				  const [newUnitName, setNewUnitName] = useState('');
+				  const [newItemCategoryName, setNewItemCategoryName] = useState('');
+				  const [newItemName, setNewItemName] = useState('');
+				  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
+				  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
+			  const [newSpecName, setNewSpecName] = useState('');
 	  const [specIdForValues, setSpecIdForValues] = useState('');
 	  const [newSpecValue, setNewSpecValue] = useState('');
 	  const [newSpecValueSpecId, setNewSpecValueSpecId] = useState('');
@@ -143,28 +198,63 @@ export default function MastersView({
 	    setEditCtx(null);
 	  };
 
-		  const openAddModal = () => {
-		    setEditCtx(null);
-		    setError(null);
-		    if (tab === 'firms') setNewFirmName('');
-		    if (tab === 'stores') setNewStoreName('');
-		    if (tab === 'users') {
-		      setNewUserName('');
-		      setNewUserEmail('');
-		      setNewUserDesignation('');
+					  const openAddModal = () => {
+					    setEditCtx(null);
+					    setError(null);
+					    if (tab === 'firms') {
+					      setNewFirmName('');
+					      setNewFirmCin('');
+					      setNewFirmGstNumber('');
+					      setNewFirmAddress('');
+					      setNewFirmPhone('');
+					      setNewFirmLogoUrl('');
+					      setNewFirmTermsConditions('');
+						    }
+						    if (tab === 'departments') setNewDepartmentName('');
+						    if (tab === 'stores') {
+						      setNewStoreFirmId('');
+						      setNewStoreName('');
+						      setNewStoreLocation('');
+						    }
+					    if (tab === 'projects') {
+					      setNewProjectFirmId('');
+					      setNewProjectName('');
+					      setNewProjectClientName('');
+					      setNewProjectStartDate('');
+				      setNewProjectEndDate('');
+				      setNewProjectStatus('');
+				    }
+				    if (tab === 'users') {
+				      setNewUserName('');
+			      setNewUserEmail('');
+			      setNewUserDesignation('');
 		      setNewUserPassword('');
 		      setNewUserMobile('');
 		    }
-			    if (tab === 'suppliers') {
-			      setNewSupplierName('');
-			      setNewSupplierPaymentTerms('');
-			    }
-		    if (tab === 'itemNames') setNewItemName('');
-		    if (tab === 'specs') setNewSpecName('');
-		    if (tab === 'specValues') {
-		      setNewSpecValue('');
-	      setNewSpecValueSpecId(specIdForValues || specs[0]?.id || '');
-	    }
+					    if (tab === 'suppliers') {
+					      setNewSupplierName('');
+					      setNewSupplierGstNumber('');
+					      setNewSupplierGstType('Intra-State');
+					      setNewSupplierAddress('');
+					      setNewSupplierPhone('');
+					      setNewSupplierPaymentTerms('');
+					    }
+				    if (tab === 'transporters') {
+				      setNewTransporterName('');
+				      setNewTransporterPhone('');
+				    }
+				    if (tab === 'units') setNewUnitName('');
+				    if (tab === 'itemCategories') setNewItemCategoryName('');
+				    if (tab === 'itemNames') {
+				      setNewItemName('');
+				      setNewItemNameUnitId('');
+				      setNewItemNameCategoryId('');
+				    }
+				    if (tab === 'specs') setNewSpecName('');
+			    if (tab === 'specValues') {
+			      setNewSpecValue('');
+		      setNewSpecValueSpecId(specIdForValues || '');
+		    }
 	    if (tab === 'items') {
 	      setNewItemUnit('');
 	      setNewItemDescription('');
@@ -173,39 +263,80 @@ export default function MastersView({
 	    setAddOpen(true);
 	  };
 
-		  const openEditModal = (id: string) => {
-		    setError(null);
-		    setEditCtx({ tab, id });
-		    if (tab === 'firms') {
-		      const row = firms.find((f) => f.id === id);
-		      setNewFirmName(row?.name ?? '');
-		    }
-		    if (tab === 'stores') {
-		      const row = stores.find((s) => s.id === id);
-		      if (row) {
-		        setNewStoreFirmId(row.firmId);
-		        setNewStoreName(row.name);
-		      }
-		    }
-		    if (tab === 'users') {
-		      const row = users.find((u) => u.id === id);
-		      if (row) {
-		        setNewUserName(row.name ?? '');
+					  const openEditModal = (id: string) => {
+					    setError(null);
+					    setEditCtx({ tab, id });
+					    if (tab === 'firms') {
+					      const row = firms.find((f) => f.id === id);
+					      setNewFirmName(row?.name ?? '');
+					      setNewFirmCin(row?.cin ?? '');
+					      setNewFirmGstNumber(row?.gstNumber ?? '');
+					      setNewFirmAddress(row?.address ?? '');
+					      setNewFirmPhone(row?.phone ?? '');
+					      setNewFirmLogoUrl(row?.logoUrl ?? '');
+					      setNewFirmTermsConditions(row?.termsConditions ?? '');
+					    }
+			    if (tab === 'departments') {
+			      const row = departments.find((d) => d.id === id);
+			      setNewDepartmentName(row?.name ?? '');
+			    }
+					    if (tab === 'stores') {
+					      const row = stores.find((s) => s.id === id);
+					      if (row) {
+				        setNewStoreFirmId(row.firmId);
+				        setNewStoreName(row.name);
+				        setNewStoreLocation(String(row.location ?? ''));
+				      }
+				    }
+				    if (tab === 'projects') {
+				      const row = projects.find((p) => p.id === id);
+				      if (row) {
+			        setNewProjectFirmId(row.firmId);
+			        setNewProjectName(row.name ?? '');
+			        setNewProjectClientName(row.clientName ?? '');
+			        setNewProjectStartDate(row.startDate ?? '');
+			        setNewProjectEndDate(row.endDate ?? '');
+			        setNewProjectStatus(row.status ?? '');
+			      }
+			    }
+			    if (tab === 'users') {
+			      const row = users.find((u) => u.id === id);
+			      if (row) {
+			        setNewUserName(row.name ?? '');
 		        setNewUserEmail(row.email ?? '');
 		        setNewUserDesignation(row.designation ?? '');
 		        setNewUserPassword('');
 		        setNewUserMobile(row.mobile ?? '');
 		      }
 		    }
-			    if (tab === 'suppliers') {
-			      const row = suppliers.find((s) => s.id === id);
-			      setNewSupplierName(row?.name ?? '');
-			      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
+					    if (tab === 'suppliers') {
+					      const row = suppliers.find((s) => s.id === id);
+					      setNewSupplierName(row?.name ?? '');
+					      setNewSupplierGstNumber(row?.gstNumber ?? '');
+					      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
+					      setNewSupplierAddress(row?.address ?? '');
+					      setNewSupplierPhone(row?.phone ?? '');
+					      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
+					    }
+				    if (tab === 'transporters') {
+				      const row = transporters.find((t) => t.id === id);
+				      setNewTransporterName(row?.name ?? '');
+				      setNewTransporterPhone(row?.phone ?? '');
+				    }
+			    if (tab === 'units') {
+			      const row = units.find((u) => u.id === id);
+			      setNewUnitName(row?.name ?? '');
 			    }
-	    if (tab === 'itemNames') {
-	      const row = itemNames.find((n) => n.id === id);
-	      setNewItemName(row?.name ?? '');
-	    }
+			    if (tab === 'itemCategories') {
+			      const row = itemCategories.find((c) => c.id === id);
+			      setNewItemCategoryName(row?.name ?? '');
+			    }
+			    if (tab === 'itemNames') {
+			      const row = itemNames.find((n) => n.id === id);
+		      setNewItemName(row?.name ?? '');
+			      setNewItemNameUnitId(row?.unitId ?? '');
+			      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
+		    }
 	    if (tab === 'specs') {
 	      const row = specs.find((s) => s.id === id);
 	      setNewSpecName(row?.name ?? '');
@@ -247,19 +378,29 @@ export default function MastersView({
 	    setAddOpen(true);
 	  };
 
-		  const addTitle = useMemo(() => {
-		    const verb = editCtx?.tab === tab ? 'Edit' : 'Add';
-		    switch (tab) {
-		      case 'firms':
-		        return `${verb} Firm`;
-		      case 'stores':
-		        return `${verb} Store`;
-		      case 'users':
-		        return `${verb} User`;
-		      case 'suppliers':
-		        return `${verb} Supplier`;
-		      case 'itemNames':
-		        return `${verb} Item Name`;
+			  const addTitle = useMemo(() => {
+			    const verb = editCtx?.tab === tab ? 'Edit' : 'Add';
+				    switch (tab) {
+				      case 'firms':
+				        return `${verb} Firm`;
+				      case 'departments':
+				        return `${verb} Department`;
+				      case 'stores':
+				        return `${verb} Store`;
+				      case 'projects':
+				        return `${verb} Project`;
+				      case 'units':
+				        return `${verb} Unit`;
+				      case 'itemCategories':
+				        return `${verb} Item Category`;
+				      case 'users':
+				        return `${verb} User`;
+			      case 'suppliers':
+			        return `${verb} Supplier`;
+			      case 'transporters':
+			        return `${verb} Transporter`;
+			      case 'itemNames':
+			        return `${verb} Item Name`;
 		      case 'specs':
 	        return `${verb} Specification`;
 	      case 'specValues':
@@ -273,29 +414,37 @@ export default function MastersView({
 
 	  const isEditing = editCtx?.tab === tab && Boolean(editCtx?.id);
 
-		  function loadAll(signal?: AbortSignal) {
-		    setError(null);
-		    return Promise.all([
-		      fetchFirms(signal),
-		      fetchStores(signal),
-		      fetchUsers(signal),
-	      fetchSuppliers(signal),
-	      fetchItemNames(signal),
-	      fetchSpecifications(signal),
-	      fetchItems(signal),
-	    ]).then(([f, st, u, sup, inames, sp, it]) => {
-	      setFirms(f);
-	      setStores(st);
-	      setUsers(u);
-	      setSuppliers(sup);
-		      setItemNames(inames);
-		      setSpecs(sp);
-		      setItems(it);
-		      setNewStoreFirmId((prev) => prev || f[0]?.id || '');
-	      setNewItemItemNameId((prev) => prev || inames[0]?.id || '');
-	      return { firms: f, specifications: sp };
-	    });
-	  }
+				  function loadAll(signal?: AbortSignal) {
+				    setError(null);
+						    return Promise.all([
+						      fetchDepartments(signal),
+						      fetchFirms(signal),
+						      fetchProjects(signal),
+						      fetchStores(signal),
+						      fetchUsers(signal),
+					      fetchSuppliers(signal),
+					      fetchTransporters(signal),
+					      fetchUnits(signal),
+					      fetchItemCategories(signal),
+					      fetchItemNames(signal),
+					      fetchSpecifications(signal),
+					      fetchItems(signal),
+					    ]).then(([deps, f, prj, st, u, sup, trn, unt, cats, inames, sp, it]) => {
+					      setDepartments(deps);
+					      setFirms(f);
+					      setProjects(prj);
+					      setStores(st);
+						      setUsers(u);
+						      setSuppliers(sup);
+						      setTransporters(trn);
+						      setUnits(unt);
+						      setItemCategories(cats);
+						      setItemNames(inames);
+					      setSpecs(sp);
+					      setItems(it);
+					      return { firms: f, specifications: sp };
+				    });
+				  }
 
   useEffect(() => {
     const ac = new AbortController();
@@ -339,24 +488,24 @@ export default function MastersView({
 	    return () => ac.abort();
 	  }, [specIdForValues, specs, specNameById]);
 	
-	  useEffect(() => {
-	    if (!addOpen) return;
-	    if (tab !== 'specValues') return;
-	    setNewSpecValueSpecId((prev) => prev || specIdForValues || specs[0]?.id || '');
-	  }, [addOpen, specIdForValues, specs, tab]);
+		  useEffect(() => {
+		    if (!addOpen) return;
+		    if (tab !== 'specValues') return;
+		    setNewSpecValueSpecId((prev) => prev || specIdForValues || '');
+		  }, [addOpen, specIdForValues, specs, tab]);
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h3 className="font-headline font-bold text-sm text-on-surface">All Masters</h3>
-            <p className="text-sm text-on-surface-variant">Maintain Firms, Stores, Suppliers, Items and Specifications.</p>
-          </div>
-          <div className="flex items-center gap-2">
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm">
+	        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+	          <div>
+	            <h3 className="font-headline font-bold text-sm text-on-surface">All Masters</h3>
+	            <p className="text-sm text-on-surface-variant">Maintain Firms, Stores, Departments, Suppliers, Items and Specifications.</p>
+	          </div>
+	          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+              className="btn btn-sm"
               onClick={() => {
                 window.location.href = '/api/requests.xlsx';
               }}
@@ -365,7 +514,7 @@ export default function MastersView({
             </button>
             <button
               type="button"
-              className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+              className="btn btn-sm"
               onClick={() => {
                 window.location.href = '/api/masters.xlsx';
               }}
@@ -398,68 +547,201 @@ export default function MastersView({
         ))}
       </div>
 
-	      {addOpen ? (
-	        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-	          <button
-	            type="button"
-	            className="absolute inset-0 bg-black/40"
-	            aria-label="Close"
-	            onClick={closeModal}
-	          />
-	          <div className="relative w-full max-w-3xl bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl max-h-[85vh] overflow-auto">
-	            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
-	              <div className="text-sm font-bold text-on-surface">{addTitle}</div>
-	              <button
-	                type="button"
-	                className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+		      {addOpen ? (
+		        <div className="fixed inset-0 z-50">
+		          <button
+		            type="button"
+		            className="absolute inset-0 bg-black/40"
+		            aria-label="Close"
+		            onClick={closeModal}
+		          />
+		          <div className="relative w-full h-full bg-surface-container-lowest border border-outline-variant shadow-xl flex flex-col">
+		            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
+		              <div className="text-sm font-bold text-on-surface">{addTitle}</div>
+		              <button
+		                type="button"
+	                className="btn btn-sm"
 	                onClick={closeModal}
 	              >
 	                Close
 	              </button>
 	            </div>
 
-            <div className="p-5 space-y-3">
-	              {tab === 'firms' ? (
-	                <div className="space-y-2">
-	                  <label className="space-y-1">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm name</div>
-	                    <input
-	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newFirmName}
-                      onChange={(e) => setNewFirmName(e.target.value)}
-	                      placeholder="Umang (Main)"
-	                    />
-	                  </label>
-		                  <div className="flex justify-end gap-2">
-		                    <button
-		                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-		                      onClick={() => {
-		                        setNewFirmName('');
-	                        closeModal();
-	                      }}
-	                    >
-	                      Cancel
+	            <div className="flex-1 overflow-auto p-5 space-y-3">
+				              {tab === 'firms' ? (
+				                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newFirmName}
+	                      onChange={(e) => setNewFirmName(e.target.value)}
+		                      placeholder="Umang (Main)"
+		                    />
+		                  </label>
+
+		                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">CIN</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newFirmCin}
+		                        onChange={(e) => setNewFirmCin(e.target.value)}
+		                        placeholder="CIN"
+		                      />
+		                    </label>
+
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newFirmGstNumber}
+		                        onChange={(e) => setNewFirmGstNumber(e.target.value)}
+		                        placeholder="GST No."
+		                      />
+		                    </label>
+
+		                    <label className="space-y-1 md:col-span-2">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
+		                      <textarea
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
+		                        value={newFirmAddress}
+		                        onChange={(e) => setNewFirmAddress(e.target.value)}
+		                        placeholder="Address"
+		                      />
+		                    </label>
+
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm Phone Number</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newFirmPhone}
+		                        onChange={(e) => setNewFirmPhone(e.target.value)}
+		                        placeholder="Phone"
+		                        inputMode="tel"
+		                      />
+		                    </label>
+
+			                    <label className="space-y-1 md:col-span-2">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Logo (Upload or URL)</div>
+			                      <div className="flex flex-col gap-2">
+			                        <input
+			                          type="file"
+			                          accept="image/png,image/jpeg"
+			                          disabled={busy}
+			                          onChange={(e) => {
+			                            const file = e.target.files?.[0];
+			                            if (!file) return;
+			                            const maxBytes = 2 * 1024 * 1024; // 2MB
+			                            if (file.size > maxBytes) {
+			                              setError('Logo image is too large. Please upload a PNG/JPG under 2MB.');
+			                              return;
+			                            }
+			                            if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+			                              setError('Logo must be a PNG or JPG image.');
+			                              return;
+			                            }
+			                            const reader = new FileReader();
+			                            reader.onload = () => setNewFirmLogoUrl(String(reader.result ?? ''));
+			                            reader.onerror = () => setError('Failed to read image file.');
+			                            reader.readAsDataURL(file);
+			                          }}
+			                        />
+			                        <input
+			                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                          value={newFirmLogoUrl}
+			                          onChange={(e) => setNewFirmLogoUrl(e.target.value)}
+			                          placeholder="Paste direct .png/.jpg URL or data:image/... (upload recommended for PDF)"
+			                        />
+			                        {String(newFirmLogoUrl ?? '').trim() ? (
+			                          <div className="flex items-center gap-3">
+			                            <img
+			                              src={String(newFirmLogoUrl)}
+			                              alt="Firm logo preview"
+			                              className="h-12 w-auto rounded bg-white border border-outline-variant/20"
+			                              onError={(ev) => {
+			                                (ev.currentTarget as HTMLImageElement).style.display = 'none';
+			                              }}
+			                            />
+			                            <div className="text-xs text-on-surface-variant">
+			                              Upload PNG/JPG to ensure it shows in PO PDF.
+			                            </div>
+			                          </div>
+			                        ) : null}
+			                      </div>
+			                    </label>
+
+		                    <label className="space-y-1 md:col-span-2">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Terms &amp; Conditions</div>
+		                      <textarea
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[100px]"
+		                        value={newFirmTermsConditions}
+		                        onChange={(e) => setNewFirmTermsConditions(e.target.value)}
+		                        placeholder="Default terms & conditions for this firm"
+		                      />
+		                    </label>
+		                  </div>
+
+			                  <div className="flex justify-end gap-2">
+			                    <button
+			                      type="button"
+			                      className="btn btn-sm"
+			                      onClick={() => {
+			                        setNewFirmName('');
+			                        setNewFirmCin('');
+			                        setNewFirmGstNumber('');
+			                        setNewFirmAddress('');
+			                        setNewFirmPhone('');
+			                        setNewFirmLogoUrl('');
+			                        setNewFirmTermsConditions('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
 	                    </button>
 		                    <button
 		                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-		                      disabled={!newFirmName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-	                        const fn = isEditing
-	                          ? updateFirm(editCtx?.id ?? '', { name: newFirmName.trim(), updatedBy: 'system' })
-	                          : createFirm({ name: newFirmName.trim(), createdBy: 'system' });
-	                        fn
-	                          .then(() => loadAll())
-	                          .then(() => {
-	                            setNewFirmName('');
-	                            closeModal();
-	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-	                          .finally(() => setBusy(false));
-	                      }}
+			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+			                      disabled={!newFirmName.trim() || busy}
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+		                        const fn = isEditing
+		                          ? updateFirm(editCtx?.id ?? '', {
+		                              name: newFirmName.trim(),
+		                              cin: newFirmCin.trim() || null,
+		                              gstNumber: newFirmGstNumber.trim() || null,
+		                              address: newFirmAddress.trim() || null,
+		                              phone: newFirmPhone.trim() || null,
+		                              logoUrl: newFirmLogoUrl.trim() || null,
+		                              termsConditions: newFirmTermsConditions.trim() || null,
+		                              updatedBy: 'system',
+		                            })
+		                          : createFirm({
+		                              name: newFirmName.trim(),
+		                              cin: newFirmCin.trim() || null,
+		                              gstNumber: newFirmGstNumber.trim() || null,
+		                              address: newFirmAddress.trim() || null,
+		                              phone: newFirmPhone.trim() || null,
+		                              logoUrl: newFirmLogoUrl.trim() || null,
+		                              termsConditions: newFirmTermsConditions.trim() || null,
+		                              createdBy: 'system',
+		                            });
+		                        fn
+		                          .then(() => loadAll())
+		                          .then(() => {
+			                            setNewFirmName('');
+			                            setNewFirmCin('');
+			                            setNewFirmGstNumber('');
+			                            setNewFirmAddress('');
+			                            setNewFirmPhone('');
+			                            setNewFirmLogoUrl('');
+			                            setNewFirmTermsConditions('');
+			                            closeModal();
+			                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
 	                    >
 	                      {isEditing ? 'Save' : 'Add'}
 	                    </button>
@@ -467,10 +749,10 @@ export default function MastersView({
                 </div>
               ) : null}
 
-	              {tab === 'stores' ? (
-	                <div className="space-y-2">
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
+			              {tab === 'stores' ? (
+			                <div className="space-y-2">
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
 		                    <SearchableSelect
 		                      value={newStoreFirmId}
 		                      options={firms.map((f) => ({ value: f.id, label: f.name }))}
@@ -478,25 +760,36 @@ export default function MastersView({
 		                      placeholder="Search firm..."
 		                    />
 		                  </label>
-	                  <label className="space-y-1">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store name</div>
-	                    <input
-	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newStoreName}
-	                      onChange={(e) => setNewStoreName(e.target.value)}
-	                      placeholder="Main Store"
-	                    />
-	                  </label>
-		                  <div className="flex justify-end gap-2">
-		                    <button
-		                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-		                      onClick={() => {
-		                        setNewStoreName('');
-	                        closeModal();
-	                      }}
-	                    >
-	                      Cancel
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newStoreName}
+		                      onChange={(e) => setNewStoreName(e.target.value)}
+		                      placeholder="Main Store"
+		                    />
+		                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Location</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newStoreLocation}
+		                      onChange={(e) => setNewStoreLocation(e.target.value)}
+		                      placeholder="Head Office / Site"
+		                    />
+		                  </label>
+			                  <div className="flex justify-end gap-2">
+			                    <button
+			                      type="button"
+			                      className="btn btn-sm"
+			                      onClick={() => {
+			                        setNewStoreFirmId('');
+			                        setNewStoreName('');
+			                        setNewStoreLocation('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
 	                    </button>
 	                    <button
 	                      type="button"
@@ -505,29 +798,184 @@ export default function MastersView({
 	                      onClick={() => {
 	                        setBusy(true);
 	                        setError(null);
-	                        const fn = isEditing
-	                          ? updateStore(editCtx?.id ?? '', {
-	                              firmId: newStoreFirmId,
-	                              name: newStoreName.trim(),
-	                              updatedBy: 'system',
-	                            })
-	                          : createStore({ firmId: newStoreFirmId, name: newStoreName.trim(), createdBy: 'system' });
-	                        fn.then(() => loadAll())
-	                          .then(() => {
-	                            setNewStoreName('');
-	                            closeModal();
-	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-	                          .finally(() => setBusy(false));
+		                        const fn = isEditing
+		                          ? updateStore(editCtx?.id ?? '', {
+		                              firmId: newStoreFirmId,
+		                              name: newStoreName.trim(),
+		                              location: newStoreLocation.trim() || undefined,
+		                              updatedBy: 'system',
+		                            })
+		                          : createStore({ firmId: newStoreFirmId, name: newStoreName.trim(), location: newStoreLocation.trim() || undefined, createdBy: 'system' });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewStoreFirmId('');
+		                            setNewStoreName('');
+		                            setNewStoreLocation('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
 	                      }}
 	                    >
 	                      {isEditing ? 'Save' : 'Add'}
 	                    </button>
 		                  </div>
 	                </div>
-	              ) : null}
+		              ) : null}
 
-	              {tab === 'users' ? (
+		              {tab === 'projects' ? (
+		                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
+		                    <SearchableSelect
+		                      value={newProjectFirmId}
+		                      options={firms.map((f) => ({ value: f.id, label: f.name }))}
+		                      onChange={setNewProjectFirmId}
+		                      placeholder="Search firm..."
+		                    />
+		                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newProjectName}
+		                      onChange={(e) => setNewProjectName(e.target.value)}
+		                      placeholder="Branding Work of Adani foundation"
+		                    />
+		                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newProjectClientName}
+		                      onChange={(e) => setNewProjectClientName(e.target.value)}
+		                      placeholder="Adani foundation"
+		                    />
+		                  </label>
+		                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Date</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        type="date"
+		                        value={newProjectStartDate}
+		                        onChange={(e) => setNewProjectStartDate(e.target.value)}
+		                      />
+		                    </label>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">End date</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        type="date"
+		                        value={newProjectEndDate}
+		                        onChange={(e) => setNewProjectEndDate(e.target.value)}
+		                      />
+		                    </label>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Status</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newProjectStatus}
+		                        onChange={(e) => setNewProjectStatus(e.target.value)}
+		                        placeholder="Active"
+		                      />
+		                    </label>
+		                  </div>
+		                  <div className="flex justify-end gap-2">
+		                    <button
+		                      type="button"
+		                      className="btn btn-sm"
+		                      onClick={() => {
+		                        setNewProjectName('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
+		                    </button>
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newProjectFirmId || !newProjectName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const payload = {
+		                          firmId: newProjectFirmId,
+		                          name: newProjectName.trim(),
+		                          clientName: newProjectClientName.trim() || null,
+		                          startDate: newProjectStartDate.trim() || null,
+		                          endDate: newProjectEndDate.trim() || null,
+		                          status: newProjectStatus.trim() || null,
+		                          updatedBy: 'system',
+		                        };
+		                        const fn = isEditing
+		                          ? updateProject(editCtx?.id ?? '', payload)
+		                          : createProject({ ...payload, createdBy: 'system' });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewProjectName('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
+		                    >
+		                      {isEditing ? 'Save' : 'Add'}
+		                    </button>
+		                  </div>
+		                </div>
+		              ) : null}
+
+			              {tab === 'departments' ? (
+		                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newDepartmentName}
+		                      onChange={(e) => setNewDepartmentName(e.target.value)}
+		                      placeholder="Operations"
+		                    />
+		                  </label>
+		                  <div className="flex justify-end gap-2">
+		                    <button
+		                      type="button"
+		                      className="btn btn-sm"
+		                      onClick={() => {
+		                        setNewDepartmentName('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
+		                    </button>
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newDepartmentName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const fn = isEditing
+		                          ? updateDepartment(editCtx?.id ?? '', { name: newDepartmentName.trim(), updatedBy: 'system' })
+		                          : createDepartment({ name: newDepartmentName.trim(), createdBy: 'system' });
+		                        fn
+		                          .then(() => loadAll())
+		                          .then(() => {
+		                            setNewDepartmentName('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
+		                    >
+		                      {isEditing ? 'Save' : 'Add'}
+		                    </button>
+		                  </div>
+		                </div>
+			      ) : null}
+
+
+				      {tab === 'users' ? (
 	                <div className="space-y-3">
 	                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 	                    <label className="space-y-1">
@@ -582,7 +1030,7 @@ export default function MastersView({
 	                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
-	                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+	                      className="btn btn-sm"
 	                      onClick={() => {
 	                        setNewUserName('');
 	                        setNewUserEmail('');
@@ -644,36 +1092,87 @@ export default function MastersView({
 	                </div>
 	              ) : null}
 
-			              {tab === 'suppliers' ? (
-			                <div className="space-y-2">
-			                  <label className="space-y-1">
-			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Supplier name</div>
-			                    <input
-		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                      value={newSupplierName}
-	                      onChange={(e) => setNewSupplierName(e.target.value)}
-		                      placeholder="ABC Traders"
-		                    />
-		                  </label>
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
-		                    <input
-		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                      value={newSupplierPaymentTerms}
-		                      onChange={(e) => setNewSupplierPaymentTerms(e.target.value)}
-		                      placeholder="30 days"
-		                    />
-		                  </label>
-			                  <div className="flex justify-end gap-2">
-			                    <button
-			                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                      onClick={() => {
-			                        setNewSupplierName('');
-			                        setNewSupplierPaymentTerms('');
-		                        closeModal();
-		                      }}
-		                    >
+				              {tab === 'suppliers' ? (
+				                <div className="space-y-2">
+				                  <label className="space-y-1">
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Supplier name</div>
+				                    <input
+			                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                      value={newSupplierName}
+		                      onChange={(e) => setNewSupplierName(e.target.value)}
+			                      placeholder="ABC Traders"
+			                    />
+			                  </label>
+
+			                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newSupplierGstNumber}
+			                        onChange={(e) => setNewSupplierGstNumber(e.target.value)}
+			                        placeholder="GST No."
+			                      />
+			                    </label>
+
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type</div>
+				                      <SearchableSelect
+				                        options={[
+				                          { value: 'Intra-State', label: 'Intra-State' },
+				                          { value: 'Inter-State', label: 'Inter-State' },
+				                        ]}
+				                        value={newSupplierGstType}
+				                        onChange={(v) => setNewSupplierGstType(v === 'Inter-State' ? 'Inter-State' : 'Intra-State')}
+				                        placeholder="Select GST type"
+				                      />
+				                    </label>
+
+			                    <label className="space-y-1 md:col-span-2">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
+			                      <textarea
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
+			                        value={newSupplierAddress}
+			                        onChange={(e) => setNewSupplierAddress(e.target.value)}
+			                        placeholder="Address"
+			                      />
+			                    </label>
+
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone Number</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newSupplierPhone}
+			                        onChange={(e) => setNewSupplierPhone(e.target.value)}
+			                        placeholder="Phone"
+			                        inputMode="tel"
+			                      />
+			                    </label>
+
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newSupplierPaymentTerms}
+			                        onChange={(e) => setNewSupplierPaymentTerms(e.target.value)}
+			                        placeholder="30 days"
+			                      />
+			                    </label>
+			                  </div>
+				                  <div className="flex justify-end gap-2">
+				                    <button
+				                      type="button"
+			                      className="btn btn-sm"
+				                      onClick={() => {
+				                        setNewSupplierName('');
+				                        setNewSupplierGstNumber('');
+				                        setNewSupplierGstType('Intra-State');
+				                        setNewSupplierAddress('');
+				                        setNewSupplierPhone('');
+				                        setNewSupplierPaymentTerms('');
+			                        closeModal();
+			                      }}
+			                    >
 		                      Cancel
 	                    </button>
 	                    <button
@@ -683,23 +1182,35 @@ export default function MastersView({
 		                      onClick={() => {
 		                        setBusy(true);
 		                        setError(null);
-		                        const fn = isEditing
-		                          ? updateSupplier(editCtx?.id ?? '', {
-		                              name: newSupplierName.trim(),
-		                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-		                              updatedBy: 'system',
-		                            })
-		                          : createSupplier({
-		                              name: newSupplierName.trim(),
-		                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-		                              createdBy: 'system',
-		                            });
-		                        fn.then(() => loadAll())
-		                          .then(() => {
-		                            setNewSupplierName('');
-		                            setNewSupplierPaymentTerms('');
-		                            closeModal();
-		                          })
+			                        const fn = isEditing
+			                          ? updateSupplier(editCtx?.id ?? '', {
+			                              name: newSupplierName.trim(),
+			                              gstNumber: newSupplierGstNumber.trim() || undefined,
+			                              gstType: newSupplierGstType,
+			                              address: newSupplierAddress.trim() || undefined,
+			                              phone: newSupplierPhone.trim() || undefined,
+			                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+			                              updatedBy: 'system',
+			                            })
+			                          : createSupplier({
+			                              name: newSupplierName.trim(),
+			                              gstNumber: newSupplierGstNumber.trim() || undefined,
+			                              gstType: newSupplierGstType,
+			                              address: newSupplierAddress.trim() || undefined,
+			                              phone: newSupplierPhone.trim() || undefined,
+			                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+			                              createdBy: 'system',
+			                            });
+			                        fn.then(() => loadAll())
+			                          .then(() => {
+			                            setNewSupplierName('');
+			                            setNewSupplierGstNumber('');
+			                            setNewSupplierGstType('Intra-State');
+			                            setNewSupplierAddress('');
+			                            setNewSupplierPhone('');
+			                            setNewSupplierPaymentTerms('');
+			                            closeModal();
+			                          })
 		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 		                          .finally(() => setBusy(false));
 		                      }}
@@ -708,25 +1219,35 @@ export default function MastersView({
 	                    </button>
 	                  </div>
                 </div>
-              ) : null}
+	              ) : null}
 
-	              {tab === 'itemNames' ? (
-	                <div className="space-y-2">
+		              {tab === 'transporters' ? (
+		                <div className="space-y-2">
 	                  <label className="space-y-1">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item name</div>
+	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Transporter name</div>
 	                    <input
 	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newItemName}
-                      onChange={(e) => setNewItemName(e.target.value)}
-	                      placeholder="Bolt"
+	                      value={newTransporterName}
+	                      onChange={(e) => setNewTransporterName(e.target.value)}
+	                      placeholder="DTDC"
 	                    />
 	                  </label>
-		                  <div className="flex justify-end gap-2">
-		                    <button
-		                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-		                      onClick={() => {
-		                        setNewItemName('');
+	                  <label className="space-y-1">
+	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone (optional)</div>
+	                    <input
+	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                      value={newTransporterPhone}
+	                      onChange={(e) => setNewTransporterPhone(e.target.value)}
+	                      placeholder="9876543210"
+	                    />
+	                  </label>
+	                  <div className="flex justify-end gap-2">
+	                    <button
+	                      type="button"
+	                      className="btn btn-sm"
+	                      onClick={() => {
+	                        setNewTransporterName('');
+	                        setNewTransporterPhone('');
 	                        closeModal();
 	                      }}
 	                    >
@@ -735,20 +1256,202 @@ export default function MastersView({
 	                    <button
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-	                      disabled={!newItemName.trim() || busy}
+	                      disabled={!newTransporterName.trim() || busy}
 	                      onClick={() => {
 	                        setBusy(true);
 	                        setError(null);
 	                        const fn = isEditing
-	                          ? updateItemName(editCtx?.id ?? '', { name: newItemName.trim(), updatedBy: 'system' })
-	                          : createItemName({ name: newItemName.trim(), createdBy: 'system' });
+	                          ? updateTransporter(editCtx?.id ?? '', {
+	                              name: newTransporterName.trim(),
+	                              phone: newTransporterPhone.trim() || null,
+	                              updatedBy: 'system',
+	                            })
+	                          : createTransporter({
+	                              name: newTransporterName.trim(),
+	                              phone: newTransporterPhone.trim() || undefined,
+	                              createdBy: 'system',
+	                            });
 	                        fn.then(() => loadAll())
 	                          .then(() => {
-	                            setNewItemName('');
+	                            setNewTransporterName('');
+	                            setNewTransporterPhone('');
 	                            closeModal();
 	                          })
 	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 	                          .finally(() => setBusy(false));
+	                      }}
+	                    >
+	                      {isEditing ? 'Save' : 'Add'}
+	                    </button>
+	                  </div>
+		                </div>
+		              ) : null}
+
+		              {tab === 'units' ? (
+		                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newUnitName}
+		                      onChange={(e) => setNewUnitName(e.target.value)}
+		                      placeholder="Nos / Kg / Meter"
+		                    />
+		                  </label>
+		                  <div className="flex justify-end gap-2">
+		                    <button
+		                      type="button"
+		                      className="btn btn-sm"
+		                      onClick={() => {
+		                        setNewUnitName('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
+		                    </button>
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newUnitName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const fn = isEditing
+		                          ? updateUnit(editCtx?.id ?? '', { name: newUnitName.trim(), updatedBy: 'system' })
+		                          : createUnit({ name: newUnitName.trim(), createdBy: 'system' });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewUnitName('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
+		                    >
+		                      {isEditing ? 'Save' : 'Add'}
+		                    </button>
+		                  </div>
+		                </div>
+		              ) : null}
+
+		              {tab === 'itemCategories' ? (
+		                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newItemCategoryName}
+		                      onChange={(e) => setNewItemCategoryName(e.target.value)}
+		                      placeholder="Hardware"
+		                    />
+		                  </label>
+		                  <div className="flex justify-end gap-2">
+		                    <button
+		                      type="button"
+		                      className="btn btn-sm"
+		                      onClick={() => {
+		                        setNewItemCategoryName('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
+		                    </button>
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newItemCategoryName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const fn = isEditing
+		                          ? updateItemCategory(editCtx?.id ?? '', { name: newItemCategoryName.trim(), updatedBy: 'system' })
+		                          : createItemCategory({ name: newItemCategoryName.trim(), createdBy: 'system' });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewItemCategoryName('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
+		                    >
+		                      {isEditing ? 'Save' : 'Add'}
+		                    </button>
+		                  </div>
+		                </div>
+		              ) : null}
+
+			              {tab === 'itemNames' ? (
+			                <div className="space-y-2">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item name</div>
+		                    <input
+	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+		                      placeholder="Bolt"
+		                    />
+		                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+		                    <SearchableSelect
+		                      options={units.map((u) => ({ value: u.id, label: u.name }))}
+		                      value={newItemNameUnitId}
+		                      onChange={setNewItemNameUnitId}
+		                      placeholder="Select unit"
+		                    />
+		                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+		                    <SearchableSelect
+		                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+		                      value={newItemNameCategoryId}
+		                      onChange={setNewItemNameCategoryId}
+		                      placeholder="Select category"
+		                    />
+		                  </label>
+			                  <div className="flex justify-end gap-2">
+			                    <button
+			                      type="button"
+			                      className="btn btn-sm"
+			                      onClick={() => {
+			                        setNewItemName('');
+			                        setNewItemNameUnitId('');
+			                        setNewItemNameCategoryId('');
+		                        closeModal();
+		                      }}
+		                    >
+		                      Cancel
+	                    </button>
+	                    <button
+	                      type="button"
+	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newItemName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const fn = isEditing
+		                          ? updateItemName(editCtx?.id ?? '', {
+		                              name: newItemName.trim(),
+		                              unitId: newItemNameUnitId || null,
+		                              itemCategoryId: newItemNameCategoryId || null,
+		                              updatedBy: 'system',
+		                            })
+		                          : createItemName({
+		                              name: newItemName.trim(),
+		                              unitId: newItemNameUnitId || null,
+		                              itemCategoryId: newItemNameCategoryId || null,
+		                              createdBy: 'system',
+		                            });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewItemName('');
+		                            setNewItemNameUnitId('');
+		                            setNewItemNameCategoryId('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
 	                      }}
 	                    >
 	                      {isEditing ? 'Save' : 'Add'}
@@ -771,7 +1474,7 @@ export default function MastersView({
 		                  <div className="flex justify-end gap-2">
 		                    <button
 		                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+		                      className="btn btn-sm"
 		                      onClick={() => {
 		                        setNewSpecName('');
 	                        closeModal();
@@ -837,7 +1540,7 @@ export default function MastersView({
 			                  <div className="flex justify-end gap-2">
 			                    <button
 			                      type="button"
-		                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+		                      className="btn btn-sm"
 		                      onClick={() => {
 		                        setNewSpecValue('');
 	                        closeModal();
@@ -950,7 +1653,7 @@ export default function MastersView({
 	                          </div>
 	                          <button
 	                            type="button"
-	                            className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
+	                            className="btn btn-sm disabled:opacity-50"
 	                            disabled={newItemSpecs.length === 1}
 	                            onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
 	                            title={newItemSpecs.length === 1 ? 'At least one specification required' : 'Remove'}
@@ -1049,7 +1752,7 @@ export default function MastersView({
 
                     <button
                       type="button"
-                      className="px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+                      className="btn btn-sm"
                       onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
                     >
                       + Add Spec Row
@@ -1059,7 +1762,7 @@ export default function MastersView({
 	                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
-	                      className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+	                      className="btn btn-sm"
 	                      onClick={() => {
 	                        setNewItemUnit('');
 	                        setNewItemDescription('');
@@ -1117,19 +1820,107 @@ export default function MastersView({
         </div>
       ) : null}
 
-		      {tab === 'firms' ? (
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-		          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {firms.length}</div>
+			      {tab === 'firms' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {firms.length}</div>
 	            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
 		          </div>
-		          <div className="overflow-auto">
+				          <div className="overflow-auto">
+				            <table className="min-w-[1340px] w-full text-sm border-collapse border border-blue-600">
+				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">CIN</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">GST</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Firm Phone Number</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Logo</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">T&amp;C</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+				                </tr>
+				              </thead>
+				              <tbody>
+				                {firms.map((f) => (
+				                  <tr key={f.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.cin ?? '').trim() || '-'}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.gstNumber ?? '').trim() || '-'}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600 whitespace-normal break-words">{String(f.address ?? '').trim() || '-'}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.phone ?? '').trim() || '-'}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+				                      {String(f.logoUrl ?? '').trim() ? (
+				                        <img
+				                          src={String(f.logoUrl ?? '')}
+				                          alt="Logo"
+				                          className="w-10 h-10 object-contain rounded bg-white border border-outline-variant/20"
+				                          referrerPolicy="no-referrer"
+				                          onError={(e) => {
+				                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+				                          }}
+				                        />
+				                      ) : (
+				                        '-'
+				                      )}
+				                    </td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+				                      {String(f.termsConditions ?? '').trim() ? 'Yes' : '-'}
+				                    </td>
+				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+				                      <div className="flex items-center gap-2">
+					                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(f.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete firm "${f.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
+			                            deleteFirm(f.id, { deletedBy: 'system' })
+			                              .then(() => loadAll())
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+			                      </div>
+			                    </td>
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+		          </div>
+		        </div>
+		      ) : null}
+
+			      {tab === 'departments' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {departments.length}</div>
+			            <button
+			              type="button"
+			              className="btn btn-primary disabled:opacity-50"
+			              onClick={openAddModal}
+			            >
+			              Add
+			            </button>
+			          </div>
+			          <div className="overflow-auto">
 			            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
 			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
 			                <tr>
@@ -1138,50 +1929,52 @@ export default function MastersView({
 			                </tr>
 			              </thead>
 			              <tbody>
-			                {firms.map((f) => (
-			                  <tr key={f.id}>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
+			                {departments.map((d) => (
+			                  <tr key={d.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{d.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(f.id)}
-			                        >
-			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete firm "${f.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
-			                            deleteFirm(f.id, { deletedBy: 'system' })
+				                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(d.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete department "${d.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
+			                            deleteDepartment(d.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
 			                ))}
 			              </tbody>
 			            </table>
-		          </div>
-	        </div>
-	      ) : null}
+			          </div>
+			        </div>
+			      ) : null}
 
-		      {tab === 'stores' ? (
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-		          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {stores.length}</div>
+			      {tab === 'stores' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {stores.length}</div>
 	            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
@@ -1207,28 +2000,30 @@ export default function MastersView({
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.location ?? ''}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(s.id)}
-			                        >
-			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete store "${s.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
+				                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(s.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete store "${s.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 			                            deleteStore(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -1237,15 +2032,87 @@ export default function MastersView({
 			            </table>
 		          </div>
 		        </div>
-		      ) : null}
+			      ) : null}
 
-			      {tab === 'users' ? (
+			      {tab === 'projects' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {projects.length}</div>
+			            <button
+			              type="button"
+			              className="btn btn-primary disabled:opacity-50"
+			              onClick={openAddModal}
+			            >
+			              Add
+			            </button>
+			          </div>
+			          <div className="overflow-auto">
+			            <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
+			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+			                <tr>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Firm</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Project Name</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Name</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Date</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">End Date</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Status</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+			                </tr>
+			              </thead>
+			              <tbody>
+			                {projects.map((p) => (
+			                  <tr key={p.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+			                      {firms.find((f) => f.id === p.firmId)?.name ?? p.firmId}
+			                    </td>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.clientName ?? ''}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.startDate ?? ''}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.endDate ?? ''}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.status ?? ''}</td>
+			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+			                      <div className="flex items-center gap-2">
+			                        <button
+			                          type="button"
+			                          className="btn-primary btn-sm"
+			                          onClick={() => openEditModal(p.id)}
+			                        >
+			                          Edit
+			                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete project \"${p.name}\"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
+			                            deleteProject(p.id, { deletedBy: 'system' })
+			                              .then(() => loadAll())
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+			                      </div>
+			                    </td>
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+			          </div>
+			        </div>
+			      ) : null}
+
+				      {tab === 'users' ? (
 			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 			          <div className="flex items-center justify-between gap-2">
 			            <div className="text-sm text-on-surface-variant">Total: {users.length}</div>
 			            <button
 			              type="button"
-			              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+			              className="btn btn-primary disabled:opacity-50"
 			              onClick={openAddModal}
 			            >
 			              Add
@@ -1273,28 +2140,30 @@ export default function MastersView({
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.mobile ?? ''}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(u.id)}
-			                        >
-			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete user "${u.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
+				                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(u.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete user "${u.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 			                            deleteUser(u.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -1311,52 +2180,60 @@ export default function MastersView({
 			            <div className="text-sm text-on-surface-variant">Total: {suppliers.length}</div>
 		            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
 		          </div>
-		          <div className="overflow-auto">
-				            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
-				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-				                <tr>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">GST</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-				                </tr>
-				              </thead>
-				              <tbody>
-				                {suppliers.map((s) => (
-				                  <tr key={s.id}>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
-				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
-				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
-				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-				                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(s.id)}
-			                        >
-			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete supplier "${s.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
+			          <div className="overflow-auto">
+					            <table className="min-w-[1100px] w-full text-sm border-collapse border border-blue-600">
+					              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+					                <tr>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">GST</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">GST Type</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Phone Number</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+					                </tr>
+					              </thead>
+					              <tbody>
+					                {suppliers.map((s) => (
+					                  <tr key={s.id}>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
+					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+					                      <div className="flex items-center gap-2">
+				                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(s.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete supplier "${s.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 			                            deleteSupplier(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -1365,58 +2242,224 @@ export default function MastersView({
 			            </table>
 		          </div>
 	        </div>
-	      ) : null}
+		      ) : null}
 
-		      {tab === 'itemNames' ? (
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			      {tab === 'transporters' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 		          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {itemNames.length}</div>
-	            <button
-	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
-	              onClick={openAddModal}
-	            >
-	              Add
-	            </button>
+		            <div className="text-sm text-on-surface-variant">Total: {transporters.length}</div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
+		            >
+		              Add
+		            </button>
 		          </div>
 		          <div className="overflow-auto">
-			            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+		            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+		              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+		                <tr>
+		                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+		                  <th className="text-left px-3 py-2 border border-blue-600">Phone</th>
+		                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+		                </tr>
+		              </thead>
+		              <tbody>
+		                {transporters.map((t) => (
+		                  <tr key={t.id}>
+		                    <td className="px-3 py-2 text-on-surface border border-blue-600">{t.name}</td>
+		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{t.phone ?? ''}</td>
+		                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+		                      <div className="flex items-center gap-2">
+		                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(t.id)}>
+		                          Edit
+		                        </button>
+		                        <button
+		                          type="button"
+		                          title="Delete"
+		                          aria-label="Delete"
+		                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+		                          onClick={() => {
+		                            if (!window.confirm(`Delete transporter "${t.name}"?`)) return;
+		                            setBusy(true);
+		                            setError(null);
+		                            deleteTransporter(t.id, { deletedBy: 'system' })
+		                              .then(() => loadAll())
+		                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                              .finally(() => setBusy(false));
+		                          }}
+		                        >
+		                          <Trash2 size={16} />
+		                        </button>
+		                      </div>
+		                    </td>
+		                  </tr>
+		                ))}
+		              </tbody>
+		            </table>
+		          </div>
+			        </div>
+			      ) : null}
+
+			      {tab === 'units' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {units.length}</div>
+			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+			              Add
+			            </button>
+			          </div>
+			          <div className="overflow-auto">
+			            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
 			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
 			                <tr>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+			                </tr>
+			              </thead>
+			              <tbody>
+			                {units.map((u) => (
+			                  <tr key={u.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
+			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+			                      <div className="flex items-center gap-2">
+			                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(u.id)}>
+			                          Edit
+			                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete unit "${u.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
+			                            deleteUnit(u.id, { deletedBy: 'system' })
+			                              .then(() => loadAll())
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+			                      </div>
+			                    </td>
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+			          </div>
+			        </div>
+			      ) : null}
+
+			      {tab === 'itemCategories' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {itemCategories.length}</div>
+			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+			              Add
+			            </button>
+			          </div>
+			          <div className="overflow-auto">
+			            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
+			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+			                <tr>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
 			              </thead>
 			              <tbody>
-			                {itemNames.map((n) => (
-			                  <tr key={n.id}>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.category ?? ''}</td>
+			                {itemCategories.map((c) => (
+			                  <tr key={c.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(n.id)}
-			                        >
+			                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
 			                          Edit
 			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete item name "${n.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete category "${c.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
+			                            deleteItemCategory(c.id, { deletedBy: 'system' })
+			                              .then(() => loadAll())
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+			                      </div>
+			                    </td>
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+			          </div>
+			        </div>
+			      ) : null}
+
+			      {tab === 'itemNames' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {itemNames.length}</div>
+	            <button
+	              type="button"
+	              className="btn btn-primary disabled:opacity-50"
+	              onClick={openAddModal}
+	            >
+	              Add
+	            </button>
+			          </div>
+			          <div className="overflow-auto">
+				            <table className="min-w-[920px] w-full text-sm border-collapse border border-blue-600">
+				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+				                </tr>
+				              </thead>
+				              <tbody>
+				                {itemNames.map((n) => (
+				                  <tr key={n.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
+				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+				                      <div className="flex items-center gap-2">
+					                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(n.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete item name "${n.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 			                            deleteItemName(n.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -1433,7 +2476,7 @@ export default function MastersView({
 		            <div className="text-sm text-on-surface-variant">Total: {specs.length}</div>
 	            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
@@ -1453,28 +2496,30 @@ export default function MastersView({
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-			                          onClick={() => openEditModal(s.id)}
-			                        >
-			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete specification "${s.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
+				                        <button
+				                          type="button"
+				                          className="btn-primary btn-sm"
+				                          onClick={() => openEditModal(s.id)}
+				                        >
+				                          Edit
+				                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete specification "${s.name}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 			                            deleteSpecification(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          Delete
-			                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -1511,7 +2556,7 @@ export default function MastersView({
 	            <div className="text-sm text-on-surface-variant">Total: {groupedSpecValues.length}</div>
 	            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
@@ -1535,28 +2580,30 @@ export default function MastersView({
 		                          <li key={v.id} className="whitespace-pre-wrap flex items-start justify-between gap-2">
 		                            <span>{v.value}</span>
 		                            <span className="flex items-center gap-1 whitespace-nowrap">
-		                              <button
-		                                type="button"
-		                                className="px-2 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-		                                onClick={() => openEditModal(v.id)}
-		                              >
-		                                Edit
-		                              </button>
-		                              <button
-		                                type="button"
-		                                className="px-2 py-1 text-[11px] font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-		                                onClick={() => {
-		                                  if (!window.confirm(`Delete value "${v.value}"?`)) return;
-		                                  setBusy(true);
-		                                  setError(null);
+			                              <button
+			                                type="button"
+			                                className="btn-primary btn-sm"
+			                                onClick={() => openEditModal(v.id)}
+			                              >
+			                                Edit
+			                              </button>
+			                                <button
+			                                  type="button"
+			                                  title="Delete"
+			                                  aria-label="Delete"
+			                                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+			                                  onClick={() => {
+			                                    if (!window.confirm(`Delete value "${v.value}"?`)) return;
+			                                    setBusy(true);
+			                                    setError(null);
 		                                  deleteSpecificationValue(v.id, { deletedBy: 'system' })
 		                                    .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
-		                                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-		                                    .finally(() => setBusy(false));
-		                                }}
-		                              >
-		                                Delete
-		                              </button>
+			                                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+			                                      .finally(() => setBusy(false));
+			                                  }}
+			                                >
+			                                  <Trash2 size={16} />
+			                                </button>
 		                            </span>
 		                          </li>
 		                        ))}
@@ -1576,7 +2623,7 @@ export default function MastersView({
 	            <div className="text-sm text-on-surface-variant">Total: {items.length}</div>
 	            <button
 	              type="button"
-	              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+	              className="btn btn-primary disabled:opacity-50"
 	              onClick={openAddModal}
 	            >
 	              Add
@@ -1600,28 +2647,30 @@ export default function MastersView({
 			                    </td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
-			                        <button
-		                          type="button"
-		                          className="px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-		                          onClick={() => openEditModal(it.id)}
-		                        >
-		                          Edit
-		                        </button>
-		                        <button
-		                          type="button"
-		                          className="px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/30 rounded-lg transition-colors"
-		                          onClick={() => {
-		                            if (!window.confirm(`Delete item "${it.itemName}"?`)) return;
-		                            setBusy(true);
-		                            setError(null);
+				                        <button
+			                          type="button"
+			                          className="btn-primary btn-sm"
+			                          onClick={() => openEditModal(it.id)}
+			                        >
+			                          Edit
+			                        </button>
+					                        <button
+					                          type="button"
+					                          title="Delete"
+					                          aria-label="Delete"
+					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+					                          onClick={() => {
+					                            if (!window.confirm(`Delete item "${it.itemName}"?`)) return;
+					                            setBusy(true);
+				                            setError(null);
 		                            deleteItem(it.id, { deletedBy: 'system' })
 		                              .then(() => fetchItems().then(setItems))
-		                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-		                              .finally(() => setBusy(false));
-		                          }}
-		                        >
-		                          Delete
-		                        </button>
+				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
 		                      </div>
 		                    </td>
 		                  </tr>

@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { PrWithItems } from './sqliteStore';
-import { formatDateDDMMYYYY } from '../lib/date';
+import { formatDateDDMMYYYYOnly } from '../lib/date';
 
 type WrapLine = { text: string; width: number };
 
@@ -85,9 +85,9 @@ export async function generatePurchaseRequisitionPdfBuffer(args: {
   const A4 = { width: 595.28, height: 841.89 };
   const margin = 40;
   const lineGap = 4;
-  const textColor = rgb(0.08, 0.1, 0.12);
-  const muted = rgb(0.35, 0.38, 0.42);
-  const border = rgb(0.78, 0.8, 0.84);
+  // PDF styling requirement: black text on white, no grey colors / borders.
+  const textColor = rgb(0, 0, 0);
+  const muted = textColor;
 
   const titleSize = 16;
   const hSize = 10;
@@ -129,11 +129,10 @@ export async function generatePurchaseRequisitionPdfBuffer(args: {
   drawText(title, (A4.width - titleW) / 2, y, finalTitleSize, true);
 
   y -= finalTitleSize + 12;
-  page.drawLine({ start: { x: margin, y }, end: { x: A4.width - margin, y }, thickness: 1, color: border });
   y -= 18;
 
   drawKeyVal('PR No', pr.id, margin, y);
-  drawKeyVal('Required Date', formatDateDDMMYYYY(pr.requiredDate), A4.width / 2, y);
+  drawKeyVal('Required Date', formatDateDDMMYYYYOnly(pr.requiredDate), A4.width / 2, y);
   y -= bodySize + lineGap + 4;
 
   drawKeyVal('Department', pr.department, margin, y);
@@ -141,7 +140,7 @@ export async function generatePurchaseRequisitionPdfBuffer(args: {
   y -= bodySize + lineGap + 4;
 
   drawKeyVal('Status', pr.status, margin, y);
-  drawKeyVal('Generated', formatDateDDMMYYYY(new Date()), A4.width / 2, y);
+  drawKeyVal('Generated', formatDateDDMMYYYYOnly(new Date()), A4.width / 2, y);
   y -= 16;
 
   // Items table
@@ -155,9 +154,9 @@ export async function generatePurchaseRequisitionPdfBuffer(args: {
 
   const drawTableHeader = () => {
     const headerH = 22;
-    page.drawRectangle({ x: tableX, y: y - headerH, width: tableW, height: headerH, borderColor: border, borderWidth: 1, color: rgb(0.95, 0.96, 0.98) });
-    drawText('Item', tableX + rowPadX, y - 15, hSize, true, muted);
-    drawText('Qty', tableX + colItem + rowPadX, y - 15, hSize, true, muted);
+    // No header fill or borders; keep bold black text.
+    drawText('Item', tableX + rowPadX, y - 15, hSize, true, textColor);
+    drawText('Qty', tableX + colItem + rowPadX, y - 15, hSize, true, textColor);
     y -= headerH;
   };
 
@@ -185,11 +184,7 @@ export async function generatePurchaseRequisitionPdfBuffer(args: {
     const rowH = rowPadY * 2 + linesCount * lineH;
     ensureSpace(rowH);
 
-    // Row border
-    page.drawRectangle({ x: tableX, y: y - rowH, width: tableW, height: rowH, borderColor: border, borderWidth: 1 });
-    // Column separators
     const x1 = tableX + colItem;
-    page.drawLine({ start: { x: x1, y: y }, end: { x: x1, y: y - rowH }, thickness: 1, color: border });
 
     const textYStart = y - rowPadY - bodySize;
     drawText(r.qty, x1 + rowPadX, textYStart, bodySize);
