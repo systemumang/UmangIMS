@@ -32,7 +32,9 @@ export default function ReturnMasterView() {
     i.transactionNo.toLowerCase().includes(q.toLowerCase()) ||
     i.firmId.toLowerCase().includes(q.toLowerCase()) ||
     i.department.toLowerCase().includes(q.toLowerCase()) ||
-    i.person.toLowerCase().includes(q.toLowerCase())
+    i.person.toLowerCase().includes(q.toLowerCase()) ||
+    (i.returnType ?? '').toLowerCase().includes(q.toLowerCase()) ||
+    (i.customerName ?? '').toLowerCase().includes(q.toLowerCase())
   );
 
   return (
@@ -57,17 +59,18 @@ export default function ReturnMasterView() {
               <tr>
                 <th className="p-3 border-b border-outline-variant">Return No</th>
                 <th className="p-3 border-b border-outline-variant">Return Date</th>
+                <th className="p-3 border-b border-outline-variant">Return Type</th>
+                <th className="p-3 border-b border-outline-variant">Customer Name</th>
                 <th className="p-3 border-b border-outline-variant">Firm</th>
                 <th className="p-3 border-b border-outline-variant">Department</th>
-                <th className="p-3 border-b border-outline-variant">Returned By</th>
-                <th className="p-3 border-b border-outline-variant text-right">Total Items</th>
+                <th className="p-3 border-b border-outline-variant">Received By</th>                <th className="p-3 border-b border-outline-variant text-right">Total Items</th>
                 <th className="p-3 border-b border-outline-variant text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-on-surface-variant text-sm">
+                  <td colSpan={9} className="p-4 text-center text-on-surface-variant text-sm">
                     No returns found
                   </td>
                 </tr>
@@ -76,6 +79,8 @@ export default function ReturnMasterView() {
                 <tr key={row.id} className="hover:bg-surface-container-low/50 transition-colors">
                   <td className="p-3 text-on-surface font-medium">{row.transactionNo}</td>
                   <td className="p-3 text-on-surface-variant">{formatDate(row.date)}</td>
+                  <td className="p-3 text-on-surface-variant">{row.returnType ?? 'Stock'}</td>
+                  <td className="p-3 text-on-surface-variant">{row.customerName ?? '-'}</td>
                   <td className="p-3 text-on-surface-variant">{row.firmId}</td>
                   <td className="p-3 text-on-surface-variant">{row.department}</td>
                   <td className="p-3 text-on-surface-variant">{row.person}</td>
@@ -107,8 +112,10 @@ export default function ReturnMasterView() {
               <button className="btn btn-sm" onClick={() => setViewItem(null)}>Close</button>
             </div>
             <div className="p-5 overflow-auto space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Date</span> {formatDate(viewItem.date)}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Type</span> {viewItem.returnType ?? 'Stock'}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Customer Name</span> {viewItem.customerName ?? '-'}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {viewItem.firmId}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Returned By</span> {viewItem.person}</div>
@@ -140,3 +147,4 @@ export default function ReturnMasterView() {
     </div>
   );
 }
+

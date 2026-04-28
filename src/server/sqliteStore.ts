@@ -4672,6 +4672,122 @@ export async function deleteStore(input: { id: string; deletedBy?: string }) {
   return { ok: true };
 }
 
+export async function listCustomers() {
+  await initDb();
+  const db = await getDb();
+  const rows = await db.all<any[]>('SELECT id, name, phone, address FROM customers ORDER BY created_at DESC');
+  return (rows ?? []).map((r) => ({
+    id: String(r.id),
+    name: String(r.name),
+    phone: r.phone ?? null,
+    address: r.address ?? null,
+  }));
+}
+
+export async function createCustomer(input: { name: string; phone?: string | null; address?: string | null; createdBy?: string }) {
+  await initDb();
+  const db = await getDb();
+  const now = nowIso();
+  const id = `CUS-${crypto.randomUUID()}`;
+  const name = String(input.name ?? '').trim();
+  if (!name) throw new Error('Customer name is required');
+
+  await db.run(
+    `INSERT INTO customers (id, name, phone, address, created_by, created_at, updated_by, updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    id,
+    name,
+    input.phone != null && String(input.phone).trim() ? String(input.phone).trim() : null,
+    input.address != null && String(input.address).trim() ? String(input.address).trim() : null,
+    input.createdBy ?? 'system',
+    now,
+    input.createdBy ?? 'system',
+    now
+  );
+  await db.run(
+    `INSERT INTO audit_logs (id, module, record_id, action, performed_by, timestamp, remarks) VALUES (?,?,?,?,?,?,?)`,
+    `AUD-${crypto.randomUUID()}`,
+    'customers',
+    id,
+    'create',
+    input.createdBy ?? 'system',
+    now,
+    null
+  );
+  return {
+    id,
+    name,
+    phone: input.phone != null && String(input.phone).trim() ? String(input.phone).trim() : null,
+    address: input.address != null && String(input.address).trim() ? String(input.address).trim() : null,
+  };
+}
+
+export async function updateCustomer(input: { id: string; name: string; phone?: string | null; address?: string | null; updatedBy?: string }) {
+  await initDb();
+  const db = await getDb();
+  const now = nowIso();
+  const id = String(input.id ?? '').trim();
+  const name = String(input.name ?? '').trim();
+  if (!id) throw new Error('Customer id is required');
+  if (!name) throw new Error('Customer name is required');
+
+  const existing = await db.get<{ id: string }>('SELECT id FROM customers WHERE id = ?', id);
+  if (!existing?.id) throw new Error('Customer not found');
+
+  await db.run(
+    `UPDATE customers
+        SET name = ?,
+            phone = ?,
+            address = ?,
+            updated_by = ?,
+            updated_at = ?
+      WHERE id = ?`,
+    name,
+    input.phone != null && String(input.phone).trim() ? String(input.phone).trim() : null,
+    input.address != null && String(input.address).trim() ? String(input.address).trim() : null,
+    input.updatedBy ?? 'system',
+    now,
+    id
+  );
+  await db.run(
+    `INSERT INTO audit_logs (id, module, record_id, action, performed_by, timestamp, remarks) VALUES (?,?,?,?,?,?,?)`,
+    `AUD-${crypto.randomUUID()}`,
+    'customers',
+    id,
+    'update',
+    input.updatedBy ?? 'system',
+    now,
+    null
+  );
+  return {
+    id,
+    name,
+    phone: input.phone != null && String(input.phone).trim() ? String(input.phone).trim() : null,
+    address: input.address != null && String(input.address).trim() ? String(input.address).trim() : null,
+  };
+}
+
+export async function deleteCustomer(input: { id: string; deletedBy?: string }) {
+  await initDb();
+  const db = await getDb();
+  const now = nowIso();
+  const id = String(input.id ?? '').trim();
+  if (!id) throw new Error('Customer id is required');
+
+  await db.run(`DELETE FROM customers WHERE id = ?`, id);
+  await db.run(
+    `INSERT INTO audit_logs (id, module, record_id, action, performed_by, timestamp, remarks) VALUES (?,?,?,?,?,?,?)`,
+    `AUD-${crypto.randomUUID()}`,
+    'customers',
+    id,
+    'delete',
+    input.deletedBy ?? 'system',
+    now,
+    null
+  );
+  return { ok: true };
+}
+
 export async function listSuppliers() {
   await initDb();
   const db = await getDb();
@@ -7434,4 +7550,102 @@ export async function listQueuePayment(filters?: QueueFilters): Promise<PaymentQ
     remainingAmount: Math.max(0, Number(r.remainingAmount ?? 0)),
     pendingReason: 'Approved invoice pending payment',
   }));
+}
+
+export async function upsertOpeningBalance(input: { storeId: string; itemId: string; quantity: number; year: string }) {
+  await initDb();
+  const db = await getDb();
+  const id = `IOB-${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  await db.run(
+    `INSERT INTO item_opening_balances (id, store_id, item_id, quantity, year, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(store_id, item_id, year) DO UPDATE SET
+       quantity = excluded.quantity,
+       updated_at = excluded.updated_at`,
+    id,
+    input.storeId,
+    input.itemId,
+    input.quantity,
+    input.year,
+    now,
+    now
+  );
+  return { ok: true };
+}
+
+export async function listOpeningBalances(storeId: string, year: string) {
+  await initDb();
+  const db = await getDb();
+  return db.all<any[]>(
+    'SELECT item_id as itemId, quantity FROM item_opening_balances WHERE store_id = ? AND year = ?',
+    storeId,
+    year
+  );
+}
+
+export async function getFirmInventorySheet(firmId: string, year: string) {
+  await initDb();
+  const db = await getDb();
+
+  const items = await db.all<any[]>(`
+    SELECT 
+      i.id as itemId, 
+      i.item_code as itemCode,
+      inames.name as itemName,
+      i.specifications_json as specificationsJson,
+      i.unit
+    FROM items i
+    JOIN item_names inames ON inames.id = i.item_name_id
+    WHERE i.is_active = 1
+  `);
+
+  const openingSql = `
+    SELECT iob.item_id as itemId, SUM(iob.quantity) as openingQty
+    FROM item_opening_balances iob
+    JOIN stores s ON s.id = iob.store_id
+    WHERE s.firm_id = ? AND iob.year = ?
+    GROUP BY iob.item_id
+  `;
+  const openingRows = await db.all<any[]>(openingSql, firmId, year);
+  const openingMap = new Map(openingRows.map((r) => [r.itemId, Number(r.openingQty ?? 0)]));
+
+  const ledgerSql = `
+    SELECT 
+      item_id as itemId, 
+      transaction_type as type, 
+      SUM(quantity) as total
+    FROM stock_ledger
+    WHERE firm_id = ?
+    GROUP BY item_id, transaction_type
+  `;
+  const ledgerRows = await db.all<any[]>(ledgerSql, firmId);
+  const ledgerMap = new Map<string, Record<string, number>>();
+  for (const r of ledgerRows) {
+    if (!ledgerMap.has(r.itemId)) ledgerMap.set(r.itemId, {});
+    ledgerMap.get(r.itemId)![r.type] = Number(r.total ?? 0);
+  }
+
+  return items.map((it) => {
+    const opening = openingMap.get(it.itemId) ?? 0;
+    const stats = ledgerMap.get(it.itemId) ?? {};
+    const purchase = stats['IN'] ?? 0;
+    const issue = stats['OUT'] ?? 0;
+    const damage = stats['DAMAGE'] ?? 0;
+    const returns = stats['RETURN'] ?? 0;
+
+    return {
+      itemId: it.itemId,
+      itemCode: it.itemCode,
+      itemName: it.itemName,
+      specifications: it.specificationsJson,
+      unit: it.unit,
+      opening,
+      purchase,
+      issue,
+      damage,
+      returns,
+      balance: opening + purchase + returns - issue - damage,
+    };
+  });
 }

@@ -38,10 +38,10 @@
 		}
 
 		@layer base {
-		  html {
-		    font-size: 17px;
-		    zoom: 0.67;
-		  }
+			  html {
+			    font-size: 17px;
+			    zoom: 0.737;
+			  }
 
 	  body {
 	    @apply bg-surface text-on-surface font-sans antialiased;

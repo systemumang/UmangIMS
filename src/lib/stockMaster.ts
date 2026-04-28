@@ -2,6 +2,7 @@ export type StockTransactionItem = {
   item: string;
   quantity: number;
   specification?: string;
+  remark?: string;
 };
 
 export type StockTransaction = {
@@ -9,10 +10,16 @@ export type StockTransaction = {
   transactionNo: string;
   firmId: string;
   department: string;
+  // For Stock Transfer flows
+  toFirmId?: string;
+  toDepartment?: string;
   person: string;
   date: string;
   issueType?: 'Sales' | 'Project';
   issuedTo?: string;
+  returnType?: 'Sales' | 'Project';
+  customerName?: string;
+  approvedBy?: string;
   items: StockTransactionItem[];
 };
 
@@ -100,4 +107,25 @@ export async function listDamages() {
 export async function deleteDamage(id: string) {
   const damages = getStorage('stock_damages');
   setStorage('stock_damages', damages.filter(i => i.id !== id));
+}
+
+export async function createTransfer(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
+  const transfers = getStorage('stock_transfers');
+  const nextNum = transfers.length + 1;
+  const newRow = {
+    ...data,
+    id: String(Date.now()),
+    transactionNo: `TRF/${getFyPrefix()}/${String(nextNum).padStart(5, '0')}`
+  };
+  setStorage('stock_transfers', [newRow, ...transfers]);
+  return newRow;
+}
+
+export async function listTransfers() {
+  return getStorage('stock_transfers');
+}
+
+export async function deleteTransfer(id: string) {
+  const transfers = getStorage('stock_transfers');
+  setStorage('stock_transfers', transfers.filter(i => i.id !== id));
 }

@@ -171,9 +171,28 @@ model Item {
   issueItems    ItemIssueItem[]
   transferItems ItemTransferItem[]
   damagedItems  DamagedItem[]
+  openingBalances ItemOpeningBalance[]
 
   @@index([itemNameId])
   @@map("items")
+}
+
+model ItemOpeningBalance {
+  id        String   @id @default(cuid())
+  storeId   String   @map("store_id")
+  itemId    String   @map("item_id")
+  quantity  Float    @default(0)
+  year      String   @default("2024-25")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  item  Item  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([storeId, itemId, year])
+  @@index([storeId])
+  @@index([itemId])
+  @@map("item_opening_balances")
 }
 
 model Supplier {

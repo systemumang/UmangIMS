@@ -16,12 +16,13 @@ import {
 			  createRequest,
 			  createGrn,
 			  createGrnForPo,
-		  createSpecification,
-		  createSpecificationValue,
-			  createStore,
-			  createUser,
-			  createSupplier,
-			  createTransporter,
+			  createSpecification,
+			  createSpecificationValue,
+				  createStore,
+				  createCustomer,
+				  createUser,
+				  createSupplier,
+				  createTransporter,
 		  deleteDepartment,
 		  deleteFirm,
 			  deleteProject,
@@ -29,11 +30,12 @@ import {
 				  deleteItemName,
 				  deleteUnit,
 				  deleteItemCategory,
-				  deleteSpecification,
-		  deleteSpecificationValue,
-			  deleteStore,
-			  deleteUser,
-					  deleteSupplier,
+			  deleteSpecification,
+			  deleteSpecificationValue,
+				  deleteStore,
+				  deleteCustomer,
+				  deleteUser,
+						  deleteSupplier,
 				  deleteTransporter,
 				  deleteInvoice,
 		  decidePr,
@@ -53,11 +55,12 @@ import {
 				  updatePo,
 				  updatePoCheckAndSent,
 				  deletePo,
-				  getWorkflow,
-				  listDepartments,
-				  listFirms,
-				  listProjects,
-				  getLastSupplierByItemIds,
+					  getWorkflow,
+					  listDepartments,
+					  listFirms,
+					  listProjects,
+					  listCustomers,
+					  getLastSupplierByItemIds,
 					  listUsers,
 					  listUnits,
 					  listItemCategories,
@@ -66,9 +69,9 @@ import {
 			  listPosByPrId,
 			  listSpecificationValues,
 			  listSpecifications,
-		  listStores,
-		  listSuppliers,
-				  listTransporters,
+			  listStores,
+			  listSuppliers,
+					  listTransporters,
 						  payInvoice,
 							  setGrnInvoiceLinks,
 							  listGrnItemInvoiceLinkSummaryByPrId,
@@ -93,34 +96,39 @@ import {
 				  updateItemCategory,
 			  updateDepartment,
 			  updateSpecification,
-			  updateSpecificationValue,
-			  updateStore,
-							  updateUser,
-						  updateSupplier,
+				  updateSpecificationValue,
+				  updateStore,
+								  updateCustomer,
+								  updateUser,
+							  updateSupplier,
 						  updateTransporter,
-				  deleteGrn,
-				  listQueueApprovePr,
-				  listQueueCreatePo,
-				  listQueueCheckPo,
-				  listQueueSendPo,
-				  listQueueCreateGrn,
-				  listQueueQc,
-				  listQueueEnterInvoice,
-				  listQueueLinkInvoiceGrn,
-				  listQueueApproveInvoice,
-				  listQueuePayment,
-				  listOperationsPr,
-				  listOperationsPo,
-				  listOperationsGrns,
-				  listOperationsInvoices,
-				  listOperationsPayments,
-				  getOperationsPrDetail,
-					  getOperationsPoDetail,
-					  getOperationsGrnDetail,
-					  getOperationsInvoiceDetail,
-					  getOperationsPaymentDetail,
-					  exportOperationsSheetBuffer,
-									} from './sqliteStore';
+						  deleteGrn,
+						  listQueueApprovePr,
+						  listQueueCreatePo,
+						  listQueueCheckPo,
+						  listQueueSendPo,
+						  listQueueCreateGrn,
+						  listQueueQc,
+						  listQueueEnterInvoice,
+						  listQueueLinkInvoiceGrn,
+						  listQueueApproveInvoice,
+						  listQueuePayment,
+						  listOperationsPr,
+						  listOperationsPo,
+						  listOperationsGrns,
+						  listOperationsInvoices,
+						  listOperationsPayments,
+						  getOperationsPrDetail,
+						  getOperationsPoDetail,
+						  getOperationsGrnDetail,
+						  getOperationsInvoiceDetail,
+						  getOperationsPaymentDetail,
+						  exportOperationsSheetBuffer,
+						  upsertOpeningBalance,
+						  listOpeningBalances,
+						  getFirmInventorySheet,
+						  } from './sqliteStore';
+
 	import { generatePurchaseRequisitionPdfBuffer } from './prPdf';
 	import { generatePurchaseOrderPdfBuffer } from './poPdf';
 
@@ -1519,17 +1527,66 @@ export function createApiApp() {
     }
   });
 
-  app.get('/masters/suppliers', async (_req, res) => {
-    try {
-      res.json({ suppliers: await listSuppliers() });
-    } catch (e) {
-      sendError(res, e);
-    }
-  });
+	  app.get('/masters/suppliers', async (_req, res) => {
+	    try {
+	      res.json({ suppliers: await listSuppliers() });
+	    } catch (e) {
+	      sendError(res, e);
+	    }
+	  });
 
-	  app.post('/masters/suppliers', async (req, res) => {
+	  app.get('/masters/customers', async (_req, res) => {
+	    try {
+	      res.json({ customers: await listCustomers() });
+	    } catch (e) {
+	      sendError(res, e);
+	    }
+	  });
+
+	  app.post('/masters/customers', async (req, res) => {
 	    try {
 	      const name = String(req.body?.name ?? '').trim();
+	      const phone = req.body?.phone != null ? String(req.body.phone).trim() : undefined;
+	      const address = req.body?.address != null ? String(req.body.address).trim() : undefined;
+	      const createdBy = String(req.body?.createdBy ?? 'system').trim() || 'system';
+	      const customer = await createCustomer({ name, phone, address, createdBy });
+	      await bestEffortSnapshot();
+	      res.status(201).json({ customer });
+	    } catch (e) {
+	      sendError(res, e);
+	    }
+	  });
+
+	  app.put('/masters/customers/:id', async (req, res) => {
+	    try {
+	      const id = String(req.params.id ?? '').trim();
+	      const name = String(req.body?.name ?? '').trim();
+	      const phone = req.body?.phone != null ? String(req.body.phone).trim() : undefined;
+	      const address = req.body?.address != null ? String(req.body.address).trim() : undefined;
+	      const updatedBy = String(req.body?.updatedBy ?? 'system').trim() || 'system';
+	      const customer = await updateCustomer({ id, name, phone, address, updatedBy });
+	      await bestEffortSnapshot();
+	      res.json({ customer });
+	    } catch (e) {
+	      sendError(res, e);
+	    }
+	  });
+
+	  app.delete('/masters/customers/:id', async (req, res) => {
+	    try {
+	      const id = String(req.params.id ?? '').trim();
+	      const deletedBy = String(req.body?.deletedBy ?? 'system').trim() || 'system';
+	      const result = await deleteCustomer({ id, deletedBy });
+	      await bestEffortSnapshot();
+	      res.json(result);
+	    } catch (e) {
+	      sendError(res, e);
+	    }
+	  });
+	
+		  app.post('/masters/suppliers', async (req, res) => {
+		    try {
+		      const name = String(req.body?.name ?? '').trim();
 	      const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber) : undefined;
 	      const gstType = req.body?.gstType != null ? String(req.body.gstType).trim() : undefined;
 	      const paymentTerms = req.body?.paymentTerms != null ? String(req.body.paymentTerms) : undefined;
@@ -1922,6 +1979,52 @@ export function createApiApp() {
     try {
       const result = await saveMastersExcelSnapshotToDisk();
       res.json(result);
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  // --- Inventory Balances ---
+  app.get('/inventory/sheet', async (req, res) => {
+    try {
+      const firmId = String(req.query.firmId ?? '').trim();
+      const year = String(req.query.year ?? '2024-25').trim();
+      if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+      const rows = await getFirmInventorySheet(firmId, year);
+      res.json({ rows });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  app.get('/inventory/opening-balances', async (req, res) => {
+    try {
+      const storeId = String(req.query.storeId ?? '').trim();
+      const year = String(req.query.year ?? '2024-25').trim();
+      if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+      const balances = await listOpeningBalances(storeId, year);
+      res.json({ balances });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  app.post('/inventory/opening-balances', async (req, res) => {
+    try {
+      const storeId = String(req.body.storeId ?? '').trim();
+      const year = String(req.body.year ?? '2024-25').trim();
+      const balances = Array.isArray(req.body.balances) ? req.body.balances : [];
+      if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+
+      for (const b of balances) {
+        await upsertOpeningBalance({
+          storeId,
+          itemId: String(b.itemId),
+          quantity: Number(b.quantity ?? 0),
+          year,
+        });
+      }
+      res.json({ ok: true });
     } catch (e) {
       sendError(res, e);
     }

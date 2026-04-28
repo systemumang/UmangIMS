@@ -21,15 +21,17 @@ import Spinner from './components/common/Spinner';
 import ItemIssueView from './components/views/ItemIssueView';
 import ReturnView from './components/views/ReturnView';
 import DamageView from './components/views/DamageView';
+import StockTransferView from './components/views/StockTransferView';
 import IssueMasterView from './components/views/IssueMasterView';
 import ReturnMasterView from './components/views/ReturnMasterView';
 import DamageMasterView from './components/views/DamageMasterView';
+import TransferMasterView from './components/views/TransferMasterView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
-		  type View = NavView | PendingQueueView | 'newPurchaseRequest' | 'purchaseRequestDetail' | 'stockMaster' | 'issueMaster' | 'returnMaster' | 'damageMaster';
+		  type View = NavView | PendingQueueView | 'newPurchaseRequest' | 'purchaseRequestDetail' | 'stockMaster' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster';
 		  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
 		  const [view, setView] = useState<View>('purchasing');
 		  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -113,11 +115,13 @@ export default function App() {
 		      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
 		      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
 		      if (stockMasterTab === 'damage') return { title: 'Stock Master', subtitle: 'Damage', showSearch: false };
+		      if (stockMasterTab === 'transfer') return { title: 'Stock Master', subtitle: 'Transfer', showSearch: false };
 		      return { title: 'Stock Master', showSearch: false };
 		    }
 		    if (view === 'issueMaster') return { title: 'Issue Master', showSearch: false };
 		    if (view === 'returnMaster') return { title: 'Return Master', showSearch: false };
 		    if (view === 'damageMaster') return { title: 'Damage Master', showSearch: false };
+		    if (view === 'transferMaster') return { title: 'Transfer Master', showSearch: false };
 		    if (view === 'masters') return { title: 'Masters', showSearch: false };
 		    if (view === 'pendingTasks') return { title: 'Pending Tasks', showSearch: false };
 		    if (view === 'newPurchaseRequest') return { title: 'Purchase Requests', subtitle: 'New Purchase Request', showSearch: false };
@@ -137,7 +141,7 @@ export default function App() {
 	      return { title: 'Pending Tasks', subtitle: subtitleByKey[view], showSearch: false };
 	    }
 	    return { title: 'Purchase Requests', showSearch: true };
-	  }, [view]);
+	  }, [view, stockMasterTab]);
 
 	  const sidebarActive: NavView = useMemo(() => {
 	    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
@@ -244,7 +248,7 @@ export default function App() {
         }}
       />
       
-	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200', sidebarOpen ? 'ml-64' : 'ml-0')}>
+	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200', sidebarOpen ? 'ml-72' : 'ml-0')}>
 	        <TopBar
             title={topBar.title}
             subtitle={topBar.subtitle}
@@ -304,11 +308,13 @@ export default function App() {
 		              {stockMasterTab === 'itemIssue' ? <ItemIssueView onCreated={() => setView('issueMaster')} onCancel={() => setView('issueMaster')} /> : null}
 		              {stockMasterTab === 'return' ? <ReturnView onCreated={() => setView('returnMaster')} onCancel={() => setView('returnMaster')} /> : null}
 		              {stockMasterTab === 'damage' ? <DamageView onCreated={() => setView('damageMaster')} onCancel={() => setView('damageMaster')} /> : null}
+		              {stockMasterTab === 'transfer' ? <StockTransferView onCreated={() => setView('transferMaster')} onCancel={() => setView('transferMaster')} /> : null}
 		            </>
 		          ) : null}
               {view === 'issueMaster' ? <IssueMasterView /> : null}
               {view === 'returnMaster' ? <ReturnMasterView /> : null}
               {view === 'damageMaster' ? <DamageMasterView /> : null}
+              {view === 'transferMaster' ? <TransferMasterView /> : null}
 	          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}

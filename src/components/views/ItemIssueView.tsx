@@ -461,11 +461,14 @@ export default function ItemIssueView({
 
 			          <label className="space-y-1">
 			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issued To</div>
-			            <input
-			              className={inputClass}
+			            <SearchableSelect
 			              value={issuedTo}
-			              onChange={(e) => setIssuedTo(e.target.value)}
-			              placeholder="Enter name..."
+			              options={users.map((u) => ({ value: u.name, label: u.name }))}
+			              onChange={setIssuedTo}
+			              disabled={loadingUsers}
+			              placeholder="Select user..."
+			              onCreate={(label) => Promise.resolve({ value: label, label })}
+			              createLabel={(q) => (q.trim() ? `+ Use \"${q.trim()}\"` : '+ Use custom name')}
 			            />
 			          </label>
 

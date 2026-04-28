@@ -38,7 +38,7 @@ export default function DamageView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
-  type ItemDraft = { itemId: string; item: string; quantity: string; specification: string };
+  type ItemDraft = { itemId: string; item: string; quantity: string; specification: string; remark: string };
 
   function formatSpecsLines(specificationsJson: string) {
     try {
@@ -65,14 +65,13 @@ export default function DamageView({
 			  const [departmentId, setDepartmentId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
-			  const [requestType, setRequestType] = useState<'Stock' | 'Project'>('Stock');
-			  const [projectId, setProjectId] = useState('');
+			  const [approvedByUserId, setApprovedByUserId] = useState('');
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
-		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '' }]);
+		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '', remark: '' }]);
 	  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
 	  const [itemNames, setItemNames] = useState<ItemName[]>([]);
 	  const [loadingItemNames, setLoadingItemNames] = useState(true);
@@ -169,9 +168,7 @@ export default function DamageView({
 			    return () => ac.abort();
 			  }, []);
 
-			  useEffect(() => {
-			    if (requestType !== 'Project' && projectId) setProjectId('');
-			  }, [projectId, requestType]);
+
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -247,17 +244,17 @@ export default function DamageView({
 	      }, [createItemOpen]);
 
 					  const canSubmit = useMemo(() => {
-					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-					    if (requestType === 'Project' && !projectId.trim()) return false;
+					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim() || !approvedByUserId.trim()) return false;
 					    const normalized = items
 					      .map((it) => ({
 					        item: it.item.trim(),
 					        quantity: Number(it.quantity),
 			        specification: it.specification.trim(),
+			        remark: it.remark.trim(),
 						    }))
-						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
+						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification && it.remark);
 					    return normalized.length > 0;
-					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType]);
+					  }, [departmentId, firmId, items, requestedByUserId, requiredDate, approvedByUserId]);
 
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
@@ -446,30 +443,15 @@ export default function DamageView({
 
 			        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
 			          <label className="space-y-1">
-			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request Type</div>
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Damage Approved By</div>
 			            <SearchableSelect
-			              value={requestType}
-			              options={[
-			                { value: 'Stock', label: 'Stock' },
-			                { value: 'Project', label: 'Project' },
-			              ]}
-			              onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
-			              placeholder="Search request type..."
+			              value={approvedByUserId}
+			              options={users.map((u) => ({ value: u.name, label: u.name }))}
+			              onChange={setApprovedByUserId}
+			              disabled={loadingUsers}
+			              placeholder="Select user..."
 			            />
 			          </label>
-
-		          {requestType === 'Project' ? (
-		            <label className="space-y-1 md:col-span-3">
-		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
-		              <SearchableSelect
-		                value={projectId}
-		                options={projectOptions}
-		                onChange={setProjectId}
-		                disabled={loadingProjects}
-		                placeholder={loadingProjects ? 'Loading projects...' : projectOptions.length ? 'Select project...' : 'No projects available'}
-		              />
-		            </label>
-		          ) : null}
 		        </div>
 		      </div>
 
@@ -482,8 +464,9 @@ export default function DamageView({
 
 							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
 							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-							            <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
-							            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+							            <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
+							            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+							            <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant">Remark</div>
 							            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
 							          </div>
 
@@ -495,7 +478,7 @@ export default function DamageView({
 							                idx === 0 ? '' : 'border-t border-outline-variant',
 							              ].join(' ')}
 							            >
-						              <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
+						              <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
 						                <SearchableSelect
 				                  value={row.itemId}
 				                  options={masterItems
@@ -562,7 +545,7 @@ export default function DamageView({
 			                  }}
 		                />
 			              </div>
-						              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+						              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
 						                <input
 						                  className={inputClass}
 				                  placeholder="Qty"
@@ -578,6 +561,17 @@ export default function DamageView({
 				                  }}
 				                />
 				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
+				              </div>
+						              <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+						                <input
+						                  className={inputClass}
+				                  placeholder="Remark (Required)"
+				                  value={row.remark}
+				                  onChange={(e) => {
+				                    const v = e.target.value;
+				                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, remark: v } : p)));
+				                  }}
+				                />
 				              </div>
 							              <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
 							                <div className="flex items-center gap-2">
@@ -599,7 +593,7 @@ export default function DamageView({
 									              <button
 								                type="button"
 								                className="btn-primary"
-								                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '' }])}
+								                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '', remark: '' }])}
 							              >
 						                + Add Item
 						              </button>
@@ -626,29 +620,34 @@ export default function DamageView({
 					                      const itemId = String(it.itemId ?? '').trim();
 					                      const quantityNumber = Number(it.quantity);
 					                      const specification = it.specification.trim();
+					                      const remark = it.remark.trim();
 					                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
 					                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
 					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
 					                      else if (!specification) rowMessages[i] = 'Missing specification.';
+					                      else if (!remark) rowMessages[i] = 'Remark is required.';
 					                      if (itemId) usedItemIds.add(itemId);
-					                      return { item: itemName, quantity: quantityNumber, specification };
+					                      return { item: itemName, quantity: quantityNumber, specification, remark };
 					                    })
 					                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
-								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Department, Requested By, Required Date, and at least one valid item.');
+								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length || !approvedByUserId.trim()) {
+								                    setError('Please fill Firm, Department, Damage By, Damage Date, Approved By, and all item remarks.');
 								                    return;
 						                  }
-							                  if (requestType === 'Project' && !projectId.trim()) {
-							                    setError('Please select a Project Name for Project-type requisitions.');
-							                    return;
-							                  }
 
 					                  setSaving(true);
-						                  createDamage({ firmId: firms.find(f => f.id === firmId)?.name || firmId, department, person: requestedBy, date: requiredDate, items: normalizedItems }).then(created => onCreated(created.id))
+						                  createDamage({ 
+						                    firmId: firms.find(f => f.id === firmId)?.name || firmId, 
+						                    department, 
+						                    person: requestedBy, 
+						                    date: requiredDate, 
+						                    approvedBy: approvedByUserId,
+						                    items: normalizedItems 
+						                  }).then(created => onCreated(created.id))
 				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}

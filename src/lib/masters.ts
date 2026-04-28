@@ -19,6 +19,7 @@ export type Supplier = {
   paymentTerms?: string | null;
 };
 export type Transporter = { id: string; name: string; phone?: string | null };
+export type Customer = { id: string; name: string; phone?: string | null; address?: string | null };
 export type Department = { id: string; name: string };
 export type Project = {
   id: string;
@@ -74,7 +75,24 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
     const serverMessage = (data as any)?.error;
     throw new Error(serverMessage ? String(serverMessage) : `${fallbackMessage} (${res.status})`);
   }
-  if (data === null) throw new Error(`${fallbackMessage} (${res.status})`);
+  if (data === null) {
+    // Common in dev when the frontend server returns index.html (200) for /api/* because the backend isn't reachable.
+    let hint = '';
+    try {
+      const text = await res.clone().text();
+      const t = text.trim().toLowerCase();
+      if (t.startsWith('<!doctype') || t.startsWith('<html')) {
+        hint = ' (API returned HTML, is the backend running?)';
+      } else if (!t) {
+        hint = ' (empty response body)';
+      } else {
+        hint = ' (non-JSON response body)';
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(`${fallbackMessage} (${res.status})${hint}`);
+  }
   return data as T;
 }
 
@@ -289,6 +307,43 @@ export async function deleteStore(id: string, input?: { deletedBy?: string }) {
     body: JSON.stringify(input ?? {}),
   });
   return requireOk<{ ok: boolean }>(res, 'Failed to delete store');
+}
+
+export async function fetchCustomers(signal?: AbortSignal): Promise<Customer[]> {
+  const res = await fetch('/api/masters/customers', { signal });
+  const data = await requireOk<{ customers?: Customer[] }>(res, 'Failed to load customers');
+  const rows = Array.isArray(data.customers) ? data.customers : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createCustomer(input: { name: string; phone?: string | null; address?: string | null; createdBy?: string }) {
+  const res = await fetch('/api/masters/customers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ customer?: Customer }>(res, 'Failed to create customer');
+}
+
+export async function updateCustomer(
+  id: string,
+  input: { name: string; phone?: string | null; address?: string | null; updatedBy?: string }
+) {
+  const res = await fetch(`/api/masters/customers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ customer?: Customer }>(res, 'Failed to update customer');
+}
+
+export async function deleteCustomer(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/customers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete customer');
 }
 
 export async function fetchSuppliers(signal?: AbortSignal): Promise<Supplier[]> {

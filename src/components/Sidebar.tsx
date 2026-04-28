@@ -13,7 +13,18 @@ import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
-export type NavView = 'dashboard' | 'purchasing' | 'operations' | 'inventory' | 'masters' | 'pendingTasks' | 'stockMaster' | 'issueMaster' | 'returnMaster' | 'damageMaster';
+export type NavView =
+  | 'dashboard'
+  | 'purchasing'
+  | 'operations'
+  | 'inventory'
+  | 'masters'
+  | 'pendingTasks'
+  | 'stockMaster'
+  | 'issueMaster'
+  | 'returnMaster'
+  | 'damageMaster'
+  | 'transferMaster';
 export type PendingQueueKey =
   | 'queueApprovePr'
   | 'queueCreatePo'
@@ -37,12 +48,13 @@ const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> = [
   { key: 'queuePayment', label: 'Pending Payment' },
 ];
 
-export type StockMasterTab = 'itemIssue' | 'return' | 'damage';
+export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
 const stockMasterItems: Array<{ key: StockMasterTab; label: string }> = [
   { key: 'itemIssue', label: 'Issue' },
   { key: 'return', label: 'Return' },
   { key: 'damage', label: 'Damage' },
+  { key: 'transfer', label: 'Transfer' },
 ];
 
 	const navItems: Array<{
@@ -58,6 +70,7 @@ const stockMasterItems: Array<{ key: StockMasterTab; label: string }> = [
 			  { icon: Database, label: 'Issue Master', view: 'issueMaster' },
 			  { icon: Database, label: 'Return Master', view: 'returnMaster' },
 			  { icon: Database, label: 'Damage Master', view: 'damageMaster' },
+			  { icon: Database, label: 'Transfer Master', view: 'transferMaster' },
 			  { icon: Database, label: 'Masters', view: 'masters' },
 			];
 
@@ -92,14 +105,14 @@ export default function Sidebar({
   open?: boolean;
 }) {
   return (
-    <aside
-      className={cn(
-        'h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex flex-col py-4 space-y-2 z-40 transition-transform duration-200',
-        open ? 'translate-x-0' : '-translate-x-full'
-      )}
-      aria-hidden={!open}
-    >
-      <div className="px-6 mb-8">
+	    <aside
+	      className={cn(
+	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r border-outline-variant/10 shadow-lg',
+	        open ? 'translate-x-0' : '-translate-x-full'
+	      )}
+	      aria-hidden={!open}
+	    >
+      <div className="px-6 pt-8 pb-6 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
             <Boxes size={18} />
@@ -111,7 +124,7 @@ export default function Sidebar({
 	        </div>
 	      </div>
 
-      <nav className="flex-1 space-y-3">
+      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
 		        {navItems.map((item) => (
 			          <React.Fragment key={item.label}>
 		            <motion.button
@@ -119,7 +132,7 @@ export default function Sidebar({
 		              type="button"
 		              onClick={() => onNavigate(item.view)}
 		              className={cn(
-		                "flex items-center px-4 py-2.5 mx-2 rounded-lg transition-colors font-sans text-sm tracking-wide w-[calc(100%-1rem)] text-left",
+		                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left",
 		                activeView === item.view
 		                  ? "bg-error text-on-primary font-semibold"
 		                  : "text-on-surface-variant hover:bg-surface-container-high"
@@ -148,7 +161,7 @@ export default function Sidebar({
 
 
 		            {item.view === 'masters' && mastersExpanded ? (
-		              <div className="ml-7 mr-3 mt-1 space-y-1">
+		              <div className="ml-7 mr-1 mt-1 space-y-1">
 		                {MASTERS_TABS.map((t) => (
 		                  <button
 		                    key={t.key}
@@ -168,7 +181,7 @@ export default function Sidebar({
 		            ) : null}
 
 			            {item.view === 'pendingTasks' && onNavigatePendingQueue && pendingExpanded ? (
-			              <div className="ml-7 mr-3 mt-1 space-y-1">
+			              <div className="ml-7 mr-1 mt-1 space-y-1">
 			                {pendingQueueItems.map((q) => (
 			                  <motion.button
 			                    key={q.key}
@@ -191,7 +204,7 @@ export default function Sidebar({
 		        ))}
 		      </nav>
 
-      <div className="px-4 mt-auto space-y-2">
+      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 space-y-2">
         <motion.button 
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -205,7 +218,7 @@ export default function Sidebar({
           onClick={onNewPurchaseRequest}
         >
           <Plus size={16} />
-          New Purchase Request
+          Purchase Request
         </motion.button>
 
         {stockMasterItems.map((t) => (
@@ -227,10 +240,10 @@ export default function Sidebar({
           </motion.button>
         ))}
         
-        <div className="pt-4 border-t border-outline-variant/20">
+        <div className="pt-2">
           <button
             type="button"
-            className="flex items-center px-4 py-2 text-on-surface-variant hover:bg-surface-container-high mx-2 rounded-lg transition-colors font-sans text-sm tracking-wide w-[calc(100%-1rem)] text-left"
+            className="flex items-center px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left"
             onClick={() => {}}
           >
             <LogOut className="mr-3" size={18} />

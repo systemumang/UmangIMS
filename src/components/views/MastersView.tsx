@@ -11,10 +11,11 @@ import {
 	  createItemName,
 		  createSpecification,
 		  createSpecificationValue,
-		  createStore,
-		  createSupplier,
-	  createTransporter,
-	  createUser,
+	  createStore,
+	  createCustomer,
+	  createSupplier,
+		  createTransporter,
+		  createUser,
   deleteDepartment,
   deleteFirm,
 	  deleteProject,
@@ -24,10 +25,11 @@ import {
 	  deleteItemName,
 		  deleteSpecification,
 		  deleteSpecificationValue,
-		  deleteStore,
-	  deleteSupplier,
-	  deleteTransporter,
-	  deleteUser,
+			  deleteStore,
+		  deleteCustomer,
+		  deleteSupplier,
+		  deleteTransporter,
+		  deleteUser,
   fetchDepartments,
   fetchFirms,
 	  fetchProjects,
@@ -37,10 +39,11 @@ import {
 	  fetchItems,
 		  fetchSpecifications,
 		  fetchSpecificationValues,
-	  fetchStores,
-	  fetchSuppliers,
-	  fetchTransporters,
-	  fetchUsers,
+		  fetchStores,
+		  fetchSuppliers,
+		  fetchCustomers,
+		  fetchTransporters,
+		  fetchUsers,
   type Department,
   type Firm,
 	  type Project,
@@ -51,9 +54,10 @@ import {
 		  type Specification,
 		  type SpecificationValue,
 		  type Store,
-	  type Supplier,
-	  type Transporter,
-	  type User,
+		  type Supplier,
+		  type Customer,
+		  type Transporter,
+		  type User,
   updateDepartment,
   updateFirm,
 	  updateProject,
@@ -63,11 +67,12 @@ import {
 	  updateItemName,
 		  updateSpecification,
 		  updateSpecificationValue,
-		  updateStore,
-	  updateSupplier,
-	  updateTransporter,
-	  updateUser,
-		} from '@/src/lib/masters';
+			  updateStore,
+		  updateCustomer,
+		  updateSupplier,
+		  updateTransporter,
+		  updateUser,
+			} from '@/src/lib/masters';
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
@@ -103,13 +108,23 @@ export default function MastersView({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!addOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [addOpen]);
+
 		  const [firms, setFirms] = useState<Firm[]>([]);
 		  const [stores, setStores] = useState<Store[]>([]);
-			  const [departments, setDepartments] = useState<Department[]>([]);
-			  const [users, setUsers] = useState<User[]>([]);
-			  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-			  const [transporters, setTransporters] = useState<Transporter[]>([]);
-			  const [projects, setProjects] = useState<Project[]>([]);
+				  const [departments, setDepartments] = useState<Department[]>([]);
+				  const [users, setUsers] = useState<User[]>([]);
+				  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+				  const [customers, setCustomers] = useState<Customer[]>([]);
+				  const [transporters, setTransporters] = useState<Transporter[]>([]);
+				  const [projects, setProjects] = useState<Project[]>([]);
 			  const [units, setUnits] = useState<Unit[]>([]);
 			  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
 			  const [itemNames, setItemNames] = useState<ItemName[]>([]);
@@ -143,10 +158,13 @@ export default function MastersView({
 				  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
 				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
 				  const [newSupplierAddress, setNewSupplierAddress] = useState('');
-				  const [newSupplierPhone, setNewSupplierPhone] = useState('');
-				  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
-				  const [newTransporterName, setNewTransporterName] = useState('');
-				  const [newTransporterPhone, setNewTransporterPhone] = useState('');
+					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
+					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
+					  const [newCustomerName, setNewCustomerName] = useState('');
+					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
+					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+					  const [newTransporterName, setNewTransporterName] = useState('');
+					  const [newTransporterPhone, setNewTransporterPhone] = useState('');
 				  const [newUnitName, setNewUnitName] = useState('');
 				  const [newItemCategoryName, setNewItemCategoryName] = useState('');
 				  const [newItemName, setNewItemName] = useState('');
@@ -231,18 +249,23 @@ export default function MastersView({
 		      setNewUserPassword('');
 		      setNewUserMobile('');
 		    }
-					    if (tab === 'suppliers') {
-					      setNewSupplierName('');
-					      setNewSupplierGstNumber('');
-					      setNewSupplierGstType('Intra-State');
-					      setNewSupplierAddress('');
-					      setNewSupplierPhone('');
-					      setNewSupplierPaymentTerms('');
+						    if (tab === 'suppliers') {
+						      setNewSupplierName('');
+						      setNewSupplierGstNumber('');
+						      setNewSupplierGstType('Intra-State');
+						      setNewSupplierAddress('');
+						      setNewSupplierPhone('');
+						      setNewSupplierPaymentTerms('');
+						    }
+						    if (tab === 'customers') {
+						      setNewCustomerName('');
+						      setNewCustomerMobile('');
+						      setNewCustomerAddress('');
+						    }
+					    if (tab === 'transporters') {
+					      setNewTransporterName('');
+					      setNewTransporterPhone('');
 					    }
-				    if (tab === 'transporters') {
-				      setNewTransporterName('');
-				      setNewTransporterPhone('');
-				    }
 				    if (tab === 'units') setNewUnitName('');
 				    if (tab === 'itemCategories') setNewItemCategoryName('');
 				    if (tab === 'itemNames') {
@@ -309,20 +332,26 @@ export default function MastersView({
 		        setNewUserMobile(row.mobile ?? '');
 		      }
 		    }
-					    if (tab === 'suppliers') {
-					      const row = suppliers.find((s) => s.id === id);
-					      setNewSupplierName(row?.name ?? '');
-					      setNewSupplierGstNumber(row?.gstNumber ?? '');
-					      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
-					      setNewSupplierAddress(row?.address ?? '');
-					      setNewSupplierPhone(row?.phone ?? '');
-					      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
-					    }
-				    if (tab === 'transporters') {
-				      const row = transporters.find((t) => t.id === id);
-				      setNewTransporterName(row?.name ?? '');
-				      setNewTransporterPhone(row?.phone ?? '');
+				    if (tab === 'suppliers') {
+				      const row = suppliers.find((s) => s.id === id);
+				      setNewSupplierName(row?.name ?? '');
+				      setNewSupplierGstNumber(row?.gstNumber ?? '');
+				      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
+				      setNewSupplierAddress(row?.address ?? '');
+				      setNewSupplierPhone(row?.phone ?? '');
+				      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
 				    }
+				    if (tab === 'customers') {
+				      const row = customers.find((c) => c.id === id);
+				      setNewCustomerName(row?.name ?? '');
+				      setNewCustomerMobile(row?.phone ?? '');
+				      setNewCustomerAddress(row?.address ?? '');
+				    }
+					    if (tab === 'transporters') {
+					      const row = transporters.find((t) => t.id === id);
+					      setNewTransporterName(row?.name ?? '');
+					      setNewTransporterPhone(row?.phone ?? '');
+					    }
 			    if (tab === 'units') {
 			      const row = units.find((u) => u.id === id);
 			      setNewUnitName(row?.name ?? '');
@@ -395,10 +424,12 @@ export default function MastersView({
 				        return `${verb} Item Category`;
 				      case 'users':
 				        return `${verb} User`;
-			      case 'suppliers':
-			        return `${verb} Supplier`;
-			      case 'transporters':
-			        return `${verb} Transporter`;
+				      case 'suppliers':
+				        return `${verb} Supplier`;
+				      case 'customers':
+				        return `${verb} Customer`;
+				      case 'transporters':
+				        return `${verb} Transporter`;
 			      case 'itemNames':
 			        return `${verb} Item Name`;
 		      case 'specs':
@@ -414,37 +445,39 @@ export default function MastersView({
 
 	  const isEditing = editCtx?.tab === tab && Boolean(editCtx?.id);
 
-				  function loadAll(signal?: AbortSignal) {
-				    setError(null);
-						    return Promise.all([
-						      fetchDepartments(signal),
-						      fetchFirms(signal),
-						      fetchProjects(signal),
-						      fetchStores(signal),
-						      fetchUsers(signal),
-					      fetchSuppliers(signal),
-					      fetchTransporters(signal),
-					      fetchUnits(signal),
-					      fetchItemCategories(signal),
-					      fetchItemNames(signal),
-					      fetchSpecifications(signal),
-					      fetchItems(signal),
-					    ]).then(([deps, f, prj, st, u, sup, trn, unt, cats, inames, sp, it]) => {
-					      setDepartments(deps);
-					      setFirms(f);
-					      setProjects(prj);
-					      setStores(st);
-						      setUsers(u);
-						      setSuppliers(sup);
-						      setTransporters(trn);
-						      setUnits(unt);
-						      setItemCategories(cats);
-						      setItemNames(inames);
-					      setSpecs(sp);
-					      setItems(it);
-					      return { firms: f, specifications: sp };
-				    });
-				  }
+					  function loadAll(signal?: AbortSignal) {
+					    setError(null);
+							    return Promise.all([
+							      fetchDepartments(signal),
+							      fetchFirms(signal),
+							      fetchProjects(signal),
+							      fetchStores(signal),
+							      fetchUsers(signal),
+						      fetchSuppliers(signal),
+						      fetchCustomers(signal),
+						      fetchTransporters(signal),
+						      fetchUnits(signal),
+						      fetchItemCategories(signal),
+						      fetchItemNames(signal),
+						      fetchSpecifications(signal),
+						      fetchItems(signal),
+						    ]).then(([deps, f, prj, st, u, sup, cus, trn, unt, cats, inames, sp, it]) => {
+						      setDepartments(deps);
+						      setFirms(f);
+						      setProjects(prj);
+						      setStores(st);
+							      setUsers(u);
+							      setSuppliers(sup);
+							      setCustomers(cus);
+							      setTransporters(trn);
+							      setUnits(unt);
+							      setItemCategories(cats);
+							      setItemNames(inames);
+						      setSpecs(sp);
+						      setItems(it);
+						      return { firms: f, specifications: sp };
+					    });
+					  }
 
   useEffect(() => {
     const ac = new AbortController();
@@ -547,19 +580,19 @@ export default function MastersView({
         ))}
       </div>
 
-		      {addOpen ? (
-		        <div className="fixed inset-0 z-50">
-		          <button
-		            type="button"
-		            className="absolute inset-0 bg-black/40"
-		            aria-label="Close"
-		            onClick={closeModal}
-		          />
-		          <div className="relative w-full h-full bg-surface-container-lowest border border-outline-variant shadow-xl flex flex-col">
-		            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
-		              <div className="text-sm font-bold text-on-surface">{addTitle}</div>
-		              <button
-		                type="button"
+			      {addOpen ? (
+			        <div className="fixed inset-0 z-50 flex items-stretch justify-center py-4 px-8 md:px-12">
+			          <button
+			            type="button"
+			            className="absolute inset-0 bg-black/40"
+			            aria-label="Close"
+			            onClick={closeModal}
+			          />
+			          <div className="relative w-full max-w-5xl h-full bg-surface-container-lowest border border-outline-variant shadow-xl flex flex-col rounded-2xl overflow-hidden">
+			            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
+			              <div className="text-sm font-bold text-on-surface">{addTitle}</div>
+			              <button
+			                type="button"
 	                className="btn btn-sm"
 	                onClick={closeModal}
 	              >
@@ -567,7 +600,7 @@ export default function MastersView({
 	              </button>
 	            </div>
 
-	            <div className="flex-1 overflow-auto p-5 space-y-3">
+		            <div className="flex-1 min-h-0 overflow-auto p-5 space-y-3">
 				              {tab === 'firms' ? (
 				                <div className="space-y-2">
 		                  <label className="space-y-1">
@@ -580,7 +613,7 @@ export default function MastersView({
 		                    />
 		                  </label>
 
-		                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+<div className="grid grid-cols-1 gap-3">
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">CIN</div>
 		                      <input
@@ -601,7 +634,7 @@ export default function MastersView({
 		                      />
 		                    </label>
 
-		                    <label className="space-y-1 md:col-span-2">
+		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
 		                      <textarea
 		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
@@ -622,7 +655,7 @@ export default function MastersView({
 		                      />
 		                    </label>
 
-			                    <label className="space-y-1 md:col-span-2">
+				                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Logo (Upload or URL)</div>
 			                      <div className="flex flex-col gap-2">
 			                        <input
@@ -671,7 +704,7 @@ export default function MastersView({
 			                      </div>
 			                    </label>
 
-		                    <label className="space-y-1 md:col-span-2">
+		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Terms &amp; Conditions</div>
 		                      <textarea
 		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[100px]"
@@ -852,7 +885,7 @@ export default function MastersView({
 		                      placeholder="Adani foundation"
 		                    />
 		                  </label>
-		                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+<div className="grid grid-cols-1 gap-3">
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Date</div>
 		                      <input
@@ -977,7 +1010,7 @@ export default function MastersView({
 
 				      {tab === 'users' ? (
 	                <div className="space-y-3">
-	                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+	                  <div className="grid grid-cols-1 gap-3">
 	                    <label className="space-y-1">
 	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Name</div>
 	                      <input
@@ -1092,8 +1125,8 @@ export default function MastersView({
 	                </div>
 	              ) : null}
 
-				              {tab === 'suppliers' ? (
-				                <div className="space-y-2">
+			              {tab === 'suppliers' ? (
+			                <div className="space-y-2">
 				                  <label className="space-y-1">
 				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Supplier name</div>
 				                    <input
@@ -1104,7 +1137,7 @@ export default function MastersView({
 			                    />
 			                  </label>
 
-			                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+				                  <div className="grid grid-cols-1 gap-3">
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST</div>
 			                      <input
@@ -1128,7 +1161,7 @@ export default function MastersView({
 				                      />
 				                    </label>
 
-			                    <label className="space-y-1 md:col-span-2">
+<label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
 			                      <textarea
 			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
@@ -1218,12 +1251,85 @@ export default function MastersView({
 	                      {isEditing ? 'Save' : 'Add'}
 	                    </button>
 	                  </div>
-                </div>
-	              ) : null}
+	                </div>
+		              ) : null}
 
-		              {tab === 'transporters' ? (
+		              {tab === 'customers' ? (
 		                <div className="space-y-2">
-	                  <label className="space-y-1">
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Name</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newCustomerName}
+		                      onChange={(e) => setNewCustomerName(e.target.value)}
+		                      placeholder="Customer name"
+		                    />
+		                  </label>
+			                  <div className="grid grid-cols-1 gap-3">
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newCustomerMobile}
+		                        onChange={(e) => setNewCustomerMobile(e.target.value)}
+		                        placeholder="Mobile"
+		                        inputMode="tel"
+		                      />
+		                    </label>
+<label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Address</div>
+		                      <textarea
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
+		                        value={newCustomerAddress}
+		                        onChange={(e) => setNewCustomerAddress(e.target.value)}
+		                        placeholder="Address"
+		                      />
+		                    </label>
+		                  </div>
+		                  <div className="flex justify-end gap-2">
+		                    <button type="button" className="btn btn-sm" onClick={closeModal}>
+		                      Cancel
+		                    </button>
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+		                      disabled={!newCustomerName.trim() || busy}
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const fn = isEditing
+		                          ? updateCustomer(editCtx?.id ?? '', {
+		                              name: newCustomerName.trim(),
+		                              phone: newCustomerMobile.trim() || undefined,
+		                              address: newCustomerAddress.trim() || undefined,
+		                              updatedBy: 'system',
+		                            })
+		                          : createCustomer({
+		                              name: newCustomerName.trim(),
+		                              phone: newCustomerMobile.trim() || undefined,
+		                              address: newCustomerAddress.trim() || undefined,
+		                              createdBy: 'system',
+		                            });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewCustomerName('');
+		                            setNewCustomerMobile('');
+		                            setNewCustomerAddress('');
+		                            closeModal();
+		                          })
+		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .finally(() => setBusy(false));
+		                      }}
+		                    >
+		                      {isEditing ? 'Save' : 'Add'}
+		                    </button>
+		                  </div>
+		                </div>
+		              ) : null}
+
+			              {tab === 'transporters' ? (
+			                <div className="space-y-2">
+		                  <label className="space-y-1">
 	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Transporter name</div>
 	                    <input
 	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
@@ -2174,8 +2280,8 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-			      {tab === 'suppliers' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				      {tab === 'suppliers' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 			          <div className="flex items-center justify-between gap-2">
 			            <div className="text-sm text-on-surface-variant">Total: {suppliers.length}</div>
 		            <button
@@ -2241,12 +2347,68 @@ export default function MastersView({
 			              </tbody>
 			            </table>
 		          </div>
-	        </div>
-		      ) : null}
+		        </div>
+			      ) : null}
 
-			      {tab === 'transporters' ? (
+			      {tab === 'customers' ? (
 			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-		          <div className="flex items-center justify-between gap-2">
+			          <div className="flex items-center justify-between gap-2">
+			            <div className="text-sm text-on-surface-variant">Total: {customers.length}</div>
+			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+			              Add
+			            </button>
+			          </div>
+			          <div className="overflow-auto">
+			            <table className="min-w-[920px] w-full text-sm border-collapse border border-blue-600">
+			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+			                <tr>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Name</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Mobile</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Address</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+			                </tr>
+			              </thead>
+			              <tbody>
+			                {customers.map((c) => (
+			                  <tr key={c.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{c.phone ?? ''}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{c.address ?? ''}</td>
+			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+			                      <div className="flex items-center gap-2">
+			                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
+			                          Edit
+			                        </button>
+			                        <button
+			                          type="button"
+			                          title="Delete"
+			                          aria-label="Delete"
+			                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+			                          onClick={() => {
+			                            if (!window.confirm(`Delete customer "${c.name}"?`)) return;
+			                            setBusy(true);
+			                            setError(null);
+			                            deleteCustomer(c.id, { deletedBy: 'system' })
+			                              .then(() => loadAll())
+			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+			                              .finally(() => setBusy(false));
+			                          }}
+			                        >
+			                          <Trash2 size={16} />
+			                        </button>
+			                      </div>
+			                    </td>
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+			          </div>
+			        </div>
+			      ) : null}
+
+				      {tab === 'transporters' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex items-center justify-between gap-2">
 		            <div className="text-sm text-on-surface-variant">Total: {transporters.length}</div>
 		            <button
 		              type="button"

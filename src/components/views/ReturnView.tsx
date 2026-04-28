@@ -13,9 +13,10 @@ import { Trash2 } from 'lucide-react';
 				  createSpecificationValue,
 				  fetchDepartments,
 				  fetchProjects,
-				  fetchUsers,
-				  fetchItemNames,
-				  fetchUnits,
+					  fetchUsers,
+					  fetchCustomers,
+					  fetchItemNames,
+					  fetchUnits,
 				  createUnit,
 				  fetchItems,
 				  fetchSpecifications,
@@ -27,9 +28,10 @@ import { Trash2 } from 'lucide-react';
 				  type ItemName,
 				  type Specification,
 				  type SpecificationValue,
-				  type Unit,
-				  type User,
-				} from '@/src/lib/masters';
+					  type Unit,
+					  type User,
+					  type Customer,
+					} from '@/src/lib/masters';
 
 export default function ReturnView({
   onCreated,
@@ -63,10 +65,13 @@ export default function ReturnView({
 			  const [departments, setDepartments] = useState<Department[]>([]);
 			  const [loadingDepartments, setLoadingDepartments] = useState(true);
 			  const [departmentId, setDepartmentId] = useState('');
-			  const [projects, setProjects] = useState<Project[]>([]);
-			  const [loadingProjects, setLoadingProjects] = useState(true);
-			  const [requestType, setRequestType] = useState<'Stock' | 'Project'>('Stock');
-			  const [projectId, setProjectId] = useState('');
+				  const [projects, setProjects] = useState<Project[]>([]);
+				  const [loadingProjects, setLoadingProjects] = useState(true);
+				  const [returnType, setReturnType] = useState<'Sales' | 'Project'>('Sales');
+				  const [customerName, setCustomerName] = useState('');
+				  const [customers, setCustomers] = useState<Customer[]>([]);
+				  const [loadingCustomers, setLoadingCustomers] = useState(true);
+				  const [projectId, setProjectId] = useState('');
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
@@ -170,8 +175,15 @@ export default function ReturnView({
 			  }, []);
 
 			  useEffect(() => {
-			    if (requestType !== 'Project' && projectId) setProjectId('');
-			  }, [projectId, requestType]);
+			    if (returnType !== 'Project' && projectId) setProjectId('');
+			  }, [projectId, returnType]);
+
+			  useEffect(() => {
+			    if (returnType === 'Project' && projectId) {
+			      const p = projects.find(it => it.id === projectId);
+			      if (p) setCustomerName(p.clientName || '');
+			    }
+			  }, [projectId, returnType, projects]);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -188,10 +200,10 @@ export default function ReturnView({
 		    return () => ac.abort();
 		  }, []);
 
-		  useEffect(() => {
-		    const ac = new AbortController();
-		    setLoadingUsers(true);
-			    fetchUsers(ac.signal)
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingUsers(true);
+				    fetchUsers(ac.signal)
 			      .then((rows) => {
 			        const next = Array.isArray(rows) ? rows : [];
 			        setUsers(next);
@@ -203,8 +215,23 @@ export default function ReturnView({
 		        setError(e instanceof Error ? e.message : String(e));
 		      })
 		      .finally(() => setLoadingUsers(false));
-		    return () => ac.abort();
-		  }, []);
+			    return () => ac.abort();
+			  }, []);
+
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingCustomers(true);
+			    fetchCustomers(ac.signal)
+			      .then((rows) => setCustomers(Array.isArray(rows) ? rows : []))
+			      .catch((e) => {
+			        if (ac.signal.aborted) return;
+			        if (e instanceof DOMException && e.name === 'AbortError') return;
+			        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+			        setError(e instanceof Error ? e.message : String(e));
+			      })
+			      .finally(() => setLoadingCustomers(false));
+			    return () => ac.abort();
+			  }, []);
 
 		  useEffect(() => {
 		    const ac = new AbortController();
@@ -248,7 +275,8 @@ export default function ReturnView({
 
 					  const canSubmit = useMemo(() => {
 					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-					    if (requestType === 'Project' && !projectId.trim()) return false;
+					    if (returnType === 'Project' && !projectId.trim()) return false;
+					    if (!customerName.trim()) return false;
 					    const normalized = items
 					      .map((it) => ({
 					        item: it.item.trim(),
@@ -257,7 +285,7 @@ export default function ReturnView({
 						    }))
 						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
 					    return normalized.length > 0;
-					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType]);
+					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, returnType, customerName]);
 
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
@@ -428,7 +456,7 @@ export default function ReturnView({
 	          </label>
 
 	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Return By</div>
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Received By</div>
 	            <SearchableSelect
 	              value={requestedByUserId}
 	              options={users.map((u) => ({ value: u.id, label: u.name }))}
@@ -446,20 +474,35 @@ export default function ReturnView({
 
 			        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
 			          <label className="space-y-1">
-			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request Type</div>
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Return Type</div>
 			            <SearchableSelect
-			              value={requestType}
+			              value={returnType}
 			              options={[
-			                { value: 'Stock', label: 'Stock' },
+			                { value: 'Sales', label: 'Sales' },
 			                { value: 'Project', label: 'Project' },
 			              ]}
-			              onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
-			              placeholder="Search request type..."
+			              onChange={(v) => setReturnType(v === 'Project' ? 'Project' : 'Sales')}
+			              placeholder="Search return type..."
 			            />
 			          </label>
 
-		          {requestType === 'Project' ? (
-		            <label className="space-y-1 md:col-span-3">
+				          <label className="space-y-1">
+				            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Name</div>
+				            {returnType === 'Project' ? (
+				              <input className={inputClass} value={customerName} readOnly disabled />
+				            ) : (
+				              <SearchableSelect
+				                value={customerName}
+				                options={customers.map((c) => ({ value: c.name, label: c.name }))}
+				                onChange={setCustomerName}
+				                disabled={loadingCustomers}
+				                placeholder={loadingCustomers ? 'Loading customers...' : 'Select customer...'}
+				              />
+				            )}
+				          </label>
+
+		          {returnType === 'Project' ? (
+		            <label className="space-y-1 md:col-span-2">
 		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
 		              <SearchableSelect
 		                value={projectId}
@@ -638,17 +681,25 @@ export default function ReturnView({
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
-								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Department, Requested By, Required Date, and at least one valid item.');
+								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length || !customerName.trim()) {
+								                    setError('Please fill Firm, Department, Received By, Return Date, Customer Name, and at least one valid item.');
 								                    return;
 						                  }
-							                  if (requestType === 'Project' && !projectId.trim()) {
-							                    setError('Please select a Project Name for Project-type requisitions.');
+							                  if (returnType === 'Project' && !projectId.trim()) {
+							                    setError('Please select a Project Name for Project-type returns.');
 							                    return;
 							                  }
 
 					                  setSaving(true);
-						                  createReturn({ firmId: firms.find(f => f.id === firmId)?.name || firmId, department, person: requestedBy, date: requiredDate, items: normalizedItems }).then(created => onCreated(created.id))
+						                  createReturn({ 
+						                    firmId: firms.find(f => f.id === firmId)?.name || firmId, 
+						                    department, 
+						                    person: requestedBy, 
+						                    date: requiredDate, 
+						                    returnType,
+						                    customerName,
+						                    items: normalizedItems 
+						                  }).then(created => onCreated(created.id))
 				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}
