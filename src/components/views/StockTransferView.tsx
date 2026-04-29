@@ -4,7 +4,7 @@ import { createTransfer } from '@/src/lib/stockMaster';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { Trash2 } from 'lucide-react';
-import { fetchDepartments, fetchItems, fetchUsers, type Department, type Item, type User } from '@/src/lib/masters';
+import { fetchDepartments, fetchItems, fetchStores, fetchUsers, type Department, type Item, type Store, type User } from '@/src/lib/masters';
 
 export default function StockTransferView({
   onCreated,
@@ -13,6 +13,11 @@ export default function StockTransferView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
+  const isAbort = (e: unknown) =>
+    e instanceof DOMException && e.name === 'AbortError'
+    || String((e as any)?.name ?? '').toLowerCase() === 'aborterror'
+    || String((e as any)?.message ?? '').toLowerCase().includes('signal is aborted');
+
   type ItemDraft = { itemId: string; item: string; quantity: string };
 
   function formatSpecsLines(specificationsJson: string) {
@@ -37,14 +42,18 @@ export default function StockTransferView({
   const [loadingFirms, setLoadingFirms] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loadingStores, setLoadingStores] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [masterItems, setMasterItems] = useState<Item[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
 
   const [fromFirmId, setFromFirmId] = useState('');
+  const [fromStoreId, setFromStoreId] = useState('');
   const [fromDepartmentId, setFromDepartmentId] = useState('');
   const [toFirmId, setToFirmId] = useState('');
+  const [toStoreId, setToStoreId] = useState('');
   const [toDepartmentId, setToDepartmentId] = useState('');
   const [transferByUserId, setTransferByUserId] = useState('');
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -59,8 +68,24 @@ export default function StockTransferView({
     setLoadingFirms(true);
     fetchFirms(ac.signal)
       .then(setFirms)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
       .finally(() => setLoadingFirms(false));
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setLoadingStores(true);
+    fetchStores(ac.signal)
+      .then(setStores)
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setLoadingStores(false));
     return () => ac.abort();
   }, []);
 
@@ -69,7 +94,10 @@ export default function StockTransferView({
     setLoadingDepartments(true);
     fetchDepartments(ac.signal)
       .then(setDepartments)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
       .finally(() => setLoadingDepartments(false));
     return () => ac.abort();
   }, []);
@@ -79,7 +107,10 @@ export default function StockTransferView({
     setLoadingUsers(true);
     fetchUsers(ac.signal)
       .then(setUsers)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
       .finally(() => setLoadingUsers(false));
     return () => ac.abort();
   }, []);
@@ -89,7 +120,10 @@ export default function StockTransferView({
     setLoadingItems(true);
     fetchItems(ac.signal)
       .then(setMasterItems)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
       .finally(() => setLoadingItems(false));
     return () => ac.abort();
   }, []);
@@ -101,6 +135,14 @@ export default function StockTransferView({
   const deptOptions = useMemo(
     () => departments.map((d) => ({ value: d.id, label: d.name })).sort((a, b) => a.label.localeCompare(b.label)),
     [departments]
+  );
+  const fromStoreOptions = useMemo(
+    () => stores.filter((s) => s.firmId === fromFirmId).map((s) => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label)),
+    [stores, fromFirmId]
+  );
+  const toStoreOptions = useMemo(
+    () => stores.filter((s) => s.firmId === toFirmId).map((s) => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label)),
+    [stores, toFirmId]
   );
   const userOptions = useMemo(
     () => users.map((u) => ({ value: u.id, label: u.name })).sort((a, b) => a.label.localeCompare(b.label)),
@@ -117,7 +159,9 @@ export default function StockTransferView({
   }, [masterItems]);
 
   const fromFirmName = useMemo(() => firms.find((f) => f.id === fromFirmId)?.name ?? fromFirmId, [firms, fromFirmId]);
+  const fromStoreName = useMemo(() => stores.find((s) => s.id === fromStoreId)?.name ?? fromStoreId, [stores, fromStoreId]);
   const toFirmName = useMemo(() => firms.find((f) => f.id === toFirmId)?.name ?? toFirmId, [firms, toFirmId]);
+  const toStoreName = useMemo(() => stores.find((s) => s.id === toStoreId)?.name ?? toStoreId, [stores, toStoreId]);
   const fromDepartment = useMemo(
     () => departments.find((d) => d.id === fromDepartmentId)?.name ?? fromDepartmentId,
     [departments, fromDepartmentId]
@@ -166,13 +210,15 @@ export default function StockTransferView({
 
   const canSave = useMemo(() => {
     if (!fromFirmId.trim()) return false;
+    if (!fromStoreId.trim()) return false;
     if (!fromDepartmentId.trim()) return false;
     if (!toFirmId.trim()) return false;
+    if (!toStoreId.trim()) return false;
     if (!toDepartmentId.trim()) return false;
     if (!transferByUserId.trim()) return false;
     if (!transferDate.trim()) return false;
     return computed.normalized.length > 0 && computed.errors.length === 0;
-  }, [fromFirmId, fromDepartmentId, toFirmId, toDepartmentId, transferByUserId, transferDate, computed.normalized.length, computed.errors.length]);
+  }, [fromFirmId, fromStoreId, fromDepartmentId, toFirmId, toStoreId, toDepartmentId, transferByUserId, transferDate, computed.normalized.length, computed.errors.length]);
 
   return (
     <div className="space-y-4">
@@ -191,8 +237,8 @@ export default function StockTransferView({
                 if (saving) return;
                 setError(null);
                 const { normalized: normalizedItems, errors: rowErrors } = computeItems(items);
-                if (!fromFirmId.trim() || !fromDepartmentId.trim() || !toFirmId.trim() || !toDepartmentId.trim() || !transferByUserId.trim() || !transferDate.trim()) {
-                  setError('Please fill From Firm, From Department, To Firm, To Department, Transfer By, and Transfer Date.');
+                if (!fromFirmId.trim() || !fromStoreId.trim() || !fromDepartmentId.trim() || !toFirmId.trim() || !toStoreId.trim() || !toDepartmentId.trim() || !transferByUserId.trim() || !transferDate.trim()) {
+                  setError('Please fill From Firm, From Store, From Department, To Firm, To Store, To Department, Transfer By, and Transfer Date.');
                   return;
                 }
                 if (!normalizedItems.length || rowErrors.length) {
@@ -204,8 +250,10 @@ export default function StockTransferView({
                 setSaving(true);
                 createTransfer({
                   firmId: fromFirmName,
+                  store: fromStoreName,
                   department: fromDepartment,
                   toFirmId: toFirmName,
+                  toStore: toStoreName,
                   toDepartment,
                   person: transferBy,
                   date: transferDate,
@@ -239,6 +287,17 @@ export default function StockTransferView({
                 </div>
               ) : (
                 <SearchableSelect value={fromFirmId} options={firmOptions} onChange={setFromFirmId} placeholder="Search firm..." />
+              )}
+            </label>
+
+            <label className="block">
+              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Store</div>
+              {loadingStores ? (
+                <div className="mt-2 flex items-center gap-2 text-on-surface-variant text-sm">
+                  <Spinner className="h-4 w-4" /> Loading...
+                </div>
+              ) : (
+                <SearchableSelect value={fromStoreId} options={fromStoreOptions} onChange={setFromStoreId} placeholder="Search store..." disabled={!fromFirmId} />
               )}
             </label>
 
@@ -277,6 +336,17 @@ export default function StockTransferView({
                 </div>
               ) : (
                 <SearchableSelect value={toFirmId} options={firmOptions} onChange={setToFirmId} placeholder="Search firm..." />
+              )}
+            </label>
+
+            <label className="block">
+              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Store</div>
+              {loadingStores ? (
+                <div className="mt-2 flex items-center gap-2 text-on-surface-variant text-sm">
+                  <Spinner className="h-4 w-4" /> Loading...
+                </div>
+              ) : (
+                <SearchableSelect value={toStoreId} options={toStoreOptions} onChange={setToStoreId} placeholder="Search store..." disabled={!toFirmId} />
               )}
             </label>
 

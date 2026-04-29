@@ -2,9 +2,15 @@ export type InventorySheetRow = {
   itemId: string;
   itemCode: string;
   itemName: string;
+  store?: string;
+  storeName?: string;
+  storeId?: string;
+  transferIn?: number;
+  transferOut?: number;
   specifications: string;
   unit: string;
   opening: number;
+  reorderLevel?: number;
   purchase: number;
   issue: number;
   damage: number;
@@ -15,6 +21,7 @@ export type InventorySheetRow = {
 export type OpeningBalanceRow = {
   itemId: string;
   quantity: number;
+  reorderLevel?: number;
 };
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {

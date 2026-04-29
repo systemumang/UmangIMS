@@ -10,6 +10,7 @@ export type Firm = {
 export type PurchaseRequest = {
   id: string;
   firmId: string;
+  store?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   department: string;
@@ -228,6 +229,7 @@ export async function fetchRequest(id: string, signal?: AbortSignal): Promise<Pu
 
 export async function createPurchaseRequest(input: {
   firmId: string;
+  store?: string;
   requestType?: 'Stock' | 'Project';
   projectId?: string | null;
   department: string;

@@ -11,6 +11,7 @@ export type InvoiceStatus = 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
 export type FirmRow = {
   id: string;
   name: string;
+  sortName?: string | null;
   cin?: string | null;
   gstNumber?: string | null;
   address?: string | null;
@@ -234,6 +235,15 @@ async function applyMigrations(db: Db) {
       await db.run('INSERT INTO migrations (id, name, applied_at) VALUES (?,?,?)', id, file, now);
       await db.exec('COMMIT');
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      const duplicateColumn =
+        message.toLowerCase().includes('duplicate column name') &&
+        id === '018_add_firm_sort_name';
+      if (duplicateColumn) {
+        await db.exec('ROLLBACK');
+        await db.run('INSERT INTO migrations (id, name, applied_at) VALUES (?,?,?)', id, file, now);
+        continue;
+      }
       await db.exec('ROLLBACK');
       throw e;
     }
@@ -580,22 +590,24 @@ function mapInvoiceStatus(dbStatus: string, isPaid: boolean): InvoiceStatus {
 export async function listFirms(): Promise<FirmRow[]> {
   await initDb();
   const db = await getDb();
-  const rows = await db.all<
-    {
-      id: string;
-      name: string;
-      cin?: string | null;
-      gst_number?: string | null;
-      address?: string | null;
+	  const rows = await db.all<
+	    {
+	      id: string;
+	      name: string;
+	      sort_name?: string | null;
+	      cin?: string | null;
+	      gst_number?: string | null;
+	      address?: string | null;
       phone?: string | null;
       logo_url?: string | null;
       terms_conditions?: string | null;
     }[]
-  >('SELECT id, name, cin, gst_number, address, phone, logo_url, terms_conditions FROM firms ORDER BY name ASC');
-  return (rows ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    cin: r.cin ?? null,
+	  >('SELECT id, name, sort_name, cin, gst_number, address, phone, logo_url, terms_conditions FROM firms ORDER BY name ASC');
+	  return (rows ?? []).map((r) => ({
+	    id: r.id,
+	    name: r.name,
+	    sortName: r.sort_name ?? null,
+	    cin: r.cin ?? null,
     gstNumber: r.gst_number ?? null,
     address: r.address ?? null,
     phone: r.phone ?? null,
@@ -4149,6 +4161,7 @@ export async function saveMastersExcelSnapshotToDisk(): Promise<{ fileName: stri
 
 export async function createFirm(input: {
   name: string;
+  sortName?: string | null;
   cin?: string | null;
   gstNumber?: string | null;
   address?: string | null;
@@ -4162,6 +4175,7 @@ export async function createFirm(input: {
   const now = nowIso();
   const id = `FIRM-${crypto.randomUUID()}`;
   const name = input.name.trim();
+  const sortName = input.sortName != null ? String(input.sortName).trim() : '';
   if (!name) throw new Error('Firm name is required');
   const cin = input.cin != null ? String(input.cin).trim() : '';
   const gstNumber = input.gstNumber != null ? String(input.gstNumber).trim() : '';
@@ -4169,12 +4183,13 @@ export async function createFirm(input: {
   const phone = input.phone != null ? String(input.phone).trim() : '';
   const logoUrl = input.logoUrl != null ? String(input.logoUrl).trim() : '';
   const termsConditions = input.termsConditions != null ? String(input.termsConditions).trim() : '';
-  await db.run(
-    `INSERT INTO firms (id, name, cin, gst_number, address, phone, logo_url, created_by, created_at, updated_by, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-    id,
-    name,
-    cin || null,
+	  await db.run(
+	    `INSERT INTO firms (id, name, sort_name, cin, gst_number, address, phone, logo_url, created_by, created_at, updated_by, updated_at)
+	     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+	    id,
+	    name,
+	    sortName || null,
+	    cin || null,
     gstNumber || null,
     address || null,
     phone || null,
@@ -4197,10 +4212,11 @@ export async function createFirm(input: {
     now,
     null
   );
-  return {
-    id,
-    name,
-    cin: cin || null,
+	  return {
+	    id,
+	    name,
+	    sortName: sortName || null,
+	    cin: cin || null,
     gstNumber: gstNumber || null,
     address: address || null,
     phone: phone || null,
@@ -4212,6 +4228,7 @@ export async function createFirm(input: {
 export async function updateFirm(input: {
   id: string;
   name: string;
+  sortName?: string | null;
   cin?: string | null;
   gstNumber?: string | null;
   address?: string | null;
@@ -4225,6 +4242,7 @@ export async function updateFirm(input: {
   const now = nowIso();
   const id = String(input.id ?? '').trim();
   const name = input.name.trim();
+  const sortName = input.sortName != null ? String(input.sortName).trim() : '';
   if (!id) throw new Error('Firm id is required');
   if (!name) throw new Error('Firm name is required');
 
@@ -4238,10 +4256,11 @@ export async function updateFirm(input: {
   const logoUrl = input.logoUrl != null ? String(input.logoUrl).trim() : '';
   const termsConditions = input.termsConditions != null ? String(input.termsConditions).trim() : '';
 
-  await db.run(
-    `UPDATE firms
-        SET name = ?,
-            cin = ?,
+	  await db.run(
+	    `UPDATE firms
+	        SET name = ?,
+	            sort_name = ?,
+	            cin = ?,
             gst_number = ?,
             address = ?,
             phone = ?,
@@ -4250,8 +4269,9 @@ export async function updateFirm(input: {
             updated_by = ?,
             updated_at = ?
       WHERE id = ?`,
-    name,
-    cin || null,
+	    name,
+	    sortName || null,
+	    cin || null,
     gstNumber || null,
     address || null,
     phone || null,
@@ -4272,10 +4292,11 @@ export async function updateFirm(input: {
     null
   );
 
-  return {
-    id,
-    name,
-    cin: cin || null,
+	  return {
+	    id,
+	    name,
+	    sortName: sortName || null,
+	    cin: cin || null,
     gstNumber: gstNumber || null,
     address: address || null,
     phone: phone || null,
@@ -5967,7 +5988,7 @@ export async function listOperationsPr(filters?: OperationsFilters): Promise<Ope
     SELECT pr.id as prId,
            pr.pr_number as prNumber,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            pr.request_type as requestType,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
@@ -6061,7 +6082,7 @@ export async function listOperationsPo(filters?: OperationsFilters): Promise<Ope
            po.pr_id as prId,
            pr.pr_number as prNumber,
            po.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -6151,7 +6172,7 @@ export async function listOperationsGrns(filters?: OperationsFilters): Promise<O
            po.pr_id as prId,
            pr.pr_number as prNumber,
            po.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            po.supplier_id as supplierId,
            s.name as supplierName,
            (SELECT COUNT(1) FROM grn_items gi WHERE gi.grn_id = g.id) as itemCount,
@@ -6247,7 +6268,7 @@ export async function listOperationsInvoices(filters?: OperationsFilters): Promi
            po.pr_id as prId,
            pr.pr_number as prNumber,
            po.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            inv.supplier_id as supplierId,
            s.name as supplierName,
            (SELECT COALESCE(SUM(amount_paid),0) FROM payments p WHERE p.invoice_id = inv.id) as paidAmount
@@ -6363,7 +6384,7 @@ export async function listOperationsPayments(filters?: OperationsFilters): Promi
            pr.id as prId,
            pr.pr_number as prNumber,
            po.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            inv.supplier_id as supplierId,
            s.name as supplierName
       FROM invoices inv
@@ -6527,7 +6548,7 @@ export async function getOperationsPaymentDetail(
            pr.id as prId,
            pr.pr_number as prNumber,
            po.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            p.supplier_id as supplierId,
            s.name as supplierName
       FROM payments p
@@ -6635,7 +6656,7 @@ export async function listQueueApprovePr(filters?: QueueFilters): Promise<Approv
 	    SELECT pr.id as prId,
 	           pr.pr_number as prNumber,
 	           pr.firm_id as firmId,
-	           f.name as firmName,
+	           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
 	           pr.request_type as requestType,
 	           COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
 	           pr.project_id as projectId,
@@ -6735,7 +6756,7 @@ export async function listQueueCreatePo(filters?: QueueFilters): Promise<CreateP
     SELECT pr.id as prId,
            pr.pr_number as prNumber,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -6820,7 +6841,7 @@ export async function listQueueCheckPo(filters?: QueueFilters): Promise<CheckPoQ
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -6892,7 +6913,7 @@ export async function listQueueSendPo(filters?: QueueFilters): Promise<SendPoQue
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -6988,7 +7009,7 @@ export async function listQueueCreateGrn(filters?: QueueFilters): Promise<Create
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7086,7 +7107,7 @@ export async function listQueueQc(filters?: QueueFilters): Promise<QcQueueRow[]>
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7180,7 +7201,7 @@ export async function listQueueEnterInvoice(filters?: QueueFilters): Promise<Ent
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7295,7 +7316,7 @@ export async function listQueueLinkInvoiceGrn(filters?: QueueFilters): Promise<L
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7395,7 +7416,7 @@ export async function listQueueApproveInvoice(filters?: QueueFilters): Promise<A
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7513,7 +7534,7 @@ export async function listQueuePayment(filters?: QueueFilters): Promise<PaymentQ
            po.po_number as poNumber,
            pr.id as prId,
            pr.firm_id as firmId,
-           f.name as firmName,
+           COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) as firmName,
            COALESCE(NULLIF(TRIM(pr.remarks),''),'Operations') as department,
            pr.project_id as projectId,
            prj.name as projectName,
@@ -7552,21 +7573,23 @@ export async function listQueuePayment(filters?: QueueFilters): Promise<PaymentQ
   }));
 }
 
-export async function upsertOpeningBalance(input: { storeId: string; itemId: string; quantity: number; year: string }) {
+export async function upsertOpeningBalance(input: { storeId: string; itemId: string; quantity: number; reorderLevel?: number; year: string }) {
   await initDb();
   const db = await getDb();
   const id = `IOB-${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   await db.run(
-    `INSERT INTO item_opening_balances (id, store_id, item_id, quantity, year, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO item_opening_balances (id, store_id, item_id, quantity, reorder_level, year, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(store_id, item_id, year) DO UPDATE SET
        quantity = excluded.quantity,
+       reorder_level = excluded.reorder_level,
        updated_at = excluded.updated_at`,
     id,
     input.storeId,
     input.itemId,
     input.quantity,
+    Number(input.reorderLevel ?? 0),
     input.year,
     now,
     now
@@ -7578,7 +7601,7 @@ export async function listOpeningBalances(storeId: string, year: string) {
   await initDb();
   const db = await getDb();
   return db.all<any[]>(
-    'SELECT item_id as itemId, quantity FROM item_opening_balances WHERE store_id = ? AND year = ?',
+    'SELECT item_id as itemId, quantity, reorder_level as reorderLevel FROM item_opening_balances WHERE store_id = ? AND year = ?',
     storeId,
     year
   );
@@ -7601,51 +7624,103 @@ export async function getFirmInventorySheet(firmId: string, year: string) {
   `);
 
   const openingSql = `
-    SELECT iob.item_id as itemId, SUM(iob.quantity) as openingQty
+    SELECT iob.item_id as itemId, iob.store_id as storeId, SUM(iob.quantity) as openingQty, MAX(iob.reorder_level) as reorderLevel
     FROM item_opening_balances iob
     JOIN stores s ON s.id = iob.store_id
     WHERE s.firm_id = ? AND iob.year = ?
-    GROUP BY iob.item_id
+    GROUP BY iob.item_id, iob.store_id
   `;
   const openingRows = await db.all<any[]>(openingSql, firmId, year);
-  const openingMap = new Map(openingRows.map((r) => [r.itemId, Number(r.openingQty ?? 0)]));
+  const openingMap = new Map<string, number>();
+  const reorderMap = new Map<string, number>();
+  for (const row of openingRows) {
+    const key = `${String(row.itemId)}::${String(row.storeId)}`;
+    openingMap.set(key, Number(row.openingQty ?? 0));
+    reorderMap.set(key, Number(row.reorderLevel ?? 0));
+  }
 
   const ledgerSql = `
     SELECT 
-      item_id as itemId, 
+      item_id as itemId,
+      store_id as storeId,
       transaction_type as type, 
       SUM(quantity) as total
     FROM stock_ledger
     WHERE firm_id = ?
-    GROUP BY item_id, transaction_type
+    GROUP BY item_id, store_id, transaction_type
   `;
   const ledgerRows = await db.all<any[]>(ledgerSql, firmId);
   const ledgerMap = new Map<string, Record<string, number>>();
   for (const r of ledgerRows) {
-    if (!ledgerMap.has(r.itemId)) ledgerMap.set(r.itemId, {});
-    ledgerMap.get(r.itemId)![r.type] = Number(r.total ?? 0);
+    const key = `${String(r.itemId)}::${String(r.storeId)}`;
+    if (!ledgerMap.has(key)) ledgerMap.set(key, {});
+    ledgerMap.get(key)![r.type] = Number(r.total ?? 0);
   }
 
-  return items.map((it) => {
-    const opening = openingMap.get(it.itemId) ?? 0;
-    const stats = ledgerMap.get(it.itemId) ?? {};
-    const purchase = stats['IN'] ?? 0;
-    const issue = stats['OUT'] ?? 0;
-    const damage = stats['DAMAGE'] ?? 0;
-    const returns = stats['RETURN'] ?? 0;
+  const storeRows = await db.all<any[]>('SELECT id as storeId, name as storeName FROM stores WHERE firm_id = ?', firmId);
+  const storeNameById = new Map<string, string>(
+    (storeRows ?? []).map((r) => [String(r.storeId), String(r.storeName ?? '').trim()])
+  );
 
-    return {
-      itemId: it.itemId,
-      itemCode: it.itemCode,
-      itemName: it.itemName,
-      specifications: it.specificationsJson,
-      unit: it.unit,
-      opening,
-      purchase,
-      issue,
-      damage,
-      returns,
-      balance: opening + purchase + returns - issue - damage,
-    };
-  });
+  const output: any[] = [];
+  for (const it of items) {
+    const storeIdsForItem = new Set<string>();
+    for (const key of openingMap.keys()) {
+      const [itemId, storeId] = key.split('::');
+      if (itemId === String(it.itemId)) storeIdsForItem.add(String(storeId));
+    }
+    for (const key of ledgerMap.keys()) {
+      const [itemId, storeId] = key.split('::');
+      if (itemId === String(it.itemId)) storeIdsForItem.add(String(storeId));
+    }
+
+    if (storeIdsForItem.size === 0) {
+      output.push({
+        itemId: it.itemId,
+        itemCode: it.itemCode,
+        itemName: it.itemName,
+        storeId: null,
+        store: '',
+        specifications: it.specificationsJson,
+        unit: it.unit,
+        opening: 0,
+        reorderLevel: 0,
+        purchase: 0,
+        issue: 0,
+        damage: 0,
+        returns: 0,
+        balance: 0,
+      });
+      continue;
+    }
+
+    for (const storeId of storeIdsForItem) {
+      const key = `${String(it.itemId)}::${String(storeId)}`;
+      const opening = openingMap.get(key) ?? 0;
+      const reorderLevel = reorderMap.get(key) ?? 0;
+      const stats = ledgerMap.get(key) ?? {};
+      const purchase = stats['IN'] ?? 0;
+      const issue = stats['OUT'] ?? 0;
+      const damage = stats['DAMAGE'] ?? 0;
+      const returns = stats['RETURN'] ?? 0;
+      output.push({
+        itemId: it.itemId,
+        itemCode: it.itemCode,
+        itemName: it.itemName,
+        storeId,
+        store: storeNameById.get(String(storeId)) ?? '',
+        specifications: it.specificationsJson,
+        unit: it.unit,
+        opening,
+        reorderLevel,
+        purchase,
+        issue,
+        damage,
+        returns,
+        balance: opening + purchase + returns - issue - damage,
+      });
+    }
+  }
+
+  return output;
 }

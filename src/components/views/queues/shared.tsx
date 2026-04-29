@@ -38,6 +38,8 @@ export function Modal({
   fullScreen = false,
   titleCentered = false,
   headerExtra,
+  headerRight,
+  closeButtonLabel = 'Close',
   titleClassName,
   contentClassName,
   footerClassName,
@@ -51,6 +53,8 @@ export function Modal({
   fullScreen?: boolean;
   titleCentered?: boolean;
   headerExtra?: React.ReactNode;
+  headerRight?: React.ReactNode;
+  closeButtonLabel?: string;
   titleClassName?: string;
   contentClassName?: string;
   footerClassName?: string;
@@ -69,9 +73,10 @@ export function Modal({
           <div className={cn(titleCentered ? 'grid grid-cols-3 items-center' : 'flex items-center justify-between')}>
             {titleCentered ? <div /> : null}
             <div className={cn('text-sm font-bold text-on-surface', titleCentered ? 'text-center' : '', titleClassName)}>{title}</div>
-            <div className={cn(titleCentered ? 'flex justify-end' : '')}>
-              <button type="button" className="btn btn-sm" onClick={onClose}>
-                Close
+            <div className={cn(titleCentered ? 'flex justify-end' : '', 'inline-flex items-center gap-2 whitespace-nowrap')}>
+              {headerRight ? <span className="inline-flex items-center">{headerRight}</span> : null}
+              <button type="button" className="btn btn-sm min-w-[96px] h-9 px-4 whitespace-nowrap" onClick={onClose}>
+                {closeButtonLabel}
               </button>
             </div>
           </div>
@@ -177,10 +182,13 @@ export function QueueFiltersBar({
   masters: { firms: Firm[]; departments: Department[]; projects: Project[]; suppliers?: Supplier[] };
   showSupplier?: boolean;
 }) {
-  const firmOptions = useMemo(
-    () => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: f.name }))],
-    [masters.firms]
-  );
+	  const firmOptions = useMemo(
+	    () => [
+	      { value: '', label: 'All Firms' },
+	      ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name })),
+	    ],
+	    [masters.firms]
+	  );
   const deptOptions = useMemo(
     () => [{ value: '', label: 'All Depts' }, ...masters.departments.map((d) => ({ value: d.name, label: d.name }))],
     [masters.departments]

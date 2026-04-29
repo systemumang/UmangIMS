@@ -12,6 +12,7 @@ import { Trash2 } from 'lucide-react';
 				  createSpecification,
 				  createSpecificationValue,
 				  fetchDepartments,
+				  fetchStores,
 				  fetchProjects,
 				  fetchUsers,
 				  fetchItemNames,
@@ -22,6 +23,7 @@ import { Trash2 } from 'lucide-react';
 				  fetchSpecificationValues,
 				  updateItem,
 				  type Department,
+				  type Store,
 				  type Project,
 				  type Item,
 				  type ItemName,
@@ -63,6 +65,9 @@ export default function ItemIssueView({
 			  const [departments, setDepartments] = useState<Department[]>([]);
 			  const [loadingDepartments, setLoadingDepartments] = useState(true);
 			  const [departmentId, setDepartmentId] = useState('');
+			  const [stores, setStores] = useState<Store[]>([]);
+			  const [loadingStores, setLoadingStores] = useState(true);
+			  const [storeId, setStoreId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
 			  const [issueType, setIssueType] = useState<'Sales' | 'Project'>('Sales');
@@ -142,6 +147,21 @@ export default function ItemIssueView({
 		        setError(e instanceof Error ? e.message : String(e));
 		      })
 		      .finally(() => setLoadingDepartments(false));
+			    return () => ac.abort();
+			  }, []);
+
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingStores(true);
+			    fetchStores(ac.signal)
+			      .then((rows) => setStores(rows))
+			      .catch((e) => {
+			        if (ac.signal.aborted) return;
+			        if (e instanceof DOMException && e.name === 'AbortError') return;
+			        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+			        setError(e instanceof Error ? e.message : String(e));
+			      })
+			      .finally(() => setLoadingStores(false));
 			    return () => ac.abort();
 			  }, []);
 
@@ -248,7 +268,7 @@ export default function ItemIssueView({
 	      }, [createItemOpen]);
 
 					  const canSubmit = useMemo(() => {
-					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 					    if (issueType === 'Project' && !projectId.trim()) return false;
 					    const normalized = items
 					      .map((it) => ({
@@ -258,7 +278,12 @@ export default function ItemIssueView({
 						    }))
 						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
 					    return normalized.length > 0;
-					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, issueType]);
+					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
+
+			  const storeOptions = useMemo(() => {
+			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
+			    return list.map((s) => ({ value: s.id, label: s.name }));
+			  }, [firmId, stores]);
 
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
@@ -425,6 +450,17 @@ export default function ItemIssueView({
 	              }
 	              createLabel={(q) => (q.trim() ? `+ Add Department \"${q.trim()}\"` : '+ Add Department')}
 	              closeOnCreate
+	            />
+	          </label>
+
+	          <label className="space-y-1">
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store</div>
+	            <SearchableSelect
+	              value={storeId}
+	              options={storeOptions}
+	              onChange={setStoreId}
+	              disabled={loadingStores || !firmId}
+	              placeholder="Select store..."
 	            />
 	          </label>
 
@@ -652,8 +688,9 @@ export default function ItemIssueView({
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
-								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Department, Issue By, Issue Date, and at least one valid item.');
+								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
+								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
+								                    setError('Please fill Firm, Store, Department, Issue By, Issue Date, and at least one valid item.');
 								                    return;
 						                  }
 							                  if (issueType === 'Project' && !projectId.trim()) {
@@ -663,8 +700,9 @@ export default function ItemIssueView({
 
 					                  setSaving(true);
 						                  createIssue({ 
-						                    firmId: firms.find((f) => f.id === firmId)?.name ?? firmId, 
-						                    department, 
+						                    firmId: firms.find((f) => f.id === firmId)?.name ?? firmId,
+						                    store,
+						                    department,
 						                    person: requestedBy, 
 						                    date: requiredDate, 
 						                    issueType,

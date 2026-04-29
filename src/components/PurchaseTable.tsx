@@ -53,7 +53,10 @@ export default function PurchaseTable({
 	  const compactControlClass =
 	    'w-full h-6 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-xs font-medium text-on-surface-variant outline-none focus:ring-0';
 
-	  const firmNameById = useMemo(() => Object.fromEntries(firms.map((f) => [f.id, f.name])), [firms]);
+	  const firmNameById = useMemo(
+	    () => Object.fromEntries(firms.map((f) => [f.id, String(f.sortName ?? '').trim() || f.name])),
+	    [firms]
+	  );
 
 	  const filteredRequests = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom) : null;

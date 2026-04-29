@@ -1,13 +1,14 @@
 export type Firm = {
-  id: string;
-  name: string;
-  cin?: string | null;
-  gstNumber?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  logoUrl?: string | null;
-  termsConditions?: string | null;
-};
+	  id: string;
+	  name: string;
+	  sortName?: string | null;
+	  cin?: string | null;
+	  gstNumber?: string | null;
+	  address?: string | null;
+	  phone?: string | null;
+	  logoUrl?: string | null;
+	  termsConditions?: string | null;
+	};
 export type Store = { id: string; firmId: string; name: string; location?: string | null };
 export type Supplier = {
   id: string;
@@ -104,15 +105,16 @@ export async function fetchFirms(signal?: AbortSignal): Promise<Firm[]> {
 }
 
 export async function createFirm(input: {
-  name: string;
-  cin?: string | null;
-  gstNumber?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  logoUrl?: string | null;
-  termsConditions?: string | null;
-  createdBy?: string;
-}) {
+	  name: string;
+	  sortName?: string | null;
+	  cin?: string | null;
+	  gstNumber?: string | null;
+	  address?: string | null;
+	  phone?: string | null;
+	  logoUrl?: string | null;
+	  termsConditions?: string | null;
+	  createdBy?: string;
+	}) {
   const res = await fetch('/api/masters/firms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -122,18 +124,19 @@ export async function createFirm(input: {
 }
 
 export async function updateFirm(
-  id: string,
-  input: {
-    name: string;
-    cin?: string | null;
-    gstNumber?: string | null;
-    address?: string | null;
-    phone?: string | null;
-    logoUrl?: string | null;
-    termsConditions?: string | null;
-    updatedBy?: string;
-  }
-) {
+	  id: string,
+	  input: {
+	    name: string;
+	    sortName?: string | null;
+	    cin?: string | null;
+	    gstNumber?: string | null;
+	    address?: string | null;
+	    phone?: string | null;
+	    logoUrl?: string | null;
+	    termsConditions?: string | null;
+	    updatedBy?: string;
+	  }
+	) {
   const res = await fetch(`/api/masters/firms/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

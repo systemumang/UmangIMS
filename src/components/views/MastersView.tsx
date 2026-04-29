@@ -133,6 +133,7 @@ export default function MastersView({
 			  const [items, setItems] = useState<Item[]>([]);
 
 			  const [newFirmName, setNewFirmName] = useState('');
+			  const [newFirmSortName, setNewFirmSortName] = useState('');
 			  const [newFirmCin, setNewFirmCin] = useState('');
 			  const [newFirmGstNumber, setNewFirmGstNumber] = useState('');
 			  const [newFirmAddress, setNewFirmAddress] = useState('');
@@ -221,6 +222,7 @@ export default function MastersView({
 					    setError(null);
 					    if (tab === 'firms') {
 					      setNewFirmName('');
+					      setNewFirmSortName('');
 					      setNewFirmCin('');
 					      setNewFirmGstNumber('');
 					      setNewFirmAddress('');
@@ -292,6 +294,7 @@ export default function MastersView({
 					    if (tab === 'firms') {
 					      const row = firms.find((f) => f.id === id);
 					      setNewFirmName(row?.name ?? '');
+					      setNewFirmSortName(row?.sortName ?? '');
 					      setNewFirmCin(row?.cin ?? '');
 					      setNewFirmGstNumber(row?.gstNumber ?? '');
 					      setNewFirmAddress(row?.address ?? '');
@@ -603,18 +606,28 @@ export default function MastersView({
 		            <div className="flex-1 min-h-0 overflow-auto p-5 space-y-3">
 				              {tab === 'firms' ? (
 				                <div className="space-y-2">
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm name</div>
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm name</div>
 		                    <input
 		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 		                      value={newFirmName}
 	                      onChange={(e) => setNewFirmName(e.target.value)}
 		                      placeholder="Umang (Main)"
-		                    />
-		                  </label>
+			                    />
+			                  </label>
 
 <div className="grid grid-cols-1 gap-3">
-		                    <label className="space-y-1">
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sort Name</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newFirmSortName}
+			                        onChange={(e) => setNewFirmSortName(e.target.value)}
+			                        placeholder="Sort Name"
+			                      />
+			                    </label>
+
+			                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">CIN</div>
 		                      <input
 		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
@@ -658,10 +671,11 @@ export default function MastersView({
 				                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Logo (Upload or URL)</div>
 			                      <div className="flex flex-col gap-2">
-			                        <input
-			                          type="file"
-			                          accept="image/png,image/jpeg"
-			                          disabled={busy}
+				                        <input
+				                          type="file"
+				                          className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
+				                          accept="image/png,image/jpeg"
+				                          disabled={busy}
 			                          onChange={(e) => {
 			                            const file = e.target.files?.[0];
 			                            if (!file) return;
@@ -719,9 +733,10 @@ export default function MastersView({
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
-			                      onClick={() => {
-			                        setNewFirmName('');
-			                        setNewFirmCin('');
+				                      onClick={() => {
+				                        setNewFirmName('');
+				                        setNewFirmSortName('');
+				                        setNewFirmCin('');
 			                        setNewFirmGstNumber('');
 			                        setNewFirmAddress('');
 			                        setNewFirmPhone('');
@@ -739,10 +754,11 @@ export default function MastersView({
 			                      onClick={() => {
 			                        setBusy(true);
 			                        setError(null);
-		                        const fn = isEditing
-		                          ? updateFirm(editCtx?.id ?? '', {
-		                              name: newFirmName.trim(),
-		                              cin: newFirmCin.trim() || null,
+			                        const fn = isEditing
+			                          ? updateFirm(editCtx?.id ?? '', {
+			                              name: newFirmName.trim(),
+			                              sortName: newFirmSortName.trim() || null,
+			                              cin: newFirmCin.trim() || null,
 		                              gstNumber: newFirmGstNumber.trim() || null,
 		                              address: newFirmAddress.trim() || null,
 		                              phone: newFirmPhone.trim() || null,
@@ -750,9 +766,10 @@ export default function MastersView({
 		                              termsConditions: newFirmTermsConditions.trim() || null,
 		                              updatedBy: 'system',
 		                            })
-		                          : createFirm({
-		                              name: newFirmName.trim(),
-		                              cin: newFirmCin.trim() || null,
+			                          : createFirm({
+			                              name: newFirmName.trim(),
+			                              sortName: newFirmSortName.trim() || null,
+			                              cin: newFirmCin.trim() || null,
 		                              gstNumber: newFirmGstNumber.trim() || null,
 		                              address: newFirmAddress.trim() || null,
 		                              phone: newFirmPhone.trim() || null,
@@ -762,9 +779,10 @@ export default function MastersView({
 		                            });
 		                        fn
 		                          .then(() => loadAll())
-		                          .then(() => {
-			                            setNewFirmName('');
-			                            setNewFirmCin('');
+				                          .then(() => {
+				                            setNewFirmName('');
+				                            setNewFirmSortName('');
+				                            setNewFirmCin('');
 			                            setNewFirmGstNumber('');
 			                            setNewFirmAddress('');
 			                            setNewFirmPhone('');
@@ -1941,9 +1959,10 @@ export default function MastersView({
 				          <div className="overflow-auto">
 				            <table className="min-w-[1340px] w-full text-sm border-collapse border border-blue-600">
 				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-				                <tr>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">CIN</th>
+					                <tr>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Sort Name</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">CIN</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">GST</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Firm Phone Number</th>
@@ -1954,9 +1973,10 @@ export default function MastersView({
 				              </thead>
 				              <tbody>
 				                {firms.map((f) => (
-				                  <tr key={f.id}>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.cin ?? '').trim() || '-'}</td>
+					                  <tr key={f.id}>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.sortName ?? '').trim() || '-'}</td>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.cin ?? '').trim() || '-'}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.gstNumber ?? '').trim() || '-'}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600 whitespace-normal break-words">{String(f.address ?? '').trim() || '-'}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.phone ?? '').trim() || '-'}</td>

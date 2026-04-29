@@ -1331,17 +1331,18 @@ export function createApiApp() {
 	    }
 	  });
 
-  app.post('/masters/firms', async (req, res) => {
-      try {
-        const name = String(req.body?.name ?? '').trim();
-        const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
+	  app.post('/masters/firms', async (req, res) => {
+	      try {
+	        const name = String(req.body?.name ?? '').trim();
+	        const sortName = req.body?.sortName != null ? String(req.body.sortName).trim() : null;
+	        const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
         const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
         const address = req.body?.address != null ? String(req.body.address).trim() : null;
         const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
         const logoUrl = req.body?.logoUrl != null ? String(req.body.logoUrl).trim() : null;
         const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
         const createdBy = String(req.body?.createdBy ?? 'system').trim() || 'system';
-        const firm = await createFirm({ name, cin, gstNumber, address, phone, logoUrl, termsConditions, createdBy });
+	        const firm = await createFirm({ name, sortName, cin, gstNumber, address, phone, logoUrl, termsConditions, createdBy });
         await bestEffortSnapshot();
         res.status(201).json({ firm });
       } catch (e) {
@@ -1349,18 +1350,19 @@ export function createApiApp() {
       }
     });
 
-  app.put('/masters/firms/:id', async (req, res) => {
-      try {
-        const id = String(req.params.id ?? '').trim();
-        const name = String(req.body?.name ?? '').trim();
-        const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
+	  app.put('/masters/firms/:id', async (req, res) => {
+	      try {
+	        const id = String(req.params.id ?? '').trim();
+	        const name = String(req.body?.name ?? '').trim();
+	        const sortName = req.body?.sortName != null ? String(req.body.sortName).trim() : null;
+	        const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
         const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
         const address = req.body?.address != null ? String(req.body.address).trim() : null;
         const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
         const logoUrl = req.body?.logoUrl != null ? String(req.body.logoUrl).trim() : null;
         const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
         const updatedBy = String(req.body?.updatedBy ?? 'system').trim() || 'system';
-        const firm = await updateFirm({ id, name, cin, gstNumber, address, phone, logoUrl, termsConditions, updatedBy });
+	        const firm = await updateFirm({ id, name, sortName, cin, gstNumber, address, phone, logoUrl, termsConditions, updatedBy });
         await bestEffortSnapshot();
         res.json({ firm });
       } catch (e) {
@@ -2021,6 +2023,7 @@ export function createApiApp() {
           storeId,
           itemId: String(b.itemId),
           quantity: Number(b.quantity ?? 0),
+          reorderLevel: Number(b.reorderLevel ?? 0),
           year,
         });
       }

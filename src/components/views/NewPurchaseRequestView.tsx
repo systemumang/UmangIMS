@@ -11,6 +11,7 @@ import { Trash2 } from 'lucide-react';
 				  createSpecification,
 				  createSpecificationValue,
 				  fetchDepartments,
+				  fetchStores,
 				  fetchProjects,
 				  fetchUsers,
 				  fetchItemNames,
@@ -21,6 +22,7 @@ import { Trash2 } from 'lucide-react';
 				  fetchSpecificationValues,
 				  updateItem,
 				  type Department,
+				  type Store,
 				  type Project,
 				  type Item,
 				  type ItemName,
@@ -62,6 +64,9 @@ export default function NewPurchaseRequestView({
 			  const [departments, setDepartments] = useState<Department[]>([]);
 			  const [loadingDepartments, setLoadingDepartments] = useState(true);
 			  const [departmentId, setDepartmentId] = useState('');
+			  const [stores, setStores] = useState<Store[]>([]);
+			  const [loadingStores, setLoadingStores] = useState(true);
+			  const [storeId, setStoreId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
 			  const [requestType, setRequestType] = useState<'Stock' | 'Project'>('Stock');
@@ -140,6 +145,21 @@ export default function NewPurchaseRequestView({
 		        setError(e instanceof Error ? e.message : String(e));
 		      })
 		      .finally(() => setLoadingDepartments(false));
+			    return () => ac.abort();
+			  }, []);
+
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingStores(true);
+			    fetchStores(ac.signal)
+			      .then((rows) => setStores(rows))
+			      .catch((e) => {
+			        if (ac.signal.aborted) return;
+			        if (e instanceof DOMException && e.name === 'AbortError') return;
+			        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+			        setError(e instanceof Error ? e.message : String(e));
+			      })
+			      .finally(() => setLoadingStores(false));
 			    return () => ac.abort();
 			  }, []);
 
@@ -246,7 +266,7 @@ export default function NewPurchaseRequestView({
 	      }, [createItemOpen]);
 
 					  const canSubmit = useMemo(() => {
-					    if (!firmId || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 					    if (requestType === 'Project' && !projectId.trim()) return false;
 					    const normalized = items
 					      .map((it) => ({
@@ -256,7 +276,12 @@ export default function NewPurchaseRequestView({
 						    }))
 						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
 					    return normalized.length > 0;
-					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType]);
+					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
+
+			  const storeOptions = useMemo(() => {
+			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
+			    return list.map((s) => ({ value: s.id, label: s.name }));
+			  }, [firmId, stores]);
 
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
@@ -423,6 +448,17 @@ export default function NewPurchaseRequestView({
 	              }
 	              createLabel={(q) => (q.trim() ? `+ Add Department \"${q.trim()}\"` : '+ Add Department')}
 	              closeOnCreate
+	            />
+	          </label>
+
+	          <label className="space-y-1">
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store</div>
+	            <SearchableSelect
+	              value={storeId}
+	              options={storeOptions}
+	              onChange={setStoreId}
+	              disabled={loadingStores || !firmId}
+	              placeholder="Select store..."
 	            />
 	          </label>
 
@@ -637,8 +673,9 @@ export default function NewPurchaseRequestView({
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
-								                  if (!firmId || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Department, Requested By, Required Date, and at least one valid item.');
+								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
+								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
+								                    setError('Please fill Firm, Store, Department, Requested By, Required Date, and at least one valid item.');
 								                    return;
 						                  }
 							                  if (requestType === 'Project' && !projectId.trim()) {
@@ -651,6 +688,7 @@ export default function NewPurchaseRequestView({
 						                    firmId,
 						                    requestType,
 						                    projectId: requestType === 'Project' ? projectId.trim() : null,
+						                    store,
 						                    department,
 						                    requestedBy,
 						                    requiredDate,

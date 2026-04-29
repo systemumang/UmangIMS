@@ -183,7 +183,10 @@ export default function OperationsView() {
     return () => ac.abort();
   }, [filters, tab]);
 
-  const firmOptions = useMemo(() => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: f.name }))], [masters.firms]);
+	  const firmOptions = useMemo(
+	    () => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))],
+	    [masters.firms]
+	  );
   const projectOptions = useMemo(
     () => [{ value: '', label: 'All Projects' }, ...masters.projects.map((p) => ({ value: p.id, label: p.name }))],
     [masters.projects]

@@ -1,0 +1,1 @@
+ALTER TABLE firms ADD COLUMN sort_name TEXT;
