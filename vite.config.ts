@@ -3,10 +3,18 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 
-export default defineConfig(({command, mode}) => {
+export default defineConfig(async ({command, mode}) => {
   const env = loadEnv(mode, '.', '');
+
+  const plugins = [react(), tailwindcss()];
+  if (command === 'serve') {
+    // Keep backend middleware out of production builds (Hostinger build image
+    // cannot load native sqlite3 bindings used by the dev API).
+    plugins.push(await excelApiPlugin());
+  }
+
   return {
-    plugins: [react(), tailwindcss(), ...(command === 'serve' ? [excelApiPlugin()] : [])],
+    plugins,
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
@@ -23,7 +31,7 @@ export default defineConfig(({command, mode}) => {
   };
 });
 
-function excelApiPlugin(): Plugin {
+async function excelApiPlugin(): Promise<Plugin> {
   return {
     name: 'excel-api',
     async configureServer(server) {
