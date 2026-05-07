@@ -75,6 +75,10 @@ function normalizeGstType(value) {
   return v;
 }
 
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
 app.get('/api/db/ping', async (_req, res) => {
   try {
     const pool = getMysqlPool();
@@ -517,6 +521,817 @@ app.delete('/api/masters/projects/:id', async (req, res) => {
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM projects WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Departments ---
+app.get('/api/masters/departments', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name FROM departments ORDER BY name');
+    res.json({ departments: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/departments', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO departments (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [id, name, createdBy]
+    );
+    res.status(201).json({ department: { id, name } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'Department already exists' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/departments/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query('UPDATE departments SET name=?, updated_by=?, updated_at=NOW() WHERE id=?', [name, updatedBy, id]);
+    res.json({ department: { id, name } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/departments/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM departments WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Stores ---
+app.get('/api/masters/stores', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      'SELECT id, firm_id AS firmId, name, location FROM stores ORDER BY name'
+    );
+    res.json({ stores: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/stores', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const location = req.body?.location != null ? String(req.body.location).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO stores (id, firm_id, name, location, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, firmId, name, location, createdBy]
+    );
+    res.status(201).json({ store: { id, firmId, name, location } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/masters/stores/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const location = req.body?.location != null ? String(req.body.location).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query(
+      'UPDATE stores SET firm_id=?, name=?, location=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [firmId, name, location, updatedBy, id]
+    );
+    res.json({ store: { id, firmId, name, location } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/stores/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM stores WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Customers ---
+app.get('/api/masters/customers', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      'SELECT id, name, phone, address FROM customers ORDER BY name'
+    );
+    res.json({ customers: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/customers', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO customers (id, name, phone, address, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, name, phone, address, createdBy]
+    );
+    res.status(201).json({ customer: { id, name, phone, address } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'Customer already exists' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/customers/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query(
+      'UPDATE customers SET name=?, phone=?, address=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [name, phone, address, updatedBy, id]
+    );
+    res.json({ customer: { id, name, phone, address } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/customers/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM customers WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Transporters ---
+app.get('/api/masters/transporters', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name, phone FROM transporters ORDER BY name');
+    res.json({ transporters: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/transporters', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO transporters (id, name, phone, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+      [id, name, phone, createdBy]
+    );
+    res.status(201).json({ transporter: { id, name, phone } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'Transporter already exists' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/transporters/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query(
+      'UPDATE transporters SET name=?, phone=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [name, phone, updatedBy, id]
+    );
+    res.json({ transporter: { id, name, phone } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/transporters/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM transporters WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Users ---
+app.get('/api/masters/users', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        role AS designation,
+        phone AS mobile,
+        CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword
+      FROM users
+      WHERE is_active=1
+      ORDER BY name
+      `
+    );
+    // Ensure boolean
+    const users = (rows || []).map((r) => ({ ...r, hasPassword: Boolean(r.hasPassword) }));
+    res.json({ users });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/users', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    const email = String(req.body?.email ?? '').trim();
+    const designation = String(req.body?.designation ?? '').trim();
+    const password = String(req.body?.password ?? '').trim();
+    const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (!designation) return res.status(400).json({ error: 'designation is required' });
+    if (!password) return res.status(400).json({ error: 'password is required' });
+    const id = crypto.randomUUID();
+    const passwordHash = sha256(password);
+    await pool.query(
+      'INSERT INTO users (id, name, role, phone, email, is_active, created_at, password_hash) VALUES (?, ?, ?, ?, ?, 1, NOW(), ?)',
+      [id, name, designation, mobile, email || null, passwordHash]
+    );
+    res.status(201).json({ user: { id, name, email: email || null, designation, mobile, hasPassword: true } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'User email already exists' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/users/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    const email = String(req.body?.email ?? '').trim();
+    const designation = String(req.body?.designation ?? '').trim();
+    const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (!designation) return res.status(400).json({ error: 'designation is required' });
+    await pool.query(
+      'UPDATE users SET name=?, role=?, phone=?, email=? WHERE id=?',
+      [name, designation, mobile, email || null, id]
+    );
+    res.json({ user: { id, name, email: email || null, designation, mobile, hasPassword: true } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/users/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('UPDATE users SET is_active=0 WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Units ---
+app.get('/api/masters/units', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name FROM units ORDER BY name');
+    res.json({ units: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/units', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query('INSERT INTO units (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [
+      id,
+      name,
+      createdBy,
+    ]);
+    res.status(201).json({ unit: { id, name } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Unit already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/units/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query('UPDATE units SET name=?, updated_by=?, updated_at=NOW() WHERE id=?', [name, updatedBy, id]);
+    res.json({ unit: { id, name } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/units/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM units WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Item Categories ---
+app.get('/api/masters/item-categories', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name FROM item_categories ORDER BY name');
+    res.json({ itemCategories: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/item-categories', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO item_categories (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [id, name, createdBy]
+    );
+    res.status(201).json({ itemCategory: { id, name } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Category already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/item-categories/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query('UPDATE item_categories SET name=?, updated_by=?, updated_at=NOW() WHERE id=?', [name, updatedBy, id]);
+    res.json({ itemCategory: { id, name } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/item-categories/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM item_categories WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Item Names ---
+app.get('/api/masters/item-names', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        name,
+        unit_id AS unitId,
+        item_category_id AS itemCategoryId
+      FROM item_names
+      ORDER BY name
+      `
+    );
+    res.json({ itemNames: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/item-names', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : null;
+    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO item_names (id, name, unit_id, item_category_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, name, unitId, itemCategoryId, createdBy]
+    );
+    res.status(201).json({ itemName: { id, name, unitId, itemCategoryId } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Item name already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/item-names/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : null;
+    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query(
+      'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [name, unitId, itemCategoryId, updatedBy, id]
+    );
+    res.json({ itemName: { id, name, unitId, itemCategoryId } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/item-names/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM item_names WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Specifications ---
+app.get('/api/masters/specifications', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
+    res.json({ specifications: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/specifications', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO specifications (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [id, name, createdBy]
+    );
+    res.status(201).json({ specification: { id, name } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Specification already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/specifications/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query('UPDATE specifications SET name=?, updated_by=?, updated_at=NOW() WHERE id=?', [name, updatedBy, id]);
+    res.json({ specification: { id, name } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/specifications/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM specifications WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Specification Values ---
+app.get('/api/masters/specification-values', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const specificationId = String(req.query.specificationId ?? '').trim();
+    if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
+    const [rows] = await pool.query(
+      'SELECT id, specification_id AS specificationId, value, is_active AS isActive FROM specification_values WHERE specification_id=? ORDER BY value',
+      [specificationId]
+    );
+    const specificationValues = (rows || []).map((r) => ({ ...r, isActive: Boolean(r.isActive) }));
+    res.json({ specificationValues });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/specification-values', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const specificationId = String(req.body?.specificationId ?? '').trim();
+    const value = String(req.body?.value ?? '').trim();
+    if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
+    if (!value) return res.status(400).json({ error: 'value is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query(
+      'INSERT INTO specification_values (id, specification_id, value, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, 1, ?, NOW(), NOW())',
+      [id, specificationId, value, createdBy]
+    );
+    res.status(201).json({ specificationValue: { id, specificationId, value, isActive: true } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Value already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/specification-values/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const specificationId = String(req.body?.specificationId ?? '').trim();
+    const value = String(req.body?.value ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
+    if (!value) return res.status(400).json({ error: 'value is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query(
+      'UPDATE specification_values SET specification_id=?, value=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [specificationId, value, updatedBy, id]
+    );
+    res.json({ specificationValue: { id, specificationId, value, isActive: true } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/specification-values/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM specification_values WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Items ---
+app.get('/api/masters/items', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        it.id,
+        it.item_name_id AS itemNameId,
+        it.item_code AS itemCode,
+        n.name AS itemName,
+        it.specifications_json AS specificationsJson,
+        it.unique_key AS uniqueKey,
+        it.description,
+        it.unit
+      FROM items it
+      JOIN item_names n ON n.id = it.item_name_id
+      ORDER BY it.item_code
+      `
+    );
+    res.json({ items: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/items', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const itemNameId = String(req.body?.itemNameId ?? '').trim();
+    if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
+    const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
+    const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+
+    // itemCode/uniqueKey are app-specific; generate simple deterministic values.
+    const id = crypto.randomUUID();
+    const itemCode = `IT-${id.slice(0, 8).toUpperCase()}`;
+    const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
+    const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+
+    await pool.query(
+      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, createdBy]
+    );
+
+    const [rows] = await pool.query(
+      `
+      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit
+      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    res.status(201).json({ item: row });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/items/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const itemNameId = String(req.body?.itemNameId ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
+    const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
+    const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
+    const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+    await pool.query(
+      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [itemNameId, specificationsJson, uniqueKey, description, unit, updatedBy, id]
+    );
+    const [rows] = await pool.query(
+      `
+      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit
+      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row) return res.status(404).json({ error: 'Item not found' });
+    res.json({ item: row });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/items/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM items WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
