@@ -69,15 +69,13 @@ export default function PurchasingView({ onSelectRequest }: { onSelectRequest: (
                     </button>
                   ))}
                 </div>
-			        <PurchaseTable
-			          requests={viewRequests}
-			          firms={firms}
-			          onSelectRequest={onSelectRequest}
-			          onExportExcel={() => {
-			            window.location.href = '/api/requests.xlsx';
-		          }}
-                showStatusFilter={false}
-		        />
+				        <PurchaseTable
+				          requests={viewRequests}
+				          firms={firms}
+				          onSelectRequest={onSelectRequest}
+				          onExportExcel={undefined}
+	                showStatusFilter={false}
+			        />
               </>
 		      )}
 

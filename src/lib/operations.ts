@@ -213,5 +213,5 @@ export async function fetchOperationsPaymentDetail(paymentId: string, signal?: A
 }
 
 export function operationsExportUrl(kind: 'prs' | 'pos' | 'grns' | 'invoices' | 'payments', filters?: OperationsFilters): string {
-  return `/api/operations/${kind}.xlsx${buildOpsQuery(filters)}`;
+  throw new Error('Excel exports are no longer supported.');
 }

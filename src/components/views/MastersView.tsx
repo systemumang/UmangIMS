@@ -537,28 +537,11 @@ export default function MastersView({
 	          <div>
 	            <h3 className="font-headline font-bold text-sm text-on-surface">All Masters</h3>
 	            <p className="text-sm text-on-surface-variant">Maintain Firms, Stores, Departments, Suppliers, Items and Specifications.</p>
+		          </div>
+		          <div className="flex items-center gap-2">
+	            {/* Excel downloads removed */}
 	          </div>
-	          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => {
-                window.location.href = '/api/requests.xlsx';
-              }}
-            >
-              Download Excel
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => {
-                window.location.href = '/api/masters.xlsx';
-              }}
-            >
-              Download Masters Excel
-            </button>
-          </div>
-        </div>
+	        </div>
 
         {error ? <div className="mt-3 text-xs text-error">{error}</div> : null}
       </div>

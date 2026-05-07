@@ -651,11 +651,9 @@ export async function deleteItem(id: string, input?: { deletedBy?: string }) {
 }
 
 export async function saveExcelSnapshot() {
-  const res = await fetch('/api/excel/snapshot', { method: 'POST' });
-  return requireOk<{ fileName: string }>(res, 'Failed to save Excel snapshot');
+  throw new Error('Excel snapshot is no longer supported.');
 }
 
 export async function saveMastersExcelSnapshot() {
-  const res = await fetch('/api/excel/masters-snapshot', { method: 'POST' });
-  return requireOk<{ fileName: string }>(res, 'Failed to save Masters Excel snapshot');
+  throw new Error('Masters Excel snapshot is no longer supported.');
 }
