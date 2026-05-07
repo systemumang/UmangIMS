@@ -89,13 +89,14 @@ export default function Sidebar({
   onNavigateStockMasterTab,
   onNewPurchaseRequest,
   open = true,
-}: {
-  activeView: NavView;
-  activePendingQueue?: PendingQueueKey;
-  activeStockMasterTab?: StockMasterTab;
-  mastersExpanded?: boolean;
-  pendingExpanded?: boolean;
-  stockMasterExpanded?: boolean;
+	}: {
+	  activeView: NavView;
+	  activePendingQueue?: PendingQueueKey;
+	  activeMastersTab?: MastersTab;
+	  activeStockMasterTab?: StockMasterTab;
+	  mastersExpanded?: boolean;
+	  pendingExpanded?: boolean;
+	  stockMasterExpanded?: boolean;
   isNewPurchaseRequestActive?: boolean;
   onNavigate: (view: NavView) => void;
   onNavigatePendingQueue?: (key: PendingQueueKey) => void;

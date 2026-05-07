@@ -26,9 +26,6 @@ function FatalScreen({ title, message, stack }: { title: string; message: string
 }
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { err: unknown | null }> {
-  // This project does not include React type declarations; declare `props` to satisfy `tsc --noEmit`.
-  // React will still provide the real props at runtime.
-  props: { children: React.ReactNode };
   state = { err: null as unknown | null };
 
   static getDerivedStateFromError(err: unknown) {
