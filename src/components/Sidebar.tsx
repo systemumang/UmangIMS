@@ -118,11 +118,8 @@ export default function Sidebar({
           <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
             <Boxes size={18} />
           </div>
-	          <div>
-	            <div className="font-headline font-bold text-on-surface text-sm">BizSkill</div>
-	            <div className="font-sans text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold">Inventory Management</div>
-	          </div>
-	        </div>
+		          <div className="font-headline font-bold text-on-surface text-sm">Inventory Management</div>
+		        </div>
 	      </div>
 
       <nav className="flex-1 overflow-y-auto px-2 space-y-1">
