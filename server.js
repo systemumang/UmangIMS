@@ -1021,12 +1021,16 @@ app.get('/api/masters/item-names', async (_req, res) => {
     const [rows] = await pool.query(
       `
       SELECT
-        id,
-        name,
-        unit_id AS unitId,
-        item_category_id AS itemCategoryId
+        n.id,
+        n.name,
+        n.unit_id AS unitId,
+        u.name AS unitName,
+        n.item_category_id AS itemCategoryId,
+        c.name AS itemCategoryName
       FROM item_names
-      ORDER BY name
+      LEFT JOIN units u ON u.id = n.unit_id
+      LEFT JOIN item_categories c ON c.id = n.item_category_id
+      ORDER BY n.name
       `
     );
     res.json({ itemNames: rows });
@@ -1042,14 +1046,33 @@ app.post('/api/masters/item-names', async (req, res) => {
     const name = String(req.body?.name ?? '').trim();
     if (!name) return res.status(400).json({ error: 'name is required' });
     const id = crypto.randomUUID();
-    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : null;
-    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : null;
+    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
+    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+    if (!unitId) return res.status(400).json({ error: 'unitId is required' });
+    if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
     await pool.query(
       'INSERT INTO item_names (id, name, unit_id, item_category_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
       [id, name, unitId, itemCategoryId, createdBy]
     );
-    res.status(201).json({ itemName: { id, name, unitId, itemCategoryId } });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        n.id,
+        n.name,
+        n.unit_id AS unitId,
+        u.name AS unitName,
+        n.item_category_id AS itemCategoryId,
+        c.name AS itemCategoryName
+      FROM item_names n
+      LEFT JOIN units u ON u.id = n.unit_id
+      LEFT JOIN item_categories c ON c.id = n.item_category_id
+      WHERE n.id = ?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    res.status(201).json({ itemName: row ?? { id, name, unitId, itemCategoryId } });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Item name already exists' });
@@ -1065,14 +1088,33 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
     const name = String(req.body?.name ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : null;
-    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : null;
+    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
+    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+    if (!unitId) return res.status(400).json({ error: 'unitId is required' });
+    if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     await pool.query(
       'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, updated_by=?, updated_at=NOW() WHERE id=?',
       [name, unitId, itemCategoryId, updatedBy, id]
     );
-    res.json({ itemName: { id, name, unitId, itemCategoryId } });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        n.id,
+        n.name,
+        n.unit_id AS unitId,
+        u.name AS unitName,
+        n.item_category_id AS itemCategoryId,
+        c.name AS itemCategoryName
+      FROM item_names n
+      LEFT JOIN units u ON u.id = n.unit_id
+      LEFT JOIN item_categories c ON c.id = n.item_category_id
+      WHERE n.id = ?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    res.json({ itemName: row ?? { id, name, unitId, itemCategoryId } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

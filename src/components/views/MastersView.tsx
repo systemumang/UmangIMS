@@ -1582,17 +1582,27 @@ export default function MastersView({
 		                    >
 		                      Cancel
 	                    </button>
-	                    <button
-	                      type="button"
-	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-		                      disabled={!newItemName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-		                        const fn = isEditing
-		                          ? updateItemName(editCtx?.id ?? '', {
-		                              name: newItemName.trim(),
-		                              unitId: newItemNameUnitId || null,
+		                    <button
+		                      type="button"
+		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+			                      disabled={!newItemName.trim() || !newItemNameUnitId || !newItemNameCategoryId || busy}
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        if (!newItemNameUnitId) {
+			                          setBusy(false);
+			                          setError('Unit is required.');
+			                          return;
+			                        }
+			                        if (!newItemNameCategoryId) {
+			                          setBusy(false);
+			                          setError('Category is required.');
+			                          return;
+			                        }
+			                        const fn = isEditing
+			                          ? updateItemName(editCtx?.id ?? '', {
+			                              name: newItemName.trim(),
+			                              unitId: newItemNameUnitId || null,
 		                              itemCategoryId: newItemNameCategoryId || null,
 		                              updatedBy: 'system',
 		                            })
