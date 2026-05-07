@@ -1027,7 +1027,7 @@ app.get('/api/masters/item-names', async (_req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName
-      FROM item_names
+      FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
       ORDER BY n.name
