@@ -50,20 +50,7 @@ export default function TopBar({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden lg:block">
-            <p className="text-xs font-bold text-on-surface">Marcus Chen</p>
-            <p className="text-[10px] text-on-surface-variant">Sr. Procurement Manager</p>
-          </div>
-          <img 
-            alt="User profile" 
-            className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMzaMB7X-LOsxEajA9my0Iyt1KgKJJh1mR0iRTMoHzbSu4X6am0wbQ-D09WWxrP71wsyEhQg03oUFqlGKZcaC7etOT3N0PYIPjCGzqWuqxsSO2cZJ_ojXkUPh5CWfQO3vjraRQhGnP7UOx9yDPgCV_MHEFur00wSMECsJ5Sg7RSX5DPQA9cPaLqAc9pAZ65BAq0iU2KAym5mlElg6an7uFm_laaT6gKSDwhaiASpt9xhW4BrfJgwPEzVAkfoeY5i2sFciBDHZAmQ"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-      </div>
+      <div />
     </header>
   );
 }
