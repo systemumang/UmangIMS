@@ -76,19 +76,29 @@ import {
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
-function formatSpecsForDisplay(specificationsJson: string) {
+function normalizeTenDigitPhoneInput(value: string) {
+  return value.replace(/\D/g, '').slice(0, 10);
+}
+
+function isValidTenDigitPhone(value: string) {
+  return /^\d{10}$/.test(value);
+}
+
+function formatSpecsForDisplay(specificationsJson: string, specNameById?: Record<string, string>) {
   try {
     const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
     const entries = Object.entries(obj);
     if (!entries.length) return '';
-    return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).join('\n');
+    return entries
+      .map(([specId, v]) => `${specNameById?.[specId] ?? specId}: ${String(v ?? '')}`)
+      .join('\n');
   } catch {
     return specificationsJson;
   }
 }
 
-function formatItemInline(itemName: string, specificationsJson: string) {
-  const specs = formatSpecsForDisplay(specificationsJson)
+function formatItemInline(itemName: string, specificationsJson: string, specNameById?: Record<string, string>) {
+  const specs = formatSpecsForDisplay(specificationsJson, specNameById)
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -640,16 +650,18 @@ export default function MastersView({
 		                      />
 		                    </label>
 
-		                    <label className="space-y-1">
-		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm Phone Number</div>
-		                      <input
-		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                        value={newFirmPhone}
-		                        onChange={(e) => setNewFirmPhone(e.target.value)}
-		                        placeholder="Phone"
-		                        inputMode="tel"
-		                      />
-		                    </label>
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm Phone Number</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newFirmPhone}
+			                        onChange={(e) => setNewFirmPhone(normalizeTenDigitPhoneInput(e.target.value))}
+			                        placeholder="Phone"
+			                        inputMode="numeric"
+			                        maxLength={10}
+			                        pattern="[0-9]{10}"
+			                      />
+			                    </label>
 
 				                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Logo (Upload or URL)</div>
@@ -734,32 +746,38 @@ export default function MastersView({
 		                      type="button"
 			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 			                      disabled={!newFirmName.trim() || busy}
-			                      onClick={() => {
-			                        setBusy(true);
-			                        setError(null);
-			                        const fn = isEditing
-			                          ? updateFirm(editCtx?.id ?? '', {
-			                              name: newFirmName.trim(),
-			                              sortName: newFirmSortName.trim() || null,
-			                              cin: newFirmCin.trim() || null,
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const phone = newFirmPhone.trim();
+		                        if (phone && !isValidTenDigitPhone(phone)) {
+		                          setBusy(false);
+		                          setError('Firm phone number must be a 10 digit number.');
+		                          return;
+		                        }
+		                        const fn = isEditing
+		                          ? updateFirm(editCtx?.id ?? '', {
+		                              name: newFirmName.trim(),
+		                              sortName: newFirmSortName.trim() || null,
+		                              cin: newFirmCin.trim() || null,
 		                              gstNumber: newFirmGstNumber.trim() || null,
 		                              address: newFirmAddress.trim() || null,
-		                              phone: newFirmPhone.trim() || null,
-		                              logoUrl: newFirmLogoUrl.trim() || null,
-		                              termsConditions: newFirmTermsConditions.trim() || null,
-		                              updatedBy: 'system',
-		                            })
-			                          : createFirm({
-			                              name: newFirmName.trim(),
-			                              sortName: newFirmSortName.trim() || null,
-			                              cin: newFirmCin.trim() || null,
+			                              phone: phone || null,
+			                              logoUrl: newFirmLogoUrl.trim() || null,
+			                              termsConditions: newFirmTermsConditions.trim() || null,
+			                              updatedBy: 'system',
+			                            })
+		                          : createFirm({
+		                              name: newFirmName.trim(),
+		                              sortName: newFirmSortName.trim() || null,
+		                              cin: newFirmCin.trim() || null,
 		                              gstNumber: newFirmGstNumber.trim() || null,
 		                              address: newFirmAddress.trim() || null,
-		                              phone: newFirmPhone.trim() || null,
-		                              logoUrl: newFirmLogoUrl.trim() || null,
-		                              termsConditions: newFirmTermsConditions.trim() || null,
-		                              createdBy: 'system',
-		                            });
+			                              phone: phone || null,
+			                              logoUrl: newFirmLogoUrl.trim() || null,
+			                              termsConditions: newFirmTermsConditions.trim() || null,
+			                              createdBy: 'system',
+			                            });
 		                        fn
 		                          .then(() => loadAll())
 				                          .then(() => {
@@ -1039,15 +1057,18 @@ export default function MastersView({
 	                        placeholder="Procurement Manager"
 	                      />
 	                    </label>
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
-	                      <input
-	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={newUserMobile}
-	                        onChange={(e) => setNewUserMobile(e.target.value)}
-	                        placeholder="9876543210"
-	                      />
-	                    </label>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newUserMobile}
+		                        onChange={(e) => setNewUserMobile(normalizeTenDigitPhoneInput(e.target.value))}
+		                        placeholder="9876543210"
+		                        inputMode="numeric"
+		                        maxLength={10}
+		                        pattern="[0-9]{10}"
+		                      />
+		                    </label>
 	                  </div>
 
 	                  <label className="space-y-1">
@@ -1086,27 +1107,33 @@ export default function MastersView({
 	                        !newUserDesignation.trim() ||
 	                        (!isEditing && !newUserPassword.trim())
 	                      }
-	                      onClick={() => {
-	                        setBusy(true);
-	                        setError(null);
-	                        const password = newUserPassword.trim();
-	                        const fn = isEditing
-	                          ? updateUser(editCtx?.id ?? '', {
-	                              name: newUserName.trim(),
-	                              email: newUserEmail.trim(),
-	                              designation: newUserDesignation.trim(),
-	                              mobile: newUserMobile.trim() || undefined,
-	                              password: password || undefined,
-	                              updatedBy: 'system',
-	                            })
-	                          : createUser({
-	                              name: newUserName.trim(),
-	                              email: newUserEmail.trim(),
-	                              designation: newUserDesignation.trim(),
-	                              mobile: newUserMobile.trim() || undefined,
-	                              password,
-	                              createdBy: 'system',
-	                            });
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const mobile = newUserMobile.trim();
+		                        if (mobile && !isValidTenDigitPhone(mobile)) {
+		                          setBusy(false);
+		                          setError('Mobile number must be a 10 digit number.');
+		                          return;
+		                        }
+		                        const password = newUserPassword.trim();
+		                        const fn = isEditing
+		                          ? updateUser(editCtx?.id ?? '', {
+		                              name: newUserName.trim(),
+		                              email: newUserEmail.trim(),
+		                              designation: newUserDesignation.trim(),
+		                              mobile: mobile || undefined,
+		                              password: password || undefined,
+		                              updatedBy: 'system',
+		                            })
+		                          : createUser({
+		                              name: newUserName.trim(),
+		                              email: newUserEmail.trim(),
+		                              designation: newUserDesignation.trim(),
+		                              mobile: mobile || undefined,
+		                              password,
+		                              createdBy: 'system',
+		                            });
 	                        fn.then(() => loadAll())
 	                          .then(() => {
 	                            setNewUserName('');
@@ -1172,16 +1199,18 @@ export default function MastersView({
 			                      />
 			                    </label>
 
-			                    <label className="space-y-1">
-			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone Number</div>
-			                      <input
-			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                        value={newSupplierPhone}
-			                        onChange={(e) => setNewSupplierPhone(e.target.value)}
-			                        placeholder="Phone"
-			                        inputMode="tel"
-			                      />
-			                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone Number</div>
+				                      <input
+				                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                        value={newSupplierPhone}
+				                        onChange={(e) => setNewSupplierPhone(normalizeTenDigitPhoneInput(e.target.value))}
+				                        placeholder="Phone"
+				                        inputMode="numeric"
+				                        maxLength={10}
+				                        pattern="[0-9]{10}"
+				                      />
+				                    </label>
 
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
@@ -1213,28 +1242,34 @@ export default function MastersView({
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 		                      disabled={!newSupplierName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-			                        const fn = isEditing
-			                          ? updateSupplier(editCtx?.id ?? '', {
-			                              name: newSupplierName.trim(),
-			                              gstNumber: newSupplierGstNumber.trim() || undefined,
-			                              gstType: newSupplierGstType,
-			                              address: newSupplierAddress.trim() || undefined,
-			                              phone: newSupplierPhone.trim() || undefined,
-			                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-			                              updatedBy: 'system',
-			                            })
-			                          : createSupplier({
-			                              name: newSupplierName.trim(),
-			                              gstNumber: newSupplierGstNumber.trim() || undefined,
-			                              gstType: newSupplierGstType,
-			                              address: newSupplierAddress.trim() || undefined,
-			                              phone: newSupplierPhone.trim() || undefined,
-			                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-			                              createdBy: 'system',
-			                            });
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        const phone = newSupplierPhone.trim();
+			                        if (phone && !isValidTenDigitPhone(phone)) {
+			                          setBusy(false);
+			                          setError('Phone number must be a 10 digit number.');
+			                          return;
+			                        }
+				                        const fn = isEditing
+				                          ? updateSupplier(editCtx?.id ?? '', {
+				                              name: newSupplierName.trim(),
+				                              gstNumber: newSupplierGstNumber.trim() || undefined,
+				                              gstType: newSupplierGstType,
+				                              address: newSupplierAddress.trim() || undefined,
+				                              phone: phone || undefined,
+				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+				                              updatedBy: 'system',
+				                            })
+				                          : createSupplier({
+				                              name: newSupplierName.trim(),
+				                              gstNumber: newSupplierGstNumber.trim() || undefined,
+				                              gstType: newSupplierGstType,
+				                              address: newSupplierAddress.trim() || undefined,
+				                              phone: phone || undefined,
+				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+				                              createdBy: 'system',
+				                            });
 			                        fn.then(() => loadAll())
 			                          .then(() => {
 			                            setNewSupplierName('');
@@ -1267,16 +1302,18 @@ export default function MastersView({
 		                    />
 		                  </label>
 			                  <div className="grid grid-cols-1 gap-3">
-		                    <label className="space-y-1">
-		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
-		                      <input
-		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                        value={newCustomerMobile}
-		                        onChange={(e) => setNewCustomerMobile(e.target.value)}
-		                        placeholder="Mobile"
-		                        inputMode="tel"
-		                      />
-		                    </label>
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
+			                      <input
+			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        value={newCustomerMobile}
+			                        onChange={(e) => setNewCustomerMobile(normalizeTenDigitPhoneInput(e.target.value))}
+			                        placeholder="Mobile"
+			                        inputMode="numeric"
+			                        maxLength={10}
+			                        pattern="[0-9]{10}"
+			                      />
+			                    </label>
 <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Address</div>
 		                      <textarea
@@ -1295,22 +1332,28 @@ export default function MastersView({
 		                      type="button"
 		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 		                      disabled={!newCustomerName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-		                        const fn = isEditing
-		                          ? updateCustomer(editCtx?.id ?? '', {
-		                              name: newCustomerName.trim(),
-		                              phone: newCustomerMobile.trim() || undefined,
-		                              address: newCustomerAddress.trim() || undefined,
-		                              updatedBy: 'system',
-		                            })
-		                          : createCustomer({
-		                              name: newCustomerName.trim(),
-		                              phone: newCustomerMobile.trim() || undefined,
-		                              address: newCustomerAddress.trim() || undefined,
-		                              createdBy: 'system',
-		                            });
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        const phone = newCustomerMobile.trim();
+			                        if (phone && !isValidTenDigitPhone(phone)) {
+			                          setBusy(false);
+			                          setError('Mobile number must be a 10 digit number.');
+			                          return;
+			                        }
+			                        const fn = isEditing
+			                          ? updateCustomer(editCtx?.id ?? '', {
+			                              name: newCustomerName.trim(),
+			                              phone: phone || undefined,
+			                              address: newCustomerAddress.trim() || undefined,
+			                              updatedBy: 'system',
+			                            })
+			                          : createCustomer({
+			                              name: newCustomerName.trim(),
+			                              phone: phone || undefined,
+			                              address: newCustomerAddress.trim() || undefined,
+			                              createdBy: 'system',
+			                            });
 		                        fn.then(() => loadAll())
 		                          .then(() => {
 		                            setNewCustomerName('');
@@ -1339,15 +1382,18 @@ export default function MastersView({
 	                      placeholder="DTDC"
 	                    />
 	                  </label>
-	                  <label className="space-y-1">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone (optional)</div>
-	                    <input
-	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newTransporterPhone}
-	                      onChange={(e) => setNewTransporterPhone(e.target.value)}
-	                      placeholder="9876543210"
-	                    />
-	                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone (optional)</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newTransporterPhone}
+		                      onChange={(e) => setNewTransporterPhone(normalizeTenDigitPhoneInput(e.target.value))}
+		                      placeholder="9876543210"
+		                      inputMode="numeric"
+		                      maxLength={10}
+		                      pattern="[0-9]{10}"
+		                    />
+		                  </label>
 	                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
@@ -1364,20 +1410,26 @@ export default function MastersView({
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 	                      disabled={!newTransporterName.trim() || busy}
-	                      onClick={() => {
-	                        setBusy(true);
-	                        setError(null);
-	                        const fn = isEditing
-	                          ? updateTransporter(editCtx?.id ?? '', {
-	                              name: newTransporterName.trim(),
-	                              phone: newTransporterPhone.trim() || null,
-	                              updatedBy: 'system',
-	                            })
-	                          : createTransporter({
-	                              name: newTransporterName.trim(),
-	                              phone: newTransporterPhone.trim() || undefined,
-	                              createdBy: 'system',
-	                            });
+		                      onClick={() => {
+		                        setBusy(true);
+		                        setError(null);
+		                        const phone = newTransporterPhone.trim();
+		                        if (phone && !isValidTenDigitPhone(phone)) {
+		                          setBusy(false);
+		                          setError('Phone number must be a 10 digit number.');
+		                          return;
+		                        }
+		                        const fn = isEditing
+		                          ? updateTransporter(editCtx?.id ?? '', {
+		                              name: newTransporterName.trim(),
+		                              phone: phone || null,
+		                              updatedBy: 'system',
+		                            })
+		                          : createTransporter({
+		                              name: newTransporterName.trim(),
+		                              phone: phone || undefined,
+		                              createdBy: 'system',
+		                            });
 	                        fn.then(() => loadAll())
 	                          .then(() => {
 	                            setNewTransporterName('');
@@ -2807,9 +2859,9 @@ export default function MastersView({
 			                {items.map((it) => (
 			                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
-			                      {formatItemInline(it.itemName, it.specificationsJson)}
-			                    </td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
+				                      {formatItemInline(it.itemName, it.specificationsJson, specNameById)}
+				                    </td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
 				                        <button
