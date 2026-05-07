@@ -112,11 +112,22 @@ export default function MastersView({
   tab?: MastersTab;
   onTabChange?: (tab: MastersTab) => void;
 }) {
-  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
-  const [addOpen, setAddOpen] = useState(false);
-  const [editCtx, setEditCtx] = useState<{ tab: MastersTab; id: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+	  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
+	  const [addOpen, setAddOpen] = useState(false);
+	  const [editCtx, setEditCtx] = useState<{ tab: MastersTab; id: string } | null>(null);
+	  const [error, setError] = useState<string | null>(null);
+	  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	  const [busy, setBusy] = useState(false);
+
+	  const clearFieldError = (key: string) =>
+	    setFieldErrors((m) => {
+	      if (!m[key]) return m;
+	      const next = { ...m };
+	      delete next[key];
+	      return next;
+	    });
+
+	  const setFieldError = (key: string, message: string) => setFieldErrors((m) => ({ ...m, [key]: message }));
 
   useEffect(() => {
     if (!addOpen) return;
@@ -217,22 +228,25 @@ export default function MastersView({
     setTab(externalTab);
   }, [externalTab]);
 
-	  useEffect(() => {
-	    setAddOpen(false);
-	    setEditCtx(null);
-	  }, [tab]);
+		  useEffect(() => {
+		    setAddOpen(false);
+		    setEditCtx(null);
+		    setFieldErrors({});
+		  }, [tab]);
 
-	  const closeModal = () => {
-	    setAddOpen(false);
-	    setEditCtx(null);
-	  };
+		  const closeModal = () => {
+		    setAddOpen(false);
+		    setEditCtx(null);
+		    setFieldErrors({});
+		  };
 
-					  const openAddModal = () => {
-					    setEditCtx(null);
-					    setError(null);
-					    if (tab === 'firms') {
-					      setNewFirmName('');
-					      setNewFirmSortName('');
+						  const openAddModal = () => {
+						    setEditCtx(null);
+						    setError(null);
+						    setFieldErrors({});
+						    if (tab === 'firms') {
+						      setNewFirmName('');
+						      setNewFirmSortName('');
 					      setNewFirmCin('');
 					      setNewFirmGstNumber('');
 					      setNewFirmAddress('');
@@ -298,10 +312,11 @@ export default function MastersView({
 	    setAddOpen(true);
 	  };
 
-					  const openEditModal = (id: string) => {
-					    setError(null);
-					    setEditCtx({ tab, id });
-					    if (tab === 'firms') {
+						  const openEditModal = (id: string) => {
+						    setError(null);
+						    setFieldErrors({});
+						    setEditCtx({ tab, id });
+						    if (tab === 'firms') {
 					      const row = firms.find((f) => f.id === id);
 					      setNewFirmName(row?.name ?? '');
 					      setNewFirmSortName(row?.sortName ?? '');
@@ -653,14 +668,18 @@ export default function MastersView({
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm Phone Number</div>
 			                      <input
-			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.firmPhone ? 'border-error/60' : 'border-outline-variant/20'}`}
 			                        value={newFirmPhone}
-			                        onChange={(e) => setNewFirmPhone(normalizeTenDigitPhoneInput(e.target.value))}
+			                        onChange={(e) => {
+			                          clearFieldError('firmPhone');
+			                          setNewFirmPhone(normalizeTenDigitPhoneInput(e.target.value));
+			                        }}
 			                        placeholder="Phone"
 			                        inputMode="numeric"
 			                        maxLength={10}
 			                        pattern="[0-9]{10}"
 			                      />
+			                      {fieldErrors.firmPhone ? <div className="text-xs text-error">{fieldErrors.firmPhone}</div> : null}
 			                    </label>
 
 				                    <label className="space-y-1">
@@ -746,16 +765,17 @@ export default function MastersView({
 		                      type="button"
 			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 			                      disabled={!newFirmName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-		                        const phone = newFirmPhone.trim();
-		                        if (phone && !isValidTenDigitPhone(phone)) {
-		                          setBusy(false);
-		                          setError('Firm phone number must be a 10 digit number.');
-		                          return;
-		                        }
-		                        const fn = isEditing
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        setFieldErrors({});
+			                        const phone = newFirmPhone.trim();
+			                        if (phone && !isValidTenDigitPhone(phone)) {
+			                          setBusy(false);
+			                          setFieldError('firmPhone', 'Must be a 10 digit number.');
+			                          return;
+			                        }
+			                        const fn = isEditing
 		                          ? updateFirm(editCtx?.id ?? '', {
 		                              name: newFirmName.trim(),
 		                              sortName: newFirmSortName.trim() || null,
@@ -1060,14 +1080,18 @@ export default function MastersView({
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
 		                      <input
-		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.userMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
 		                        value={newUserMobile}
-		                        onChange={(e) => setNewUserMobile(normalizeTenDigitPhoneInput(e.target.value))}
+		                        onChange={(e) => {
+		                          clearFieldError('userMobile');
+		                          setNewUserMobile(normalizeTenDigitPhoneInput(e.target.value));
+		                        }}
 		                        placeholder="9876543210"
 		                        inputMode="numeric"
 		                        maxLength={10}
 		                        pattern="[0-9]{10}"
 		                      />
+		                      {fieldErrors.userMobile ? <div className="text-xs text-error">{fieldErrors.userMobile}</div> : null}
 		                    </label>
 	                  </div>
 
@@ -1107,16 +1131,17 @@ export default function MastersView({
 	                        !newUserDesignation.trim() ||
 	                        (!isEditing && !newUserPassword.trim())
 	                      }
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-		                        const mobile = newUserMobile.trim();
-		                        if (mobile && !isValidTenDigitPhone(mobile)) {
-		                          setBusy(false);
-		                          setError('Mobile number must be a 10 digit number.');
-		                          return;
-		                        }
-		                        const password = newUserPassword.trim();
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        setFieldErrors({});
+			                        const mobile = newUserMobile.trim();
+			                        if (mobile && !isValidTenDigitPhone(mobile)) {
+			                          setBusy(false);
+			                          setFieldError('userMobile', 'Must be a 10 digit number.');
+			                          return;
+			                        }
+			                        const password = newUserPassword.trim();
 		                        const fn = isEditing
 		                          ? updateUser(editCtx?.id ?? '', {
 		                              name: newUserName.trim(),
@@ -1202,14 +1227,18 @@ export default function MastersView({
 				                    <label className="space-y-1">
 				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone Number</div>
 				                      <input
-				                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.supplierPhone ? 'border-error/60' : 'border-outline-variant/20'}`}
 				                        value={newSupplierPhone}
-				                        onChange={(e) => setNewSupplierPhone(normalizeTenDigitPhoneInput(e.target.value))}
+				                        onChange={(e) => {
+				                          clearFieldError('supplierPhone');
+				                          setNewSupplierPhone(normalizeTenDigitPhoneInput(e.target.value));
+				                        }}
 				                        placeholder="Phone"
 				                        inputMode="numeric"
 				                        maxLength={10}
 				                        pattern="[0-9]{10}"
 				                      />
+				                      {fieldErrors.supplierPhone ? <div className="text-xs text-error">{fieldErrors.supplierPhone}</div> : null}
 				                    </label>
 
 			                    <label className="space-y-1">
@@ -1242,16 +1271,17 @@ export default function MastersView({
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 		                      disabled={!newSupplierName.trim() || busy}
-			                      onClick={() => {
-			                        setBusy(true);
-			                        setError(null);
-			                        const phone = newSupplierPhone.trim();
-			                        if (phone && !isValidTenDigitPhone(phone)) {
-			                          setBusy(false);
-			                          setError('Phone number must be a 10 digit number.');
-			                          return;
-			                        }
-				                        const fn = isEditing
+				                      onClick={() => {
+				                        setBusy(true);
+				                        setError(null);
+				                        setFieldErrors({});
+				                        const phone = newSupplierPhone.trim();
+				                        if (phone && !isValidTenDigitPhone(phone)) {
+				                          setBusy(false);
+				                          setFieldError('supplierPhone', 'Must be a 10 digit number.');
+				                          return;
+				                        }
+					                        const fn = isEditing
 				                          ? updateSupplier(editCtx?.id ?? '', {
 				                              name: newSupplierName.trim(),
 				                              gstNumber: newSupplierGstNumber.trim() || undefined,
@@ -1305,14 +1335,18 @@ export default function MastersView({
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
 			                      <input
-			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.customerMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
 			                        value={newCustomerMobile}
-			                        onChange={(e) => setNewCustomerMobile(normalizeTenDigitPhoneInput(e.target.value))}
+			                        onChange={(e) => {
+			                          clearFieldError('customerMobile');
+			                          setNewCustomerMobile(normalizeTenDigitPhoneInput(e.target.value));
+			                        }}
 			                        placeholder="Mobile"
 			                        inputMode="numeric"
 			                        maxLength={10}
 			                        pattern="[0-9]{10}"
 			                      />
+			                      {fieldErrors.customerMobile ? <div className="text-xs text-error">{fieldErrors.customerMobile}</div> : null}
 			                    </label>
 <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Address</div>
@@ -1332,16 +1366,17 @@ export default function MastersView({
 		                      type="button"
 		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 		                      disabled={!newCustomerName.trim() || busy}
-			                      onClick={() => {
-			                        setBusy(true);
-			                        setError(null);
-			                        const phone = newCustomerMobile.trim();
-			                        if (phone && !isValidTenDigitPhone(phone)) {
-			                          setBusy(false);
-			                          setError('Mobile number must be a 10 digit number.');
-			                          return;
-			                        }
-			                        const fn = isEditing
+				                      onClick={() => {
+				                        setBusy(true);
+				                        setError(null);
+				                        setFieldErrors({});
+				                        const phone = newCustomerMobile.trim();
+				                        if (phone && !isValidTenDigitPhone(phone)) {
+				                          setBusy(false);
+				                          setFieldError('customerMobile', 'Must be a 10 digit number.');
+				                          return;
+				                        }
+				                        const fn = isEditing
 			                          ? updateCustomer(editCtx?.id ?? '', {
 			                              name: newCustomerName.trim(),
 			                              phone: phone || undefined,
@@ -1385,14 +1420,18 @@ export default function MastersView({
 		                  <label className="space-y-1">
 		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone (optional)</div>
 		                    <input
-		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.transporterPhone ? 'border-error/60' : 'border-outline-variant/20'}`}
 		                      value={newTransporterPhone}
-		                      onChange={(e) => setNewTransporterPhone(normalizeTenDigitPhoneInput(e.target.value))}
+		                      onChange={(e) => {
+		                        clearFieldError('transporterPhone');
+		                        setNewTransporterPhone(normalizeTenDigitPhoneInput(e.target.value));
+		                      }}
 		                      placeholder="9876543210"
 		                      inputMode="numeric"
 		                      maxLength={10}
 		                      pattern="[0-9]{10}"
 		                    />
+		                    {fieldErrors.transporterPhone ? <div className="text-xs text-error">{fieldErrors.transporterPhone}</div> : null}
 		                  </label>
 	                  <div className="flex justify-end gap-2">
 	                    <button
@@ -1410,16 +1449,17 @@ export default function MastersView({
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 	                      disabled={!newTransporterName.trim() || busy}
-		                      onClick={() => {
-		                        setBusy(true);
-		                        setError(null);
-		                        const phone = newTransporterPhone.trim();
-		                        if (phone && !isValidTenDigitPhone(phone)) {
-		                          setBusy(false);
-		                          setError('Phone number must be a 10 digit number.');
-		                          return;
-		                        }
-		                        const fn = isEditing
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        setFieldErrors({});
+			                        const phone = newTransporterPhone.trim();
+			                        if (phone && !isValidTenDigitPhone(phone)) {
+			                          setBusy(false);
+			                          setFieldError('transporterPhone', 'Must be a 10 digit number.');
+			                          return;
+			                        }
+			                        const fn = isEditing
 		                          ? updateTransporter(editCtx?.id ?? '', {
 		                              name: newTransporterName.trim(),
 		                              phone: phone || null,
@@ -1551,24 +1591,32 @@ export default function MastersView({
 		                      placeholder="Bolt"
 		                    />
 		                  </label>
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
-		                    <SearchableSelect
-		                      options={units.map((u) => ({ value: u.id, label: u.name }))}
-		                      value={newItemNameUnitId}
-		                      onChange={setNewItemNameUnitId}
-		                      placeholder="Select unit"
-		                    />
-		                  </label>
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
-		                    <SearchableSelect
-		                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
-		                      value={newItemNameCategoryId}
-		                      onChange={setNewItemNameCategoryId}
-		                      placeholder="Select category"
-		                    />
-		                  </label>
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+			                    <SearchableSelect
+			                      options={units.map((u) => ({ value: u.id, label: u.name }))}
+			                      value={newItemNameUnitId}
+			                      onChange={(v) => {
+			                        clearFieldError('itemNameUnitId');
+			                        setNewItemNameUnitId(v);
+			                      }}
+			                      placeholder="Select unit"
+			                    />
+			                    {fieldErrors.itemNameUnitId ? <div className="text-xs text-error">{fieldErrors.itemNameUnitId}</div> : null}
+			                  </label>
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+			                    <SearchableSelect
+			                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+			                      value={newItemNameCategoryId}
+			                      onChange={(v) => {
+			                        clearFieldError('itemNameCategoryId');
+			                        setNewItemNameCategoryId(v);
+			                      }}
+			                      placeholder="Select category"
+			                    />
+			                    {fieldErrors.itemNameCategoryId ? <div className="text-xs text-error">{fieldErrors.itemNameCategoryId}</div> : null}
+			                  </label>
 			                  <div className="flex justify-end gap-2">
 			                    <button
 			                      type="button"
@@ -1586,20 +1634,21 @@ export default function MastersView({
 		                      type="button"
 		                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 			                      disabled={!newItemName.trim() || !newItemNameUnitId || !newItemNameCategoryId || busy}
-			                      onClick={() => {
-			                        setBusy(true);
-			                        setError(null);
-			                        if (!newItemNameUnitId) {
-			                          setBusy(false);
-			                          setError('Unit is required.');
-			                          return;
-			                        }
-			                        if (!newItemNameCategoryId) {
-			                          setBusy(false);
-			                          setError('Category is required.');
-			                          return;
-			                        }
-			                        const fn = isEditing
+				                      onClick={() => {
+				                        setBusy(true);
+				                        setError(null);
+				                        setFieldErrors({});
+				                        if (!newItemNameUnitId) {
+				                          setBusy(false);
+				                          setFieldError('itemNameUnitId', 'Unit is required.');
+				                          return;
+				                        }
+				                        if (!newItemNameCategoryId) {
+				                          setBusy(false);
+				                          setFieldError('itemNameCategoryId', 'Category is required.');
+				                          return;
+				                        }
+				                        const fn = isEditing
 			                          ? updateItemName(editCtx?.id ?? '', {
 			                              name: newItemName.trim(),
 			                              unitId: newItemNameUnitId || null,
