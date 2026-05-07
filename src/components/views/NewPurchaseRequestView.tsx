@@ -41,11 +41,13 @@ export default function NewPurchaseRequestView({
 }) {
   type ItemDraft = { itemId: string; item: string; quantity: string; specification: string };
 
-  function formatSpecsLines(specificationsJson: string) {
+  function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
     try {
       const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
       const entries = Object.entries(obj);
-      return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).filter(Boolean);
+      return entries
+        .map(([specId, v]) => `${specNameById?.[specId] ?? specId}: ${String(v ?? '')}`)
+        .filter(Boolean);
     } catch {
       return specificationsJson
         .split(/\r?\n/)
@@ -54,8 +56,8 @@ export default function NewPurchaseRequestView({
     }
   }
 
-  function formatItemInline(itemName: string, specificationsJson: string) {
-    const specs = formatSpecsLines(specificationsJson);
+  function formatItemInline(itemName: string, specificationsJson: string, specNameById?: Record<string, string>) {
+    const specs = formatSpecsLines(specificationsJson, specNameById);
     return [itemName, ...specs].join(' - ');
   }
 
@@ -84,8 +86,9 @@ export default function NewPurchaseRequestView({
 	  const [loadingUnits, setLoadingUnits] = useState(true);
 	  const [masterItems, setMasterItems] = useState<Item[]>([]);
 	  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
-  const [specs, setSpecs] = useState<Specification[]>([]);
-  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
+	  const [specs, setSpecs] = useState<Specification[]>([]);
+	  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
+	  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
 	  const [createItemOpen, setCreateItemOpen] = useState(false);
 	  const [createItemRowIndex, setCreateItemRowIndex] = useState<number | null>(null);
@@ -534,27 +537,27 @@ export default function NewPurchaseRequestView({
 						                <SearchableSelect
 				                  value={row.itemId}
 				                  options={masterItems
-				                    .filter((it) => {
-				                      if (it.id === row.itemId) return true;
-				                      return !items.some((r, j) => j !== idx && r.itemId && r.itemId === it.id);
-				                    })
-				                    .map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson) }))}
-				                  onChange={(id) => {
-			                    const found = masterItems.find((it) => it.id === id);
-			                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-			                    setItems((prev) =>
+					                    .filter((it) => {
+					                      if (it.id === row.itemId) return true;
+					                      return !items.some((r, j) => j !== idx && r.itemId && r.itemId === it.id);
+					                    })
+					                    .map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson, specNameById) }))}
+					                  onChange={(id) => {
+				                    const found = masterItems.find((it) => it.id === id);
+				                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+				                    setItems((prev) =>
 			                      prev.map((p, i) => {
 			                        if (i !== idx) return p;
 			                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
-			                        return {
-			                          ...p,
-			                          itemId: id,
-			                          item: found.itemName,
-			                          specification: formatSpecsLines(found.specificationsJson).join('\n').trim(),
-			                        };
-			                      })
-			                    );
-				                  }}
+					                        return {
+					                          ...p,
+					                          itemId: id,
+					                          item: found.itemName,
+					                          specification: formatSpecsLines(found.specificationsJson, specNameById).join('\n').trim(),
+					                        };
+					                      })
+					                    );
+					                  }}
 				                  disabled={loadingMasterItems}
 				                  placeholder="Search item..."
 				                  allowClear
@@ -1113,7 +1116,7 @@ export default function NewPurchaseRequestView({
 		                                  ...p,
 		                                  itemId: updatedOrCreated.id,
 		                                  item: updatedOrCreated.itemName,
-		                                  specification: formatSpecsLines(updatedOrCreated.specificationsJson).join('\n').trim(),
+		                                  specification: formatSpecsLines(updatedOrCreated.specificationsJson, specNameById).join('\n').trim(),
 		                                }
 		                              : p
 		                          )
