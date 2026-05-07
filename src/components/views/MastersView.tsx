@@ -557,19 +557,7 @@ export default function MastersView({
 
   return (
     <div className="space-y-4">
-	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm">
-	        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-	          <div>
-	            <h3 className="font-headline font-bold text-sm text-on-surface">All Masters</h3>
-	            <p className="text-sm text-on-surface-variant">Maintain Firms, Stores, Departments, Suppliers, Items and Specifications.</p>
-		          </div>
-		          <div className="flex items-center gap-2">
-	            {/* Excel downloads removed */}
-	          </div>
-	        </div>
-
-        {error ? <div className="mt-3 text-xs text-error">{error}</div> : null}
-      </div>
+	      {error ? <div className="text-xs text-error">{error}</div> : null}
 
       <div className="flex flex-wrap gap-2">
         {MASTERS_TABS.map(({ key, label }) => (
