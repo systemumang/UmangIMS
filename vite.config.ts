@@ -7,7 +7,10 @@ export default defineConfig(async ({command, mode}) => {
   const env = loadEnv(mode, '.', '');
 
   const plugins = [react(), tailwindcss()];
-  if (command === 'serve') {
+  // Hostinger/CI build images can’t load native sqlite3 bindings used by the
+  // dev-only API middleware. Never enable it in CI.
+  const enableDevApi = command === 'serve' && !process.env.CI && process.env.ENABLE_DEV_API !== 'false';
+  if (enableDevApi) {
     // Keep backend middleware out of production builds (Hostinger build image
     // cannot load native sqlite3 bindings used by the dev API).
     plugins.push(await excelApiPlugin());
