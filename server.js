@@ -66,6 +66,15 @@ function mapPrStatus(status) {
   return 'Pending Approval';
 }
 
+function normalizeGstType(value) {
+  const v = String(value ?? '').trim();
+  if (!v) return null;
+  const lower = v.toLowerCase();
+  if (lower.includes('intra')) return 'Intra-State';
+  if (lower.includes('inter')) return 'Inter-State';
+  return v;
+}
+
 app.get('/api/db/ping', async (_req, res) => {
   try {
     const pool = getMysqlPool();
@@ -91,6 +100,120 @@ app.get('/api/firms', async (_req, res) => {
       'SELECT id, name, address, terms_conditions AS termsConditions FROM firms ORDER BY name'
     );
     res.json({ firms: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Firms ---
+app.get('/api/masters/firms', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        name,
+        sort_name AS sortName,
+        cin,
+        gst_number AS gstNumber,
+        address,
+        phone,
+        logo_url AS logoUrl,
+        terms_conditions AS termsConditions
+      FROM firms
+      ORDER BY name
+      `
+    );
+    res.json({ firms: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/firms', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const sortName = req.body?.sortName != null ? String(req.body.sortName).trim() : null;
+    const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
+    const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
+    const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const logoUrl = req.body?.logoUrl != null ? String(req.body.logoUrl).trim() : null;
+    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+
+    await pool.query(
+      `
+      INSERT INTO firms (id, name, sort_name, cin, gst_number, address, phone, logo_url, terms_conditions, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [id, name, sortName, cin, gstNumber, address, phone, logoUrl, termsConditions, createdBy]
+    );
+
+    res.status(201).json({
+      firm: { id, name, sortName, cin, gstNumber, address, phone, logoUrl, termsConditions },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/masters/firms/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const sortName = req.body?.sortName != null ? String(req.body.sortName).trim() : null;
+    const cin = req.body?.cin != null ? String(req.body.cin).trim() : null;
+    const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
+    const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const logoUrl = req.body?.logoUrl != null ? String(req.body.logoUrl).trim() : null;
+    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+
+    await pool.query(
+      `
+      UPDATE firms
+      SET name=?, sort_name=?, cin=?, gst_number=?, address=?, phone=?, logo_url=?, terms_conditions=?, updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [name, sortName, cin, gstNumber, address, phone, logoUrl, termsConditions, updatedBy, id]
+    );
+
+    const [rows] = await pool.query(
+      `
+      SELECT id, name, sort_name AS sortName, cin, gst_number AS gstNumber, address, phone, logo_url AS logoUrl, terms_conditions AS termsConditions
+      FROM firms WHERE id=?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row) return res.status(404).json({ error: 'Firm not found' });
+    res.json({ firm: row });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/firms/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM firms WHERE id=?', [id]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -160,7 +283,11 @@ app.get('/api/masters/suppliers', async (_req, res) => {
       ORDER BY name
       `
     );
-    res.json({ suppliers: rows });
+    const suppliers = (rows || []).map((r) => ({
+      ...r,
+      gstType: normalizeGstType(r.gstType),
+    }));
+    res.json({ suppliers });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -274,6 +401,122 @@ app.delete('/api/masters/suppliers/:id', async (req, res) => {
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM suppliers WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Projects ---
+app.get('/api/masters/projects', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        firm_id AS firmId,
+        name,
+        client_name AS clientName,
+        start_date AS startDate,
+        end_date AS endDate,
+        status
+      FROM projects
+      ORDER BY name
+      `
+    );
+    res.json({ projects: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/projects', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const clientName = req.body?.clientName != null ? String(req.body.clientName).trim() : null;
+    const startDate = req.body?.startDate != null ? String(req.body.startDate).trim() : null;
+    const endDate = req.body?.endDate != null ? String(req.body.endDate).trim() : null;
+    const status = req.body?.status != null ? String(req.body.status).trim() : null;
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+
+    await pool.query(
+      `
+      INSERT INTO projects (id, firm_id, name, client_name, start_date, end_date, status, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [id, firmId, name, clientName, startDate, endDate, status, createdBy]
+    );
+
+    res.status(201).json({ project: { id, firmId, name, clientName, startDate, endDate, status } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'Project already exists for this firm' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/projects/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const clientName = req.body?.clientName != null ? String(req.body.clientName).trim() : null;
+    const startDate = req.body?.startDate != null ? String(req.body.startDate).trim() : null;
+    const endDate = req.body?.endDate != null ? String(req.body.endDate).trim() : null;
+    const status = req.body?.status != null ? String(req.body.status).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+
+    await pool.query(
+      `
+      UPDATE projects
+      SET firm_id=?, name=?, client_name=?, start_date=?, end_date=?, status=?, updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [firmId, name, clientName, startDate, endDate, status, updatedBy, id]
+    );
+
+    const [rows] = await pool.query(
+      `
+      SELECT id, firm_id AS firmId, name, client_name AS clientName, start_date AS startDate, end_date AS endDate, status
+      FROM projects WHERE id=?
+      `,
+      [id]
+    );
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row) return res.status(404).json({ error: 'Project not found' });
+    res.json({ project: row });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
+      return res.status(400).json({ error: 'Project already exists for this firm' });
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+app.delete('/api/masters/projects/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM projects WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
