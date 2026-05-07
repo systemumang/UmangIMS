@@ -327,8 +327,17 @@ export default function OperationsView() {
           </button>
         ))}
         <div className="flex-1" />
-        <button type="button" className="btn btn-sm" onClick={() => (window.location.href = exportHref)} disabled={loading}>
-          Export Excel
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => {
+            if (!exportHref) return;
+            window.location.href = exportHref;
+          }}
+          disabled={loading || !exportHref}
+          title={exportHref ? 'Export' : 'Export is not available'}
+        >
+          Export
         </button>
       </div>
 
