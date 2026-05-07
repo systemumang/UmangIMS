@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv, type Plugin} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(async ({command, mode}) => {
   const env = loadEnv(mode, '.', '');
@@ -9,7 +9,7 @@ export default defineConfig(async ({command, mode}) => {
   const plugins = [react(), tailwindcss()];
   // Hostinger/CI build images can’t load native sqlite3 bindings used by the
   // dev-only API middleware. Never enable it in CI.
-  const enableDevApi = command === 'serve' && !process.env.CI && process.env.ENABLE_DEV_API !== 'false';
+  const enableDevApi = false;
   if (enableDevApi) {
     // Keep backend middleware out of production builds (Hostinger build image
     // cannot load native sqlite3 bindings used by the dev API).
