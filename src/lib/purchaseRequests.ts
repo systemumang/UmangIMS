@@ -235,7 +235,7 @@ export async function createPurchaseRequest(input: {
   department: string;
   requestedBy: string;
   requiredDate: string;
-  items: Array<{ item: string; quantity: number; specification: string }>;
+  items: Array<{ itemId: string; item: string; quantity: number; specification: string }>;
 }): Promise<PurchaseRequestDetail> {
   const res = await fetch('/api/requests', {
     method: 'POST',

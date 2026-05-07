@@ -233,28 +233,40 @@ app.get('/api/requests', async (_req, res) => {
       SELECT
         pr.id,
         pr.firm_id AS firmId,
+        pr.store_id AS storeId,
+        st.name AS store,
         pr.project_id AS projectId,
         proj.name AS projectName,
         pr.requested_by AS requestedBy,
         pr.created_at AS requisitionDate,
         pr.request_type AS requestType,
         pr.status AS status,
+        pr.remarks AS remarks,
         MIN(pri.required_date) AS requiredDate
       FROM purchase_requisitions pr
       LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN stores st ON st.id = pr.store_id
       LEFT JOIN projects proj ON proj.id = pr.project_id
       GROUP BY pr.id
       ORDER BY pr.created_at DESC
       `
     );
 
+    const parseDepartment = (remarks) => {
+      try {
+        const obj = typeof remarks === 'string' ? JSON.parse(remarks) : null;
+        if (obj && typeof obj === 'object' && typeof obj.department === 'string') return obj.department;
+      } catch {}
+      return '';
+    };
+
     const requests = (rows || []).map((r) => ({
       id: String(r.id),
       firmId: String(r.firmId),
-      store: null,
+      store: r.store ? String(r.store) : null,
       projectId: r.projectId ? String(r.projectId) : null,
       projectName: r.projectName ? String(r.projectName) : null,
-      department: 'N/A',
+      department: parseDepartment(r.remarks) || 'N/A',
       requestedBy: String(r.requestedBy || ''),
       requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || toIsoDate(new Date()) || '',
       requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
@@ -263,6 +275,201 @@ app.get('/api/requests', async (_req, res) => {
     }));
 
     res.json({ requests });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/requests/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+
+    const [[prRow]] = await pool.query(
+      `
+      SELECT
+        pr.id,
+        pr.firm_id AS firmId,
+        pr.store_id AS storeId,
+        st.name AS store,
+        pr.project_id AS projectId,
+        proj.name AS projectName,
+        pr.requested_by AS requestedBy,
+        pr.created_at AS requisitionDate,
+        pr.request_type AS requestType,
+        pr.status AS status,
+        pr.remarks AS remarks,
+        MIN(pri.required_date) AS requiredDate
+      FROM purchase_requisitions pr
+      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN stores st ON st.id = pr.store_id
+      LEFT JOIN projects proj ON proj.id = pr.project_id
+      WHERE pr.id = ?
+      GROUP BY pr.id
+      `,
+      [id]
+    );
+    if (!prRow) return res.status(404).json({ error: 'PR not found' });
+
+    const parseDepartment = (remarks) => {
+      try {
+        const obj = typeof remarks === 'string' ? JSON.parse(remarks) : null;
+        if (obj && typeof obj === 'object' && typeof obj.department === 'string') return obj.department;
+      } catch {}
+      return '';
+    };
+
+    const [itemRows] = await pool.query(
+      `
+      SELECT
+        pri.id,
+        pri.pr_id AS prId,
+        pri.item_id AS itemId,
+        iname.name AS item,
+        pri.requested_qty AS quantity,
+        pri.remarks AS specification
+      FROM purchase_requisition_items pri
+      LEFT JOIN items it ON it.id = pri.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE pri.pr_id = ?
+      ORDER BY pri.created_at ASC
+      `,
+      [id]
+    );
+
+    const pr = {
+      id: String(prRow.id),
+      firmId: String(prRow.firmId),
+      store: prRow.store ? String(prRow.store) : null,
+      projectId: prRow.projectId ? String(prRow.projectId) : null,
+      projectName: prRow.projectName ? String(prRow.projectName) : null,
+      department: parseDepartment(prRow.remarks) || 'N/A',
+      requestedBy: String(prRow.requestedBy || ''),
+      requiredDate: toIsoDate(prRow.requiredDate) || toIsoDate(prRow.requisitionDate) || toIsoDate(new Date()) || '',
+      requisitionDate: toIsoDateTime(prRow.requisitionDate) || new Date().toISOString(),
+      requestType: prRow.requestType ? String(prRow.requestType) : 'Stock',
+      status: mapPrStatus(prRow.status),
+    };
+
+    const items = (itemRows || []).map((r) => ({
+      id: String(r.id),
+      prId: String(r.prId),
+      itemId: String(r.itemId),
+      item: String(r.item || ''),
+      quantity: Number(r.quantity ?? 0),
+      specification: String(r.specification ?? ''),
+    }));
+
+    res.json({ request: { pr, items } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/requests', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const storeName = String(req.body?.store ?? '').trim();
+    const department = String(req.body?.department ?? '').trim();
+    const requestedBy = String(req.body?.requestedBy ?? '').trim();
+    const requiredDate = String(req.body?.requiredDate ?? '').trim(); // YYYY-MM-DD
+    const requestType = (String(req.body?.requestType ?? 'Stock').trim() === 'Project' ? 'Project' : 'Stock');
+    const projectId = req.body?.projectId != null ? String(req.body.projectId).trim() : null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!storeName) return res.status(400).json({ error: 'store is required' });
+    if (!department) return res.status(400).json({ error: 'department is required' });
+    if (!requestedBy) return res.status(400).json({ error: 'requestedBy is required' });
+    if (!requiredDate) return res.status(400).json({ error: 'requiredDate is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    const [storeRows] = await pool.query('SELECT id, name FROM stores WHERE firm_id = ? AND name = ? LIMIT 1', [firmId, storeName]);
+    const storeRow = Array.isArray(storeRows) ? storeRows[0] : null;
+    if (!storeRow?.id) return res.status(400).json({ error: 'Store not found for selected firm' });
+    const storeId = String(storeRow.id);
+
+    const prId = crypto.randomUUID();
+    const prNumber = `PR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${prId.slice(0, 6)}`;
+    const remarks = JSON.stringify({ department });
+
+    await pool.query(
+      `
+      INSERT INTO purchase_requisitions
+        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
+      VALUES
+        (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW(), ?)
+      `,
+      [prId, prNumber, firmId, storeId, projectId || null, requestedBy, remarks, 'system', requestType]
+    );
+
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const quantity = Number(row?.quantity ?? 0);
+      const specification = String(row?.specification ?? '').trim();
+      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires a valid quantity' });
+      if (!specification) return res.status(400).json({ error: 'Each item requires specification' });
+
+      const prItemId = crypto.randomUUID();
+      await pool.query(
+        `
+        INSERT INTO purchase_requisition_items
+          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, NULL, ?, ?, 'pending', ?, NOW(), NOW())
+        `,
+        [prItemId, prId, itemId, quantity, requiredDate, specification, 'system']
+      );
+    }
+
+    // Return detail
+    const [itemsRows] = await pool.query(
+      `
+      SELECT
+        pri.id,
+        pri.pr_id AS prId,
+        pri.item_id AS itemId,
+        iname.name AS item,
+        pri.requested_qty AS quantity,
+        pri.remarks AS specification
+      FROM purchase_requisition_items pri
+      LEFT JOIN items it ON it.id = pri.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE pri.pr_id = ?
+      ORDER BY pri.created_at ASC
+      `,
+      [prId]
+    );
+
+    const pr = {
+      id: prId,
+      firmId,
+      store: storeName,
+      projectId: projectId || null,
+      projectName: null,
+      department,
+      requestedBy,
+      requiredDate,
+      requisitionDate: new Date().toISOString(),
+      requestType,
+      status: 'Pending Approval',
+    };
+    const outItems = (itemsRows || []).map((r) => ({
+      id: String(r.id),
+      prId: String(r.prId),
+      itemId: String(r.itemId),
+      item: String(r.item || ''),
+      quantity: Number(r.quantity ?? 0),
+      specification: String(r.specification ?? ''),
+    }));
+
+    res.status(201).json({ request: { pr, items: outItems } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

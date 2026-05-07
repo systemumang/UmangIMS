@@ -658,20 +658,20 @@ export default function NewPurchaseRequestView({
 					                  setError(null);
 					                  const rowMessages: string[] = [];
 					                  const usedItemIds = new Set<string>();
-					                  const normalizedItems = items
-					                    .map((it, i) => {
-					                      const itemName = it.item.trim();
-					                      const itemId = String(it.itemId ?? '').trim();
-					                      const quantityNumber = Number(it.quantity);
-					                      const specification = it.specification.trim();
-					                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
-					                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
-					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
-					                      else if (!specification) rowMessages[i] = 'Missing specification.';
-					                      if (itemId) usedItemIds.add(itemId);
-					                      return { item: itemName, quantity: quantityNumber, specification };
-					                    })
-					                    .filter((_, i) => !rowMessages[i]);
+						                  const normalizedItems = items
+						                    .map((it, i) => {
+						                      const itemName = it.item.trim();
+						                      const itemId = String(it.itemId ?? '').trim();
+						                      const quantityNumber = Number(it.quantity);
+						                      const specification = it.specification.trim();
+						                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
+						                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
+						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+						                      else if (!specification) rowMessages[i] = 'Missing specification.';
+						                      if (itemId) usedItemIds.add(itemId);
+						                      return { itemId, item: itemName, quantity: quantityNumber, specification };
+						                    })
+						                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
