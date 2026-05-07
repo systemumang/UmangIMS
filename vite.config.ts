@@ -2,12 +2,11 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
-import {createApiApp} from './src/server/api';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({command, mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [react(), tailwindcss(), excelApiPlugin()],
+    plugins: [react(), tailwindcss(), ...(command === 'serve' ? [excelApiPlugin()] : [])],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
@@ -27,10 +26,12 @@ export default defineConfig(({mode}) => {
 function excelApiPlugin(): Plugin {
   return {
     name: 'excel-api',
-    configureServer(server) {
+    async configureServer(server) {
+      const {createApiApp} = await import('./src/server/api');
       server.middlewares.use('/api', createApiApp());
     },
-    configurePreviewServer(server) {
+    async configurePreviewServer(server) {
+      const {createApiApp} = await import('./src/server/api');
       server.middlewares.use('/api', createApiApp());
     },
   };
