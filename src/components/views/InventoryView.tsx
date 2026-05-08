@@ -771,12 +771,14 @@ function getFullItemLabel(item: Item) {
 function formatSpecs(specificationsJson: string) {
   const raw = String(specificationsJson ?? '').trim();
   if (!raw) return '';
+  const looksLikeUuid = (v: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v ?? '').trim());
   try {
     const obj = JSON.parse(raw) as Record<string, unknown>;
     if (!obj || typeof obj !== 'object') return '';
     const entries = Object.entries(obj)
       .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()] as const)
-      .filter(([k, v]) => k && v);
+      .filter(([k, v]) => k && v && !looksLikeUuid(k) && !looksLikeUuid(v));
     if (entries.length === 0) return '';
     return entries.map(([k, v]) => `${k}: ${v}`).join(' - ');
   } catch {
@@ -787,7 +789,7 @@ function formatSpecs(specificationsJson: string) {
 function getFullSheetItemLabel(row: InventorySheetRow) {
   const name = String(row.itemName ?? '').trim();
   const specText = formatSpecs(row.specifications);
-  return [name, specText].filter(Boolean).join(' - ') || String(row.itemCode ?? '').trim() || String(row.itemId);
+  return [name, specText].filter(Boolean).join(' - ') || String(row.itemCode ?? '').trim() || '';
 }
 
 function getStoreLabel(row: InventorySheetRow) {

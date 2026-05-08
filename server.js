@@ -4300,7 +4300,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
 });
 
 // --- Invoices ---
-app.post('/api/pos/:id/invoice', async (req, res) => {
+async function handleCreateInvoice(req, res) {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
@@ -4459,7 +4459,11 @@ app.post('/api/pos/:id/invoice', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
-});
+}
+
+// Support both singular and plural for older cached frontends.
+app.post('/api/pos/:id/invoice', handleCreateInvoice);
+app.post('/api/pos/:id/invoices', handleCreateInvoice);
 
 app.put('/api/invoices/:id', async (req, res) => {
   try {
