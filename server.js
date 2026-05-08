@@ -1898,10 +1898,367 @@ app.get('/api/operations/prs', async (req, res) => {
   }
 });
 
-app.get('/api/operations/pos', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/operations/grns', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/operations/invoices', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/operations/payments', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/operations/pos', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.order_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.order_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ? OR proj.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        po.order_date AS orderDate,
+        po.created_at AS createdAt,
+        po.status AS status,
+        COUNT(poi.id) AS itemCount,
+        COALESCE(SUM(poi.total_amount), 0) AS totalAmount
+      FROM purchase_orders po
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY po.id
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const rawStatus = String(r.status ?? '').toLowerCase();
+      const mappedStatus = rawStatus === 'closed' ? 'Closed' : rawStatus === 'partial' ? 'Partial' : 'Open';
+      return {
+        poId: String(r.poId ?? ''),
+        poNumber: String(r.poNumber ?? r.poId ?? ''),
+        prId: String(r.prId ?? ''),
+        prNumber: String(r.prNumber ?? r.prId ?? ''),
+        firmId: String(r.firmId ?? ''),
+        firmName: String(r.firmName ?? ''),
+        department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+        projectId: r.projectId ? String(r.projectId) : null,
+        projectName: r.projectName ? String(r.projectName) : null,
+        supplierId: String(r.supplierId ?? ''),
+        supplierName: String(r.supplierName ?? ''),
+        orderDate: toIsoDate(r.orderDate) || null,
+        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+        status: mappedStatus,
+        itemCount: Number(r.itemCount ?? 0),
+        totalAmount: Number(r.totalAmount ?? 0),
+      };
+    });
+    if (status) out = out.filter((x) => x.status === status);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/grns', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('g.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(g.received_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(g.received_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        g.id AS grnId,
+        g.grn_number AS grnNumber,
+        g.received_date AS receivedDate,
+        g.created_at AS createdAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        g.firm_id AS firmId,
+        f.name AS firmName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        COUNT(gi.id) AS itemCount,
+        COALESCE(SUM(gi.received_qty), 0) AS totalQty
+      FROM grns g
+      INNER JOIN purchase_orders po ON po.id = g.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id
+      LEFT JOIN firms f ON f.id = g.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY g.id
+      ORDER BY g.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      grnId: String(r.grnId ?? ''),
+      grnNumber: String(r.grnNumber ?? r.grnId ?? ''),
+      receivedDate: toIsoDate(r.receivedDate) || '',
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      supplierId: String(r.supplierId ?? ''),
+      supplierName: String(r.supplierName ?? ''),
+      itemCount: Number(r.itemCount ?? 0),
+      totalQty: Number(r.totalQty ?? 0),
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+    }));
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/invoices', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(inv.invoice_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(inv.invoice_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(inv.invoice_number LIKE ? OR inv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        inv.status AS status,
+        inv.created_at AS createdAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY inv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      invoiceId: String(r.invoiceId ?? ''),
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      invoiceDate: toIsoDate(r.invoiceDate) || '',
+      invoiceAmount: Number(r.invoiceAmount ?? 0),
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      supplierId: String(r.supplierId ?? ''),
+      supplierName: String(r.supplierName ?? ''),
+      status: mapInvoiceStatus(r),
+      paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+      paymentDate: toIsoDate(r.paymentDate) || undefined,
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+    }));
+    if (status) out = out.filter((x) => x.status === status);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/payments', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+
+    const where = ['inv.payment_status IS NOT NULL', "TRIM(inv.payment_status) <> ''"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date)) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date)) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(inv.invoice_number LIKE ? OR inv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+    if (status) {
+      where.push('inv.payment_status = ?');
+      params.push(status);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        inv.updated_at AS updatedAt,
+        inv.created_at AS createdAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date) DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      paymentId: String(r.invoiceId ?? ''),
+      paymentDate: toIsoDate(r.paymentDate) || toIsoDate(r.updatedAt) || toIsoDate(r.invoiceDate) || '',
+      amount: Number(r.invoiceAmount ?? 0),
+      mode: undefined,
+      referenceNo: undefined,
+      status: r.paymentStatus != null ? String(r.paymentStatus) : null,
+      invoiceId: String(r.invoiceId ?? ''),
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      supplierId: String(r.supplierId ?? ''),
+      supplierName: String(r.supplierName ?? ''),
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+    }));
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // Invoices for a PR
 app.get('/api/requests/:id/invoices', async (req, res) => {

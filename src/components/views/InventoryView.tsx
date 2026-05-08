@@ -3,7 +3,6 @@ import { Search, Settings, Save, ArrowUpDown } from 'lucide-react';
 import { fetchFirms, fetchStores, fetchItems, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
-import { fiscalYearLabel } from '@/src/lib/date';
 import Spinner from '@/src/components/common/Spinner';
 import { Modal, inputClass, labelClass } from './queues/shared';
 
@@ -441,7 +440,7 @@ export default function InventoryView() {
 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-outline-variant bg-surface-container-low">
-          <div className="font-headline font-bold text-sm text-on-surface">Item Sheet (Financial Year: {fiscalYearLabel()})</div>
+          <div className="font-headline font-bold text-sm text-on-surface">Item Sheet</div>
         </div>
         
 	        <div className="overflow-x-auto">
