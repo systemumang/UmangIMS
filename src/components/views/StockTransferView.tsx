@@ -5,6 +5,7 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { Trash2 } from 'lucide-react';
 import { fetchDepartments, fetchItems, fetchStores, fetchUsers, type Department, type Item, type Store, type User } from '@/src/lib/masters';
+import { formatItemInline } from '@/src/lib/itemLabel';
 
 export default function StockTransferView({
   onCreated,
@@ -19,24 +20,6 @@ export default function StockTransferView({
     || String((e as any)?.message ?? '').toLowerCase().includes('signal is aborted');
 
   type ItemDraft = { itemId: string; item: string; quantity: string };
-
-  function formatSpecsLines(specificationsJson: string) {
-    try {
-      const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
-      const entries = Object.entries(obj);
-      return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).filter(Boolean);
-    } catch {
-      return specificationsJson
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-
-  function formatItemInline(itemName: string, specificationsJson: string) {
-    const specs = formatSpecsLines(specificationsJson);
-    return [itemName, ...specs].join(' - ');
-  }
 
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loadingFirms, setLoadingFirms] = useState(true);

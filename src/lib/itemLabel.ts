@@ -6,6 +6,20 @@ function isShortHexLike(value: string) {
   return /^[0-9a-f]{6}$/i.test(String(value ?? '').trim());
 }
 
+function stripEmbeddedIds(value: string) {
+  const raw = String(value ?? '');
+  if (!raw) return '';
+  const withoutUuids = raw.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '').trim();
+  // Cleanup common leftovers from "key: value" and "A - B" chains.
+  return withoutUuids
+    .replace(/\s*:\s*(?=[:\-]|$)/g, ': ')
+    .replace(/\s*-\s*(?=-|$)/g, ' - ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*-\s*$/g, '')
+    .replace(/\s*:\s*$/g, '')
+    .trim();
+}
+
 export function formatSpecsLines(specificationsJson?: string) {
   try {
     const obj = JSON.parse(String(specificationsJson ?? '')) as Record<string, unknown>;
@@ -13,8 +27,8 @@ export function formatSpecsLines(specificationsJson?: string) {
     if (!entries.length) return [];
     return entries
       .map(([k, v]) => {
-        const key = String(k ?? '').trim();
-        const value = String(v ?? '').trim();
+        const key = stripEmbeddedIds(String(k ?? '').trim());
+        const value = stripEmbeddedIds(String(v ?? '').trim());
         const safeKey = isUuidLike(key) ? '' : key;
         const safeValue = isUuidLike(value) ? '' : value;
         if (!safeKey && !safeValue) return '';
@@ -25,7 +39,7 @@ export function formatSpecsLines(specificationsJson?: string) {
       .map((s) => String(s ?? '').trim())
       .filter(Boolean);
   } catch {
-    return String(specificationsJson ?? '')
+    return stripEmbeddedIds(String(specificationsJson ?? ''))
       .split(/\r?\n/)
       .map((s) => s.trim())
       .filter(Boolean)
