@@ -35,6 +35,7 @@ export type PurchaseRequestDetail = { pr: PurchaseRequest; items: PurchaseReques
 
 export type Po = {
   id: string;
+  poNumber?: string;
   prId: string;
   firmId?: string;
   orderDate?: string;

@@ -1575,16 +1575,17 @@ app.get('/api/requests/:id/pos', async (req, res) => {
       }
     }
 
-    const pos = (Array.isArray(poRows) ? poRows : []).map((r) => {
-      const poId = String(r.id ?? '');
-      return {
-        po: {
-          id: poId,
-          prId: String(r.prId ?? ''),
-          firmId: String(r.firmId ?? ''),
-          orderDate: toIsoDate(r.orderDate) || '',
-          createdBy: r.createdBy != null ? String(r.createdBy) : undefined,
-          supplierId: r.supplierId != null ? String(r.supplierId) : undefined,
+	    const pos = (Array.isArray(poRows) ? poRows : []).map((r) => {
+	      const poId = String(r.id ?? '');
+	      return {
+	        po: {
+	          id: poId,
+	          poNumber: r.poNumber != null ? String(r.poNumber) : undefined,
+	          prId: String(r.prId ?? ''),
+	          firmId: String(r.firmId ?? ''),
+	          orderDate: toIsoDate(r.orderDate) || '',
+	          createdBy: r.createdBy != null ? String(r.createdBy) : undefined,
+	          supplierId: r.supplierId != null ? String(r.supplierId) : undefined,
           supplier: String(r.supplier ?? ''),
           paymentTerms: String(r.paymentTerms ?? ''),
           shippingAddress: r.shippingAddress != null ? String(r.shippingAddress) : undefined,
@@ -2097,15 +2098,16 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	      });
 	    }
 
-	    res.status(201).json({
-	      po: {
-	        po: {
-	          id: poId,
-	          prId,
-	          firmId: String(prRow.firmId),
-	          orderDate: new Date().toISOString().slice(0, 10),
-	          createdBy: 'system',
-	          supplierId,
+		    res.status(201).json({
+		      po: {
+		        po: {
+		          id: poId,
+		          poNumber,
+		          prId,
+		          firmId: String(prRow.firmId),
+		          orderDate: new Date().toISOString().slice(0, 10),
+		          createdBy: 'system',
+		          supplierId,
 	          supplier: supplierName,
 	          paymentTerms,
 	          shippingAddress: shippingAddress || undefined,
