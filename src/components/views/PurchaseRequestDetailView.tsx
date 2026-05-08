@@ -368,25 +368,9 @@ export default function PurchaseRequestDetailView({
 			    return map;
 			  }, [posList]);
 
-			  const grnNumberById = useMemo(() => {
-			    const map = new Map<string, string>();
-			    for (const g of recordedGrns ?? []) {
-			      const grnId = String((g as any)?.grn?.id ?? '').trim();
-			      if (!grnId) continue;
-			      const grnNumber = String((g as any)?.grn?.grnNumber ?? '').trim();
-			      map.set(grnId, grnNumber);
-			    }
-			    return map;
-			  }, [recordedGrns]);
-
 			  function displayPoNumberById(poId: string) {
 			    const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
 			    return formatPoNumber(n) || '-';
-			  }
-
-			  function displayGrnNumberById(grnId: string) {
-			    const n = grnNumberById.get(String(grnId ?? '').trim()) ?? '';
-			    return formatGrnNumber(n) || '-';
 			  }
 
 			  function displayGrnNumber(grn: any) {
@@ -596,12 +580,27 @@ export default function PurchaseRequestDetailView({
 			  const [grnFormError, setGrnFormError] = useState<string | null>(null);
 			  const [pendingGrnPos, setPendingGrnPos] = useState<Array<{ poId: string; pendingQty: number }>>([]);
 			  const [loadingPendingGrnPos, setLoadingPendingGrnPos] = useState(false);
-				  const [recordedGrns, setRecordedGrns] = useState<GrnWithItems[]>([]);
-				  const [loadingRecordedGrns, setLoadingRecordedGrns] = useState(false);
-				  const [qcRecords, setQcRecords] = useState<QcRecord[]>([]);
-				  const [loadingQcRecords, setLoadingQcRecords] = useState(false);
-				  const [qcReloadKey, setQcReloadKey] = useState(0);
-				  const [selectedQcGrnId, setSelectedQcGrnId] = useState('');
+					  const [recordedGrns, setRecordedGrns] = useState<GrnWithItems[]>([]);
+					  const [loadingRecordedGrns, setLoadingRecordedGrns] = useState(false);
+					  const [qcRecords, setQcRecords] = useState<QcRecord[]>([]);
+					  const [loadingQcRecords, setLoadingQcRecords] = useState(false);
+					  const grnNumberById = useMemo(() => {
+					    const map = new Map<string, string>();
+					    for (const g of recordedGrns ?? []) {
+					      const grnId = String((g as any)?.grn?.id ?? '').trim();
+					      if (!grnId) continue;
+					      const grnNumber = String((g as any)?.grn?.grnNumber ?? '').trim();
+					      map.set(grnId, grnNumber);
+					    }
+					    return map;
+					  }, [recordedGrns]);
+
+					  function displayGrnNumberById(grnId: string) {
+					    const n = grnNumberById.get(String(grnId ?? '').trim()) ?? '';
+					    return formatGrnNumber(n) || '-';
+					  }
+					  const [qcReloadKey, setQcReloadKey] = useState(0);
+					  const [selectedQcGrnId, setSelectedQcGrnId] = useState('');
 
 			  useEffect(() => {
 			    if (!requestId) {
