@@ -788,11 +788,452 @@ app.get('/api/queues/create-po', async (req, res) => {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
-app.get('/api/queues/check-po', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/queues/send-po', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/queues/create-grn', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/queues/check-quality', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/queues/enter-invoice', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/check-po', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["po.check_po = 0"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR pr.id LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        po.order_date AS orderDate,
+        po.created_at AS createdAt
+      FROM purchase_orders po
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: String(r.supplierName ?? ''),
+      orderDate: toIsoDate(r.orderDate) || null,
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+      pendingReason: 'Pending check',
+    }));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/queues/send-po', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["po.check_po = 1", "(po.sent_date IS NULL OR po.sent_date = '' OR po.sent_by IS NULL OR po.sent_by = '')"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR pr.id LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        po.order_date AS orderDate,
+        po.created_at AS createdAt
+      FROM purchase_orders po
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: String(r.supplierName ?? ''),
+      orderDate: toIsoDate(r.orderDate) || null,
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+      pendingReason: 'Pending send',
+    }));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/queues/enter-invoice', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["po.check_po = 1"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR pr.id LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        COALESCE(SUM(poi.quantity), 0) AS poQty,
+        COALESCE(SUM(ii.quantity), 0) AS invQty
+      FROM purchase_orders po
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+      LEFT JOIN invoices inv ON inv.po_id = po.id
+      LEFT JOIN invoice_items ii ON ii.invoice_id = inv.id AND ii.item_id = poi.item_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY po.id
+      HAVING (poQty - invQty) > 1e-9
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const pendingQty = Math.max(0, Number(r.poQty ?? 0) - Number(r.invQty ?? 0));
+      return {
+        poId: String(r.poId ?? ''),
+        poNumber: String(r.poNumber ?? r.poId ?? ''),
+        prId: String(r.prId ?? ''),
+        prNumber: String(r.prNumber ?? r.prId ?? ''),
+        firmId: String(r.firmId ?? ''),
+        firmName: String(r.firmName ?? ''),
+        department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+        projectId: r.projectId ? String(r.projectId) : null,
+        projectName: r.projectName ? String(r.projectName) : null,
+        supplierId: r.supplierId ? String(r.supplierId) : null,
+        supplierName: String(r.supplierName ?? ''),
+        pendingQty,
+        pendingReason: 'Pending invoice',
+      };
+    });
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/queues/create-grn', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["po.check_po = 1"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR pr.id LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        po.created_at AS createdAt,
+        COALESCE(SUM(poi.quantity), 0) AS poQty,
+        COALESCE(SUM(gi.received_qty), 0) AS grnQty
+      FROM purchase_orders po
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+      LEFT JOIN grns g ON g.po_id = po.id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY po.id
+      HAVING (poQty - grnQty) > 1e-9
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const pendingQty = Math.max(0, Number(r.poQty ?? 0) - Number(r.grnQty ?? 0));
+      return {
+        poId: String(r.poId ?? ''),
+        poNumber: String(r.poNumber ?? r.poId ?? ''),
+        prId: String(r.prId ?? ''),
+        prNumber: String(r.prNumber ?? r.prId ?? ''),
+        firmId: String(r.firmId ?? ''),
+        firmName: String(r.firmName ?? ''),
+        department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+        projectId: r.projectId ? String(r.projectId) : null,
+        projectName: r.projectName ? String(r.projectName) : null,
+        supplierId: r.supplierId ? String(r.supplierId) : null,
+        supplierName: String(r.supplierName ?? ''),
+        pendingQty,
+        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+        pendingReason: 'Pending GRN',
+      };
+    });
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/queues/check-quality', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(g.received_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(g.received_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        g.id AS grnId,
+        g.grn_number AS grnNumber,
+        g.received_date AS receivedDate,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        SUM(CASE WHEN qc.id IS NULL THEN 1 ELSE 0 END) AS pendingItems
+      FROM grns g
+      INNER JOIN purchase_orders po ON po.id = g.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id
+      LEFT JOIN qc_records qc ON qc.grn_id = g.id AND qc.item_id = gi.item_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY g.id
+      HAVING pendingItems > 0
+      ORDER BY g.received_date DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      grnId: String(r.grnId ?? ''),
+      grnNumber: String(r.grnNumber ?? r.grnId ?? ''),
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: String(r.supplierName ?? ''),
+      receivedDate: toIsoDate(r.receivedDate) || '',
+      pendingItems: Number(r.pendingItems ?? 0),
+      pendingReason: 'Pending QC',
+    }));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Keep existing placeholders for views not yet fully defined.
 app.get('/api/queues/link-invoice-grn', async (_req, res) => res.json({ rows: [] }));
 app.get('/api/queues/approve-invoice', async (_req, res) => res.json({ rows: [] }));
 app.get('/api/queues/payment', async (_req, res) => res.json({ rows: [] }));
