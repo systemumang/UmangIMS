@@ -2122,8 +2122,8 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	});
 
 	// Create GRN for a PO
-	app.post('/api/pos/:id/grn', async (req, res) => {
-	  try {
+app.post('/api/pos/:id/grn', async (req, res) => {
+  try {
 	    const pool = getMysqlPool();
 	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 	    const poId = String(req.params.id ?? '').trim();
@@ -2214,12 +2214,158 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    });
 	  } catch (e) {
 	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-	  }
-	});
+  }
+});
 
-	// --- Masters: Suppliers ---
-	app.get('/api/masters/suppliers', async (_req, res) => {
-	  try {
+// Update PO check/sent flags (used by Check PO / Send PO queues)
+app.put('/api/pos/:id/check-sent', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const checkPo = req.body?.checkPo != null ? Boolean(req.body.checkPo) : null;
+    const checkPoUserId = req.body?.checkPoUserId != null ? String(req.body.checkPoUserId).trim() : null;
+    const checkDate = req.body?.checkDate != null ? String(req.body.checkDate).trim() : null;
+    const sentBy = req.body?.sentBy != null ? String(req.body.sentBy).trim() : null;
+    const sentDate = req.body?.sentDate != null ? String(req.body.sentDate).trim() : null;
+    const sentProof = req.body?.sentProof != null ? String(req.body.sentProof).trim() : null;
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+
+    const sets = [];
+    const params = [];
+    if (checkPo !== null) {
+      sets.push('check_po = ?');
+      params.push(checkPo ? 1 : 0);
+    }
+    if (req.body?.checkPoUserId !== undefined) {
+      sets.push('check_po_user_id = ?');
+      params.push(checkPoUserId || null);
+    }
+    if (req.body?.checkDate !== undefined) {
+      sets.push('check_date = ?');
+      params.push(checkDate || null);
+    }
+    if (req.body?.sentBy !== undefined) {
+      sets.push('sent_by = ?');
+      params.push(sentBy || null);
+    }
+    if (req.body?.sentDate !== undefined) {
+      sets.push('sent_date = ?');
+      params.push(sentDate || null);
+    }
+    if (req.body?.sentProof !== undefined) {
+      sets.push('sent_proof = ?');
+      params.push(sentProof || null);
+    }
+    sets.push('updated_by = ?');
+    params.push(updatedBy || 'system');
+    sets.push('updated_at = NOW()');
+
+    params.push(poId);
+    await pool.query(`UPDATE purchase_orders SET ${sets.join(', ')} WHERE id = ?`, params);
+
+    // Return updated PO + items (shape expected by frontend)
+    const [[poRow]] = await pool.query(
+      `
+      SELECT
+        po.id AS id,
+        po.pr_id AS prId,
+        po.firm_id AS firmId,
+        po.po_number AS poNumber,
+        po.order_date AS orderDate,
+        po.payment_terms AS paymentTerms,
+        po.shipping_address AS shippingAddress,
+        po.terms_conditions AS termsConditions,
+        po.status AS status,
+        po.created_by AS createdBy,
+        po.created_at AS createdAt,
+        po.check_po AS checkPo,
+        po.check_po_user_id AS checkPoUserId,
+        po.check_date AS checkDate,
+        po.sent_by AS sentBy,
+        po.sent_date AS sentDate,
+        po.sent_proof AS sentProof,
+        po.supplier_id AS supplierId,
+        s.name AS supplier
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+
+    const [itemRows] = await pool.query(
+      `
+      SELECT
+        poi.po_id AS poId,
+        poi.item_id AS itemId,
+        iname.name AS item,
+        it.specifications_json AS specificationsJson,
+        poi.quantity AS quantity,
+        poi.rate AS rate,
+        poi.discount_percent AS discountPercent,
+        poi.tax_percent AS taxPercent,
+        poi.goods_amount AS goodsAmount,
+        poi.tax_amount AS taxAmount,
+        poi.total_amount AS totalAmount
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE poi.po_id = ?
+      ORDER BY poi.created_at ASC
+      `,
+      [poId]
+    );
+
+    const po = {
+      id: String(poRow.id),
+      prId: String(poRow.prId ?? ''),
+      firmId: String(poRow.firmId ?? ''),
+      orderDate: toIsoDate(poRow.orderDate) || '',
+      createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
+      supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
+      supplier: String(poRow.supplier ?? ''),
+      paymentTerms: String(poRow.paymentTerms ?? ''),
+      shippingAddress: poRow.shippingAddress != null ? String(poRow.shippingAddress) : undefined,
+      termsConditions: poRow.termsConditions != null ? String(poRow.termsConditions) : undefined,
+      status: String(poRow.status ?? 'Open').toLowerCase() === 'closed' ? 'Closed' : String(poRow.status ?? '').toLowerCase() === 'partial' ? 'Partial' : 'Open',
+      createdAt: toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
+      poNumber: poRow.poNumber != null ? String(poRow.poNumber) : undefined,
+      checkPo: Boolean(poRow.checkPo),
+      checkPoUserId: poRow.checkPoUserId != null ? String(poRow.checkPoUserId) : null,
+      checkDate: toIsoDate(poRow.checkDate) || null,
+      sentBy: poRow.sentBy != null ? String(poRow.sentBy) : null,
+      sentDate: toIsoDate(poRow.sentDate) || null,
+      sentProof: poRow.sentProof != null ? String(poRow.sentProof) : null,
+    };
+
+    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => ({
+      poId: String(r.poId ?? ''),
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+      quantity: Number(r.quantity ?? 0),
+      rate: Number(r.rate ?? 0),
+      discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
+      taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+      goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
+      taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
+      totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+    }));
+
+    res.json({ po: { po, items } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Suppliers ---
+app.get('/api/masters/suppliers', async (_req, res) => {
+  try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const [rows] = await pool.query(
