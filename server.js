@@ -2432,15 +2432,18 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
       SELECT
         poi.item_id AS itemId,
         iname.name AS item,
-        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(SUM(ii.quantity), 0)) AS pendingQty,
+        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(invq.invQty, 0)) AS pendingQty,
         poi.rate AS rate
       FROM purchase_order_items poi
+      LEFT JOIN (
+        SELECT inv.po_id AS poId, ii.item_id AS itemId, SUM(ii.quantity) AS invQty
+        FROM invoices inv
+        INNER JOIN invoice_items ii ON ii.invoice_id = inv.id
+        GROUP BY inv.po_id, ii.item_id
+      ) invq ON invq.poId = poi.po_id AND invq.itemId = poi.item_id
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
-      LEFT JOIN invoices inv ON inv.po_id = poi.po_id
-      LEFT JOIN invoice_items ii ON ii.invoice_id = inv.id AND ii.item_id = poi.item_id
       WHERE poi.po_id = ?
-      GROUP BY poi.item_id, iname.name, poi.quantity, poi.rate
       HAVING pendingQty > 1e-9
       ORDER BY iname.name ASC
       `,
@@ -2473,15 +2476,18 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
       SELECT
         poi.item_id AS itemId,
         iname.name AS item,
-        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(SUM(gi.received_qty), 0)) AS pendingQty,
+        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0)) AS pendingQty,
         poi.rate AS rate
       FROM purchase_order_items poi
+      LEFT JOIN (
+        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
+        FROM grns g
+        INNER JOIN grn_items gi ON gi.grn_id = g.id
+        GROUP BY g.po_id, gi.item_id
+      ) grnq ON grnq.poId = poi.po_id AND grnq.itemId = poi.item_id
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
-      LEFT JOIN grns g ON g.po_id = poi.po_id
-      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
       WHERE poi.po_id = ?
-      GROUP BY poi.item_id, iname.name, poi.quantity, poi.rate
       HAVING pendingQty > 1e-9
       ORDER BY iname.name ASC
       `,
