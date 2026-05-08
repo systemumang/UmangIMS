@@ -25,9 +25,16 @@ export function formatPrNumber(raw: string) {
 }
 
 export function formatPoNumber(raw: string) {
-  return formatDocNumber(raw, 'PO');
+  const s = formatDocNumber(raw, 'PO');
+  const t = String(s ?? '').trim();
+  // Hide UUID-looking values completely.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return '';
+  return t;
 }
 
 export function formatGrnNumber(raw: string) {
-  return formatDocNumber(raw, 'GRN');
+  const s = formatDocNumber(raw, 'GRN');
+  const t = String(s ?? '').trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return '';
+  return t;
 }

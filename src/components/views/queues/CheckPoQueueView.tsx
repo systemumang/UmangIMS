@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { formatPrNumber } from '@/src/lib/docNumbers';
+import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchPos, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueCheckPo, type CheckPoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { cn } from '@/src/lib/utils';
@@ -12,30 +13,7 @@ function todayIsoDate() {
 }
 
 function displayPoNumber(raw: string) {
-  const s = String(raw ?? '').trim();
-  const withoutHash = s.replace(/^#/, '');
-  const m = /^PO-(.+)$/i.exec(withoutHash);
-  return m?.[1] ? m[1] : withoutHash;
-}
-
-function formatSpecsLines(specificationsJson?: string) {
-  try {
-    const obj = JSON.parse(String(specificationsJson ?? '')) as Record<string, unknown>;
-    const entries = Object.entries(obj);
-    if (!entries.length) return [];
-    return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).filter(Boolean);
-  } catch {
-    return String(specificationsJson ?? '')
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-}
-
-function formatItemInline(itemName: string, specificationsJson?: string) {
-  const base = String(itemName ?? '').trim();
-  const specs = formatSpecsLines(specificationsJson);
-  return [base, ...specs].filter(Boolean).join(' - ') || '-';
+  return formatPoNumber(String(raw ?? '').trim()) || '-';
 }
 
 export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
@@ -169,8 +147,8 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                 {pagedRows.length ? (
                   pagedRows.map((r) => (
                     <tr key={r.poId}>
-                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.poNumber ?? r.poId}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
+	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
@@ -291,7 +269,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                         {idx === 0 ? (
                           <>
                             <td rowSpan={rowSpan} className="px-3 py-2 text-sm font-semibold text-on-surface border border-black align-top">
-                              {displayPoNumber(activePoDetails.po.id)}
+			                          {displayPoNumber(activePoDetails.po.poNumber ?? activePoDetails.po.id)}
                             </td>
                             <td rowSpan={rowSpan} className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
                               {activePoDetails.po.supplier || '-'}
@@ -302,7 +280,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                           </>
                         ) : null}
                         <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-                          {formatItemInline(it.item, it.specificationsJson)}
+			                        {formatItemInline(it.item, it.specificationsJson)}
                         </td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>
