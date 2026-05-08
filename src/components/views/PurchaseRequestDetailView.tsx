@@ -8048,14 +8048,14 @@ export default function PurchaseRequestDetailView({
 }
   const poNumberById = useMemo(() => {
     const map = new Map<string, string>();
-    for (const p of pos ?? []) {
+    for (const p of posList ?? []) {
       const poId = String(p?.po?.id ?? '').trim();
       if (!poId) continue;
       const poNumber = String(p?.po?.poNumber ?? '').trim();
       map.set(poId, poNumber);
     }
     return map;
-  }, [pos]);
+  }, [posList]);
 
   function displayPoNumberById(poId: string) {
     const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
