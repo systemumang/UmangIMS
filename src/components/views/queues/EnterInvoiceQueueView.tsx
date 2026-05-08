@@ -3,7 +3,7 @@ import { uploadFileToServer } from '@/src/lib/uploads';
 import { createInvoice, fetchPendingInvoiceItems, fetchWorkflow } from '@/src/lib/purchaseRequests';
 import { fetchQueueEnterInvoice, type EnterInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
-import { formatPrNumber } from '@/src/lib/docNumbers';
+import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
 import { inputClass, labelClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
@@ -285,7 +285,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                 {pagedRows.length ? (
                   pagedRows.map((r) => (
                     <tr key={r.poId}>
-                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.poNumber ?? r.poId}</td>
+	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>

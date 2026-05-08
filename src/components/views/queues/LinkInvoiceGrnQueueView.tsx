@@ -3,6 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchPendingGrnInvoiceLinks, setGrnItemInvoiceLinks, type PendingGrnInvoiceLinkRow } from '@/src/lib/purchaseRequests';
 import { fetchQueueLinkInvoiceGrn, type LinkInvoiceGrnQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
+import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
@@ -129,7 +130,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                     <tr key={r.grnId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.grnNumber ?? r.grnId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.poNumber ?? r.poId}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingItems}</td>

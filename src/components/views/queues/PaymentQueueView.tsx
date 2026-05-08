@@ -3,6 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchGrnInvoiceLinkSummary, updateInvoicePayment, type GrnInvoiceLinkSummaryRow } from '@/src/lib/purchaseRequests';
 import { fetchQueuePayment, type PaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
+import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
@@ -132,7 +133,7 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
                     <tr key={r.invoiceId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.invoiceNo ?? r.invoiceId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.invoiceDate ? formatDateDDMMYYYYOnly(r.invoiceDate) : '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.poNumber ?? r.poId}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
@@ -237,9 +238,9 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
                     <tr key={l.invoiceItemId}>
                       {idx === 0 ? (
                         <>
-                          <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
-                            {active.poNumber ?? active.poId}
-                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
+	                            {formatPoNumber(active.poNumber ?? active.poId) || '-'}
+	                          </td>
                           <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
                             {active.invoiceNo ?? active.invoiceId}
                           </td>

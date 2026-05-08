@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { createGrnForPo, fetchPendingGrnItems, fetchPos, type Po, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueCreateGrn, type CreateGrnQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
@@ -12,26 +13,6 @@ function todayIsoDate() {
 }
 
 type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
-
-function formatSpecsLines(specificationsJson?: string) {
-  try {
-    const obj = JSON.parse(String(specificationsJson ?? '')) as Record<string, unknown>;
-    const entries = Object.entries(obj);
-    if (!entries.length) return [];
-    return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).filter(Boolean);
-  } catch {
-    return String(specificationsJson ?? '')
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-}
-
-function formatItemInline(itemName: string, specificationsJson?: string) {
-  const base = String(itemName ?? '').trim();
-  const specs = formatSpecsLines(specificationsJson);
-  return [base, ...specs].filter(Boolean).join(' - ') || '-';
-}
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
