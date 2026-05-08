@@ -22,7 +22,21 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
     const serverMessage = (data as any)?.error;
     throw new Error(serverMessage ? String(serverMessage) : `${fallbackMessage} (${res.status})`);
   }
-  if (data === null) throw new Error(`${fallbackMessage} (${res.status})`);
+  if (data === null) {
+    let hint = '';
+    try {
+      const text = await res.clone().text();
+      const t = text.trim().toLowerCase();
+      if (t.startsWith('<!doctype') || t.startsWith('<html')) {
+        hint = ' (API returned HTML, is the backend running?)';
+      } else if (!t) {
+        hint = ' (empty response body)';
+      } else {
+        hint = ' (non-JSON response body)';
+      }
+    } catch {}
+    throw new Error(`${fallbackMessage} (${res.status})${hint}`);
+  }
   return data as T;
 }
 

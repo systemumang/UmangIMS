@@ -4113,7 +4113,510 @@ app.delete('/api/masters/items/:id', async (req, res) => {
   }
 });
 
+function parseFiscalYearRange(label) {
+  const raw = String(label ?? '').trim();
+  const m = raw.match(/^(\d{4})-(\d{2}|\d{4})$/);
+  if (!m) return null;
+  const startYear = Number(m[1]);
+  const endYear = m[2].length === 2 ? Number(String(startYear).slice(0, 2) + m[2]) : Number(m[2]);
+  if (!Number.isFinite(startYear) || !Number.isFinite(endYear)) return null;
+  // India FY: Apr 1 -> Mar 31
+  const start = `${startYear}-04-01`;
+  const end = `${endYear}-03-31`;
+  return { start, end };
+}
+
+function num(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+// --- Inventory (minimal) ---
+app.get('/api/inventory/opening-balances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const storeId = String(req.query.storeId ?? '').trim();
+    const year = String(req.query.year ?? '2024-25').trim() || '2024-25';
+    if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+    const [rows] = await pool.query(
+      `
+      SELECT item_id AS itemId, quantity AS quantity, reorder_level AS reorderLevel
+      FROM item_opening_balances
+      WHERE store_id = ? AND year = ?
+      ORDER BY item_id
+      `,
+      [storeId, year]
+    );
+    const balances = (Array.isArray(rows) ? rows : []).map((r) => ({
+      itemId: String(r.itemId ?? ''),
+      quantity: num(r.quantity, 0),
+      reorderLevel: num(r.reorderLevel, 0),
+    }));
+    res.json({ balances });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/inventory/opening-balances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const storeId = String(req.body?.storeId ?? '').trim();
+    const year = String(req.body?.year ?? '2024-25').trim() || '2024-25';
+    const balances = Array.isArray(req.body?.balances) ? req.body.balances : [];
+    if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+
+    // Upsert each row; keep it simple for now.
+    for (const b of balances) {
+      const itemId = String(b?.itemId ?? '').trim();
+      if (!itemId) continue;
+      const quantity = Math.max(0, num(b?.quantity, 0));
+      const reorderLevel = Math.max(0, num(b?.reorderLevel, 0));
+
+      // MySQL: insert or update
+      await pool.query(
+        `
+        INSERT INTO item_opening_balances (id, store_id, item_id, quantity, reorder_level, year, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), reorder_level=VALUES(reorder_level), updated_at=NOW()
+        `,
+        [crypto.randomUUID(), storeId, itemId, quantity, reorderLevel, year]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/inventory/sheet', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const firmId = String(req.query.firmId ?? '').trim();
+    const year = String(req.query.year ?? '2024-25').trim() || '2024-25';
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+
+    const range = parseFiscalYearRange(year);
+    if (!range) return res.status(400).json({ error: 'Invalid year. Expected format YYYY-YY (e.g. 2024-25).' });
+
+    const [itemRows] = await pool.query(
+      `
+      SELECT
+        it.id AS itemId,
+        it.item_code AS itemCode,
+        iname.name AS itemName,
+        it.specifications_json AS specificationsJson,
+        it.unit AS unit
+      FROM items it
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE it.is_active = 1
+      ORDER BY iname.name ASC, it.item_code ASC
+      `
+    );
+
+    const [openingRows] = await pool.query(
+      `
+      SELECT
+        iob.item_id AS itemId,
+        SUM(iob.quantity) AS opening,
+        MAX(iob.reorder_level) AS reorderLevel
+      FROM item_opening_balances iob
+      INNER JOIN stores st ON st.id = iob.store_id
+      WHERE st.firm_id = ? AND iob.year = ?
+      GROUP BY iob.item_id
+      `,
+      [firmId, year]
+    );
+    const openingByItemId = new Map(
+      (Array.isArray(openingRows) ? openingRows : []).map((r) => [
+        String(r.itemId ?? ''),
+        { opening: num(r.opening, 0), reorderLevel: num(r.reorderLevel, 0) },
+      ])
+    );
+
+    const [purchaseRows] = await pool.query(
+      `
+      SELECT
+        gi.item_id AS itemId,
+        SUM(gi.received_qty) AS purchase
+      FROM grns g
+      INNER JOIN grn_items gi ON gi.grn_id = g.id
+      WHERE g.firm_id = ? AND DATE(g.received_date) >= ? AND DATE(g.received_date) <= ?
+      GROUP BY gi.item_id
+      `,
+      [firmId, range.start, range.end]
+    );
+    const purchaseByItemId = new Map(
+      (Array.isArray(purchaseRows) ? purchaseRows : []).map((r) => [String(r.itemId ?? ''), num(r.purchase, 0)])
+    );
+
+    const rows = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
+      const itemId = String(r.itemId ?? '');
+      const opening = openingByItemId.get(itemId)?.opening ?? 0;
+      const reorderLevel = openingByItemId.get(itemId)?.reorderLevel ?? 0;
+      const purchase = purchaseByItemId.get(itemId) ?? 0;
+      const issue = 0;
+      const damage = 0;
+      const returns = 0;
+      const transferIn = 0;
+      const transferOut = 0;
+      const balance = opening + purchase - issue - damage - returns + transferIn - transferOut;
+      return {
+        itemId,
+        itemCode: String(r.itemCode ?? ''),
+        itemName: String(r.itemName ?? ''),
+        store: undefined,
+        storeName: undefined,
+        storeId: undefined,
+        transferIn,
+        transferOut,
+        specifications: (() => {
+          try {
+            const obj = typeof r.specificationsJson === 'string' ? JSON.parse(r.specificationsJson) : r.specificationsJson;
+            return obj ? JSON.stringify(obj) : '';
+          } catch {
+            return String(r.specificationsJson ?? '');
+          }
+        })(),
+        unit: String(r.unit ?? ''),
+        opening,
+        reorderLevel,
+        purchase,
+        issue,
+        damage,
+        returns,
+        balance,
+      };
+    });
+
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Invoices ---
+app.post('/api/pos/:id/invoice', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'po id is required' });
+
+    const supplierInvoiceNo = String(req.body?.supplierInvoiceNo ?? '').trim();
+    const invoiceDate = String(req.body?.invoiceDate ?? '').trim();
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!supplierInvoiceNo) return res.status(400).json({ error: 'supplierInvoiceNo is required' });
+    if (!invoiceDate) return res.status(400).json({ error: 'invoiceDate is required' });
+    if (!items.length) return res.status(400).json({ error: 'At least one item is required' });
+
+    const [[poRow]] = await pool.query('SELECT id, supplier_id AS supplierId FROM purchase_orders WHERE id = ?', [poId]);
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+    const supplierId = String(poRow.supplierId ?? '').trim();
+    if (!supplierId) return res.status(500).json({ error: 'PO is missing supplierId' });
+
+    const courierCharge = Math.max(0, num(req.body?.courierCharge, 0));
+    const packingCharge = Math.max(0, num(req.body?.packingCharge, 0));
+    const labourCharge = Math.max(0, num(req.body?.labourCharge, 0));
+    const otherCharge = Math.max(0, num(req.body?.otherCharge, 0));
+    const chargesGstAmount = Math.max(0, num(req.body?.chargesGstAmount, 0));
+    const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : null;
+    const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : null;
+    const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : null;
+    const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : null;
+    const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : null;
+    const transporterName = req.body?.transporterName != null ? String(req.body.transporterName).trim() : null;
+
+    const normalizedItems = items
+      .map((it) => ({
+        itemId: String(it?.itemId ?? '').trim(),
+        quantity: Math.max(0, num(it?.quantity, 0)),
+        rate: Math.max(0, num(it?.rate, 0)),
+        taxPercent: Math.max(0, num(it?.taxPercent, 0)),
+      }))
+      .filter((it) => it.itemId && it.quantity > 0);
+    if (!normalizedItems.length) return res.status(400).json({ error: 'No valid invoice items' });
+
+    const goodsAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
+    const taxAmount = normalizedItems.reduce((sum, it) => sum + (it.quantity * it.rate * it.taxPercent) / 100, 0);
+    const itemTotal = goodsAmount + taxAmount;
+    const extraCharges = courierCharge + packingCharge + labourCharge + otherCharge;
+    const computedTotal = itemTotal + extraCharges + chargesGstAmount;
+    const invoiceAmountInput = req.body?.invoiceAmount != null ? num(req.body.invoiceAmount, computedTotal) : computedTotal;
+    const invoiceAmount = Math.max(0, invoiceAmountInput);
+
+    const invoiceId = crypto.randomUUID();
+    await pool.query(
+      `
+      INSERT INTO invoices (
+        id, po_id, supplier_id,
+        invoice_number, invoice_date,
+        goods_amount, tax_amount, total_amount,
+        courier_charge, packing_charge, labour_charge, other_charge, charges_gst_amount,
+        payment_status, payment_date,
+        status,
+        document_url, cn_copy_url,
+        eway_bill_number, cn_number, courier_number, transporter_name,
+        created_by, created_at, updated_by, updated_at
+      ) VALUES (
+        ?, ?, ?,
+        ?, ?,
+        ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        NULL, NULL,
+        'pending',
+        ?, ?,
+        ?, ?, ?, ?,
+        ?, NOW(), ?, NOW()
+      )
+      `,
+      [
+        invoiceId,
+        poId,
+        supplierId,
+        supplierInvoiceNo,
+        invoiceDate,
+        goodsAmount,
+        taxAmount,
+        invoiceAmount,
+        courierCharge,
+        packingCharge,
+        labourCharge,
+        otherCharge,
+        chargesGstAmount,
+        documentUrl,
+        cnCopyUrl,
+        ewayBillNumber,
+        cnNumber,
+        courierNumber,
+        transporterName,
+        updatedBy,
+        updatedBy,
+      ]
+    );
+
+    for (const it of normalizedItems) {
+      await pool.query(
+        `
+        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW()
+        `,
+        [
+          crypto.randomUUID(),
+          invoiceId,
+          it.itemId,
+          it.quantity,
+          it.rate,
+          it.taxPercent,
+          updatedBy,
+          updatedBy,
+        ]
+      );
+    }
+
+    res.json({
+      invoice: {
+        invoice: {
+          id: invoiceId,
+          poId,
+          supplierInvoiceNo,
+          invoiceDate: toIsoDate(invoiceDate) || invoiceDate,
+          invoiceAmount,
+          courierCharge,
+          packingCharge,
+          labourCharge,
+          otherCharge,
+          chargesGstAmount,
+          status: 'Recorded',
+          documentUrl: documentUrl || undefined,
+          cnCopyUrl: cnCopyUrl || undefined,
+          ewayBillNumber: ewayBillNumber || undefined,
+          cnNumber: cnNumber || undefined,
+          courierNumber: courierNumber || undefined,
+          transporterName: transporterName || undefined,
+          createdBy: updatedBy || undefined,
+          createdAt: new Date().toISOString(),
+          updatedBy: updatedBy || undefined,
+          updatedAt: new Date().toISOString(),
+        },
+        items: normalizedItems.map((it) => ({
+          invoiceId,
+          id: '',
+          itemId: it.itemId,
+          item: it.itemId,
+          quantity: it.quantity,
+          rate: it.rate,
+          taxPercent: it.taxPercent,
+        })),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/invoices/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+
+    const supplierInvoiceNo = String(req.body?.supplierInvoiceNo ?? '').trim();
+    const invoiceDate = String(req.body?.invoiceDate ?? '').trim();
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!supplierInvoiceNo) return res.status(400).json({ error: 'supplierInvoiceNo is required' });
+    if (!invoiceDate) return res.status(400).json({ error: 'invoiceDate is required' });
+    if (!items.length) return res.status(400).json({ error: 'At least one item is required' });
+
+    const courierCharge = Math.max(0, num(req.body?.courierCharge, 0));
+    const packingCharge = Math.max(0, num(req.body?.packingCharge, 0));
+    const labourCharge = Math.max(0, num(req.body?.labourCharge, 0));
+    const otherCharge = Math.max(0, num(req.body?.otherCharge, 0));
+    const chargesGstAmount = Math.max(0, num(req.body?.chargesGstAmount, 0));
+
+    const normalizedItems = items
+      .map((it) => ({
+        itemId: String(it?.itemId ?? '').trim(),
+        quantity: Math.max(0, num(it?.quantity, 0)),
+        rate: Math.max(0, num(it?.rate, 0)),
+        taxPercent: Math.max(0, num(it?.taxPercent, 0)),
+      }))
+      .filter((it) => it.itemId && it.quantity > 0);
+    if (!normalizedItems.length) return res.status(400).json({ error: 'No valid invoice items' });
+
+    const goodsAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
+    const taxAmount = normalizedItems.reduce((sum, it) => sum + (it.quantity * it.rate * it.taxPercent) / 100, 0);
+    const itemTotal = goodsAmount + taxAmount;
+    const extraCharges = courierCharge + packingCharge + labourCharge + otherCharge;
+    const computedTotal = itemTotal + extraCharges + chargesGstAmount;
+    const invoiceAmountInput = req.body?.invoiceAmount != null ? num(req.body.invoiceAmount, computedTotal) : computedTotal;
+    const invoiceAmount = Math.max(0, invoiceAmountInput);
+
+    await pool.query(
+      `
+      UPDATE invoices
+      SET invoice_number=?, invoice_date=?, goods_amount=?, tax_amount=?, total_amount=?,
+          courier_charge=?, packing_charge=?, labour_charge=?, other_charge=?, charges_gst_amount=?,
+          updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [
+        supplierInvoiceNo,
+        invoiceDate,
+        goodsAmount,
+        taxAmount,
+        invoiceAmount,
+        courierCharge,
+        packingCharge,
+        labourCharge,
+        otherCharge,
+        chargesGstAmount,
+        updatedBy,
+        invoiceId,
+      ]
+    );
+
+    for (const it of normalizedItems) {
+      await pool.query(
+        `
+        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW()
+        `,
+        [
+          crypto.randomUUID(),
+          invoiceId,
+          it.itemId,
+          it.quantity,
+          it.rate,
+          it.taxPercent,
+          updatedBy,
+          updatedBy,
+        ]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/invoices/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+    await pool.query('DELETE FROM invoices WHERE id=?', [invoiceId]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/invoices/:id/payment', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+    const paymentStatus = String(req.body?.paymentStatus ?? '').trim();
+    const paymentDate = String(req.body?.paymentDate ?? '').trim();
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    if (!paymentStatus) return res.status(400).json({ error: 'paymentStatus is required' });
+    if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
+    await pool.query(
+      `UPDATE invoices SET payment_status=?, payment_date=?, updated_by=?, updated_at=NOW() WHERE id=?`,
+      [paymentStatus, paymentDate, updatedBy, invoiceId]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/invoices/:id/logistics', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+    const dispatchProof = String(req.body?.dispatchProof ?? '').trim();
+    const cnOrCourierNo = String(req.body?.cnOrCourierNo ?? '').trim();
+    const transporterName = String(req.body?.transporterName ?? '').trim();
+    if (!dispatchProof) return res.status(400).json({ error: 'dispatchProof is required' });
+    if (!cnOrCourierNo) return res.status(400).json({ error: 'cnOrCourierNo is required' });
+    if (!transporterName) return res.status(400).json({ error: 'transporterName is required' });
+
+    await pool.query(
+      `
+      UPDATE invoices
+      SET cn_copy_url=?, transporter_name=?, cn_number=?, courier_number=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [dispatchProof, transporterName, cnOrCourierNo, cnOrCourierNo, invoiceId]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.use(express.static(distDir, { index: false }));
+
+// Ensure missing API routes don't fall back to SPA HTML (which breaks JSON parsing in the client).
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'API route not found' });
+});
 
 // SPA fallback (React Router / client-side routes).
 app.use((_req, res) => {
