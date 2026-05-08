@@ -705,7 +705,89 @@ app.get('/api/queues/approve-pr', async (req, res) => {
 });
 
 // The rest of the queues are wired so the UI doesn’t error; return empty until implemented fully.
-app.get('/api/queues/create-po', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/create-po', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = [`pr.status = 'approved'`];
+    const params = [];
+    if (f.firmId) {
+      where.push('pr.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('pr.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.from) {
+      where.push('DATE(pr.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(pr.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(pr.id LIKE ? OR pr.pr_number LIKE ? OR pr.requested_by LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        pr.firm_id AS firmId,
+        f.name AS firmName,
+        pr.project_id AS projectId,
+        proj.name AS projectName,
+        pr.created_at AS requisitionDate,
+        pr.remarks AS remarks,
+        COALESCE(SUM(COALESCE(pri.approved_qty, pri.requested_qty)), 0) AS approvedTotalQty,
+        COUNT(DISTINCT po.id) AS poCount,
+        COALESCE(SUM(poi.quantity), 0) AS poTotalQty
+      FROM purchase_requisitions pr
+      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN firms f ON f.id = pr.firm_id
+      LEFT JOIN projects proj ON proj.id = pr.project_id
+      LEFT JOIN purchase_orders po ON po.pr_id = pr.id
+      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id AND poi.item_id = pri.item_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY pr.id
+      HAVING (approvedTotalQty - poTotalQty) > 1e-9
+      ORDER BY pr.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const approvedTotalQty = Number(r.approvedTotalQty ?? 0);
+      const poTotalQty = Number(r.poTotalQty ?? 0);
+      const remainingQty = Math.max(0, approvedTotalQty - poTotalQty);
+      return {
+        prId: String(r.prId ?? ''),
+        prNumber: String(r.prNumber ?? r.prId ?? ''),
+        firmId: String(r.firmId ?? ''),
+        firmName: String(r.firmName ?? ''),
+        department: parseDepartmentFromRemarks(r.remarks) || 'N/A',
+        projectId: r.projectId ? String(r.projectId) : null,
+        projectName: r.projectName ? String(r.projectName) : null,
+        requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
+        remainingQty,
+        poCount: Number(r.poCount ?? 0),
+        pendingReason: remainingQty > 0 ? 'Pending PO' : 'No pending qty',
+      };
+    });
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 app.get('/api/queues/check-po', async (_req, res) => res.json({ rows: [] }));
 app.get('/api/queues/send-po', async (_req, res) => res.json({ rows: [] }));
 app.get('/api/queues/create-grn', async (_req, res) => res.json({ rows: [] }));
