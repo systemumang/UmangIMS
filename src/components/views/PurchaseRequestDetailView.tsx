@@ -52,8 +52,8 @@ import { inputClass, labelClass } from '@/src/components/views/queues/shared';
 						  type LastSupplierInfoWithId,
 				} from '@/src/lib/purchaseRequests';
 	import { cn } from '@/src/lib/utils';
-	import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-	import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import {
   fetchItems,
   fetchSpecificationValues,
@@ -825,7 +825,7 @@ export default function PurchaseRequestDetailView({
 						  const pendingGrnPoOptions = useMemo(() => {
 							    return pendingGrnPos
 							      .filter((p) => sentPoIdSet.has(p.poId))
-							      .map((p) => ({ value: p.poId, label: formatPoNumber(p.poId) }));
+	    .map((p) => ({ value: p.poId, label: displayPoNumberById(p.poId) }));
 							  }, [pendingGrnPos, sentPoIdSet]);
 
 			  const showGrnCreateFields = pendingGrnPoOptions.length > 0;
@@ -849,7 +849,7 @@ export default function PurchaseRequestDetailView({
 		  }, [qcByGrnId, recordedGrns]);
 
 		  const pendingQcGrnOptions = useMemo(() => {
-		    return pendingQcGrns.map((g) => ({ value: g.grn.id, label: g.grn.id }));
+    return pendingQcGrns.map((g) => ({ value: g.grn.id, label: displayGrnNumber(g.grn) }));
 		  }, [pendingQcGrns]);
 
 		  const activePendingQcGrn = useMemo(() => {
@@ -1786,7 +1786,7 @@ export default function PurchaseRequestDetailView({
 						    return posList
 						      .filter((p) => sentPoIdSet.has(p.po.id))
 						      .filter((p) => Number(pendingInvoiceTotalByPoId[p.po.id] ?? 0) > 0)
-						      .map((p) => ({ value: p.po.id, label: formatPoNumber(p.po.id) }));
+	                          .map((p) => ({ value: p.po.id, label: formatPoNumber((p as any)?.po?.poNumber ?? '') || '-' }));
 						  }, [pendingInvoiceTotalByPoId, posList, sentPoIdSet]);
 
 						  const pendingInvoicePoRows = useMemo(() => {
@@ -3049,7 +3049,7 @@ export default function PurchaseRequestDetailView({
 				                                {idx === 0 ? (
 				                                  <>
 						                                    <td rowSpan={rowSpan} className="px-2 py-2 text-base font-semibold text-on-surface border border-outline-variant align-top break-words">
-						                                      {formatPoNumber(p.po.id)}
+				                        {formatPoNumber((p as any)?.po?.poNumber ?? '') || '-'}
 						                                    </td>
 				                                    <td rowSpan={rowSpan} className="px-2 py-2 text-base text-on-surface border border-outline-variant align-top break-words">
 				                                      {p.po.supplier || '-'}
@@ -3408,7 +3408,7 @@ export default function PurchaseRequestDetailView({
 								                                        rowSpan={rowSpan}
 								                                        className="px-3 py-2 text-sm font-semibold text-on-surface border border-outline-variant whitespace-normal break-words align-top"
 								                                      >
-								                                        {formatPoNumber(p.po.id)}
+				                        {formatPoNumber((p as any)?.po?.poNumber ?? '') || '-'}
 								                                      </td>
 							                                      <td
 							                                        rowSpan={rowSpan}
@@ -3566,7 +3566,7 @@ export default function PurchaseRequestDetailView({
 								                                        rowSpan={rowSpan}
 								                                        className="px-3 py-2 text-sm font-semibold text-on-surface border border-outline-variant whitespace-normal break-words align-top"
 								                                      >
-								                                        {formatPoNumber(p.po.id)}
+				                        {formatPoNumber((p as any)?.po?.poNumber ?? '') || '-'}
 								                                      </td>
 							                                      <td
 							                                        rowSpan={rowSpan}
@@ -3817,7 +3817,7 @@ export default function PurchaseRequestDetailView({
 				                <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={closePoDetails} />
 				                <div className="relative w-full h-full bg-surface-container-lowest border border-outline-variant shadow-xl flex flex-col">
 				                  <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
-						                    <div className="text-base font-bold text-on-surface">Edit PO: {formatPoNumber(activePoDetails.po.id)}</div>
+			  <div className="text-base font-bold text-on-surface">Edit PO: {formatPoNumber((activePoDetails as any)?.po?.poNumber ?? '') || '-'}</div>
 				                    <button type="button" className="btn btn-sm" onClick={closePoDetails}>
 				                      Close
 				                    </button>
@@ -4504,7 +4504,7 @@ export default function PurchaseRequestDetailView({
 		                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 		                        <label className="space-y-1">
 		                          <div className={cn(labelClass, 'text-blue-800')}>PO Number</div>
-		                          <input className={cn(inputClass, 'py-2')} value={formatPoNumber(selectedPo.po.id)} readOnly />
+			              <input className={cn(inputClass, 'py-2')} value={formatPoNumber((selectedPo as any)?.po?.poNumber ?? '') || '-'} readOnly />
 		                        </label>
 		                        <label className="space-y-1">
 		                          <div className={cn(labelClass, 'text-blue-800')}>
@@ -5399,7 +5399,7 @@ export default function PurchaseRequestDetailView({
 			                                {idx === 0 ? (
 			                                  <>
 				                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-				                                      {formatPoNumber(r.poId)}
+					                                      {formatPoNumber((r as any).poNumber ?? '') || '-'}
 				                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 			                                      {r.supplier || '-'}
@@ -5563,7 +5563,7 @@ export default function PurchaseRequestDetailView({
 			                                {idx === 0 ? (
 			                                  <>
 				                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-				                                      {formatPoNumber(inv.invoice.poId)}
+				                            {displayPoNumberById(inv.invoice.poId)}
 				                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 			                                      {inv.invoice.supplierInvoiceNo || '-'}
@@ -5748,7 +5748,7 @@ export default function PurchaseRequestDetailView({
 		                                {idx === 0 ? (
 		                                  <>
 				                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-				                                      {formatPoNumber(inv.invoice.poId)}
+				                            {displayPoNumberById(inv.invoice.poId)}
 				                                    </td>
 		                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 		                                      {inv.invoice.supplierInvoiceNo || '-'}
@@ -5904,7 +5904,7 @@ export default function PurchaseRequestDetailView({
 
 				                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 					                      <Field label="PO">
-					                        <input className={inputClass} value={formatPoNumber(activeInvoiceDetails.invoice.poId)} disabled />
+	            <input className={inputClass} value={displayPoNumberById(activeInvoiceDetails.invoice.poId)} disabled />
 					                      </Field>
 			                      <Field label="Status">
 			                        <input className={inputClass} value={activeInvoiceDetails.invoice.status} disabled />
@@ -6614,7 +6614,7 @@ export default function PurchaseRequestDetailView({
 				                                    {idx === 0 ? (
 				                                      <>
 					                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-					                                          {formatPoNumber(r.poId)}
+					                                      {formatPoNumber((r as any).poNumber ?? '') || '-'}
 					                                        </td>
 				                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 				                                          {r.supplier || '-'}
@@ -6700,9 +6700,9 @@ export default function PurchaseRequestDetailView({
 			                            </tr>
 			                          </thead>
 			                          <tbody>
-			                            {recordedGrns.flatMap((g) => {
-			                              const lines = Array.isArray(g.items) && g.items.length ? g.items : [null];
-			                              const rowSpan = lines.length;
+                    {recordedGrns.flatMap((g) => {
+                      const lines = Array.isArray(g.items) && g.items.length ? g.items : [null];
+                      const rowSpan = lines.length;
 			                              const updatedByCell = g.grn.updatedBy
 			                                ? users.find((u) => u.id === g.grn.updatedBy)?.name ?? String(g.grn.updatedBy)
 			                                : '-';
@@ -6718,15 +6718,15 @@ export default function PurchaseRequestDetailView({
 			                                const qtyCell = it ? Number(it.quantityReceived ?? 0) : '-';
 
 			                                return (
-			                                  <tr key={`${g.grn.id}||${it ? it.itemId : 'empty'}||${idx}`}>
-			                                    {idx === 0 ? (
-			                                      <>
-			                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-			                                          {g.grn.id}
-			                                        </td>
-			                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-			                                          {g.grn.poId}
-			                                        </td>
+                              <tr key={`${g.grn.id}||${it ? it.itemId : 'empty'}||${idx}`}>
+                                {idx === 0 ? (
+                                  <>
+                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+                                          {displayGrnNumber(g.grn)}
+                                    </td>
+                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+                                          {displayPoNumberById(g.grn.poId)}
+                                    </td>
 			                                        <td
 			                                          rowSpan={rowSpan}
 			                                          className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top"
@@ -6771,7 +6771,7 @@ export default function PurchaseRequestDetailView({
 				                                            aria-label="Delete"
 				                                            className="btn-icon-danger"
 				                                            onClick={() => {
-				                                              if (!confirm(`Delete GRN ${g.grn.id}?`)) return;
+                                              if (!confirm(`Delete GRN ${displayGrnNumber(g.grn)}?`)) return;
 				                                              run(() => deleteGrn(g.grn.id).then(() => undefined));
 				                                            }}
 			                                          >
@@ -6814,7 +6814,7 @@ export default function PurchaseRequestDetailView({
 				                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
 				                    <Field label="PO Number">
 				                      <div className="px-3 py-2 text-sm text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg">
-				                        {activeGrnDetails.grn.poId}
+			                                          {displayPoNumberById(activeGrnDetails.grn.poId)}
 			                      </div>
 			                    </Field>
 			                    <Field label="Received Date">
@@ -7165,7 +7165,7 @@ export default function PurchaseRequestDetailView({
 		                                  {idx === 0 ? (
 		                                    <>
 			                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{formatGrnNumber(grnId)}</td>
-		                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">{poId}</td>
+			                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">{displayPoNumberById(poId)}</td>
 		                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
 			                                        {qcDate ? formatDateDDMMYYYYOnly(qcDate) : '-'}
 		                                      </td>
@@ -7347,11 +7347,11 @@ export default function PurchaseRequestDetailView({
 
 				                                return (
 				                                  <>
-					                              <td className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{formatGrnNumber(r.grnId)}</td>
+						                              <td className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{formatGrnNumber((r as any).grnNumber ?? '') || '-'}</td>
 				                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
 					                                {r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}
 				                              </td>
-				                              <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">{r.poId}</td>
+					                              <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">{formatPoNumber((r as any).poNumber ?? '') || '-'}</td>
 				                              <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
 				                                <div className="whitespace-normal break-words" title={r.itemLabel}>
 				                                  {renderInlineWithBoldSpecNames(r.itemLabel)}
@@ -7627,7 +7627,7 @@ export default function PurchaseRequestDetailView({
 				                      <input className={inputClass} value={formatGrnNumber(activeQcDetails.grnId)} disabled />
 				                    </Field>
 			                    <Field label="PO Number">
-			                      <input className={inputClass} value={activeQcDetails.poId} disabled />
+	        <input className={inputClass} value={displayPoNumberById(activeQcDetails.poId)} disabled />
 			                    </Field>
 			                    <Field label="QC Date">
 				                      <input className={inputClass} value={activeQcDetails.qcDate ? formatDateDDMMYYYYOnly(activeQcDetails.qcDate) : '-'} disabled />
@@ -8046,3 +8046,23 @@ export default function PurchaseRequestDetailView({
 	    </div>
 	  );
 }
+  const poNumberById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of pos ?? []) {
+      const poId = String(p?.po?.id ?? '').trim();
+      if (!poId) continue;
+      const poNumber = String(p?.po?.poNumber ?? '').trim();
+      map.set(poId, poNumber);
+    }
+    return map;
+  }, [pos]);
+
+  function displayPoNumberById(poId: string) {
+    const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
+    return formatPoNumber(n) || '-';
+  }
+
+  function displayGrnNumber(grn: any) {
+    const n = String(grn?.grnNumber ?? '').trim();
+    return formatGrnNumber(n) || '-';
+  }
