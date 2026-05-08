@@ -4986,6 +4986,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const firmId = String(req.query.firmId ?? '').trim();
     const year = String(req.query.year ?? '2024-25').trim() || '2024-25';
+    const includeEmpty = String(req.query.includeEmpty ?? '').trim() === '1' || String(req.query.includeEmpty ?? '').trim().toLowerCase() === 'true';
     if (!firmId) return res.status(400).json({ error: 'firmId is required' });
 
     const range = parseFiscalYearRange(year);
@@ -5146,18 +5147,45 @@ app.get('/api/inventory/sheet', async (req, res) => {
       ]
     );
 
-    const rows = (Array.isArray(aggRows) ? aggRows : []).map((r) => {
+    const keyOf = (storeId, itemId) => `${String(storeId ?? '')}||${String(itemId ?? '')}`;
+    const aggMap = new Map();
+    for (const r of Array.isArray(aggRows) ? aggRows : []) {
       const storeId = String(r.storeId ?? '');
       const itemId = String(r.itemId ?? '');
+      if (!storeId || !itemId) continue;
+      aggMap.set(keyOf(storeId, itemId), {
+        opening: num(r.opening, 0),
+        reorderLevel: num(r.reorderLevel, 0),
+        purchase: num(r.purchase, 0),
+        issue: num(r.issueQty, 0),
+        damage: num(r.damageQty, 0),
+        transferIn: num(r.transferIn, 0),
+        transferOut: num(r.transferOut, 0),
+      });
+    }
+
+    const storeIds = Array.from(storeById.keys());
+    const itemIds = Array.from(itemById.keys());
+
+    const makeRow = (storeId, itemId) => {
       const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '' };
-      const opening = num(r.opening, 0);
-      const reorderLevel = num(r.reorderLevel, 0);
-      const purchase = num(r.purchase, 0);
-      const issue = num(r.issueQty, 0);
-      const damage = num(r.damageQty, 0);
+      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
+        opening: 0,
+        reorderLevel: 0,
+        purchase: 0,
+        issue: 0,
+        damage: 0,
+        transferIn: 0,
+        transferOut: 0,
+      };
+      const opening = num(agg.opening, 0);
+      const reorderLevel = num(agg.reorderLevel, 0);
+      const purchase = num(agg.purchase, 0);
+      const issue = num(agg.issue, 0);
+      const damage = num(agg.damage, 0);
       const returns = 0;
-      const transferIn = num(r.transferIn, 0);
-      const transferOut = num(r.transferOut, 0);
+      const transferIn = num(agg.transferIn, 0);
+      const transferOut = num(agg.transferOut, 0);
       const balance = opening + purchase - issue - damage - returns + transferIn - transferOut;
       return {
         itemId,
@@ -5184,7 +5212,16 @@ app.get('/api/inventory/sheet', async (req, res) => {
         returns,
         balance,
       };
-    });
+    };
+
+    const rows = includeEmpty
+      ? storeIds.flatMap((storeId) => itemIds.map((itemId) => makeRow(storeId, itemId)))
+      : storeIds.length
+        ? Array.from(aggMap.keys()).map((k) => {
+            const [storeId, itemId] = String(k).split('||');
+            return makeRow(storeId, itemId);
+          })
+        : [];
 
     res.json({ rows });
   } catch (e) {

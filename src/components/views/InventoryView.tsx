@@ -55,32 +55,33 @@ export default function InventoryView() {
     }
   }, [selectedFirmId, selectedStoreFilterId, stores]);
 
-  useEffect(() => {
-    if (!selectedFirmId) return;
-    setLoading(true);
-    if (selectedFirmId === ALL_FIRMS_VALUE) {
-      Promise.all(firms.map((f) => fetchInventorySheet(f.id)))
-	        .then((all) =>
-	          setRows(
-	            all.flatMap((list, idx) =>
-	              list.map((r) => ({
-	                ...r,
-	                firm: String(firms[idx]?.sortName ?? '').trim() || firms[idx]?.name || '',
-	              }))
-	            )
-	          )
-	        )
-        .finally(() => setLoading(false));
-      return;
-    }
-	    fetchInventorySheet(selectedFirmId)
-	      .then((list) => {
-	        const selectedFirm = firms.find((f) => f.id === selectedFirmId);
-	        const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
-	        setRows(list.map((r) => ({ ...r, firm: firmName })));
-	      })
-      .finally(() => setLoading(false));
-  }, [selectedFirmId, firms]);
+	  useEffect(() => {
+	    if (!selectedFirmId) return;
+	    const includeEmpty = !selectedStoreFilterId;
+	    setLoading(true);
+	    if (selectedFirmId === ALL_FIRMS_VALUE) {
+	      Promise.all(firms.map((f) => fetchInventorySheet(f.id, undefined, undefined, { includeEmpty })))
+		        .then((all) =>
+		          setRows(
+		            all.flatMap((list, idx) =>
+		              list.map((r) => ({
+		                ...r,
+		                firm: String(firms[idx]?.sortName ?? '').trim() || firms[idx]?.name || '',
+		              }))
+		            )
+		          )
+		        )
+	        .finally(() => setLoading(false));
+	      return;
+	    }
+		    fetchInventorySheet(selectedFirmId, undefined, undefined, { includeEmpty })
+		      .then((list) => {
+		        const selectedFirm = firms.find((f) => f.id === selectedFirmId);
+		        const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
+		        setRows(list.map((r) => ({ ...r, firm: firmName })));
+		      })
+	      .finally(() => setLoading(false));
+	  }, [selectedFirmId, selectedStoreFilterId, firms]);
 
   const adjustedRows = React.useMemo(() => {
     const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase();
@@ -570,20 +571,34 @@ export default function InventoryView() {
 	        </div>
 	      </div>
 
-      {showOpeningModal && (
-        <OpeningStockModal 
-          onClose={() => {
-            setShowOpeningModal(false);
-            // Refresh main list
-            if (selectedFirmId && selectedFirmId !== ALL_FIRMS_VALUE) {
-              fetchInventorySheet(selectedFirmId).then(setRows);
-            } else if (selectedFirmId === ALL_FIRMS_VALUE) {
-              Promise.all(firms.map((f) => fetchInventorySheet(f.id))).then((all) => setRows(all.flat()));
-            }
-          }} 
-          firms={firms}
-        />
-      )}
+	      {showOpeningModal && (
+	        <OpeningStockModal 
+	          onClose={() => {
+	            setShowOpeningModal(false);
+	            // Refresh main list
+	            const includeEmpty = !selectedStoreFilterId;
+	            if (selectedFirmId && selectedFirmId !== ALL_FIRMS_VALUE) {
+	              fetchInventorySheet(selectedFirmId, undefined, undefined, { includeEmpty }).then((list) => {
+	                const selectedFirm = firms.find((f) => f.id === selectedFirmId);
+	                const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
+	                setRows(list.map((r) => ({ ...r, firm: firmName })));
+	              });
+	            } else if (selectedFirmId === ALL_FIRMS_VALUE) {
+	              Promise.all(firms.map((f) => fetchInventorySheet(f.id, undefined, undefined, { includeEmpty }))).then((all) =>
+	                setRows(
+	                  all.flatMap((list, idx) =>
+	                    list.map((r) => ({
+	                      ...r,
+	                      firm: String(firms[idx]?.sortName ?? '').trim() || firms[idx]?.name || '',
+	                    }))
+	                  )
+	                )
+	              );
+	            }
+	          }} 
+	          firms={firms}
+	        />
+	      )}
     </div>
   );
 }

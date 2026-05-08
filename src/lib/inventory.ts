@@ -58,8 +58,17 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
   return data as T;
 }
 
-export async function fetchInventorySheet(firmId: string, year: string = fiscalYearLabel(), signal?: AbortSignal): Promise<InventorySheetRow[]> {
-  const res = await fetch(`/api/inventory/sheet?firmId=${encodeURIComponent(firmId)}&year=${encodeURIComponent(year)}`, { signal });
+export async function fetchInventorySheet(
+  firmId: string,
+  year: string = fiscalYearLabel(),
+  signal?: AbortSignal,
+  opts?: { includeEmpty?: boolean }
+): Promise<InventorySheetRow[]> {
+  const params = new URLSearchParams();
+  params.set('firmId', firmId);
+  params.set('year', year);
+  if (opts?.includeEmpty) params.set('includeEmpty', '1');
+  const res = await fetch(`/api/inventory/sheet?${params.toString()}`, { signal });
   const data = await requireOk<{ rows?: InventorySheetRow[] }>(res, 'Failed to load inventory sheet');
   return data.rows ?? [];
 }
