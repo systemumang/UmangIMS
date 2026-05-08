@@ -1512,10 +1512,57 @@ app.post('/api/requests/:id/reject', async (req, res) => {
   }
 });
 
-	// Create PO for a PR
-	app.post('/api/requests/:id/po', async (req, res) => {
-	  try {
-	    const pool = getMysqlPool();
+// Last supplier by item ids (used for PO suggestions)
+app.post('/api/items/last-supplier', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const itemIds = Array.isArray(req.body?.itemIds) ? req.body.itemIds : [];
+    const ids = itemIds.map((x) => String(x ?? '').trim()).filter(Boolean);
+    if (!ids.length) return res.json({ byItemId: {} });
+
+    // Use a single query with window function when available (MySQL 8+).
+    const placeholders = ids.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `
+      SELECT itemId, supplierId, supplierName, rate FROM (
+        SELECT
+          poi.item_id AS itemId,
+          po.supplier_id AS supplierId,
+          s.name AS supplierName,
+          poi.rate AS rate,
+          ROW_NUMBER() OVER (PARTITION BY poi.item_id ORDER BY po.order_date DESC, po.created_at DESC) AS rn
+        FROM purchase_order_items poi
+        INNER JOIN purchase_orders po ON po.id = poi.po_id
+        LEFT JOIN suppliers s ON s.id = po.supplier_id
+        WHERE poi.item_id IN (${placeholders})
+      ) x
+      WHERE x.rn = 1
+      `,
+      ids
+    );
+
+    const byItemId = {};
+    for (const r of Array.isArray(rows) ? rows : []) {
+      const itemId = String(r.itemId ?? '').trim();
+      if (!itemId) continue;
+      byItemId[itemId] = {
+        supplierId: String(r.supplierId ?? ''),
+        supplierName: String(r.supplierName ?? ''),
+        rate: Number(r.rate ?? 0),
+      };
+    }
+
+    res.json({ byItemId });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Create PO for a PR
+app.post('/api/requests/:id/po', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
 	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 	    const prId = String(req.params.id ?? '').trim();
 	    if (!prId) return res.status(400).json({ error: 'id is required' });
