@@ -1612,7 +1612,61 @@ app.get('/api/requests/:id/pos', async (req, res) => {
 // GRNs/QC helpers for PR detail (wired; implement fully later as needed)
 app.get('/api/requests/:id/grns', async (_req, res) => res.json({ grns: [] }));
 app.get('/api/requests/:id/pending-grn-pos', async (_req, res) => res.json({ pos: [] }));
-app.get('/api/requests/:id/qc-records', async (_req, res) => res.json({ qc: [] }));
+app.get('/api/requests/:id/qc-records', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        qc.id AS id,
+        qc.grn_id AS grnId,
+        g.po_id AS poId,
+        qc.item_id AS itemId,
+        iname.name AS item,
+        qc.accepted_qty AS acceptedQty,
+        qc.rejected_qty AS rejectedQty,
+        qc.hold_qty AS holdQty,
+        qc.remarks AS remarks,
+        qc.qc_by AS qcBy,
+        qc.qc_date AS qcDate,
+        qc.created_at AS createdAt,
+        qc.updated_by AS updatedBy,
+        qc.updated_at AS updatedAt
+      FROM qc_records qc
+      INNER JOIN grns g ON g.id = qc.grn_id
+      INNER JOIN purchase_orders po ON po.id = g.po_id
+      LEFT JOIN items it ON it.id = qc.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE po.pr_id = ?
+      ORDER BY qc.created_at DESC
+      `,
+      [prId]
+    );
+
+    const qc = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      grnId: String(r.grnId ?? ''),
+      poId: String(r.poId ?? ''),
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      acceptedQty: Number(r.acceptedQty ?? 0),
+      rejectedQty: Number(r.rejectedQty ?? 0),
+      remarks: String(r.remarks ?? ''),
+      qcBy: String(r.qcBy ?? ''),
+      qcDate: toIsoDateTime(r.qcDate) || String(r.qcDate ?? ''),
+      createdAt: toIsoDateTime(r.createdAt) || String(r.createdAt ?? ''),
+      updatedBy: r.updatedBy != null ? String(r.updatedBy) : undefined,
+    }));
+
+    res.json({ qc });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // GRN item ↔ invoice linking (links for a GRN item)
 app.get('/api/grn-items/:id/invoice-links', async (req, res) => {
@@ -2530,6 +2584,182 @@ app.get('/api/pos/:id/grns', async (req, res) => {
     });
 
     res.json({ grns });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// QC for GRN
+app.post('/api/grns/:id/qc', async (req, res) => {
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnId = String(req.params.id ?? '').trim();
+    if (!grnId) return res.status(400).json({ error: 'id is required' });
+
+    const inspectedBy = String(req.body?.inspectedBy ?? '').trim();
+    const location = String(req.body?.location ?? '').trim();
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!inspectedBy) return res.status(400).json({ error: 'inspectedBy is required' });
+    if (!location) return res.status(400).json({ error: 'location is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[grnRow]] = await conn.query('SELECT id FROM grns WHERE id=? FOR UPDATE', [grnId]);
+    if (!grnRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'GRN not found' });
+    }
+
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const accepted = Number(row?.quantityAccepted ?? 0);
+      const rejected = Number(row?.quantityRejected ?? 0);
+      const remarks = String(row?.remarks ?? '').trim();
+      if (!itemId) continue;
+      if (!Number.isFinite(accepted) || accepted < 0) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Invalid accepted quantity' });
+      }
+      if (!Number.isFinite(rejected) || rejected < 0) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Invalid rejected quantity' });
+      }
+
+      const fullRemarks = location ? (remarks ? `${remarks} (Location: ${location})` : `Location: ${location}`) : remarks;
+
+      const [existingRows] = await conn.query('SELECT id FROM qc_records WHERE grn_id=? AND item_id=? LIMIT 1', [grnId, itemId]);
+      const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+      if (existing?.id) {
+        await conn.query(
+          `
+          UPDATE qc_records
+          SET accepted_qty=?, rejected_qty=?, hold_qty=0, remarks=?, qc_by=?, qc_date=NOW(), updated_by=?, updated_at=NOW()
+          WHERE id=?
+          `,
+          [accepted, rejected, fullRemarks, inspectedBy, updatedBy || inspectedBy, String(existing.id)]
+        );
+      } else {
+        const id = crypto.randomUUID();
+        await conn.query(
+          `
+          INSERT INTO qc_records
+            (id, grn_id, item_id, accepted_qty, rejected_qty, hold_qty, remarks, qc_by, qc_date, created_by, created_at, updated_by, updated_at)
+          VALUES
+            (?, ?, ?, ?, ?, 0, ?, ?, NOW(), ?, NOW(), ?, NOW())
+          `,
+          [id, grnId, itemId, accepted, rejected, fullRemarks, inspectedBy, updatedBy || inspectedBy, updatedBy || inspectedBy]
+        );
+      }
+    }
+
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
+
+app.put('/api/grns/:id/qc', async (req, res) => {
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnId = String(req.params.id ?? '').trim();
+    if (!grnId) return res.status(400).json({ error: 'id is required' });
+
+    const inspectedBy = String(req.body?.inspectedBy ?? '').trim();
+    const location = String(req.body?.location ?? '').trim();
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!inspectedBy) return res.status(400).json({ error: 'inspectedBy is required' });
+    if (!location) return res.status(400).json({ error: 'location is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[grnRow]] = await conn.query('SELECT id FROM grns WHERE id=? FOR UPDATE', [grnId]);
+    if (!grnRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'GRN not found' });
+    }
+
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const accepted = Number(row?.quantityAccepted ?? 0);
+      const rejected = Number(row?.quantityRejected ?? 0);
+      const remarks = String(row?.remarks ?? '').trim();
+      if (!itemId) continue;
+      if (!Number.isFinite(accepted) || accepted < 0) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Invalid accepted quantity' });
+      }
+      if (!Number.isFinite(rejected) || rejected < 0) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Invalid rejected quantity' });
+      }
+
+      const fullRemarks = location ? (remarks ? `${remarks} (Location: ${location})` : `Location: ${location}`) : remarks;
+
+      const [existingRows] = await conn.query('SELECT id FROM qc_records WHERE grn_id=? AND item_id=? LIMIT 1', [grnId, itemId]);
+      const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+      if (existing?.id) {
+        await conn.query(
+          `
+          UPDATE qc_records
+          SET accepted_qty=?, rejected_qty=?, hold_qty=0, remarks=?, qc_by=?, qc_date=NOW(), updated_by=?, updated_at=NOW()
+          WHERE id=?
+          `,
+          [accepted, rejected, fullRemarks, inspectedBy, updatedBy || inspectedBy, String(existing.id)]
+        );
+      } else {
+        const id = crypto.randomUUID();
+        await conn.query(
+          `
+          INSERT INTO qc_records
+            (id, grn_id, item_id, accepted_qty, rejected_qty, hold_qty, remarks, qc_by, qc_date, created_by, created_at, updated_by, updated_at)
+          VALUES
+            (?, ?, ?, ?, ?, 0, ?, ?, NOW(), ?, NOW(), ?, NOW())
+          `,
+          [id, grnId, itemId, accepted, rejected, fullRemarks, inspectedBy, updatedBy || inspectedBy, updatedBy || inspectedBy]
+        );
+      }
+    }
+
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
+
+app.delete('/api/grns/:id/qc', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnId = String(req.params.id ?? '').trim();
+    if (!grnId) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM qc_records WHERE grn_id=?', [grnId]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
