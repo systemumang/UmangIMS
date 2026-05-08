@@ -87,6 +87,89 @@ function parseDepartmentFromRemarks(remarks) {
   return '';
 }
 
+function mergeRemarksJson(remarks, patch) {
+  try {
+    const base = typeof remarks === 'string' && remarks.trim() ? JSON.parse(remarks) : {};
+    if (!base || typeof base !== 'object') return JSON.stringify(patch ?? {});
+    return JSON.stringify({ ...(base || {}), ...(patch || {}) });
+  } catch {
+    return JSON.stringify(patch ?? {});
+  }
+}
+
+async function fetchPrDetail(pool, id) {
+  const [[prRow]] = await pool.query(
+    `
+    SELECT
+      pr.id,
+      pr.pr_number AS prNumber,
+      pr.firm_id AS firmId,
+      pr.store_id AS storeId,
+      st.name AS store,
+      pr.project_id AS projectId,
+      proj.name AS projectName,
+      pr.requested_by AS requestedBy,
+      pr.created_at AS requisitionDate,
+      pr.request_type AS requestType,
+      pr.status AS status,
+      pr.remarks AS remarks,
+      MIN(pri.required_date) AS requiredDate
+    FROM purchase_requisitions pr
+    LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+    LEFT JOIN stores st ON st.id = pr.store_id
+    LEFT JOIN projects proj ON proj.id = pr.project_id
+    WHERE pr.id = ?
+    GROUP BY pr.id
+    `,
+    [id]
+  );
+  if (!prRow) return null;
+
+  const [itemRows] = await pool.query(
+    `
+    SELECT
+      pri.id,
+      pri.pr_id AS prId,
+      pri.item_id AS itemId,
+      iname.name AS item,
+      pri.requested_qty AS quantity,
+      pri.remarks AS specification
+    FROM purchase_requisition_items pri
+    LEFT JOIN items it ON it.id = pri.item_id
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    WHERE pri.pr_id = ?
+    ORDER BY pri.created_at ASC
+    `,
+    [id]
+  );
+
+  const pr = {
+    id: String(prRow.id),
+    prNumber: prRow.prNumber ? String(prRow.prNumber) : undefined,
+    firmId: String(prRow.firmId),
+    store: prRow.store ? String(prRow.store) : null,
+    projectId: prRow.projectId ? String(prRow.projectId) : null,
+    projectName: prRow.projectName ? String(prRow.projectName) : null,
+    department: parseDepartmentFromRemarks(prRow.remarks) || 'N/A',
+    requestedBy: String(prRow.requestedBy || ''),
+    requiredDate: toIsoDate(prRow.requiredDate) || toIsoDate(prRow.requisitionDate) || toIsoDate(new Date()) || '',
+    requisitionDate: toIsoDateTime(prRow.requisitionDate) || new Date().toISOString(),
+    requestType: prRow.requestType ? String(prRow.requestType) : 'Stock',
+    status: mapPrStatus(prRow.status),
+  };
+
+  const items = (itemRows || []).map((r) => ({
+    id: String(r.id),
+    prId: String(r.prId),
+    itemId: String(r.itemId),
+    item: String(r.item || ''),
+    quantity: Number(r.quantity ?? 0),
+    specification: String(r.specification ?? ''),
+  }));
+
+  return { pr, items };
+}
+
 function fiscalYearLabel(date = new Date()) {
   const d = date instanceof Date ? date : new Date(date);
   const y = d.getFullYear();
@@ -1113,8 +1196,8 @@ app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
   }
 });
 
-	app.post('/api/requests', async (req, res) => {
-	  try {
+app.post('/api/requests', async (req, res) => {
+  try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
@@ -1214,11 +1297,138 @@ app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
       specification: String(r.specification ?? ''),
     }));
 
-	    res.status(201).json({ request: { pr, items: outItems } });
-	  } catch (e) {
-	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-	  }
-	});
+    res.status(201).json({ request: { pr, items: outItems } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/requests/:id/approve', async (req, res) => {
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+    const approver = String(req.body?.approver ?? '').trim();
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!approver) return res.status(400).json({ error: 'approver is required' });
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[prRow]] = await conn.query('SELECT id, status FROM purchase_requisitions WHERE id=? FOR UPDATE', [prId]);
+    if (!prRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'PR not found' });
+    }
+
+    // Default approve-all if items not provided.
+    let approveItems = items;
+    if (!approveItems.length) {
+      const [rows] = await conn.query('SELECT id, requested_qty AS quantity FROM purchase_requisition_items WHERE pr_id=?', [prId]);
+      approveItems = (Array.isArray(rows) ? rows : []).map((r) => ({ id: String(r.id), quantity: Number(r.quantity ?? 0) }));
+    }
+
+    for (const row of approveItems) {
+      const prItemId = String(row?.id ?? '').trim();
+      const approvedQty = Number(row?.quantity ?? 0);
+      if (!prItemId) continue;
+      if (!Number.isFinite(approvedQty) || approvedQty < 0) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Invalid approved quantity' });
+      }
+      await conn.query(
+        `
+        UPDATE purchase_requisition_items
+        SET approved_qty=?, status='approved', approved_by=?, approved_at=NOW(), updated_at=NOW()
+        WHERE id=? AND pr_id=?
+        `,
+        [approvedQty, approver, prItemId, prId]
+      );
+    }
+
+    await conn.query(
+      `
+      UPDATE purchase_requisitions
+      SET status='approved', approved_by=?, approved_at=NOW(), updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [approver, approver, prId]
+    );
+
+    await conn.commit();
+
+    const detail = await fetchPrDetail(pool, prId);
+    res.json({ request: detail });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
+
+app.post('/api/requests/:id/reject', async (req, res) => {
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+    const approver = String(req.body?.approver ?? '').trim();
+    const rejectReason = String(req.body?.rejectReason ?? '').trim();
+    if (!approver) return res.status(400).json({ error: 'approver is required' });
+    if (!rejectReason) return res.status(400).json({ error: 'rejectReason is required' });
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[prRow]] = await conn.query('SELECT id, remarks FROM purchase_requisitions WHERE id=? FOR UPDATE', [prId]);
+    if (!prRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'PR not found' });
+    }
+
+    const nextRemarks = mergeRemarksJson(prRow.remarks, { rejectReason });
+
+    await conn.query(
+      `
+      UPDATE purchase_requisitions
+      SET status='rejected', remarks=?, approved_by=?, approved_at=NOW(), updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [nextRemarks, approver, approver, prId]
+    );
+
+    await conn.query(
+      `
+      UPDATE purchase_requisition_items
+      SET status='rejected', approved_by=?, approved_at=NOW(), updated_at=NOW()
+      WHERE pr_id=?
+      `,
+      [approver, prId]
+    );
+
+    await conn.commit();
+
+    const detail = await fetchPrDetail(pool, prId);
+    res.json({ request: detail });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
 
 	// Create PO for a PR
 	app.post('/api/requests/:id/po', async (req, res) => {
