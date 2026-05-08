@@ -87,6 +87,60 @@ function parseDepartmentFromRemarks(remarks) {
   return '';
 }
 
+function fiscalYearLabel(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1; // 1-12
+  // India FY: Apr 1 -> Mar 31
+  const fyStartYear = m >= 4 ? y : y - 1;
+  const a = String(fyStartYear % 100).padStart(2, '0');
+  const b = String((fyStartYear + 1) % 100).padStart(2, '0');
+  return `${a}-${b}`;
+}
+
+async function ensureDocSequencesTable(pool) {
+  await pool.query(
+    `
+    CREATE TABLE IF NOT EXISTS doc_sequences (
+      kind VARCHAR(10) NOT NULL,
+      fy VARCHAR(10) NOT NULL,
+      next_no INT NOT NULL,
+      PRIMARY KEY (kind, fy)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `
+  );
+}
+
+async function allocateDocNumber(pool, kind, date = new Date()) {
+  const docKind = String(kind || '').trim().toUpperCase();
+  if (!docKind) throw new Error('Missing doc kind');
+  const fy = fiscalYearLabel(date);
+  await ensureDocSequencesTable(pool);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('INSERT IGNORE INTO doc_sequences (kind, fy, next_no) VALUES (?, ?, ?)', [docKind, fy, 1]);
+    const [rows] = await conn.query('SELECT next_no AS nextNo FROM doc_sequences WHERE kind=? AND fy=? FOR UPDATE', [
+      docKind,
+      fy,
+    ]);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    const nextNo = Number(row?.nextNo ?? 1);
+    const useNo = Number.isFinite(nextNo) && nextNo > 0 ? nextNo : 1;
+    await conn.query('UPDATE doc_sequences SET next_no=? WHERE kind=? AND fy=?', [useNo + 1, docKind, fy]);
+    await conn.commit();
+    return `${docKind}-${fy}/${String(useNo).padStart(5, '0')}`;
+  } catch (e) {
+    try {
+      await conn.rollback();
+    } catch {}
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
 function mapInvoiceStatus(row) {
   const paymentStatus = String(row?.paymentStatus ?? '').toLowerCase();
   if (row?.paymentDate || paymentStatus.includes('paid')) return 'Paid';
@@ -619,6 +673,96 @@ app.get('/api/requests/:id/grn-item-invoice-links', async (req, res) => {
   }
 });
 
+// --- Operations (minimal) ---
+app.get('/api/operations/prs', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const q = req.query?.q != null ? String(req.query.q).trim() : '';
+    const firmId = req.query?.firmId != null ? String(req.query.firmId).trim() : '';
+    const projectId = req.query?.projectId != null ? String(req.query.projectId).trim() : '';
+    const from = req.query?.from != null ? String(req.query.from).trim() : '';
+    const to = req.query?.to != null ? String(req.query.to).trim() : '';
+
+    const where = ['1=1'];
+    const params = [];
+    if (firmId) {
+      where.push('pr.firm_id = ?');
+      params.push(firmId);
+    }
+    if (projectId) {
+      where.push('pr.project_id = ?');
+      params.push(projectId);
+    }
+    if (from) {
+      where.push('DATE(pr.created_at) >= ?');
+      params.push(from);
+    }
+    if (to) {
+      where.push('DATE(pr.created_at) <= ?');
+      params.push(to);
+    }
+    if (q) {
+      where.push('(pr.pr_number LIKE ? OR pr.id LIKE ? OR pr.requested_by LIKE ?)');
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        pr.firm_id AS firmId,
+        f.name AS firmName,
+        pr.project_id AS projectId,
+        proj.name AS projectName,
+        pr.remarks AS remarks,
+        pr.requested_by AS requestedBy,
+        pr.created_at AS requisitionDate,
+        pr.request_type AS requestType,
+        pr.status AS status,
+        MIN(pri.required_date) AS requiredDate,
+        COUNT(pri.id) AS itemCount,
+        COALESCE(SUM(pri.requested_qty), 0) AS totalQty
+      FROM purchase_requisitions pr
+      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN firms f ON f.id = pr.firm_id
+      LEFT JOIN projects proj ON proj.id = pr.project_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY pr.id
+      ORDER BY pr.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.remarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      requestedBy: String(r.requestedBy ?? ''),
+      requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
+      requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || '',
+      requestType: r.requestType ? String(r.requestType) : 'Stock',
+      status: mapPrStatus(r.status),
+      itemCount: Number(r.itemCount ?? 0),
+      totalQty: Number(r.totalQty ?? 0),
+    }));
+
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/pos', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/operations/grns', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/operations/invoices', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/operations/payments', async (_req, res) => res.json({ rows: [] }));
+
 // Invoices for a PR
 app.get('/api/requests/:id/invoices', async (req, res) => {
   try {
@@ -969,8 +1113,8 @@ app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
   }
 });
 
-app.post('/api/requests', async (req, res) => {
-  try {
+	app.post('/api/requests', async (req, res) => {
+	  try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
@@ -996,7 +1140,7 @@ app.post('/api/requests', async (req, res) => {
     const storeId = String(storeRow.id);
 
     const prId = crypto.randomUUID();
-    const prNumber = `PR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${prId.slice(0, 6)}`;
+    const prNumber = await allocateDocNumber(pool, 'PR', new Date());
     const remarks = JSON.stringify({ department });
 
     await pool.query(
@@ -1070,15 +1214,232 @@ app.post('/api/requests', async (req, res) => {
       specification: String(r.specification ?? ''),
     }));
 
-    res.status(201).json({ request: { pr, items: outItems } });
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
+	    res.status(201).json({ request: { pr, items: outItems } });
+	  } catch (e) {
+	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
 
-// --- Masters: Suppliers ---
-app.get('/api/masters/suppliers', async (_req, res) => {
-  try {
+	// Create PO for a PR
+	app.post('/api/requests/:id/po', async (req, res) => {
+	  try {
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	    const prId = String(req.params.id ?? '').trim();
+	    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+	    const supplierName = String(req.body?.supplier ?? '').trim();
+	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+	    if (!supplierName) return res.status(400).json({ error: 'supplier is required' });
+	    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+	    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+	    const [[prRow]] = await pool.query(
+	      'SELECT id, firm_id AS firmId, store_id AS storeId, project_id AS projectId FROM purchase_requisitions WHERE id = ? LIMIT 1',
+	      [prId]
+	    );
+	    if (!prRow) return res.status(404).json({ error: 'PR not found' });
+
+	    const [supRows] = await pool.query('SELECT id, name FROM suppliers WHERE name = ? LIMIT 1', [supplierName]);
+	    const supRow = Array.isArray(supRows) ? supRows[0] : null;
+	    if (!supRow?.id) return res.status(400).json({ error: 'Supplier not found' });
+	    const supplierId = String(supRow.id);
+
+	    const poId = crypto.randomUUID();
+	    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+
+	    await pool.query(
+	      `
+	      INSERT INTO purchase_orders
+	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+	      VALUES
+	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+	      `,
+	      [
+	        poId,
+	        poNumber,
+	        String(prRow.firmId),
+	        String(prRow.storeId),
+	        prRow.projectId ? String(prRow.projectId) : null,
+	        supplierId,
+	        prId,
+	        paymentTerms,
+	        'system',
+	        shippingAddress,
+	        termsConditions,
+	      ]
+	    );
+
+	    const outItems = [];
+	    for (const row of items) {
+	      const itemId = String(row?.itemId ?? '').trim();
+	      const quantity = Number(row?.quantity ?? 0);
+	      const rate = Number(row?.rate ?? 0);
+	      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
+	      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
+	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+	      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+
+	      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
+	      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
+	      const gross = quantity * rate;
+	      const goodsAmount = gross * (1 - disc / 100);
+	      const taxAmount = goodsAmount * (tax / 100);
+	      const totalAmount = goodsAmount + taxAmount;
+
+	      const poItemId = crypto.randomUUID();
+	      await pool.query(
+	        `
+	        INSERT INTO purchase_order_items
+	          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at)
+	        VALUES
+	          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	        `,
+	        [poItemId, poId, itemId, quantity, rate, disc || null, tax || null, goodsAmount, taxAmount, totalAmount, 'system']
+	      );
+
+	      outItems.push({
+	        poId,
+	        itemId,
+	        item: '',
+	        specificationsJson: undefined,
+	        quantity,
+	        rate,
+	        discountPercent: disc || undefined,
+	        taxPercent: tax || undefined,
+	        goodsAmount,
+	        taxAmount,
+	        totalAmount,
+	      });
+	    }
+
+	    res.status(201).json({
+	      po: {
+	        po: {
+	          id: poId,
+	          prId,
+	          firmId: String(prRow.firmId),
+	          orderDate: new Date().toISOString().slice(0, 10),
+	          createdBy: 'system',
+	          supplierId,
+	          supplier: supplierName,
+	          paymentTerms,
+	          shippingAddress: shippingAddress || undefined,
+	          termsConditions: termsConditions || undefined,
+	          status: 'Open',
+	          createdAt: new Date().toISOString(),
+	        },
+	        items: outItems,
+	      },
+	    });
+	  } catch (e) {
+	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
+
+	// Create GRN for a PO
+	app.post('/api/pos/:id/grn', async (req, res) => {
+	  try {
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	    const poId = String(req.params.id ?? '').trim();
+	    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+	    const receivedDate = String(req.body?.receivedDate ?? '').trim();
+	    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+	    const materialReceivedBy = req.body?.materialReceivedBy != null ? String(req.body.materialReceivedBy).trim() : null;
+	    const goodsCollectedBy = req.body?.goodsCollectedBy != null ? String(req.body.goodsCollectedBy).trim() : null;
+	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+	    if (!receivedDate) return res.status(400).json({ error: 'receivedDate is required' });
+	    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+	    const [[poRow]] = await pool.query(
+	      'SELECT id, pr_id AS prId, firm_id AS firmId, store_id AS storeId FROM purchase_orders WHERE id = ? LIMIT 1',
+	      [poId]
+	    );
+	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+
+	    const [poItemRows] = await pool.query('SELECT item_id AS itemId, quantity FROM purchase_order_items WHERE po_id = ?', [poId]);
+	    const orderedByItemId = new Map(
+	      (Array.isArray(poItemRows) ? poItemRows : []).map((r) => [String(r.itemId), Number(r.quantity ?? 0)])
+	    );
+
+	    const grnId = crypto.randomUUID();
+	    const grnNumber = await allocateDocNumber(pool, 'GRN', new Date(receivedDate));
+
+	    await pool.query(
+	      `
+	      INSERT INTO grns
+	        (id, grn_number, po_id, firm_id, store_id, received_by, received_date, remarks, created_by, created_at, updated_by, updated_at, material_received_by, goods_collected_by)
+	      VALUES
+	        (?, ?, ?, ?, ?, ?, ?, NULL, ?, NOW(), ?, NOW(), ?, ?)
+	      `,
+	      [
+	        grnId,
+	        grnNumber,
+	        poId,
+	        String(poRow.firmId),
+	        String(poRow.storeId),
+	        updatedBy || 'system',
+	        receivedDate,
+	        'system',
+	        updatedBy || null,
+	        materialReceivedBy,
+	        goodsCollectedBy,
+	      ]
+	    );
+
+	    const outItems = [];
+	    for (const row of items) {
+	      const itemId = String(row?.itemId ?? '').trim();
+	      const qtyReceived = Number(row?.quantityReceived ?? 0);
+	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+	      if (!Number.isFinite(qtyReceived) || qtyReceived <= 0) return res.status(400).json({ error: 'Each item requires valid quantityReceived' });
+
+	      const orderedQty = Number(orderedByItemId.get(itemId) ?? 0);
+	      const shortQty = Math.max(0, orderedQty - qtyReceived);
+	      const grnItemId = crypto.randomUUID();
+
+	      await pool.query(
+	        `
+	        INSERT INTO grn_items
+	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at)
+	        VALUES
+	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW())
+	        `,
+	        [grnItemId, grnId, itemId, orderedQty, qtyReceived, shortQty, 'system', updatedBy || null]
+	      );
+
+	      outItems.push({ id: grnItemId, grnId, itemId, item: '', specificationsJson: undefined, quantityReceived: qtyReceived });
+	    }
+
+	    res.status(201).json({
+	      grn: {
+	        grn: {
+	          id: grnId,
+	          poId,
+	          invoiceId: '',
+	          receivedDate,
+	          createdAt: new Date().toISOString(),
+	          updatedBy: updatedBy || undefined,
+	          materialReceivedBy,
+	          goodsCollectedBy,
+	        },
+	        items: outItems,
+	      },
+	    });
+	  } catch (e) {
+	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
+
+	// --- Masters: Suppliers ---
+	app.get('/api/masters/suppliers', async (_req, res) => {
+	  try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const [rows] = await pool.query(

@@ -207,8 +207,8 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
         open={modalOpen}
 			        title={
 			          modalMode === 'approve'
-			            ? `Approve PR ${formatPrNumber(prDetail?.pr?.prNumber ?? activePrId ?? '')}`
-			            : `Reject PR ${formatPrNumber(prDetail?.pr?.prNumber ?? activePrId ?? '')}`
+			            ? `Approve PR ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
+			            : `Reject PR ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
 			        }
         onClose={() => (saving ? null : closeModal())}
         footer={
