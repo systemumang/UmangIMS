@@ -2447,6 +2447,94 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
   }
 });
 
+// GRNs for a PO
+app.get('/api/pos/:id/grns', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [grnRows] = await pool.query(
+      `
+      SELECT
+        g.id AS id,
+        g.po_id AS poId,
+        g.grn_number AS grnNumber,
+        g.received_date AS receivedDate,
+        g.created_at AS createdAt,
+        g.updated_by AS updatedBy,
+        g.material_received_by AS materialReceivedBy,
+        g.goods_collected_by AS goodsCollectedBy
+      FROM grns g
+      WHERE g.po_id = ?
+      ORDER BY g.received_date DESC, g.created_at DESC
+      `,
+      [poId]
+    );
+
+    const grnIds = (Array.isArray(grnRows) ? grnRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    let itemsByGrnId = new Map();
+    if (grnIds.length) {
+      const placeholders = grnIds.map(() => '?').join(',');
+      const [itemRows] = await pool.query(
+        `
+        SELECT
+          gi.id AS id,
+          gi.grn_id AS grnId,
+          gi.item_id AS itemId,
+          iname.name AS item,
+          it.specifications_json AS specificationsJson,
+          gi.received_qty AS quantityReceived
+        FROM grn_items gi
+        LEFT JOIN items it ON it.id = gi.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE gi.grn_id IN (${placeholders})
+        ORDER BY gi.created_at ASC
+        `,
+        grnIds
+      );
+
+      itemsByGrnId = new Map();
+      for (const r of Array.isArray(itemRows) ? itemRows : []) {
+        const grnId = String(r.grnId ?? '').trim();
+        if (!grnId) continue;
+        if (!itemsByGrnId.has(grnId)) itemsByGrnId.set(grnId, []);
+        itemsByGrnId.get(grnId).push({
+          id: String(r.id ?? ''),
+          grnId,
+          itemId: String(r.itemId ?? ''),
+          item: String(r.item ?? ''),
+          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+          quantityReceived: Number(r.quantityReceived ?? 0),
+        });
+      }
+    }
+
+    const grns = (Array.isArray(grnRows) ? grnRows : []).map((r) => {
+      const grnId = String(r.id ?? '');
+      return {
+        grn: {
+          id: grnId,
+          poId: String(r.poId ?? ''),
+          invoiceId: '',
+          receivedDate: toIsoDate(r.receivedDate) || '',
+          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+          updatedBy: r.updatedBy != null ? String(r.updatedBy) : undefined,
+          materialReceivedBy: r.materialReceivedBy != null ? String(r.materialReceivedBy) : null,
+          goodsCollectedBy: r.goodsCollectedBy != null ? String(r.goodsCollectedBy) : null,
+          grnNumber: r.grnNumber != null ? String(r.grnNumber) : undefined,
+        },
+        items: itemsByGrnId.get(grnId) ?? [],
+      };
+    });
+
+    res.json({ grns });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // --- Masters: Suppliers ---
 app.get('/api/masters/suppliers', async (_req, res) => {
   try {

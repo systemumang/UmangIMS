@@ -105,6 +105,7 @@ export type Logistics = { invoiceId: string; dispatchProof: string; cnOrCourierN
 
 export type Grn = {
   id: string;
+  grnNumber?: string;
   poId: string;
   invoiceId: string;
   receivedDate: string;
