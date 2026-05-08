@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
+import { formatPrNumber } from '@/src/lib/docNumbers';
 import {
-	  fetchOperationsGrnDetail,
-	  fetchOperationsGrns,
-	  fetchOperationsInvoiceDetail,
+		  fetchOperationsGrnDetail,
+		  fetchOperationsGrns,
+		  fetchOperationsInvoiceDetail,
 	  fetchOperationsInvoices,
 	  fetchOperationsPaymentDetail,
 	  fetchOperationsPayments,
@@ -496,7 +497,7 @@ export default function OperationsView() {
 	                  >
 	                    {tab === 'prs' ? (
 	                      <>
-	                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.prNumber}</td>
+            <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.department}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
@@ -507,7 +508,7 @@ export default function OperationsView() {
                     ) : tab === 'pos' ? (
                       <>
                         <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.prNumber}</td>
+            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatIsoDateShort(r.orderDate) : '-'}</td>
@@ -518,7 +519,7 @@ export default function OperationsView() {
                       <>
                         <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.grnNumber}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.prNumber}</td>
+            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(r.receivedDate)}</td>

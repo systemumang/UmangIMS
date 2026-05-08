@@ -17,7 +17,11 @@ export function formatDocNumber(raw: string, kind?: DocKind): string {
 }
 
 export function formatPrNumber(raw: string) {
-  return formatDocNumber(raw, 'PR');
+  const s = formatDocNumber(raw, 'PR');
+  // Hide short random suffixes like `20260508-5b69e5`.
+  const m = /^(\d{8})-([0-9a-f]{6})$/i.exec(String(s ?? '').trim());
+  if (m?.[1]) return m[1];
+  return s;
 }
 
 export function formatPoNumber(raw: string) {
@@ -27,4 +31,3 @@ export function formatPoNumber(raw: string) {
 export function formatGrnNumber(raw: string) {
   return formatDocNumber(raw, 'GRN');
 }
-

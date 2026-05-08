@@ -3,6 +3,7 @@ import { Download, Filter, Calendar } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { avatarColorClass, getInitials, statusPillClass, type Firm, type PurchaseRequest } from '@/src/lib/purchaseRequests';
 import { formatDateDDMMYYYY, formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { formatPrNumber } from '@/src/lib/docNumbers';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -193,7 +194,7 @@ export default function PurchaseTable({
 	                    idx === 2 && "bg-surface-container-low/20"
 		                  )}
 		                >
-			                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{req.prNumber ?? req.id}</td>
+			                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{formatPrNumber(req.prNumber ?? req.id)}</td>
 		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">
 			                    {firmNameById[req.firmId] ?? req.firmId}
 		                  </td>

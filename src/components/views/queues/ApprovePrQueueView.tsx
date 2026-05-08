@@ -2,6 +2,7 @@
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { approvePr, fetchRequest, rejectPr, statusPillClass, type PurchaseRequestDetail } from '@/src/lib/purchaseRequests';
 import { fetchQueueApprovePr, type ApprovePrQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
@@ -148,7 +149,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                 {pagedRows.length ? (
 	                  pagedRows.map((r) => (
 	                    <tr key={r.prId}>
-	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
+	                    <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestType ?? '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
@@ -204,7 +205,11 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 
       <Modal
         open={modalOpen}
-        title={modalMode === 'approve' ? `Approve PR ${activePrId ?? ''}` : `Reject PR ${activePrId ?? ''}`}
+			        title={
+			          modalMode === 'approve'
+			            ? `Approve PR ${formatPrNumber(prDetail?.pr?.prNumber ?? activePrId ?? '')}`
+			            : `Reject PR ${formatPrNumber(prDetail?.pr?.prNumber ?? activePrId ?? '')}`
+			        }
         onClose={() => (saving ? null : closeModal())}
         footer={
           <>

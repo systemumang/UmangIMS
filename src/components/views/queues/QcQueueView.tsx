@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { formatPrNumber } from '@/src/lib/docNumbers';
 import { fetchGrnsByPoId, recordQc } from '@/src/lib/purchaseRequests';
 import { fetchQueueQc, type QcQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -176,7 +177,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                     <tr key={r.grnId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.grnNumber ?? r.grnId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.poNumber ?? r.poId}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.prId}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>

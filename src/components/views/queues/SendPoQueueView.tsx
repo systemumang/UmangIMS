@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { formatPrNumber } from '@/src/lib/docNumbers';
 import { fetchPos, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueSendPo, type QueueFilters, type SendPoQueueRow } from '@/src/lib/queues';
 import { cn } from '@/src/lib/utils';
@@ -177,7 +178,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                   pagedRows.map((r) => (
                     <tr key={r.poId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.poNumber ?? r.poId}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.prId}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>

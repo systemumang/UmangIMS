@@ -54,7 +54,20 @@ import { inputClass, labelClass } from '@/src/components/views/queues/shared';
 	import { cn } from '@/src/lib/utils';
 	import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 	import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
-				import { fetchItems, fetchSuppliers, fetchTransporters, fetchUsers, type Item, type Supplier, type Transporter, type User } from '@/src/lib/masters';
+import {
+  fetchItems,
+  fetchSpecificationValues,
+  fetchSpecifications,
+  fetchSuppliers,
+  fetchTransporters,
+  fetchUsers,
+  type Item,
+  type Specification,
+  type SpecificationValue,
+  type Supplier,
+  type Transporter,
+  type User,
+} from '@/src/lib/masters';
 
 type NumMap = Record<string, string>;
 type TextMap = Record<string, string>;
@@ -83,11 +96,40 @@ function isAbortError(e: unknown) {
   return false;
 }
 
-function formatSpecsLines(specificationsJson: string) {
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value ?? '').trim());
+}
+
+function isShortHexLike(value: string) {
+  return /^[0-9a-f]{6}$/i.test(String(value ?? '').trim());
+}
+
+function formatSpecsLines(
+  specificationsJson: string,
+  specNameById?: Record<string, string>,
+  specValueTextById?: Record<string, string>
+) {
   try {
     const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
     const entries = Object.entries(obj);
-    return entries.map(([k, v]) => `${k}: ${String(v ?? '')}`).filter(Boolean);
+    return entries
+      .map(([k, v]) => {
+        const rawKey = String(k ?? '').trim();
+        const rawVal = typeof v === 'string' ? String(v ?? '').trim() : String(v ?? '').trim();
+        const keyName = specNameById?.[rawKey] ?? (isUuidLike(rawKey) ? '' : rawKey);
+        const valueText = specValueTextById?.[rawVal] ?? rawVal;
+
+        // Hide raw ids entirely if we can't resolve them to human text.
+        const safeValue = isUuidLike(valueText) ? '' : valueText;
+        const safeKey = isUuidLike(keyName) ? '' : keyName;
+
+        if (!safeKey && !safeValue) return '';
+        if (!safeKey) return safeValue;
+        if (!safeValue) return safeKey;
+        return `${safeKey}: ${safeValue}`;
+      })
+      .map((s) => String(s ?? '').trim())
+      .filter(Boolean);
   } catch {
     return String(specificationsJson ?? '')
       .split(/\r?\n/)
@@ -96,9 +138,20 @@ function formatSpecsLines(specificationsJson: string) {
   }
 }
 
-function formatItemInline(itemName: string, specificationsJson: string) {
-  const specs = formatSpecsLines(specificationsJson);
-  return [itemName, ...specs].join(' - ');
+function formatItemInline(
+  itemName: string,
+  specificationsJson: string,
+  specNameById?: Record<string, string>,
+  specValueTextById?: Record<string, string>
+) {
+  const specs = formatSpecsLines(specificationsJson, specNameById, specValueTextById);
+  const base = String(itemName ?? '').trim();
+  const cleaned = [base, ...specs]
+    .map((s) => String(s ?? '').trim())
+    .filter(Boolean)
+    // if something still looks like an id, drop it
+    .filter((s) => !(isUuidLike(s) || isShortHexLike(s)));
+  return cleaned.join(' - ');
 }
 
 function formatItemWithSpecText(itemName: string, specification: string) {
@@ -226,13 +279,16 @@ export default function PurchaseRequestDetailView({
 	  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
 	  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
-				  const [users, setUsers] = useState<User[]>([]);
-				  const [loadingUsers, setLoadingUsers] = useState(true);
-				  const [masterItems, setMasterItems] = useState<Item[]>([]);
-				  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
-				  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-				  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
-				  const [invoiceDetailsOpen, setInvoiceDetailsOpen] = useState(false);
+					  const [users, setUsers] = useState<User[]>([]);
+					  const [loadingUsers, setLoadingUsers] = useState(true);
+					  const [masterItems, setMasterItems] = useState<Item[]>([]);
+					  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
+					  const [specs, setSpecs] = useState<Specification[]>([]);
+					  const [specValues, setSpecValues] = useState<SpecificationValue[]>([]);
+					  const [loadingSpecs, setLoadingSpecs] = useState(true);
+					  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+					  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+					  const [invoiceDetailsOpen, setInvoiceDetailsOpen] = useState(false);
 				  const [invoiceDetailsMode, setInvoiceDetailsMode] = useState<'view' | 'edit'>('view');
 				  const [activeInvoiceDetails, setActiveInvoiceDetails] = useState<InvoiceWithItems | null>(null);
 				  const [invoiceDetailsError, setInvoiceDetailsError] = useState<string | null>(null);
@@ -326,20 +382,26 @@ export default function PurchaseRequestDetailView({
 			  const [poShippingAddressByGroup, setPoShippingAddressByGroup] = useState<TextMap>({});
 			  const [poTermsConditionsByGroup, setPoTermsConditionsByGroup] = useState<TextMap>({});
 
-			  const masterItemById = useMemo(() => {
-			    const m = new Map<string, Item>();
-			    for (const it of masterItems) m.set(String(it.id ?? '').trim(), it);
-			    return m;
-			  }, [masterItems]);
+				  const masterItemById = useMemo(() => {
+				    const m = new Map<string, Item>();
+				    for (const it of masterItems) m.set(String(it.id ?? '').trim(), it);
+				    return m;
+				  }, [masterItems]);
 
-			  const masterItemOptions = useMemo(
-			    () =>
-			      masterItems.map((it) => ({
-			        value: it.id,
-			        label: formatItemInline(it.itemName, it.specificationsJson),
-			      })),
-			    [masterItems]
-			  );
+				  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+				  const specValueTextById = useMemo(
+				    () => Object.fromEntries(specValues.map((v) => [v.id, v.value])),
+				    [specValues]
+				  );
+
+				  const masterItemOptions = useMemo(
+				    () =>
+				      masterItems.map((it) => ({
+				        value: it.id,
+				        label: formatItemInline(it.itemName, it.specificationsJson, specNameById, specValueTextById),
+				      })),
+				    [masterItems, specNameById, specValueTextById]
+				  );
 
 					const [invoiceNo, setInvoiceNo] = useState('');
 					const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -1954,18 +2016,45 @@ export default function PurchaseRequestDetailView({
 			    return Array.from(set.values()).sort((a, b) => a.localeCompare(b));
 			  }, [poDraftLines]);
 
-			  useEffect(() => {
-			    const ac = new AbortController();
-			    setLoadingMasterItems(true);
-			    fetchItems(ac.signal)
-			      .then((rows) => setMasterItems(Array.isArray(rows) ? rows : []))
-			      .catch((e) => {
-			        if (isAbortError(e)) return;
-			        setMasterItems([]);
-			      })
-			      .finally(() => setLoadingMasterItems(false));
-			    return () => ac.abort();
-			  }, []);
+				  useEffect(() => {
+				    const ac = new AbortController();
+				    setLoadingMasterItems(true);
+				    fetchItems(ac.signal)
+				      .then((rows) => setMasterItems(Array.isArray(rows) ? rows : []))
+				      .catch((e) => {
+				        if (isAbortError(e)) return;
+				        setMasterItems([]);
+				      })
+				      .finally(() => setLoadingMasterItems(false));
+				    return () => ac.abort();
+				  }, []);
+
+				  useEffect(() => {
+				    const ac = new AbortController();
+				    setLoadingSpecs(true);
+				    fetchSpecifications(ac.signal)
+				      .then(async (rows) => {
+				        const nextSpecs = Array.isArray(rows) ? rows : [];
+				        setSpecs(nextSpecs);
+				        const all = await Promise.all(
+				          nextSpecs.map((s) =>
+				            fetchSpecificationValues(s.id, ac.signal).catch((e) => {
+				              if (isAbortError(e)) return [];
+				              return [];
+				            })
+				          )
+				        );
+				        const flat = all.flat().filter(Boolean) as SpecificationValue[];
+				        setSpecValues(flat);
+				      })
+				      .catch((e) => {
+				        if (isAbortError(e)) return;
+				        setSpecs([]);
+				        setSpecValues([]);
+				      })
+				      .finally(() => setLoadingSpecs(false));
+				    return () => ac.abort();
+				  }, []);
 
 			  useEffect(() => {
 			    if (!poGroupKeys.length) return;
@@ -2434,7 +2523,7 @@ export default function PurchaseRequestDetailView({
 	    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-	          <div className="font-headline font-bold text-sm text-on-surface">{pr?.prNumber ?? requestId}</div>
+	          <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
         </div>
         {headerRight}
       </div>
