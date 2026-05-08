@@ -559,25 +559,25 @@ export default function MastersView({
     <div className="space-y-4">
 	      {error ? <div className="text-xs text-error">{error}</div> : null}
 
-      <div className="flex flex-wrap gap-2">
-        {MASTERS_TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            className={
-              key === tab
-                ? 'px-3 py-2 text-xs font-semibold rounded-lg bg-surface-container-highest text-on-surface'
-                : 'px-3 py-2 text-xs font-semibold rounded-lg text-on-surface-variant hover:bg-surface-container-high'
-            }
-            onClick={() => {
-              setTab(key);
-              onTabChange?.(key);
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+	      <div className="flex flex-wrap gap-2">
+	        {MASTERS_TABS.map(({ key, label }) => (
+	          <button
+	            key={key}
+	            type="button"
+	            className={
+	              key === tab
+	                ? 'px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white'
+	                : 'px-3 py-2 text-xs font-semibold rounded-lg text-on-surface-variant hover:bg-surface-container-high'
+	            }
+	            onClick={() => {
+	              setTab(key);
+	              onTabChange?.(key);
+	            }}
+	          >
+	            {label}
+	          </button>
+	        ))}
+	      </div>
 
 			      {addOpen ? (
 			        <div className="fixed inset-0 z-50 flex items-stretch justify-center py-4 px-8 md:px-12">
