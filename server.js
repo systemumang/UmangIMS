@@ -79,6 +79,24 @@ function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
+function parseDepartmentFromRemarks(remarks) {
+  try {
+    const obj = typeof remarks === 'string' ? JSON.parse(remarks) : null;
+    if (obj && typeof obj === 'object' && typeof obj.department === 'string') return obj.department;
+  } catch {}
+  return '';
+}
+
+function mapInvoiceStatus(row) {
+  const paymentStatus = String(row?.paymentStatus ?? '').toLowerCase();
+  if (row?.paymentDate || paymentStatus.includes('paid')) return 'Paid';
+  const s = String(row?.status ?? '').toLowerCase();
+  if (s === 'hold') return 'On Hold';
+  if (s === 'approved') return 'Approved';
+  // pending/verified/etc
+  return 'Recorded';
+}
+
 app.get('/api/db/ping', async (_req, res) => {
   try {
     const pool = getMysqlPool();
@@ -252,21 +270,13 @@ app.get('/api/requests', async (_req, res) => {
       `
     );
 
-    const parseDepartment = (remarks) => {
-      try {
-        const obj = typeof remarks === 'string' ? JSON.parse(remarks) : null;
-        if (obj && typeof obj === 'object' && typeof obj.department === 'string') return obj.department;
-      } catch {}
-      return '';
-    };
-
     const requests = (rows || []).map((r) => ({
       id: String(r.id),
       firmId: String(r.firmId),
       store: r.store ? String(r.store) : null,
       projectId: r.projectId ? String(r.projectId) : null,
       projectName: r.projectName ? String(r.projectName) : null,
-      department: parseDepartment(r.remarks) || 'N/A',
+      department: parseDepartmentFromRemarks(r.remarks) || 'N/A',
       requestedBy: String(r.requestedBy || ''),
       requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || toIsoDate(new Date()) || '',
       requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
@@ -313,14 +323,6 @@ app.get('/api/requests/:id', async (req, res) => {
     );
     if (!prRow) return res.status(404).json({ error: 'PR not found' });
 
-    const parseDepartment = (remarks) => {
-      try {
-        const obj = typeof remarks === 'string' ? JSON.parse(remarks) : null;
-        if (obj && typeof obj === 'object' && typeof obj.department === 'string') return obj.department;
-      } catch {}
-      return '';
-    };
-
     const [itemRows] = await pool.query(
       `
       SELECT
@@ -345,7 +347,7 @@ app.get('/api/requests/:id', async (req, res) => {
       store: prRow.store ? String(prRow.store) : null,
       projectId: prRow.projectId ? String(prRow.projectId) : null,
       projectName: prRow.projectName ? String(prRow.projectName) : null,
-      department: parseDepartment(prRow.remarks) || 'N/A',
+      department: parseDepartmentFromRemarks(prRow.remarks) || 'N/A',
       requestedBy: String(prRow.requestedBy || ''),
       requiredDate: toIsoDate(prRow.requiredDate) || toIsoDate(prRow.requisitionDate) || toIsoDate(new Date()) || '',
       requisitionDate: toIsoDateTime(prRow.requisitionDate) || new Date().toISOString(),
@@ -363,6 +365,498 @@ app.get('/api/requests/:id', async (req, res) => {
     }));
 
     res.json({ request: { pr, items } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Queues (Pending Tasks) ---
+function readQueueFilters(req) {
+  const q = req.query?.q != null ? String(req.query.q).trim() : '';
+  const firmId = req.query?.firmId != null ? String(req.query.firmId).trim() : '';
+  const department = req.query?.department != null ? String(req.query.department).trim() : '';
+  const projectId = req.query?.projectId != null ? String(req.query.projectId).trim() : '';
+  const supplierId = req.query?.supplierId != null ? String(req.query.supplierId).trim() : '';
+  const from = req.query?.from != null ? String(req.query.from).trim() : '';
+  const to = req.query?.to != null ? String(req.query.to).trim() : '';
+  return { q, firmId, department, projectId, supplierId, from, to };
+}
+
+app.get('/api/queues/approve-pr', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ['pr.status = ?'];
+    const params = ['pending'];
+    if (f.firmId) {
+      where.push('pr.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('pr.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.from) {
+      where.push('DATE(pr.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(pr.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(pr.id LIKE ? OR pr.pr_number LIKE ? OR pr.requested_by LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        pr.firm_id AS firmId,
+        f.name AS firmName,
+        pr.request_type AS requestType,
+        pr.project_id AS projectId,
+        proj.name AS projectName,
+        pr.requested_by AS requestedBy,
+        pr.created_at AS requisitionDate,
+        pr.remarks AS remarks,
+        MIN(pri.required_date) AS requiredDate
+      FROM purchase_requisitions pr
+      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN firms f ON f.id = pr.firm_id
+      LEFT JOIN projects proj ON proj.id = pr.project_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY pr.id
+      ORDER BY pr.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      requestType: r.requestType ? String(r.requestType) : 'Stock',
+      department: parseDepartmentFromRemarks(r.remarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      requestedBy: String(r.requestedBy ?? ''),
+      requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
+      requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || toIsoDate(new Date()) || '',
+      status: 'Pending Approval',
+      pendingReason: 'Pending approval',
+    }));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// The rest of the queues are wired so the UI doesn’t error; return empty until implemented fully.
+app.get('/api/queues/create-po', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/check-po', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/send-po', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/create-grn', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/check-quality', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/enter-invoice', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/link-invoice-grn', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/approve-invoice', async (_req, res) => res.json({ rows: [] }));
+app.get('/api/queues/payment', async (_req, res) => res.json({ rows: [] }));
+
+// GRN item ↔ invoice linking (summary for a PR)
+app.get('/api/requests/:id/grn-item-invoice-links', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        gil.grn_item_id AS grnItemId,
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        SUM(gil.linked_qty) AS linkedQty
+      FROM purchase_orders po
+      INNER JOIN grns g ON g.po_id = po.id
+      INNER JOIN grn_items gi ON gi.grn_id = g.id
+      INNER JOIN grn_invoice_item_links gil ON gil.grn_item_id = gi.id
+      INNER JOIN invoice_items ii ON ii.id = gil.invoice_item_id
+      INNER JOIN invoices inv ON inv.id = ii.invoice_id
+      WHERE po.pr_id = ?
+      GROUP BY gil.grn_item_id, inv.id, inv.invoice_number
+      ORDER BY inv.invoice_date DESC, inv.invoice_number DESC
+      `,
+      [prId]
+    );
+
+    const links = (Array.isArray(rows) ? rows : []).map((r) => ({
+      grnItemId: String(r.grnItemId ?? ''),
+      invoiceId: String(r.invoiceId ?? ''),
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      linkedQty: Number(r.linkedQty ?? 0),
+    }));
+
+    res.json({ links });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Invoices for a PR
+app.get('/api/requests/:id/invoices', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [invRows] = await pool.query(
+      `
+      SELECT
+        inv.id AS id,
+        inv.po_id AS poId,
+        inv.invoice_number AS supplierInvoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.courier_charge AS courierCharge,
+        inv.packing_charge AS packingCharge,
+        inv.labour_charge AS labourCharge,
+        inv.other_charge AS otherCharge,
+        inv.charges_gst_amount AS chargesGstAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        inv.status AS status,
+        inv.document_url AS documentUrl,
+        inv.cn_copy_url AS cnCopyUrl,
+        inv.eway_bill_number AS ewayBillNumber,
+        inv.cn_number AS cnNumber,
+        inv.courier_number AS courierNumber,
+        inv.transporter_name AS transporterName,
+        inv.created_by AS createdBy,
+        inv.created_at AS createdAt,
+        inv.updated_by AS updatedBy,
+        inv.updated_at AS updatedAt
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      WHERE po.pr_id = ?
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      [prId]
+    );
+
+    const invoiceIds = (Array.isArray(invRows) ? invRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    let itemsByInvoiceId = new Map();
+    if (invoiceIds.length) {
+      const placeholders = invoiceIds.map(() => '?').join(',');
+      const [itemRows] = await pool.query(
+        `
+        SELECT
+          ii.id AS id,
+          ii.invoice_id AS invoiceId,
+          ii.item_id AS itemId,
+          iname.name AS item,
+          ii.quantity AS quantity,
+          ii.rate AS rate,
+          ii.tax_percent AS taxPercent
+        FROM invoice_items ii
+        LEFT JOIN items it ON it.id = ii.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE ii.invoice_id IN (${placeholders})
+        ORDER BY ii.created_at ASC
+        `,
+        invoiceIds
+      );
+
+      itemsByInvoiceId = new Map();
+      for (const r of Array.isArray(itemRows) ? itemRows : []) {
+        const invoiceId = String(r.invoiceId ?? '').trim();
+        if (!invoiceId) continue;
+        if (!itemsByInvoiceId.has(invoiceId)) itemsByInvoiceId.set(invoiceId, []);
+        itemsByInvoiceId.get(invoiceId).push({
+          invoiceId,
+          id: String(r.id ?? ''),
+          itemId: String(r.itemId ?? ''),
+          item: String(r.item ?? ''),
+          quantity: Number(r.quantity ?? 0),
+          rate: Number(r.rate ?? 0),
+          taxPercent: Number(r.taxPercent ?? 0),
+        });
+      }
+    }
+
+    const invoices = (Array.isArray(invRows) ? invRows : []).map((r) => {
+      const invoiceId = String(r.id ?? '');
+      return {
+        invoice: {
+          id: invoiceId,
+          poId: String(r.poId ?? ''),
+          supplierInvoiceNo: String(r.supplierInvoiceNo ?? invoiceId),
+          invoiceDate: toIsoDate(r.invoiceDate) || '',
+          invoiceAmount: Number(r.invoiceAmount ?? 0),
+          courierCharge: Number(r.courierCharge ?? 0),
+          packingCharge: Number(r.packingCharge ?? 0),
+          labourCharge: Number(r.labourCharge ?? 0),
+          otherCharge: Number(r.otherCharge ?? 0),
+          chargesGstAmount: Number(r.chargesGstAmount ?? 0),
+          status: mapInvoiceStatus(r),
+          paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+          paymentDate: toIsoDate(r.paymentDate) || undefined,
+          documentUrl: r.documentUrl != null ? String(r.documentUrl) : undefined,
+          cnCopyUrl: r.cnCopyUrl != null ? String(r.cnCopyUrl) : undefined,
+          ewayBillNumber: r.ewayBillNumber != null ? String(r.ewayBillNumber) : undefined,
+          cnNumber: r.cnNumber != null ? String(r.cnNumber) : undefined,
+          courierNumber: r.courierNumber != null ? String(r.courierNumber) : undefined,
+          transporterName: r.transporterName != null ? String(r.transporterName) : undefined,
+          createdBy: r.createdBy != null ? String(r.createdBy) : undefined,
+          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+          updatedBy: r.updatedBy != null ? String(r.updatedBy) : undefined,
+          updatedAt: toIsoDateTime(r.updatedAt) || undefined,
+        },
+        items: itemsByInvoiceId.get(invoiceId) ?? [],
+      };
+    });
+
+    res.json({ invoices });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// POs for a PR
+app.get('/api/requests/:id/pos', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [poRows] = await pool.query(
+      `
+      SELECT
+        po.id AS id,
+        po.pr_id AS prId,
+        po.firm_id AS firmId,
+        po.supplier_id AS supplierId,
+        sup.name AS supplier,
+        po.po_number AS poNumber,
+        po.status AS status,
+        po.order_date AS orderDate,
+        po.payment_terms AS paymentTerms,
+        po.shipping_address AS shippingAddress,
+        po.terms_conditions AS termsConditions,
+        po.check_po AS checkPo,
+        po.check_po_user_id AS checkPoUserId,
+        po.check_date AS checkDate,
+        po.sent_by AS sentBy,
+        po.sent_date AS sentDate,
+        po.sent_proof AS sentProof,
+        po.created_by AS createdBy,
+        po.created_at AS createdAt
+      FROM purchase_orders po
+      LEFT JOIN suppliers sup ON sup.id = po.supplier_id
+      WHERE po.pr_id = ?
+      ORDER BY po.created_at ASC
+      `,
+      [prId]
+    );
+
+    const poIds = (Array.isArray(poRows) ? poRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    let itemsByPoId = new Map();
+    if (poIds.length) {
+      const placeholders = poIds.map(() => '?').join(',');
+      const [itemRows] = await pool.query(
+        `
+        SELECT
+          poi.po_id AS poId,
+          poi.item_id AS itemId,
+          iname.name AS item,
+          it.specifications_json AS specificationsJson,
+          poi.quantity AS quantity,
+          poi.rate AS rate,
+          poi.discount_percent AS discountPercent,
+          poi.tax_percent AS taxPercent,
+          poi.goods_amount AS goodsAmount,
+          poi.tax_amount AS taxAmount,
+          poi.total_amount AS totalAmount
+        FROM purchase_order_items poi
+        LEFT JOIN items it ON it.id = poi.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE poi.po_id IN (${placeholders})
+        ORDER BY poi.created_at ASC
+        `,
+        poIds
+      );
+
+      itemsByPoId = new Map();
+      for (const r of Array.isArray(itemRows) ? itemRows : []) {
+        const poId = String(r.poId ?? '').trim();
+        if (!poId) continue;
+        if (!itemsByPoId.has(poId)) itemsByPoId.set(poId, []);
+        itemsByPoId.get(poId).push({
+          poId,
+          itemId: String(r.itemId ?? ''),
+          item: String(r.item ?? ''),
+          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+          quantity: Number(r.quantity ?? 0),
+          rate: Number(r.rate ?? 0),
+          discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
+          taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+          goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
+          taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
+          totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+        });
+      }
+    }
+
+    const pos = (Array.isArray(poRows) ? poRows : []).map((r) => {
+      const poId = String(r.id ?? '');
+      return {
+        po: {
+          id: poId,
+          prId: String(r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          orderDate: toIsoDate(r.orderDate) || '',
+          createdBy: r.createdBy != null ? String(r.createdBy) : undefined,
+          supplierId: r.supplierId != null ? String(r.supplierId) : undefined,
+          supplier: String(r.supplier ?? ''),
+          paymentTerms: String(r.paymentTerms ?? ''),
+          shippingAddress: r.shippingAddress != null ? String(r.shippingAddress) : undefined,
+          termsConditions: r.termsConditions != null ? String(r.termsConditions) : undefined,
+          status: String(r.status ?? 'Open').toLowerCase() === 'closed' ? 'Closed' : String(r.status ?? '').toLowerCase() === 'partial' ? 'Partial' : 'Open',
+          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+          checkPo: Boolean(r.checkPo),
+          checkPoUserId: r.checkPoUserId != null ? String(r.checkPoUserId) : null,
+          checkDate: toIsoDate(r.checkDate) || null,
+          sentBy: r.sentBy != null ? String(r.sentBy) : null,
+          sentDate: toIsoDate(r.sentDate) || null,
+          sentProof: r.sentProof != null ? String(r.sentProof) : null,
+        },
+        items: itemsByPoId.get(poId) ?? [],
+      };
+    });
+
+    res.json({ pos });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// GRNs/QC helpers for PR detail (wired; implement fully later as needed)
+app.get('/api/requests/:id/grns', async (_req, res) => res.json({ grns: [] }));
+app.get('/api/requests/:id/pending-grn-pos', async (_req, res) => res.json({ pos: [] }));
+app.get('/api/requests/:id/qc-records', async (_req, res) => res.json({ qc: [] }));
+
+// GRN item ↔ invoice linking (links for a GRN item)
+app.get('/api/grn-items/:id/invoice-links', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnItemId = String(req.params.id ?? '').trim();
+    if (!grnItemId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        gil.invoice_item_id AS invoiceItemId,
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        gil.linked_qty AS linkedQty
+      FROM grn_invoice_item_links gil
+      INNER JOIN invoice_items ii ON ii.id = gil.invoice_item_id
+      INNER JOIN invoices inv ON inv.id = ii.invoice_id
+      WHERE gil.grn_item_id = ?
+      ORDER BY inv.invoice_date DESC, inv.invoice_number DESC
+      `,
+      [grnItemId]
+    );
+
+    const links = (Array.isArray(rows) ? rows : []).map((r) => ({
+      invoiceItemId: String(r.invoiceItemId ?? ''),
+      invoiceId: String(r.invoiceId ?? ''),
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      invoiceDate: toIsoDate(r.invoiceDate) || '',
+      linkedQty: Number(r.linkedQty ?? 0),
+    }));
+
+    res.json({ links });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// GRN item ↔ invoice linking (set links for a GRN item)
+app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnItemId = String(req.params.id ?? '').trim();
+    if (!grnItemId) return res.status(400).json({ error: 'id is required' });
+
+    const links = Array.isArray(req.body?.links) ? req.body.links : [];
+    for (const l of links) {
+      const invoiceItemId = String(l?.invoiceItemId ?? '').trim();
+      const linkedQty = Number(l?.linkedQty ?? 0);
+      if (!invoiceItemId) return res.status(400).json({ error: 'Each link requires invoiceItemId' });
+      if (!Number.isFinite(linkedQty) || linkedQty < 0) return res.status(400).json({ error: 'Each link requires a valid linkedQty (0 or more)' });
+    }
+
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+
+    // Replace links for this grn_item_id.
+    await pool.query('DELETE FROM grn_invoice_item_links WHERE grn_item_id = ?', [grnItemId]);
+
+    for (const l of links) {
+      const invoiceItemId = String(l?.invoiceItemId ?? '').trim();
+      const linkedQty = Number(l?.linkedQty ?? 0);
+      if (!invoiceItemId || !Number.isFinite(linkedQty) || linkedQty <= 0) continue; // don't persist zeros
+      const id = crypto.randomUUID();
+      await pool.query(
+        `
+        INSERT INTO grn_invoice_item_links (id, grn_item_id, invoice_item_id, linked_qty, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [id, grnItemId, invoiceItemId, linkedQty, updatedBy || 'system']
+      );
+    }
+
+    // Return current links with invoice meta.
+    const [rows] = await pool.query(
+      `
+      SELECT
+        gil.invoice_item_id AS invoiceItemId,
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        gil.linked_qty AS linkedQty
+      FROM grn_invoice_item_links gil
+      INNER JOIN invoice_items ii ON ii.id = gil.invoice_item_id
+      INNER JOIN invoices inv ON inv.id = ii.invoice_id
+      WHERE gil.grn_item_id = ?
+      ORDER BY inv.invoice_date DESC, inv.invoice_number DESC
+      `,
+      [grnItemId]
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      invoiceItemId: String(r.invoiceItemId ?? ''),
+      invoiceId: String(r.invoiceId ?? ''),
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      invoiceDate: toIsoDate(r.invoiceDate) || '',
+      linkedQty: Number(r.linkedQty ?? 0),
+    }));
+
+    res.json({ links: out });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
