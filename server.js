@@ -1479,7 +1479,166 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
   }
 });
 app.get('/api/queues/approve-invoice', async (_req, res) => res.json({ rows: [] }));
-app.get('/api/queues/payment', async (_req, res) => res.json({ rows: [] }));
+
+// Invoices pending payment
+app.get('/api/queues/payment', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(inv.invoice_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(inv.invoice_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(inv.invoice_number LIKE ? OR inv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const invoiceAmount = Number(r.invoiceAmount ?? 0);
+        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+        const isFull = paymentStatus.includes('full');
+        const paidAmount = isFull ? invoiceAmount : 0;
+        const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+        return {
+          invoiceId: String(r.invoiceId ?? ''),
+          invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+          invoiceDate: toIsoDate(r.invoiceDate) || '',
+          paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+          paymentDate: toIsoDate(r.paymentDate) || undefined,
+          poId: String(r.poId ?? ''),
+          poNumber: String(r.poNumber ?? r.poId ?? ''),
+          prId: String(r.prId ?? ''),
+          prNumber: String(r.prNumber ?? r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          firmName: String(r.firmName ?? ''),
+          department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+          projectId: r.projectId ? String(r.projectId) : null,
+          projectName: r.projectName ? String(r.projectName) : null,
+          supplierId: r.supplierId ? String(r.supplierId) : null,
+          supplierName: String(r.supplierName ?? ''),
+          invoiceAmount,
+          paidAmount,
+          remainingAmount,
+          pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
+        };
+      })
+      .filter((x) => x.remainingAmount > 1e-9);
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// GRN linking summary for an invoice (used by Payment modal)
+app.get('/api/invoices/:id/grn-link-summary', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ii.id AS invoiceItemId,
+        ii.item_id AS itemId,
+        iname.name AS item,
+        it.specifications_json AS specificationsJson,
+        ii.quantity AS invoiceQty,
+        COALESCE(grnq.receivedQty, 0) AS receivedQty,
+        COALESCE(linkq.linkedQty, 0) AS linkedQty
+      FROM invoice_items ii
+      INNER JOIN invoices inv ON inv.id = ii.invoice_id
+      LEFT JOIN items it ON it.id = ii.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN (
+        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS receivedQty
+        FROM grns g
+        INNER JOIN grn_items gi ON gi.grn_id = g.id
+        GROUP BY g.po_id, gi.item_id
+      ) grnq ON grnq.poId = inv.po_id AND grnq.itemId = ii.item_id
+      LEFT JOIN (
+        SELECT invoice_item_id AS invoiceItemId, SUM(linked_qty) AS linkedQty
+        FROM grn_invoice_item_links
+        GROUP BY invoice_item_id
+      ) linkq ON linkq.invoiceItemId = ii.id
+      WHERE ii.invoice_id = ?
+      ORDER BY iname.name ASC
+      `,
+      [invoiceId]
+    );
+
+    const links = (Array.isArray(rows) ? rows : []).map((r) => ({
+      invoiceItemId: String(r.invoiceItemId ?? ''),
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+      invoiceQty: Number(r.invoiceQty ?? 0),
+      receivedQty: Number(r.receivedQty ?? 0),
+      linkedQty: Number(r.linkedQty ?? 0),
+    }));
+
+    res.json({ links });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // Pending invoice links for a GRN (used by Link Invoice ↔ GRN queue modal)
 app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
