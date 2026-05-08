@@ -368,9 +368,25 @@ export default function PurchaseRequestDetailView({
 			    return map;
 			  }, [posList]);
 
+			  const grnNumberById = useMemo(() => {
+			    const map = new Map<string, string>();
+			    for (const g of recordedGrns ?? []) {
+			      const grnId = String((g as any)?.grn?.id ?? '').trim();
+			      if (!grnId) continue;
+			      const grnNumber = String((g as any)?.grn?.grnNumber ?? '').trim();
+			      map.set(grnId, grnNumber);
+			    }
+			    return map;
+			  }, [recordedGrns]);
+
 			  function displayPoNumberById(poId: string) {
 			    const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
 			    return formatPoNumber(n) || '-';
+			  }
+
+			  function displayGrnNumberById(grnId: string) {
+			    const n = grnNumberById.get(String(grnId ?? '').trim()) ?? '';
+			    return formatGrnNumber(n) || '-';
 			  }
 
 			  function displayGrnNumber(grn: any) {
@@ -7185,7 +7201,7 @@ export default function PurchaseRequestDetailView({
 		                                <tr key={r.id}>
 		                                  {idx === 0 ? (
 		                                    <>
-			                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{formatGrnNumber(grnId)}</td>
+				                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{displayGrnNumberById(grnId)}</td>
 			                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">{displayPoNumberById(poId)}</td>
 		                                      <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
 			                                        {qcDate ? formatDateDDMMYYYYOnly(qcDate) : '-'}
@@ -7236,7 +7252,7 @@ export default function PurchaseRequestDetailView({
 				                                          aria-label="Delete"
 					                                          className="btn-icon-danger"
 					                                          onClick={() => {
-					                                            if (!confirm(`Delete QC for GRN ${formatGrnNumber(grnId)}?`)) return;
+			                            if (!confirm(`Delete QC for GRN ${displayGrnNumberById(grnId)}?`)) return;
 						                                            run(() =>
 						                                              deleteQcForGrn(grnId, { by: qcUpdatedBy || 'system' })
 					                                                .then(async () => {
@@ -7577,7 +7593,7 @@ export default function PurchaseRequestDetailView({
 			                        <tbody>
 			                          {linkedItemRowsOrdered.map((lr) => (
 			                            <tr key={`${lr.grnItemId}||${lr.invoiceId}`}>
-			                              <td className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{lr.grnId}</td>
+				                              <td className="px-4 py-3 text-sm font-semibold text-on-surface border border-outline-variant align-top">{displayGrnNumberById(lr.grnId)}</td>
 				                              <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
 				                                <div className="whitespace-normal break-words" title={lr.itemLabel}>
 				                                  {renderInlineWithBoldSpecNames(lr.itemLabel)}

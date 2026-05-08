@@ -4645,75 +4645,180 @@ app.get('/api/inventory/sheet', async (req, res) => {
       FROM items it
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE it.is_active = 1
-      ORDER BY iname.name ASC, it.item_code ASC
       `
     );
-
-    const [openingRows] = await pool.query(
-      `
-      SELECT
-        iob.item_id AS itemId,
-        SUM(iob.quantity) AS opening,
-        MAX(iob.reorder_level) AS reorderLevel
-      FROM item_opening_balances iob
-      INNER JOIN stores st ON st.id = iob.store_id
-      WHERE st.firm_id = ? AND iob.year = ?
-      GROUP BY iob.item_id
-      `,
-      [firmId, year]
-    );
-    const openingByItemId = new Map(
-      (Array.isArray(openingRows) ? openingRows : []).map((r) => [
+    const itemById = new Map(
+      (Array.isArray(itemRows) ? itemRows : []).map((r) => [
         String(r.itemId ?? ''),
-        { opening: num(r.opening, 0), reorderLevel: num(r.reorderLevel, 0) },
+        {
+          itemCode: String(r.itemCode ?? ''),
+          itemName: String(r.itemName ?? ''),
+          specificationsJson: r.specificationsJson,
+          unit: String(r.unit ?? ''),
+        },
       ])
     );
 
-    const [purchaseRows] = await pool.query(
-      `
-      SELECT
-        gi.item_id AS itemId,
-        SUM(gi.received_qty) AS purchase
-      FROM grns g
-      INNER JOIN grn_items gi ON gi.grn_id = g.id
-      WHERE g.firm_id = ? AND DATE(g.received_date) >= ? AND DATE(g.received_date) <= ?
-      GROUP BY gi.item_id
-      `,
-      [firmId, range.start, range.end]
-    );
-    const purchaseByItemId = new Map(
-      (Array.isArray(purchaseRows) ? purchaseRows : []).map((r) => [String(r.itemId ?? ''), num(r.purchase, 0)])
+    // Build per-store rows so the Inventory view can match store filters and transactions correctly.
+    const [storeRows] = await pool.query('SELECT id AS storeId, name AS storeName FROM stores WHERE firm_id = ? ORDER BY name', [firmId]);
+    const storeById = new Map(
+      (Array.isArray(storeRows) ? storeRows : []).map((r) => [String(r.storeId ?? ''), String(r.storeName ?? '')])
     );
 
-    const rows = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
+    const [aggRows] = await pool.query(
+      `
+      SELECT
+        base.storeId,
+        base.itemId,
+        COALESCE(opening.opening, 0) AS opening,
+        COALESCE(opening.reorderLevel, 0) AS reorderLevel,
+        COALESCE(purchase.purchase, 0) AS purchase,
+        COALESCE(issue.issueQty, 0) AS issueQty,
+        COALESCE(damage.damageQty, 0) AS damageQty,
+        COALESCE(tin.transferIn, 0) AS transferIn,
+        COALESCE(tout.transferOut, 0) AS transferOut
+      FROM (
+        SELECT storeId, itemId FROM (
+          SELECT iob.store_id AS storeId, iob.item_id AS itemId
+          FROM item_opening_balances iob
+          INNER JOIN stores st ON st.id = iob.store_id
+          WHERE st.firm_id = ? AND iob.year = ?
+          UNION
+          SELECT g.store_id AS storeId, qc.item_id AS itemId
+          FROM qc_records qc
+          INNER JOIN grns g ON g.id = qc.grn_id
+          WHERE g.firm_id = ? AND DATE(g.received_date) >= ? AND DATE(g.received_date) <= ?
+          UNION
+          SELECT iss.store_id AS storeId, iii.item_id AS itemId
+          FROM item_issues iss
+          INNER JOIN item_issue_items iii ON iii.issue_id = iss.id
+          WHERE iss.firm_id = ? AND DATE(iss.created_at) >= ? AND DATE(iss.created_at) <= ?
+          UNION
+          SELECT d.store_id AS storeId, d.item_id AS itemId
+          FROM damaged_items d
+          WHERE d.firm_id = ? AND DATE(d.created_at) >= ? AND DATE(d.created_at) <= ?
+          UNION
+          SELECT t.to_store_id AS storeId, ti.item_id AS itemId
+          FROM item_transfers t
+          INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
+          WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+          UNION
+          SELECT t.from_store_id AS storeId, ti.item_id AS itemId
+          FROM item_transfers t
+          INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
+          WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+        ) x
+      ) base
+      LEFT JOIN (
+        SELECT iob.store_id AS storeId, iob.item_id AS itemId, SUM(iob.quantity) AS opening, MAX(iob.reorder_level) AS reorderLevel
+        FROM item_opening_balances iob
+        INNER JOIN stores st ON st.id = iob.store_id
+        WHERE st.firm_id = ? AND iob.year = ?
+        GROUP BY iob.store_id, iob.item_id
+      ) opening ON opening.storeId = base.storeId AND opening.itemId = base.itemId
+      LEFT JOIN (
+        SELECT g.store_id AS storeId, qc.item_id AS itemId, SUM(qc.accepted_qty) AS purchase
+        FROM qc_records qc
+        INNER JOIN grns g ON g.id = qc.grn_id
+        WHERE g.firm_id = ? AND DATE(g.received_date) >= ? AND DATE(g.received_date) <= ?
+        GROUP BY g.store_id, qc.item_id
+      ) purchase ON purchase.storeId = base.storeId AND purchase.itemId = base.itemId
+      LEFT JOIN (
+        SELECT iss.store_id AS storeId, iii.item_id AS itemId, SUM(iii.quantity) AS issueQty
+        FROM item_issues iss
+        INNER JOIN item_issue_items iii ON iii.issue_id = iss.id
+        WHERE iss.firm_id = ? AND DATE(iss.created_at) >= ? AND DATE(iss.created_at) <= ?
+        GROUP BY iss.store_id, iii.item_id
+      ) issue ON issue.storeId = base.storeId AND issue.itemId = base.itemId
+      LEFT JOIN (
+        SELECT d.store_id AS storeId, d.item_id AS itemId, SUM(d.quantity) AS damageQty
+        FROM damaged_items d
+        WHERE d.firm_id = ? AND DATE(d.created_at) >= ? AND DATE(d.created_at) <= ?
+        GROUP BY d.store_id, d.item_id
+      ) damage ON damage.storeId = base.storeId AND damage.itemId = base.itemId
+      LEFT JOIN (
+        SELECT t.to_store_id AS storeId, ti.item_id AS itemId, SUM(ti.quantity) AS transferIn
+        FROM item_transfers t
+        INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
+        WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+        GROUP BY t.to_store_id, ti.item_id
+      ) tin ON tin.storeId = base.storeId AND tin.itemId = base.itemId
+      LEFT JOIN (
+        SELECT t.from_store_id AS storeId, ti.item_id AS itemId, SUM(ti.quantity) AS transferOut
+        FROM item_transfers t
+        INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
+        WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+        GROUP BY t.from_store_id, ti.item_id
+      ) tout ON tout.storeId = base.storeId AND tout.itemId = base.itemId
+      `,
+      [
+        firmId,
+        year,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        year,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+        firmId,
+        range.start,
+        range.end,
+      ]
+    );
+
+    const rows = (Array.isArray(aggRows) ? aggRows : []).map((r) => {
+      const storeId = String(r.storeId ?? '');
       const itemId = String(r.itemId ?? '');
-      const opening = openingByItemId.get(itemId)?.opening ?? 0;
-      const reorderLevel = openingByItemId.get(itemId)?.reorderLevel ?? 0;
-      const purchase = purchaseByItemId.get(itemId) ?? 0;
-      const issue = 0;
-      const damage = 0;
+      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '' };
+      const opening = num(r.opening, 0);
+      const reorderLevel = num(r.reorderLevel, 0);
+      const purchase = num(r.purchase, 0);
+      const issue = num(r.issueQty, 0);
+      const damage = num(r.damageQty, 0);
       const returns = 0;
-      const transferIn = 0;
-      const transferOut = 0;
+      const transferIn = num(r.transferIn, 0);
+      const transferOut = num(r.transferOut, 0);
       const balance = opening + purchase - issue - damage - returns + transferIn - transferOut;
       return {
         itemId,
-        itemCode: String(r.itemCode ?? ''),
-        itemName: String(r.itemName ?? ''),
-        store: undefined,
-        storeName: undefined,
-        storeId: undefined,
+        itemCode: meta.itemCode,
+        itemName: meta.itemName,
+        storeId,
+        storeName: storeById.get(storeId) ?? '',
         transferIn,
         transferOut,
         specifications: (() => {
           try {
-            const obj = typeof r.specificationsJson === 'string' ? JSON.parse(r.specificationsJson) : r.specificationsJson;
+            const obj = typeof meta.specificationsJson === 'string' ? JSON.parse(meta.specificationsJson) : meta.specificationsJson;
             return obj ? JSON.stringify(obj) : '';
           } catch {
-            return String(r.specificationsJson ?? '');
+            return String(meta.specificationsJson ?? '');
           }
         })(),
-        unit: String(r.unit ?? ''),
+        unit: meta.unit,
         opening,
         reorderLevel,
         purchase,
