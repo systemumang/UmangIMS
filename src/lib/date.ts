@@ -91,3 +91,14 @@ export function formatDateDDMMYYYYOnly(input: string | Date | null | undefined):
   if (!dd || !mm || !yyyy) return '';
   return `${dd}/${mm}/${yyyy}`;
 }
+
+export function fiscalYearLabel(date: Date = new Date()): string {
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1; // 1-12
+  // India FY: Apr 1 -> Mar 31
+  const fyStartYear = m >= 4 ? y : y - 1;
+  const a = String(fyStartYear);
+  const b = String((fyStartYear + 1) % 100).padStart(2, '0');
+  return `${a}-${b}`;
+}

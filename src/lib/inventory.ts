@@ -1,3 +1,5 @@
+import { fiscalYearLabel } from '@/src/lib/date';
+
 export type InventorySheetRow = {
   itemId: string;
   itemCode: string;
@@ -56,13 +58,13 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
   return data as T;
 }
 
-export async function fetchInventorySheet(firmId: string, year: string = '2024-25', signal?: AbortSignal): Promise<InventorySheetRow[]> {
+export async function fetchInventorySheet(firmId: string, year: string = fiscalYearLabel(), signal?: AbortSignal): Promise<InventorySheetRow[]> {
   const res = await fetch(`/api/inventory/sheet?firmId=${encodeURIComponent(firmId)}&year=${encodeURIComponent(year)}`, { signal });
   const data = await requireOk<{ rows?: InventorySheetRow[] }>(res, 'Failed to load inventory sheet');
   return data.rows ?? [];
 }
 
-export async function fetchOpeningBalances(storeId: string, year: string = '2024-25', signal?: AbortSignal): Promise<OpeningBalanceRow[]> {
+export async function fetchOpeningBalances(storeId: string, year: string = fiscalYearLabel(), signal?: AbortSignal): Promise<OpeningBalanceRow[]> {
   const res = await fetch(`/api/inventory/opening-balances?storeId=${encodeURIComponent(storeId)}&year=${encodeURIComponent(year)}`, { signal });
   const data = await requireOk<{ balances?: OpeningBalanceRow[] }>(res, 'Failed to load opening balances');
   return data.balances ?? [];
