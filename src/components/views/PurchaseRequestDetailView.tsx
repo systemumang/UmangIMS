@@ -2434,7 +2434,7 @@ export default function PurchaseRequestDetailView({
 	    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="font-headline font-bold text-sm text-on-surface">{requestId}</div>
+	          <div className="font-headline font-bold text-sm text-on-surface">{pr?.prNumber ?? requestId}</div>
         </div>
         {headerRight}
       </div>

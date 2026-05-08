@@ -165,7 +165,7 @@ export default function PurchaseTable({
 	          <table className="w-full text-left border-collapse">
 	            <thead>
 			              <tr className="bg-surface-container-low/50 border-b border-blue-600">
-			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">PR ID</th>
+				                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">PR</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Firm</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Department</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requested By</th>
@@ -193,7 +193,7 @@ export default function PurchaseTable({
 	                    idx === 2 && "bg-surface-container-low/20"
 		                  )}
 		                >
-		                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{req.id}</td>
+			                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{req.prNumber ?? req.id}</td>
 		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">
 			                    {firmNameById[req.firmId] ?? req.firmId}
 		                  </td>

@@ -9,6 +9,7 @@ export type Firm = {
 
 export type PurchaseRequest = {
   id: string;
+  prNumber?: string;
   firmId: string;
   store?: string | null;
   projectId?: string | null;
