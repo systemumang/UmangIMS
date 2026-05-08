@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import mysql from 'mysql2/promise';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,8 +14,12 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 
 const distDir = path.join(__dirname, 'dist');
+const uploadsDir = path.join(__dirname, 'uploads');
 
-app.use(express.json({ limit: '2mb' }));
+// Uploads and large payloads (PDF base64) can exceed 2mb.
+app.use(express.json({ limit: '25mb' }));
+
+app.use('/uploads', express.static(uploadsDir, { index: false }));
 
 let mysqlPool = null;
 function getMysqlPool() {
@@ -43,6 +48,40 @@ function getMysqlPool() {
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+app.post('/api/uploads', async (req, res) => {
+  try {
+    const fileName = String(req.body?.fileName ?? '').trim() || 'file';
+    const contentType = req.body?.contentType != null ? String(req.body.contentType).trim() : '';
+    const base64 = String(req.body?.base64 ?? '').trim();
+    if (!base64) return res.status(400).json({ error: 'base64 is required' });
+
+    const buf = Buffer.from(base64, 'base64');
+    if (!buf.length) return res.status(400).json({ error: 'Invalid base64 content' });
+
+    const ext = (() => {
+      const parsed = path.parse(fileName);
+      const raw = String(parsed.ext ?? '').toLowerCase();
+      if (raw && raw.length <= 10) return raw.replace(/[^.\w]/g, '');
+      if (contentType && contentType.includes('pdf')) return '.pdf';
+      if (contentType && contentType.includes('png')) return '.png';
+      if (contentType && contentType.includes('jpeg')) return '.jpg';
+      return '';
+    })();
+
+    const safeBase = String(path.parse(fileName).name || 'file')
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 60);
+    const storedName = `${safeBase}_${crypto.randomUUID()}${ext}`;
+
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.writeFile(path.join(uploadsDir, storedName), buf);
+
+    res.json({ url: `/uploads/${encodeURIComponent(storedName)}`, fileName });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 function toIsoDate(value) {
