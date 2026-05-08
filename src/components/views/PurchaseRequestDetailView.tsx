@@ -352,10 +352,31 @@ export default function PurchaseRequestDetailView({
 	);
 		  const [posList, setPosList] = useState<Array<{ po: Po; items: PoItem[] }>>([]);
 		  const [loadingPos, setLoadingPos] = useState(true);
-		  const [pendingCheckDateByPoId, setPendingCheckDateByPoId] = useState<Record<string, string>>({});
-		  const [pendingCheckedByByPoId, setPendingCheckedByByPoId] = useState<Record<string, string>>({});
-		  const [pendingSentDateByPoId, setPendingSentDateByPoId] = useState<Record<string, string>>({});
-		  const [pendingSentByByPoId, setPendingSentByByPoId] = useState<Record<string, string>>({});
+			  const [pendingCheckDateByPoId, setPendingCheckDateByPoId] = useState<Record<string, string>>({});
+			  const [pendingCheckedByByPoId, setPendingCheckedByByPoId] = useState<Record<string, string>>({});
+			  const [pendingSentDateByPoId, setPendingSentDateByPoId] = useState<Record<string, string>>({});
+			  const [pendingSentByByPoId, setPendingSentByByPoId] = useState<Record<string, string>>({});
+
+			  const poNumberById = useMemo(() => {
+			    const map = new Map<string, string>();
+			    for (const p of posList ?? []) {
+			      const poId = String(p?.po?.id ?? '').trim();
+			      if (!poId) continue;
+			      const poNumber = String(p?.po?.poNumber ?? '').trim();
+			      map.set(poId, poNumber);
+			    }
+			    return map;
+			  }, [posList]);
+
+			  function displayPoNumberById(poId: string) {
+			    const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
+			    return formatPoNumber(n) || '-';
+			  }
+
+			  function displayGrnNumber(grn: any) {
+			    const n = String(grn?.grnNumber ?? '').trim();
+			    return formatGrnNumber(n) || '-';
+			  }
 
 		  const sentPoIdSet = useMemo(() => {
 		    const set = new Set<string>();
@@ -8045,24 +8066,4 @@ export default function PurchaseRequestDetailView({
 	      ) : null}
 	    </div>
 	  );
-}
-  const poNumberById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of posList ?? []) {
-      const poId = String(p?.po?.id ?? '').trim();
-      if (!poId) continue;
-      const poNumber = String(p?.po?.poNumber ?? '').trim();
-      map.set(poId, poNumber);
-    }
-    return map;
-  }, [posList]);
-
-  function displayPoNumberById(poId: string) {
-    const n = poNumberById.get(String(poId ?? '').trim()) ?? '';
-    return formatPoNumber(n) || '-';
-  }
-
-  function displayGrnNumber(grn: any) {
-    const n = String(grn?.grnNumber ?? '').trim();
-    return formatGrnNumber(n) || '-';
-  }
+	}
