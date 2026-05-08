@@ -518,6 +518,7 @@ app.get('/api/workflow/:id', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const prId = String(req.params.id ?? '').trim();
     if (!prId) return res.status(400).json({ error: 'id is required' });
+    const poId = req.query?.poId != null ? String(req.query.poId).trim() : '';
 
     // Reuse PR detail query (include prNumber).
     const [[prRow]] = await pool.query(
@@ -602,10 +603,112 @@ app.get('/api/workflow/:id', async (req, res) => {
         }
       : undefined;
 
+    let po;
+    if (poId) {
+      const [[poRow]] = await pool.query(
+        `
+        SELECT
+          po.id AS id,
+          po.pr_id AS prId,
+          po.firm_id AS firmId,
+          po.po_number AS poNumber,
+          po.order_date AS orderDate,
+          po.payment_terms AS paymentTerms,
+          po.shipping_address AS shippingAddress,
+          po.terms_conditions AS termsConditions,
+          po.status AS status,
+          po.created_by AS createdBy,
+          po.created_at AS createdAt,
+          po.check_po AS checkPo,
+          po.check_po_user_id AS checkPoUserId,
+          po.check_date AS checkDate,
+          po.sent_by AS sentBy,
+          po.sent_date AS sentDate,
+          po.sent_proof AS sentProof,
+          po.supplier_id AS supplierId,
+          s.name AS supplier
+        FROM purchase_orders po
+        LEFT JOIN suppliers s ON s.id = po.supplier_id
+        WHERE po.id = ?
+        LIMIT 1
+        `,
+        [poId]
+      );
+      if (!poRow) return res.status(404).json({ error: 'PO not found' });
+      if (String(poRow.prId ?? '') !== prId) return res.status(400).json({ error: 'PO does not belong to the given PR' });
+
+      const [poItemRows] = await pool.query(
+        `
+        SELECT
+          poi.po_id AS poId,
+          poi.item_id AS itemId,
+          iname.name AS item,
+          it.specifications_json AS specificationsJson,
+          poi.quantity AS quantity,
+          poi.rate AS rate,
+          poi.discount_percent AS discountPercent,
+          poi.tax_percent AS taxPercent,
+          poi.goods_amount AS goodsAmount,
+          poi.tax_amount AS taxAmount,
+          poi.total_amount AS totalAmount
+        FROM purchase_order_items poi
+        LEFT JOIN items it ON it.id = poi.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE poi.po_id = ?
+        ORDER BY poi.created_at ASC
+        `,
+        [poId]
+      );
+
+      const poHeader = {
+        id: String(poRow.id),
+        prId: String(poRow.prId ?? ''),
+        firmId: String(poRow.firmId ?? ''),
+        orderDate: toIsoDate(poRow.orderDate) || '',
+        createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
+        supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
+        supplier: String(poRow.supplier ?? ''),
+        paymentTerms: String(poRow.paymentTerms ?? ''),
+        shippingAddress: poRow.shippingAddress != null ? String(poRow.shippingAddress) : undefined,
+        termsConditions: poRow.termsConditions != null ? String(poRow.termsConditions) : undefined,
+        status:
+          String(poRow.status ?? 'Open').toLowerCase() === 'closed'
+            ? 'Closed'
+            : String(poRow.status ?? '').toLowerCase() === 'partial'
+              ? 'Partial'
+              : 'Open',
+        createdAt: toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
+        poNumber: poRow.poNumber != null ? String(poRow.poNumber) : undefined,
+        checkPo: Boolean(poRow.checkPo),
+        checkPoUserId: poRow.checkPoUserId != null ? String(poRow.checkPoUserId) : null,
+        checkDate: toIsoDate(poRow.checkDate) || null,
+        sentBy: poRow.sentBy != null ? String(poRow.sentBy) : null,
+        sentDate: toIsoDate(poRow.sentDate) || null,
+        sentProof: poRow.sentProof != null ? String(poRow.sentProof) : null,
+      };
+
+      const poItems = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
+        poId: String(r.poId ?? ''),
+        itemId: String(r.itemId ?? ''),
+        item: String(r.item ?? ''),
+        specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+        quantity: Number(r.quantity ?? 0),
+        rate: Number(r.rate ?? 0),
+        discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
+        taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+        goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
+        taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
+        totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+      }));
+
+      po = { po: poHeader, items: poItems };
+    }
+
     res.json({
       workflow: {
         firm,
         pr: { pr, items },
+        ...(po ? { po } : {}),
         flags: { invoiceRateMismatch: false, quantityMismatch: false },
       },
     });
@@ -1610,8 +1713,135 @@ app.get('/api/requests/:id/pos', async (req, res) => {
 });
 
 // GRNs/QC helpers for PR detail (wired; implement fully later as needed)
-app.get('/api/requests/:id/grns', async (_req, res) => res.json({ grns: [] }));
-app.get('/api/requests/:id/pending-grn-pos', async (_req, res) => res.json({ pos: [] }));
+app.get('/api/requests/:id/grns', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [grnRows] = await pool.query(
+      `
+      SELECT
+        g.id AS id,
+        g.po_id AS poId,
+        g.grn_number AS grnNumber,
+        g.received_date AS receivedDate,
+        g.created_at AS createdAt,
+        g.updated_by AS updatedBy,
+        g.material_received_by AS materialReceivedBy,
+        g.goods_collected_by AS goodsCollectedBy
+      FROM grns g
+      INNER JOIN purchase_orders po ON po.id = g.po_id
+      WHERE po.pr_id = ?
+      ORDER BY g.received_date DESC, g.created_at DESC
+      `,
+      [prId]
+    );
+
+    const grnIds = (Array.isArray(grnRows) ? grnRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    let itemsByGrnId = new Map();
+    if (grnIds.length) {
+      const placeholders = grnIds.map(() => '?').join(',');
+      const [itemRows] = await pool.query(
+        `
+        SELECT
+          gi.id AS id,
+          gi.grn_id AS grnId,
+          gi.item_id AS itemId,
+          iname.name AS item,
+          it.specifications_json AS specificationsJson,
+          gi.received_qty AS quantityReceived
+        FROM grn_items gi
+        LEFT JOIN items it ON it.id = gi.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE gi.grn_id IN (${placeholders})
+        ORDER BY gi.created_at ASC
+        `,
+        grnIds
+      );
+
+      itemsByGrnId = new Map();
+      for (const r of Array.isArray(itemRows) ? itemRows : []) {
+        const grnId = String(r.grnId ?? '').trim();
+        if (!grnId) continue;
+        if (!itemsByGrnId.has(grnId)) itemsByGrnId.set(grnId, []);
+        itemsByGrnId.get(grnId).push({
+          id: String(r.id ?? ''),
+          grnId,
+          itemId: String(r.itemId ?? ''),
+          item: String(r.item ?? ''),
+          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+          quantityReceived: Number(r.quantityReceived ?? 0),
+        });
+      }
+    }
+
+    const grns = (Array.isArray(grnRows) ? grnRows : []).map((r) => {
+      const grnId = String(r.id ?? '');
+      return {
+        grn: {
+          id: grnId,
+          poId: String(r.poId ?? ''),
+          invoiceId: '',
+          receivedDate: toIsoDate(r.receivedDate) || '',
+          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+          updatedBy: r.updatedBy != null ? String(r.updatedBy) : undefined,
+          materialReceivedBy: r.materialReceivedBy != null ? String(r.materialReceivedBy) : null,
+          goodsCollectedBy: r.goodsCollectedBy != null ? String(r.goodsCollectedBy) : null,
+          grnNumber: r.grnNumber != null ? String(r.grnNumber) : undefined,
+        },
+        items: itemsByGrnId.get(grnId) ?? [],
+      };
+    });
+
+    res.json({ grns });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/requests/:id/pending-grn-pos', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        GREATEST(0, COALESCE(poq.poQty, 0) - COALESCE(grnq.grnQty, 0)) AS pendingQty
+      FROM purchase_orders po
+      LEFT JOIN (
+        SELECT poi.po_id AS poId, SUM(poi.quantity) AS poQty
+        FROM purchase_order_items poi
+        GROUP BY poi.po_id
+      ) poq ON poq.poId = po.id
+      LEFT JOIN (
+        SELECT g.po_id AS poId, SUM(gi.received_qty) AS grnQty
+        FROM grns g
+        INNER JOIN grn_items gi ON gi.grn_id = g.id
+        GROUP BY g.po_id
+      ) grnq ON grnq.poId = po.id
+      WHERE po.pr_id = ?
+      HAVING pendingQty > 1e-9
+      ORDER BY po.created_at ASC
+      `,
+      [prId]
+    );
+
+    const pos = (Array.isArray(rows) ? rows : []).map((r) => ({
+      poId: String(r.poId ?? ''),
+      pendingQty: Number(r.pendingQty ?? 0),
+    }));
+
+    res.json({ pos });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 app.get('/api/requests/:id/qc-records', async (req, res) => {
   try {
     const pool = getMysqlPool();
