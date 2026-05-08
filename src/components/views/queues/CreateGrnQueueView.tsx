@@ -139,7 +139,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   function displayUserName(rawValue: string | null | undefined) {
     const v = String(rawValue ?? '').trim();
     if (!v) return '-';
-    if (v.startsWith('USER-')) return masters.users.find((u) => u.id === v)?.name ?? v;
+    const byId = masters.users.find((u) => String(u.id ?? '').trim() === v);
+    if (byId?.name) return String(byId.name);
+    // Hide internal ids if we don't have a name mapping.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return '-';
     return v;
   }
 
@@ -181,7 +184,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   pagedRows.map((r) => (
                     <tr key={r.poId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId)}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber(r.prId)}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
@@ -405,9 +408,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
                         {idx === 0 ? (
                           <>
-                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm font-semibold text-on-surface border border-black align-top break-words">
-                              {formatPoNumber(activePoDetails.po.id)}
-                            </td>
+	                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm font-semibold text-on-surface border border-black align-top break-words">
+	                              {formatPoNumber(activePoDetails.po.poNumber ?? activePoDetails.po.id) || '-'}
+	                            </td>
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
                               {activePoDetails.po.supplier || '-'}
                             </td>

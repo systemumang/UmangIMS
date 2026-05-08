@@ -2365,6 +2365,88 @@ app.put('/api/pos/:id/check-sent', async (req, res) => {
   }
 });
 
+// Pending invoice items for a PO (qty not yet invoiced)
+app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        poi.item_id AS itemId,
+        iname.name AS item,
+        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(SUM(ii.quantity), 0)) AS pendingQty,
+        poi.rate AS rate
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN invoices inv ON inv.po_id = poi.po_id
+      LEFT JOIN invoice_items ii ON ii.invoice_id = inv.id AND ii.item_id = poi.item_id
+      WHERE poi.po_id = ?
+      GROUP BY poi.item_id, iname.name, poi.quantity, poi.rate
+      HAVING pendingQty > 1e-9
+      ORDER BY iname.name ASC
+      `,
+      [poId]
+    );
+
+    const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      pendingQty: Number(r.pendingQty ?? 0),
+      rate: Number(r.rate ?? 0),
+    }));
+
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Pending GRN items for a PO (qty not yet received)
+app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        poi.item_id AS itemId,
+        iname.name AS item,
+        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(SUM(gi.received_qty), 0)) AS pendingQty,
+        poi.rate AS rate
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN grns g ON g.po_id = poi.po_id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
+      WHERE poi.po_id = ?
+      GROUP BY poi.item_id, iname.name, poi.quantity, poi.rate
+      HAVING pendingQty > 1e-9
+      ORDER BY iname.name ASC
+      `,
+      [poId]
+    );
+
+    const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      pendingQty: Number(r.pendingQty ?? 0),
+      rate: Number(r.rate ?? 0),
+    }));
+
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // --- Masters: Suppliers ---
 app.get('/api/masters/suppliers', async (_req, res) => {
   try {
