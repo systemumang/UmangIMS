@@ -785,17 +785,40 @@ function getFullItemLabel(item: Item) {
 
 function formatSpecs(specificationsJson: string) {
   const raw = String(specificationsJson ?? '').trim();
-  if (!raw) return '';
-  const looksLikeUuid = (v: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v ?? '').trim());
+  if (!raw || raw === '[]' || raw === '{}') return '';
   try {
-    const obj = JSON.parse(raw) as Record<string, unknown>;
-    if (!obj || typeof obj !== 'object') return '';
-    const entries = Object.entries(obj)
-      .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()] as const)
-      .filter(([k, v]) => k && v && !looksLikeUuid(k) && !looksLikeUuid(v));
-    if (entries.length === 0) return '';
-    return entries.map(([k, v]) => `${k}: ${v}`).join(' - ');
+    const obj = JSON.parse(raw);
+    if (!obj) return '';
+    
+    // Handle array of { specificationName, value } or { name, value }
+    if (Array.isArray(obj)) {
+      return obj
+        .map((s: any) => {
+          const name = s.specificationName || s.name || '';
+          const val = s.specificationValue || s.value || '';
+          if (!name || !val) return '';
+          return `${name}: ${val}`;
+        })
+        .filter(Boolean)
+        .join(' - ');
+    }
+
+    // Handle object { specName: value }
+    if (typeof obj === 'object') {
+      const looksLikeUuid = (v: string) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v ?? '').trim());
+      
+      return Object.entries(obj)
+        .map(([k, v]) => {
+          const key = String(k).trim();
+          const val = String(v ?? '').trim();
+          if (!key || !val || looksLikeUuid(key) || looksLikeUuid(val)) return '';
+          return `${key}: ${val}`;
+        })
+        .filter(Boolean)
+        .join(' - ');
+    }
+    return '';
   } catch {
     return '';
   }
@@ -804,7 +827,8 @@ function formatSpecs(specificationsJson: string) {
 function getFullSheetItemLabel(row: InventorySheetRow) {
   const name = String(row.itemName ?? '').trim();
   const specText = formatSpecs(row.specifications);
-  return [name, specText].filter(Boolean).join(' - ') || String(row.itemCode ?? '').trim() || '';
+  const label = [name, specText].filter(Boolean).join(' - ');
+  return label || String(row.itemCode ?? '').trim() || '-';
 }
 
 function getStoreLabel(row: InventorySheetRow) {

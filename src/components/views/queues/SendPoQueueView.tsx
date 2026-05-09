@@ -5,6 +5,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchPos, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueSendPo, type QueueFilters, type SendPoQueueRow } from '@/src/lib/queues';
 import { cn } from '@/src/lib/utils';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -64,7 +65,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
   const [sentUserId, setSentUserId] = useState('');
   const [sentDate, setSentDate] = useState(todayIsoDate());
   const [sentProofName, setSentProofName] = useState('');
-  const [sentProofDataUrl, setSentProofDataUrl] = useState('');
+  const [sentProofFile, setSentProofFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -111,7 +112,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     setSentUserId('');
     setSentDate(todayIsoDate());
     setSentProofName('');
-    setSentProofDataUrl('');
+    setSentProofFile(null);
     setSaving(false);
     setModalError(null);
     setActivePoDetails(null);
@@ -212,29 +213,34 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={saving || !active || !sentUserId || !sentDate || !sentProofDataUrl.trim() || detailLoading || !activePoDetails}
-              onClick={() => {
-	                if (!active) return;
-	                if (!sentUserId) {
-	                  setModalError('Sent By is required');
-	                  return;
-	                }
-                if (!sentProofDataUrl.trim()) {
+              disabled={saving || !active || !sentUserId || !sentDate || !sentProofFile || detailLoading || !activePoDetails}
+              onClick={async () => {
+                if (!active) return;
+                if (!sentUserId) {
+                  setModalError('Sent By is required');
+                  return;
+                }
+                if (!sentProofFile) {
                   setModalError('Sent Proof is required');
                   return;
                 }
-	                setSaving(true);
-	                setModalError(null);
-	                updatePoCheckAndSent(active.poId, {
-	                  sentBy: sentUserId,
-	                  sentDate,
-	                  sentProof: sentProofDataUrl.trim(),
-	                  updatedBy: masters.users.find((u) => u.id === sentUserId)?.name ?? 'system',
-	                })
-                  .then(() => fetchQueueSendPo(filters).then(setRows))
-                  .then(() => closeModal())
-                  .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
-                  .finally(() => setSaving(false));
+                setSaving(true);
+                setModalError(null);
+                try {
+                  const { url: sentProofUrl } = await uploadFileToServer(sentProofFile);
+                  await updatePoCheckAndSent(active.poId, {
+                    sentBy: sentUserId,
+                    sentDate,
+                    sentProof: sentProofUrl,
+                    updatedBy: masters.users.find((u) => u.id === sentUserId)?.name ?? 'system',
+                  });
+                  await fetchQueueSendPo(filters).then(setRows);
+                  closeModal();
+                } catch (e) {
+                  setModalError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setSaving(false);
+                }
               }}
             >
               {saving ? 'Saving...' : 'Save'}
@@ -314,7 +320,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                                   setSentUserId(e.target.value);
                                   setSentDate(todayIsoDate());
                                   setSentProofName('');
-                                  setSentProofDataUrl('');
+                                  setSentProofFile(null);
                                 }}
                               >
                                 {userOptions.map((o) => (
@@ -347,22 +353,12 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                                     const file = e.target.files?.[0];
                                     if (!file) {
                                       setSentProofName('');
-                                      setSentProofDataUrl('');
+                                      setSentProofFile(null);
                                       return;
                                     }
                                     setSentProofName(file.name);
+                                    setSentProofFile(file);
                                     setModalError(null);
-                                    const reader = new FileReader();
-                                    reader.onload = () => {
-                                      const next = typeof reader.result === 'string' ? reader.result : '';
-                                      setSentProofDataUrl(next);
-                                    };
-                                    reader.onerror = () => {
-                                      setSentProofName('');
-                                      setSentProofDataUrl('');
-                                      setModalError('Failed to read selected file');
-                                    };
-                                    reader.readAsDataURL(file);
                                   }}
                                 />
                                 <label

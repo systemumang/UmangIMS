@@ -52,6 +52,7 @@ import { inputClass, labelClass } from '@/src/components/views/queues/shared';
 						  type LastSupplierInfoWithId,
 				} from '@/src/lib/purchaseRequests';
 	import { cn } from '@/src/lib/utils';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import {
@@ -136,6 +137,32 @@ function formatSpecsLines(
       .map((s) => s.trim())
       .filter(Boolean);
   }
+}
+
+function openDocument(url: string) {
+  if (!url) return;
+  const s = String(url).trim();
+  if (s.startsWith('data:')) {
+    try {
+      const parts = s.split(';base64,');
+      if (parts.length === 2) {
+        const contentType = parts[0].split(':')[1] || 'application/octet-stream';
+        const byteCharacters = atob(parts[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to open base64 document', e);
+    }
+  }
+  window.open(s, '_blank');
 }
 
 function formatItemInline(
@@ -2755,7 +2782,7 @@ export default function PurchaseRequestDetailView({
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
 	                                  {String((p as any)?.po?.sentProof ?? '') ? (
-	                                    <button type="button" className="btn btn-sm" onClick={() => window.open(String((p as any)?.po?.sentProof ?? ''), '_blank')}>
+	                                    <button type="button" className="btn btn-sm" onClick={() => openDocument(String((p as any)?.po?.sentProof ?? ''))}>
 	                                      View
 	                                    </button>
 	                                  ) : (
@@ -3784,7 +3811,7 @@ export default function PurchaseRequestDetailView({
 					                                                <button
 					                                                  type="button"
 					                                                  className="px-2 py-1 text-[11px] font-semibold text-on-primary bg-primary rounded-md hover:bg-primary/90"
-					                                                  onClick={() => window.open(p.po.sentProof || '', '_blank')}
+					                                                  onClick={() => openDocument(p.po.sentProof || '')}
 					                                                >
 					                                                  View
 					                                                </button>
@@ -3825,29 +3852,21 @@ export default function PurchaseRequestDetailView({
 						                                              const file = e.target.files?.[0];
 						                                              e.target.value = '';
 						                                              if (!file) return;
-						                                              const reader = new FileReader();
-						                                              reader.onload = () => {
-						                                                const result = reader.result;
-						                                                const dataUrl = typeof result === 'string' ? result : '';
-						                                                if (!dataUrl) return;
+						                                              run(async () => {
+						                                                const { url: sentProofUrl } = await uploadFileToServer(file);
 						                                                const next = {
 						                                                  checkPo: true,
 						                                                  checkPoUserId: p.po.checkPoUserId ?? null,
 						                                                  checkDate: p.po.checkDate || today,
 						                                                  sentBy: p.po.sentBy ?? null,
 						                                                  sentDate: p.po.sentDate || today,
-						                                                  sentProof: dataUrl,
+						                                                  sentProof: sentProofUrl,
 						                                                };
-						                                                run(() =>
-						                                                  updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((r) => {
-						                                                    if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
-						                                                    return undefined;
-						                                                  })
-						                                                );
-						                                              };
-						                                              reader.readAsDataURL(file);
-						                                            }}
-						                                          />
+						                                                const r = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' });
+						                                                if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
+						                                                return undefined;
+						                                              });
+						                                            }}						                                          />
 						                                        </div>
 							                                      ) : (
 							                                        <div className="text-base text-on-surface-variant">-</div>
@@ -4253,7 +4272,7 @@ export default function PurchaseRequestDetailView({
 							                                              <button
 							                                                type="button"
 							                                                className="px-2 py-1 text-[11px] font-semibold text-on-primary bg-primary rounded-md hover:bg-primary/90"
-							                                                onClick={() => window.open(p.po.sentProof || '', '_blank')}
+							                                                onClick={() => openDocument(p.po.sentProof || '')}
 							                                              >
 							                                                View
 							                                              </button>
@@ -4295,11 +4314,8 @@ export default function PurchaseRequestDetailView({
 							                                              const file = e.target.files?.[0];
 							                                              e.target.value = '';
 							                                              if (!file) return;
-							                                              const reader = new FileReader();
-							                                              reader.onload = () => {
-							                                                const result = reader.result;
-							                                                const dataUrl = typeof result === 'string' ? result : '';
-							                                                if (!dataUrl) return;
+							                                              run(async () => {
+							                                                const { url: sentProofUrl } = await uploadFileToServer(file);
 							                                                const resolvedSentBy = String(pendingSentByByPoId[p.po.id] ?? p.po.sentBy ?? '').trim() || null;
 							                                                const resolvedSentDate = pendingSentDateByPoId[p.po.id] ?? p.po.sentDate ?? today;
 							                                                const next = {
@@ -4308,17 +4324,13 @@ export default function PurchaseRequestDetailView({
 							                                                  checkDate: p.po.checkDate || today,
 							                                                  sentBy: resolvedSentBy,
 							                                                  sentDate: resolvedSentDate,
-							                                                  sentProof: dataUrl,
+							                                                  sentProof: sentProofUrl,
 							                                                };
-							                                                run(() =>
-							                                                  updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((res) => {
-							                                                    if (res.po)
-							                                                      setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
-							                                                    return undefined;
-							                                                  })
-							                                                );
-							                                              };
-							                                              reader.readAsDataURL(file);
+							                                                const res = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' });
+							                                                if (res.po)
+							                                                  setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
+							                                                return undefined;
+							                                              });
 							                                            }}
 							                                          />
 							                                          <label
@@ -4479,7 +4491,7 @@ export default function PurchaseRequestDetailView({
 				                                <button
 				                                  type="button"
 				                                  className="underline font-bold text-on-surface hover:text-primary"
-				                                  onClick={() => window.open(activePoDetails.po.sentProof || '', '_blank')}
+				                                  onClick={() => openSentProof(activePoDetails.po.sentProof || '')}
 				                                >
 				                                  View
 				                                </button>
@@ -5421,7 +5433,7 @@ export default function PurchaseRequestDetailView({
 				                                  <button
 				                                    type="button"
 				                                    className="px-2 py-1 text-[11px] font-semibold text-on-primary bg-primary rounded-md hover:bg-primary/90"
-				                                    onClick={() => window.open(invoicePdf || '', '_blank')}
+				                                    onClick={() => openDocument(invoicePdf || '')}
 				                                  >
 				                                    View
 				                                  </button>
