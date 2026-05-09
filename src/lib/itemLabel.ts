@@ -22,22 +22,43 @@ function stripEmbeddedIds(value: string) {
 
 export function formatSpecsLines(specificationsJson?: string) {
   try {
-    const obj = JSON.parse(String(specificationsJson ?? '')) as Record<string, unknown>;
-    const entries = Object.entries(obj);
-    if (!entries.length) return [];
-    return entries
-      .map(([k, v]) => {
-        const key = stripEmbeddedIds(String(k ?? '').trim());
-        const value = stripEmbeddedIds(String(v ?? '').trim());
-        const safeKey = isUuidLike(key) ? '' : key;
-        const safeValue = isUuidLike(value) ? '' : value;
-        if (!safeKey && !safeValue) return '';
-        if (!safeKey) return safeValue;
-        if (!safeValue) return safeKey;
-        return `${safeKey}: ${safeValue}`;
-      })
-      .map((s) => String(s ?? '').trim())
-      .filter(Boolean);
+    const raw = String(specificationsJson ?? '').trim();
+    if (!raw || raw === '[]' || raw === '{}') return [];
+    const obj = JSON.parse(raw);
+    
+    if (Array.isArray(obj)) {
+      return obj
+        .map((s: any) => {
+          const name = stripEmbeddedIds(s.specificationName || s.name || '');
+          const val = stripEmbeddedIds(s.specificationValue || s.value || '');
+          const safeKey = isUuidLike(name) ? '' : name;
+          const safeValue = isUuidLike(val) ? '' : val;
+          if (!safeKey && !safeValue) return '';
+          if (!safeKey) return safeValue;
+          if (!safeValue) return safeKey;
+          return `${safeKey}: ${safeValue}`;
+        })
+        .map((s) => String(s ?? '').trim())
+        .filter(Boolean);
+    }
+
+    if (typeof obj === 'object' && obj !== null) {
+      const entries = Object.entries(obj);
+      return entries
+        .map(([k, v]) => {
+          const key = stripEmbeddedIds(String(k ?? '').trim());
+          const value = stripEmbeddedIds(String(v ?? '').trim());
+          const safeKey = isUuidLike(key) ? '' : key;
+          const safeValue = isUuidLike(value) ? '' : value;
+          if (!safeKey && !safeValue) return '';
+          if (!safeKey) return safeValue;
+          if (!safeValue) return safeKey;
+          return `${safeKey}: ${safeValue}`;
+        })
+        .map((s) => String(s ?? '').trim())
+        .filter(Boolean);
+    }
+    return [];
   } catch {
     return stripEmbeddedIds(String(specificationsJson ?? ''))
       .split(/\r?\n/)
