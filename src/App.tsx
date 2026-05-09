@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { LayoutDashboard } from 'lucide-react';
 import Sidebar, { type NavView, type PendingQueueKey, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
 import DashboardView from './components/views/DashboardView';
