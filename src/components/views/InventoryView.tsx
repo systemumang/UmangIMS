@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Settings, Save, ArrowUpDown } from 'lucide-react';
-import { fetchFirms, fetchStores, fetchItems, type Firm, type Store, type Item } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchSpecifications, type Firm, type Store, type Item, type Specification } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
 import { formatItemInline } from '@/src/lib/itemLabel';

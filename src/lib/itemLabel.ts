@@ -20,7 +20,7 @@ function stripEmbeddedIds(value: string) {
     .trim();
 }
 
-export function formatSpecsLines(specificationsJson?: string) {
+export function formatSpecsLines(specificationsJson?: string, specNameById?: Record<string, string>) {
   try {
     const raw = String(specificationsJson ?? '').trim();
     if (!raw || raw === '[]' || raw === '{}') return [];
@@ -29,7 +29,8 @@ export function formatSpecsLines(specificationsJson?: string) {
     if (Array.isArray(obj)) {
       return obj
         .map((s: any) => {
-          const name = stripEmbeddedIds(s.specificationName || s.name || '');
+          const rawName = s.specificationName || s.name || '';
+          const name = specNameById?.[rawName] ?? stripEmbeddedIds(rawName);
           const val = stripEmbeddedIds(s.specificationValue || s.value || '');
           const safeKey = isUuidLike(name) ? '' : name;
           const safeValue = isUuidLike(val) ? '' : val;
@@ -46,7 +47,8 @@ export function formatSpecsLines(specificationsJson?: string) {
       const entries = Object.entries(obj);
       return entries
         .map(([k, v]) => {
-          const key = stripEmbeddedIds(String(k ?? '').trim());
+          const rawKey = String(k ?? '').trim();
+          const key = specNameById?.[rawKey] ?? stripEmbeddedIds(rawKey);
           const value = stripEmbeddedIds(String(v ?? '').trim());
           const safeKey = isUuidLike(key) ? '' : key;
           const safeValue = isUuidLike(value) ? '' : value;
@@ -68,9 +70,9 @@ export function formatSpecsLines(specificationsJson?: string) {
   }
 }
 
-export function formatItemInline(itemName: string, specificationsJson?: string) {
+export function formatItemInline(itemName: string, specificationsJson?: string, specNameById?: Record<string, string>) {
   const base = String(itemName ?? '').trim();
-  const specs = formatSpecsLines(specificationsJson);
+  const specs = formatSpecsLines(specificationsJson, specNameById);
   return [base, ...specs]
     .map((s) => String(s ?? '').trim())
     .filter(Boolean)
