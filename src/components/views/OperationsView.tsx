@@ -268,6 +268,14 @@ export default function OperationsView({ onViewPr }: { onViewPr?: (prId: string)
 		      onViewPr(entry.id);
 		      return;
 		    }
+		    // PO rows can optionally open the Purchase Request detail screen (so user sees Existing POs grid).
+		    if (tab === 'pos' && typeof onViewPr === 'function') {
+		      const prId = String(row?.prId ?? '').trim();
+		      if (prId) {
+		        onViewPr(prId);
+		        return;
+		      }
+		    }
 		    setDetailStack([entry]);
 		    loadDetail(entry);
 		  }
