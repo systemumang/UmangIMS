@@ -109,6 +109,7 @@ export default function App() {
 
 		  const topBar = useMemo(() => {
 		    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
+		    if (view === 'home') return { title: 'Home', showSearch: false };
 		    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
 		    if (view === 'operations') return { title: 'Operations', showSearch: false };
 		    if (view === 'stockMaster') {
@@ -288,6 +289,13 @@ export default function App() {
 	        
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
 				          {view === 'dashboard' ? (
+				            <div className="flex flex-col items-center justify-center min-h-[400px] text-on-surface-variant italic space-y-4">
+				              <LayoutDashboard size={48} className="opacity-20" />
+				              <div>Dashboard view is currently blank.</div>
+				            </div>
+				          ) : null}
+
+				          {view === 'home' ? (
 				            <DashboardView
 				              onNewPurchaseRequest={() => {
 				                setSelectedRequestId(null);

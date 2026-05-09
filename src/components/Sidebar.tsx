@@ -1,6 +1,7 @@
 import React from 'react';
 				import { 
 						  LayoutDashboard, 
+						  Home,
 						  ShoppingCart, 
 						  Boxes, 
 						  Database,
@@ -15,6 +16,7 @@ import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
 export type NavView =
   | 'dashboard'
+  | 'home'
   | 'purchasing'
   | 'operations'
   | 'inventory'
@@ -63,6 +65,7 @@ const stockMasterItems: Array<{ key: StockMasterTab; label: string }> = [
 	  view: NavView;
 	}> = [
 	  { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
+	  { icon: Home, label: 'Home', view: 'home' },
 			  { icon: ShoppingCart, label: 'Purchase Requests', view: 'purchasing' },
 			  { icon: ClipboardList, label: 'Pending Tasks', view: 'pendingTasks' },
 			  { icon: Boxes, label: 'Operations', view: 'operations' },
