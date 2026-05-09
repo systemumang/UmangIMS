@@ -36,7 +36,7 @@ export type PendingQueueKey =
   | 'queueLinkInvoiceGrn'
   | 'queuePayment';
 
-const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> = [
+export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> = [
   { key: 'queueApprovePr', label: 'Approve PR' },
   { key: 'queueCreatePo', label: 'Create PO' },
   { key: 'queueCheckPo', label: 'Check PO' },

@@ -301,6 +301,13 @@ export default function App() {
 				                setPendingExpanded(false);
 				                setView('stockMaster');
 				              }}
+				              onNavigatePendingQueue={(key) => {
+				                setSelectedRequestId(null);
+				                setMastersExpanded(false);
+				                setStockMasterExpanded(false);
+				                setPendingExpanded(true);
+				                setView(key);
+				              }}
 				            />
 				          ) : null}
 		          {view === 'purchasing' ? (
