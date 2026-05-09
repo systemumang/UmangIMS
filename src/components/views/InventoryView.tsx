@@ -3,6 +3,7 @@ import { Search, Settings, Save, ArrowUpDown } from 'lucide-react';
 import { fetchFirms, fetchStores, fetchItems, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import Spinner from '@/src/components/common/Spinner';
 import { Modal, inputClass, labelClass } from './queues/shared';
 
@@ -161,8 +162,9 @@ export default function InventoryView() {
 
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
+    const fullLabel = getFullSheetItemLabel(r).toLowerCase();
     const bySearch =
-      r.itemName.toLowerCase().includes(search.toLowerCase()) ||
+      fullLabel.includes(search.toLowerCase()) ||
       r.itemCode.toLowerCase().includes(search.toLowerCase());
 
     if (!selectedStoreName) return bySearch;
@@ -776,59 +778,11 @@ function cn(...classes: any[]) {
 }
 
 function getFullItemLabel(item: Item) {
-  const name = String(item.itemName ?? '').trim();
-  const desc = String(item.description ?? '').trim();
-  const specText = formatSpecs(item.specificationsJson);
-  const parts = [name, specText, desc].filter(Boolean);
-  return parts.join(' - ') || item.itemCode;
-}
-
-function formatSpecs(specificationsJson: string) {
-  const raw = String(specificationsJson ?? '').trim();
-  if (!raw || raw === '[]' || raw === '{}') return '';
-  try {
-    const obj = JSON.parse(raw);
-    if (!obj) return '';
-    
-    // Handle array of { specificationName, value } or { name, value }
-    if (Array.isArray(obj)) {
-      return obj
-        .map((s: any) => {
-          const name = s.specificationName || s.name || '';
-          const val = s.specificationValue || s.value || '';
-          if (!name || !val) return '';
-          return `${name}: ${val}`;
-        })
-        .filter(Boolean)
-        .join(' - ');
-    }
-
-    // Handle object { specName: value }
-    if (typeof obj === 'object') {
-      const looksLikeUuid = (v: string) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v ?? '').trim());
-      
-      return Object.entries(obj)
-        .map(([k, v]) => {
-          const key = String(k).trim();
-          const val = String(v ?? '').trim();
-          if (!key || !val || looksLikeUuid(key) || looksLikeUuid(val)) return '';
-          return `${key}: ${val}`;
-        })
-        .filter(Boolean)
-        .join(' - ');
-    }
-    return '';
-  } catch {
-    return '';
-  }
+  return formatItemInline(item.itemName, item.specificationsJson);
 }
 
 function getFullSheetItemLabel(row: InventorySheetRow) {
-  const name = String(row.itemName ?? '').trim();
-  const specText = formatSpecs(row.specifications);
-  const label = [name, specText].filter(Boolean).join(' - ');
-  return label || String(row.itemCode ?? '').trim() || '-';
+  return formatItemInline(row.itemName, row.specifications);
 }
 
 function getStoreLabel(row: InventorySheetRow) {
