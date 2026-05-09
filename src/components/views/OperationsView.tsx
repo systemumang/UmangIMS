@@ -41,7 +41,7 @@ function formatIsoDateShort(s: string) {
   return t.length >= 10 ? t.slice(0, 10).split('-').reverse().join('/') : t;
 }
 
-export default function OperationsView() {
+export default function OperationsView({ onViewPr }: { onViewPr?: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [tab, setTab] = useState<OpsTab>('prs');
 
@@ -261,11 +261,16 @@ export default function OperationsView() {
 	      });
 	  }
 
-	  function openDetailForRow(row: any) {
-	    const entry = entryFromRow(row);
-	    setDetailStack([entry]);
-	    loadDetail(entry);
-	  }
+		  function openDetailForRow(row: any) {
+		    const entry = entryFromRow(row);
+		    // PR rows can optionally open the full Purchase Request detail screen.
+		    if (entry.tab === 'prs' && typeof onViewPr === 'function') {
+		      onViewPr(entry.id);
+		      return;
+		    }
+		    setDetailStack([entry]);
+		    loadDetail(entry);
+		  }
 
 	  function pushDetail(entry: DetailEntry) {
 	    setDetailStack((prev) => [...prev, entry]);

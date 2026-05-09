@@ -300,7 +300,7 @@ export default function App() {
               }}
             />
 		          ) : null}
-		          {view === 'operations' ? <OperationsView /> : null}
+			          {view === 'operations' ? <OperationsView onViewPr={openPrDetail} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 		          {view === 'stockMaster' ? (
