@@ -266,12 +266,21 @@ export default function PurchaseRequestDetailView({
   requestId: string | null;
   onBack: () => void;
 }) {
-	  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
+		  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loading, setLoading] = useState(false);
-	  const [busy, setBusy] = useState(false);
-	  const [error, setError] = useState<string | null>(null);
-	  const [lastSupplierByItemId, setLastSupplierByItemId] = useState<Record<string, LastSupplierInfoWithId>>({});
+		  const [busy, setBusy] = useState(false);
+		  const [error, setError] = useState<string | null>(null);
+		  const [lastSupplierByItemId, setLastSupplierByItemId] = useState<Record<string, LastSupplierInfoWithId>>({});
+
+		  // When navigating from other screens (Operations/Queues), ensure we start at the top.
+		  useEffect(() => {
+		    try {
+		      if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+		    } catch {
+		      // ignore
+		    }
+		  }, [requestId]);
 
 		  const [approveByUserId, setApproveByUserId] = useState('');
 	  const [rejectByUserId, setRejectByUserId] = useState('');
