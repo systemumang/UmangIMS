@@ -33,9 +33,9 @@ export default function App() {
 		  type PendingQueueView = PendingQueueKey;
 		  type View = NavView | PendingQueueView | 'newPurchaseRequest' | 'purchaseRequestDetail' | 'stockMaster' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster';
 		  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
-		  const [view, setView] = useState<View>('purchasing');
+		  const [view, setView] = useState<View>('dashboard');
 		  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-		  const [detailBackView, setDetailBackView] = useState<View>('purchasing');
+		  const [detailBackView, setDetailBackView] = useState<View>('dashboard');
 		  const [mastersTab, setMastersTab] = useState<MastersTab>('firms');
 		  const [mastersExpanded, setMastersExpanded] = useState(false);
 		  const [pendingExpanded, setPendingExpanded] = useState(false);
@@ -307,6 +307,14 @@ export default function App() {
 				                setStockMasterExpanded(false);
 				                setPendingExpanded(true);
 				                setView(key);
+				              }}
+				              onNavigateMastersTab={(tab) => {
+				                setMastersTab(tab);
+				                setSelectedRequestId(null);
+				                setMastersExpanded(true);
+				                setPendingExpanded(false);
+				                setStockMasterExpanded(false);
+				                setView('masters');
 				              }}
 				            />
 				          ) : null}

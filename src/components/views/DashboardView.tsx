@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, ClipboardList } from 'lucide-react';
+import { Plus, ClipboardList, Database } from 'lucide-react';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
+import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
 type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
@@ -8,10 +9,12 @@ export default function DashboardView({
   onNewPurchaseRequest,
   onNavigateStockMasterTab,
   onNavigatePendingQueue,
+  onNavigateMastersTab,
 }: {
   onNewPurchaseRequest: () => void;
   onNavigateStockMasterTab: (tab: StockMasterTab) => void;
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
+  onNavigateMastersTab: (tab: MastersTab) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -82,26 +85,18 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Bottom Style Pending Task View */}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-        <div className="font-headline font-bold text-sm text-on-surface mb-4">Pending Task Overview</div>
-        <div className="flex flex-col gap-2">
-          {pendingQueueItems.map((item) => (
+        <div className="font-headline font-bold text-sm text-on-surface mb-4">Masters</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {MASTERS_TABS.map((tab) => (
             <button
-              key={item.key}
+              key={tab.key}
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-surface-container-high transition-colors text-left border border-outline-variant/5"
-              onClick={() => onNavigatePendingQueue(item.key)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+              onClick={() => onNavigateMastersTab(tab.key)}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <ClipboardList size={16} />
-                </div>
-                <span className="text-sm font-medium text-on-surface">{item.label}</span>
-              </div>
-              <div className="text-xs font-bold text-primary uppercase tracking-widest">
-                View Queue
-              </div>
+              <Database size={16} />
+              {tab.label}
             </button>
           ))}
         </div>
