@@ -44,7 +44,7 @@ function formatIsoDateShort(s: string) {
 export default function OperationsView({
   onViewPr,
 }: {
-  onViewPr?: (prId: string, opts?: { scrollTo?: 'top' | 'existingPos' }) => void;
+  onViewPr?: (prId: string, opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' }) => void;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [tab, setTab] = useState<OpsTab>('prs');
@@ -276,7 +276,7 @@ export default function OperationsView({
 		    if (tab === 'pos' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
 		      if (prId) {
-		        onViewPr(prId, { scrollTo: 'existingPos' });
+		        onViewPr(prId, { scrollTo: 'existingPos', view: 'existingPosOnly' } as any);
 		        return;
 		      }
 		    }

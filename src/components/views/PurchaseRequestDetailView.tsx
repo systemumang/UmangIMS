@@ -262,10 +262,12 @@ const compactSurfaceInputClass =
 export default function PurchaseRequestDetailView({
   requestId,
   initialScrollTo = 'top',
+  initialView = 'full',
   onBack,
 }: {
   requestId: string | null;
   initialScrollTo?: 'top' | 'existingPos';
+  initialView?: 'full' | 'existingPosOnly';
   onBack: () => void;
 }) {
 		  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
@@ -274,6 +276,8 @@ export default function PurchaseRequestDetailView({
 		  const [busy, setBusy] = useState(false);
 		  const [error, setError] = useState<string | null>(null);
 		  const [lastSupplierByItemId, setLastSupplierByItemId] = useState<Record<string, LastSupplierInfoWithId>>({});
+
+		  const existingPosOnly = initialView === 'existingPosOnly';
 
 		  useEffect(() => {
 		    try {
@@ -285,11 +289,11 @@ export default function PurchaseRequestDetailView({
 		          return;
 		        }
 		      }
-		      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+		      if (!existingPosOnly) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 		    } catch {
 		      // ignore
 		    }
-		  }, [requestId, initialScrollTo]);
+		  }, [requestId, initialScrollTo, existingPosOnly]);
 
 		  const [approveByUserId, setApproveByUserId] = useState('');
 	  const [rejectByUserId, setRejectByUserId] = useState('');
@@ -2569,12 +2573,211 @@ export default function PurchaseRequestDetailView({
         Back
       </button>
     </div>
-  );
+	  );
 
-  if (!requestId) return null;
+	  if (!requestId) return null;
 
-  return (
-	    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
+	  if (workflow && pr && existingPosOnly) {
+	    return (
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
+	        <div className="flex items-center justify-between gap-3">
+	          <div>
+	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+	          </div>
+	          {headerRight}
+	        </div>
+
+	        {error ? (
+	          <div className="bg-error-container/40 rounded-xl border border-outline-variant p-3 text-sm text-on-surface">{error}</div>
+	        ) : null}
+	        {loading ? (
+	          <div className="flex items-center gap-2 text-sm text-on-surface">
+	            <Spinner />
+	            <span>Loading...</span>
+	          </div>
+	        ) : null}
+
+	        <Section>
+	          <div className="text-center text-2xl font-bold text-blue-600">Purchase Orders (PO)</div>
+	          {loadingPos ? <div className="text-sm text-on-surface-variant">Loading POs...</div> : null}
+	          {!loadingPos && posList.length ? (
+	            <div className="space-y-2">
+	              <div className="text-center text-lg font-semibold text-blue-600">Existing POs</div>
+	              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+	                <div className="overflow-x-auto">
+	                  <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-outline-variant">
+	                    <colgroup>
+	                      <col className="w-[130px]" />
+	                      <col className="w-[170px]" />
+	                      <col className="w-[90px]" />
+	                      <col className="w-[420px]" />
+	                      <col className="w-[90px]" />
+	                      <col className="w-[90px]" />
+	                      <col className="w-[80px]" />
+	                      <col className="w-[80px]" />
+	                      <col className="w-[100px]" />
+	                      <col className="w-[100px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[190px]" />
+	                      <col className="w-[130px]" />
+	                      <col className="w-[200px]" />
+	                      <col className="w-[200px]" />
+	                      <col className="w-[130px]" />
+	                      <col className="w-[130px]" />
+	                    </colgroup>
+	                    <thead>
+	                      <tr className="bg-blue-700">
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          PO No
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Supplier
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Terms
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Items
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          PO Qty
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          PO Rate
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Disc %
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          GST %
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Invoice Qty
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          GRN Qty
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Accepted Qty
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Rejected Qty
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Checked By
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Check Date
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Sent By
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Sent Proof
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Sent Date
+	                        </th>
+	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+	                          Actions
+	                        </th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {(posList ?? []).flatMap((p) => {
+	                        const items = Array.isArray(p.items) ? p.items : [];
+	                        const safeItems = items.length ? items : [null];
+	                        const rowSpan = safeItems.length;
+	                        const keyPrefix = `existing-pos-only-${p.po.id}`;
+	                        return safeItems.map((it, idx) => (
+	                          <tr key={`${keyPrefix}-${String((it as any)?.itemId ?? 'empty')}-${idx}`}>
+	                            {idx === 0 ? (
+	                              <>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm font-semibold text-on-surface border border-outline-variant align-top">
+	                                  {formatPoNumber((p as any)?.po?.poNumber ?? '') || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {p.po.supplier || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {p.po.paymentTerms || '-'}
+	                                </td>
+	                              </>
+	                            ) : null}
+	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words align-top">
+	                              {it ? formatPoItemLabel(String((it as any)?.itemId ?? '').trim(), String((it as any)?.item ?? '')) : '-'}
+	                            </td>
+	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                              {it ? Number((it as any)?.quantity ?? 0) : 0}
+	                            </td>
+	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                              {it ? Number((it as any)?.rate ?? 0) : 0}
+	                            </td>
+	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                              {it ? Number((it as any)?.discountPercent ?? 0) : 0}
+	                            </td>
+	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                              {it ? Number((it as any)?.taxPercent ?? 0) : 0}
+	                            </td>
+	                            {idx === 0 ? (
+	                              <>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                                  {Number((p as any)?.po?.invoiceQty ?? 0)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                                  {Number((p as any)?.po?.grnQty ?? 0)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                                  {Number((p as any)?.po?.acceptedQty ?? 0)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
+	                                  {Number((p as any)?.po?.rejectedQty ?? 0)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {String((p as any)?.po?.checkPoUserId ?? '') || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {String((p as any)?.po?.checkDate ?? '') || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {String((p as any)?.po?.sentBy ?? '') || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {String((p as any)?.po?.sentProof ?? '') ? (
+	                                    <button type="button" className="btn btn-sm" onClick={() => window.open(String((p as any)?.po?.sentProof ?? ''), '_blank')}>
+	                                      View
+	                                    </button>
+	                                  ) : (
+	                                    '-'
+	                                  )}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {String((p as any)?.po?.sentDate ?? '') || '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+	                                  -
+	                                </td>
+	                              </>
+	                            ) : null}
+	                          </tr>
+	                        ));
+	                      })}
+	                    </tbody>
+	                  </table>
+	                </div>
+	              </div>
+	            </div>
+	          ) : (
+	            <div className="text-sm text-on-surface-variant">No POs found.</div>
+	          )}
+	        </Section>
+	      </div>
+	    );
+	  }
+
+	  return (
+		    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
 	          <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
