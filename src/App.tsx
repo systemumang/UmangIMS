@@ -151,11 +151,14 @@ export default function App() {
 
 	  const activePendingQueue = isPendingQueueView(view) ? view : undefined;
 
-	  const openPrDetail = (prId: string) => {
-	    setDetailBackView(view);
-	    setSelectedRequestId(prId);
-	    setView('purchaseRequestDetail');
-	  };
+		  const [prDetailScrollTarget, setPrDetailScrollTarget] = useState<'top' | 'existingPos'>('top');
+
+		  const openPrDetail = (prId: string, opts?: { scrollTo?: 'top' | 'existingPos' }) => {
+		    setDetailBackView(view);
+		    setSelectedRequestId(prId);
+		    setPrDetailScrollTarget(opts?.scrollTo === 'existingPos' ? 'existingPos' : 'top');
+		    setView('purchaseRequestDetail');
+		  };
 
 	  const showBusyOverlay = writeFlowActive && inFlightCount > 0;
 
@@ -278,15 +281,17 @@ export default function App() {
 	              }}
 	            />
 	          ) : null}
-	          {view === 'purchaseRequestDetail' ? (
-	            <PurchaseRequestDetailView
-	              requestId={selectedRequestId}
-	              onBack={() => {
-	                setSelectedRequestId(null);
-	                setView(detailBackView);
-	              }}
-	            />
-	          ) : null}
+		          {view === 'purchaseRequestDetail' ? (
+		            <PurchaseRequestDetailView
+		              requestId={selectedRequestId}
+		              initialScrollTo={prDetailScrollTarget}
+		              onBack={() => {
+		                setSelectedRequestId(null);
+		                setPrDetailScrollTarget('top');
+		                setView(detailBackView);
+		              }}
+		            />
+		          ) : null}
 	          {view === 'newPurchaseRequest' ? (
 	            <NewPurchaseRequestView
 	              onCreated={(newId) => {

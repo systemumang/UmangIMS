@@ -261,9 +261,11 @@ const compactSurfaceInputClass =
   'w-full h-9 bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1.5 text-base text-on-surface-variant placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-outline-variant/15';
 export default function PurchaseRequestDetailView({
   requestId,
+  initialScrollTo = 'top',
   onBack,
 }: {
   requestId: string | null;
+  initialScrollTo?: 'top' | 'existingPos';
   onBack: () => void;
 }) {
 		  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
@@ -273,14 +275,21 @@ export default function PurchaseRequestDetailView({
 		  const [error, setError] = useState<string | null>(null);
 		  const [lastSupplierByItemId, setLastSupplierByItemId] = useState<Record<string, LastSupplierInfoWithId>>({});
 
-		  // When navigating from other screens (Operations/Queues), ensure we start at the top.
 		  useEffect(() => {
 		    try {
-		      if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+		      if (typeof window === 'undefined') return;
+		      if (initialScrollTo === 'existingPos') {
+		        const el = window.document.getElementById('existing-pos-section');
+		        if (el) {
+		          el.scrollIntoView({ behavior: 'auto', block: 'start' });
+		          return;
+		        }
+		      }
+		      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 		    } catch {
 		      // ignore
 		    }
-		  }, [requestId]);
+		  }, [requestId, initialScrollTo]);
 
 		  const [approveByUserId, setApproveByUserId] = useState('');
 	  const [rejectByUserId, setRejectByUserId] = useState('');
@@ -3006,15 +3015,17 @@ export default function PurchaseRequestDetailView({
             </div>
           ) : null}
 
-          <Section>
-            <div className="text-center text-2xl font-bold text-blue-600">Purchase Orders (PO)</div>
-	            {loadingPos ? <div className="text-sm text-on-surface-variant">Loading POs...</div> : null}
-		            {!loadingPos && posList.length ? (
-		              <div className="space-y-2">
-				                <div className="text-center text-lg font-semibold text-blue-600">Existing POs</div>
-					                <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
-					                  <div className="overflow-x-auto">
-								                    <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-outline-variant">
+	          <Section>
+	            <div className="text-center text-2xl font-bold text-blue-600">Purchase Orders (PO)</div>
+		            {loadingPos ? <div className="text-sm text-on-surface-variant">Loading POs...</div> : null}
+			            {!loadingPos && posList.length ? (
+			              <div className="space-y-2">
+					                <div id="existing-pos-section" className="text-center text-lg font-semibold text-blue-600">
+					                  Existing POs
+					                </div>
+						                <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+						                  <div className="overflow-x-auto">
+									                    <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-outline-variant">
 								                      <colgroup>
 								                        <col className="w-[130px]" />
 								                        <col className="w-[170px]" />
