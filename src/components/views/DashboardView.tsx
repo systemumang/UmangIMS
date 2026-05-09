@@ -1,21 +1,65 @@
 import React from 'react';
-import StatCard from '../StatCard';
-import { ClipboardList, CreditCard, Timer } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
-export default function DashboardView() {
+type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
+
+export default function DashboardView({
+  onNewPurchaseRequest,
+  onNavigateStockMasterTab,
+}: {
+  onNewPurchaseRequest: () => void;
+  onNavigateStockMasterTab: (tab: StockMasterTab) => void;
+}) {
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Active Requests" value="18" icon={ClipboardList} trend={{ value: '4.2% from last week', isUp: false }} />
-        <StatCard label="Total Monthly Spend" value="142,502.20" icon={CreditCard} subtext="Budget: 180,000 max" progress={79} />
-        <StatCard label="Avg Approval Time" value="1.4 Days" icon={Timer} trend={{ value: '0.2d increase this period', isUp: true }} />
-      </div>
+    <div className="space-y-4">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+        <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={onNewPurchaseRequest}
+          >
+            <Plus size={16} />
+            Purchase Request
+          </button>
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-6 shadow-sm">
-        <h3 className="font-headline font-bold text-sm text-on-surface mb-2">Overview</h3>
-        <p className="text-sm text-on-surface-variant">
-          Select a module from the left sidebar to view details.
-        </p>
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={() => onNavigateStockMasterTab('itemIssue')}
+          >
+            <Plus size={16} />
+            Issue
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={() => onNavigateStockMasterTab('return')}
+          >
+            <Plus size={16} />
+            Return
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={() => onNavigateStockMasterTab('damage')}
+          >
+            <Plus size={16} />
+            Damage
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={() => onNavigateStockMasterTab('transfer')}
+          >
+            <Plus size={16} />
+            Transfer
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -202,53 +202,16 @@ export default function Sidebar({
 		        ))}
 		      </nav>
 
-      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 space-y-2">
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className={cn(
-            "w-full flex items-center justify-center gap-2 py-2.5 rounded-md font-semibold text-sm shadow-sm transition-colors",
-            isNewPurchaseRequestActive
-              ? "bg-error text-on-primary"
-              : "bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-          )}
-          type="button"
-          onClick={onNewPurchaseRequest}
-        >
-          <Plus size={16} />
-          Purchase Request
-        </motion.button>
-
-        {stockMasterItems.map((t) => (
-          <motion.button
-            key={t.key}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={() => onNavigateStockMasterTab?.(t.key)}
-            className={cn(
-              'w-full flex items-center justify-center gap-2 py-2 rounded-md font-semibold text-sm shadow-sm transition-colors',
-              activeStockMasterTab === t.key
-                ? 'bg-error text-on-primary'
-                : 'bg-gradient-to-br from-primary to-primary-dim text-on-primary'
-            )}
-          >
-            <Plus size={16} />
-            {t.label}
-          </motion.button>
-        ))}
-        
-        <div className="pt-2">
-          <button
-            type="button"
-            className="flex items-center px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left"
-            onClick={() => {}}
-          >
-            <LogOut className="mr-3" size={18} />
-            Logout
-          </button>
-        </div>
-      </div>
-    </aside>
-  );
-}
+	      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0">
+	        <button
+	          type="button"
+	          className="flex items-center px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left"
+	          onClick={() => {}}
+	        >
+	          <LogOut className="mr-3" size={18} />
+	          Logout
+	        </button>
+	      </div>
+	    </aside>
+	  );
+	}

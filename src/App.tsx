@@ -287,7 +287,22 @@ export default function App() {
           />
 	        
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
-			          {view === 'dashboard' ? <DashboardView /> : null}
+				          {view === 'dashboard' ? (
+				            <DashboardView
+				              onNewPurchaseRequest={() => {
+				                setSelectedRequestId(null);
+				                setView('newPurchaseRequest');
+				              }}
+				              onNavigateStockMasterTab={(tab) => {
+				                setStockMasterTab(tab);
+				                setSelectedRequestId(null);
+				                setStockMasterExpanded(true);
+				                setMastersExpanded(false);
+				                setPendingExpanded(false);
+				                setView('stockMaster');
+				              }}
+				            />
+				          ) : null}
 		          {view === 'purchasing' ? (
 			            <PurchasingView
 			              onSelectRequest={(id) => {
