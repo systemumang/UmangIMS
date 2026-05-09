@@ -1898,6 +1898,595 @@ app.get('/api/operations/prs', async (req, res) => {
   }
 });
 
+function mapPoStatus(value) {
+  const s = String(value ?? '').toLowerCase();
+  if (s === 'closed') return 'Closed';
+  if (s === 'partial') return 'Partial';
+  return 'Open';
+}
+
+async function fetchPrHeaderAndItems(pool, prId) {
+  const [[prRow]] = await pool.query(
+    `
+    SELECT
+      pr.id,
+      pr.pr_number AS prNumber,
+      pr.firm_id AS firmId,
+      f.name AS firmName,
+      pr.store_id AS storeId,
+      st.name AS store,
+      pr.project_id AS projectId,
+      proj.name AS projectName,
+      pr.requested_by AS requestedBy,
+      pr.created_at AS requisitionDate,
+      pr.request_type AS requestType,
+      pr.status AS status,
+      pr.remarks AS remarks,
+      MIN(pri.required_date) AS requiredDate
+    FROM purchase_requisitions pr
+    LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+    LEFT JOIN stores st ON st.id = pr.store_id
+    LEFT JOIN projects proj ON proj.id = pr.project_id
+    LEFT JOIN firms f ON f.id = pr.firm_id
+    WHERE pr.id = ?
+    GROUP BY pr.id
+    `,
+    [prId]
+  );
+  if (!prRow) return null;
+
+  const [itemRows] = await pool.query(
+    `
+    SELECT
+      pri.id,
+      pri.pr_id AS prId,
+      pri.item_id AS itemId,
+      iname.name AS item,
+      pri.requested_qty AS quantity,
+      pri.remarks AS specification
+    FROM purchase_requisition_items pri
+    LEFT JOIN items it ON it.id = pri.item_id
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    WHERE pri.pr_id = ?
+    ORDER BY pri.created_at ASC
+    `,
+    [prId]
+  );
+
+  const pr = {
+    id: String(prRow.id),
+    prNumber: prRow.prNumber ? String(prRow.prNumber) : undefined,
+    firmId: String(prRow.firmId ?? ''),
+    firmName: prRow.firmName != null ? String(prRow.firmName) : '',
+    store: prRow.store ? String(prRow.store) : null,
+    projectId: prRow.projectId ? String(prRow.projectId) : null,
+    projectName: prRow.projectName ? String(prRow.projectName) : null,
+    department: parseDepartmentFromRemarks(prRow.remarks) || 'N/A',
+    requestedBy: String(prRow.requestedBy || ''),
+    requiredDate: toIsoDate(prRow.requiredDate) || toIsoDate(prRow.requisitionDate) || toIsoDate(new Date()) || '',
+    requisitionDate: toIsoDateTime(prRow.requisitionDate) || new Date().toISOString(),
+    requestType: prRow.requestType ? String(prRow.requestType) : 'Stock',
+    status: mapPrStatus(prRow.status),
+  };
+
+  const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => ({
+    id: String(r.id),
+    prId: String(r.prId),
+    itemId: String(r.itemId),
+    item: String(r.item || ''),
+    quantity: Number(r.quantity ?? 0),
+    specification: String(r.specification ?? ''),
+  }));
+
+  return { pr, items };
+}
+
+async function fetchPoHeaderAndItems(pool, poId) {
+  const [[poRow]] = await pool.query(
+    `
+    SELECT
+      po.id AS id,
+      po.pr_id AS prId,
+      po.firm_id AS firmId,
+      po.po_number AS poNumber,
+      po.order_date AS orderDate,
+      po.status AS status,
+      po.created_by AS createdBy,
+      po.created_at AS createdAt,
+      po.supplier_id AS supplierId,
+      s.name AS supplier
+    FROM purchase_orders po
+    LEFT JOIN suppliers s ON s.id = po.supplier_id
+    WHERE po.id = ?
+    LIMIT 1
+    `,
+    [poId]
+  );
+  if (!poRow) return null;
+
+  const [poItemRows] = await pool.query(
+    `
+    SELECT
+      poi.id AS id,
+      poi.po_id AS poId,
+      poi.item_id AS itemId,
+      iname.name AS item,
+      poi.quantity AS quantity,
+      poi.rate AS rate,
+      poi.discount_percent AS discountPercent,
+      poi.tax_percent AS taxPercent,
+      poi.goods_amount AS goodsAmount,
+      poi.tax_amount AS taxAmount,
+      poi.total_amount AS totalAmount
+    FROM purchase_order_items poi
+    LEFT JOIN items it ON it.id = poi.item_id
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    WHERE poi.po_id = ?
+    ORDER BY poi.created_at ASC
+    `,
+    [poId]
+  );
+
+  const po = {
+    id: String(poRow.id ?? ''),
+    poNumber: poRow.poNumber != null ? String(poRow.poNumber) : undefined,
+    prId: String(poRow.prId ?? ''),
+    firmId: String(poRow.firmId ?? ''),
+    orderDate: toIsoDate(poRow.orderDate) || '',
+    createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
+    supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
+    supplier: String(poRow.supplier ?? ''),
+    status: mapPoStatus(poRow.status),
+    createdAt: toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
+  };
+
+  const items = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
+    id: String(r.id ?? ''),
+    poId: String(r.poId ?? ''),
+    itemId: String(r.itemId ?? ''),
+    item: String(r.item ?? ''),
+    quantity: Number(r.quantity ?? 0),
+    rate: Number(r.rate ?? 0),
+    discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
+    taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+    goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
+    taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
+    totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+  }));
+
+  return { po, items };
+}
+
+async function fetchGrnDetail(pool, grnId) {
+  const [[grnRow]] = await pool.query(
+    `
+    SELECT
+      g.id AS id,
+      g.po_id AS poId,
+      g.grn_number AS grnNumber,
+      g.received_date AS receivedDate,
+      g.created_at AS createdAt,
+      po.supplier_id AS supplierId,
+      sup.name AS supplier,
+      po.status AS poStatus
+    FROM grns g
+    INNER JOIN purchase_orders po ON po.id = g.po_id
+    LEFT JOIN suppliers sup ON sup.id = po.supplier_id
+    WHERE g.id = ?
+    LIMIT 1
+    `,
+    [grnId]
+  );
+  if (!grnRow) return null;
+
+  const [itemRows] = await pool.query(
+    `
+    SELECT
+      gi.id AS id,
+      gi.grn_id AS grnId,
+      gi.item_id AS itemId,
+      iname.name AS item,
+      gi.received_qty AS quantityReceived
+    FROM grn_items gi
+    LEFT JOIN items it ON it.id = gi.item_id
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    WHERE gi.grn_id = ?
+    ORDER BY gi.created_at ASC
+    `,
+    [grnId]
+  );
+
+  const grn = {
+    id: String(grnRow.id ?? ''),
+    poId: String(grnRow.poId ?? ''),
+    invoiceId: '',
+    receivedDate: toIsoDate(grnRow.receivedDate) || '',
+    createdAt: toIsoDateTime(grnRow.createdAt) || new Date().toISOString(),
+    grnNumber: grnRow.grnNumber != null ? String(grnRow.grnNumber) : undefined,
+  };
+
+  const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => ({
+    id: String(r.id ?? ''),
+    grnId: String(r.grnId ?? ''),
+    itemId: String(r.itemId ?? ''),
+    item: String(r.item ?? ''),
+    quantityReceived: Number(r.quantityReceived ?? 0),
+  }));
+
+  const po = {
+    id: String(grnRow.poId ?? ''),
+    supplierId: grnRow.supplierId != null ? String(grnRow.supplierId) : undefined,
+    supplier: String(grnRow.supplier ?? ''),
+    status: mapPoStatus(grnRow.poStatus),
+  };
+
+  return { grn: { grn, items }, po: { po, items: [] } };
+}
+
+async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
+  const [[invRow]] = await pool.query(
+    `
+    SELECT
+      inv.id AS id,
+      inv.po_id AS poId,
+      inv.invoice_number AS supplierInvoiceNo,
+      inv.invoice_date AS invoiceDate,
+      inv.total_amount AS invoiceAmount,
+      inv.courier_charge AS courierCharge,
+      inv.packing_charge AS packingCharge,
+      inv.labour_charge AS labourCharge,
+      inv.other_charge AS otherCharge,
+      inv.charges_gst_amount AS chargesGstAmount,
+      inv.payment_status AS paymentStatus,
+      inv.payment_date AS paymentDate,
+      inv.status AS status,
+      inv.created_by AS createdBy,
+      inv.created_at AS createdAt,
+      inv.updated_by AS updatedBy,
+      inv.updated_at AS updatedAt
+    FROM invoices inv
+    WHERE inv.id = ?
+    LIMIT 1
+    `,
+    [invoiceId]
+  );
+  if (!invRow) return null;
+
+  const [itemRows] = await pool.query(
+    `
+    SELECT
+      ii.id AS id,
+      ii.invoice_id AS invoiceId,
+      ii.item_id AS itemId,
+      iname.name AS item,
+      ii.quantity AS quantity,
+      ii.rate AS rate,
+      ii.tax_percent AS taxPercent,
+      (ii.quantity * ii.rate) AS totalAmount
+    FROM invoice_items ii
+    LEFT JOIN items it ON it.id = ii.item_id
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    WHERE ii.invoice_id = ?
+    ORDER BY ii.created_at ASC
+    `,
+    [invoiceId]
+  );
+
+  const invoice = {
+    id: String(invRow.id ?? ''),
+    poId: String(invRow.poId ?? ''),
+    supplierInvoiceNo: String(invRow.supplierInvoiceNo ?? invRow.id ?? ''),
+    invoiceDate: toIsoDate(invRow.invoiceDate) || '',
+    invoiceAmount: Number(invRow.invoiceAmount ?? 0),
+    courierCharge: Number(invRow.courierCharge ?? 0),
+    packingCharge: Number(invRow.packingCharge ?? 0),
+    labourCharge: Number(invRow.labourCharge ?? 0),
+    otherCharge: Number(invRow.otherCharge ?? 0),
+    chargesGstAmount: Number(invRow.chargesGstAmount ?? 0),
+    status: mapInvoiceStatus(invRow),
+    paymentStatus: invRow.paymentStatus != null ? String(invRow.paymentStatus) : undefined,
+    paymentDate: toIsoDate(invRow.paymentDate) || undefined,
+    createdBy: invRow.createdBy != null ? String(invRow.createdBy) : undefined,
+    createdAt: toIsoDateTime(invRow.createdAt) || new Date().toISOString(),
+    updatedBy: invRow.updatedBy != null ? String(invRow.updatedBy) : undefined,
+    updatedAt: toIsoDateTime(invRow.updatedAt) || undefined,
+  };
+
+  const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => ({
+    id: String(r.id ?? ''),
+    invoiceId: String(r.invoiceId ?? ''),
+    itemId: String(r.itemId ?? ''),
+    item: String(r.item ?? ''),
+    quantity: Number(r.quantity ?? 0),
+    rate: Number(r.rate ?? 0),
+    taxPercent: Number(r.taxPercent ?? 0),
+    totalAmount: Number(r.totalAmount ?? 0),
+  }));
+
+  return { invoice, items };
+}
+
+function toPaymentRowFromInvoice(inv) {
+  if (!inv) return null;
+  const status = inv.paymentStatus != null ? String(inv.paymentStatus) : null;
+  if (!status) return null;
+  return {
+    id: String(inv.id ?? ''),
+    paymentDate: toIsoDate(inv.paymentDate) || toIsoDate(inv.updatedAt) || toIsoDate(inv.invoiceDate) || '',
+    amount: Number(inv.invoiceAmount ?? 0),
+    mode: undefined,
+    referenceNo: undefined,
+    status,
+  };
+}
+
+app.get('/api/operations/prs/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const pr = await fetchPrHeaderAndItems(pool, prId);
+    if (!pr) return res.status(404).json({ error: 'PR not found' });
+
+    // Linked POs (with items)
+    const [poRows] = await pool.query(
+      `
+      SELECT
+        po.id AS id
+      FROM purchase_orders po
+      WHERE po.pr_id = ?
+      ORDER BY po.created_at ASC
+      `,
+      [prId]
+    );
+    const poIds = (Array.isArray(poRows) ? poRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    const pos = [];
+    for (const poId of poIds) {
+      const poDetail = await fetchPoHeaderAndItems(pool, poId);
+      if (poDetail) pos.push(poDetail);
+    }
+
+    // Linked GRNs (with items)
+    const [grnRows] = await pool.query(
+      `
+      SELECT g.id AS id
+      FROM grns g
+      INNER JOIN purchase_orders po ON po.id = g.po_id
+      WHERE po.pr_id = ?
+      ORDER BY g.received_date DESC, g.created_at DESC
+      `,
+      [prId]
+    );
+    const grnIds = (Array.isArray(grnRows) ? grnRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    const grns = [];
+    for (const grnId of grnIds) {
+      const g = await fetchGrnDetail(pool, grnId);
+      if (g) grns.push(g.grn);
+    }
+
+    // Linked Invoices (with items)
+    const [invRows] = await pool.query(
+      `
+      SELECT inv.id AS id
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      WHERE po.pr_id = ?
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      [prId]
+    );
+    const invIds = (Array.isArray(invRows) ? invRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    const invoices = [];
+    for (const invId of invIds) {
+      const inv = await fetchInvoiceHeaderAndItems(pool, invId);
+      if (inv) invoices.push({ invoice: inv.invoice, items: inv.items });
+    }
+
+    const invoice = invoices.length ? invoices[0] : null;
+
+    // Payments are stored on invoices; treat each paid invoice as a payment row.
+    const payments = [];
+    for (const inv of invoices) {
+      const p = toPaymentRowFromInvoice(inv?.invoice);
+      if (p) payments.push(p);
+    }
+
+    const paymentsByInvoiceId = {};
+    for (const p of payments) {
+      const invoiceId = String(p.id ?? '').trim();
+      if (!invoiceId) continue;
+      paymentsByInvoiceId[invoiceId] = [p];
+    }
+
+    res.json({
+      detail: {
+        pr,
+        pos,
+        grns,
+        invoices,
+        invoice,
+        payments,
+        paymentsByInvoiceId,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/pos/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const po = await fetchPoHeaderAndItems(pool, poId);
+    if (!po) return res.status(404).json({ error: 'PO not found' });
+
+    const [grnRows] = await pool.query(
+      `
+      SELECT g.id AS id
+      FROM grns g
+      WHERE g.po_id = ?
+      ORDER BY g.received_date DESC, g.created_at DESC
+      `,
+      [poId]
+    );
+    const grnIds = (Array.isArray(grnRows) ? grnRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    const grns = [];
+    for (const grnId of grnIds) {
+      const g = await fetchGrnDetail(pool, grnId);
+      if (g) grns.push(g.grn);
+    }
+
+    const [invRows] = await pool.query(
+      `
+      SELECT inv.id AS id
+      FROM invoices inv
+      WHERE inv.po_id = ?
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      [poId]
+    );
+    const invIds = (Array.isArray(invRows) ? invRows : []).map((r) => String(r.id ?? '')).filter(Boolean);
+    const invoices = [];
+    for (const invId of invIds) {
+      const inv = await fetchInvoiceHeaderAndItems(pool, invId);
+      if (inv) invoices.push({ invoice: inv.invoice, items: inv.items });
+    }
+    const invoice = invoices.length ? invoices[0] : null;
+
+    const payments = [];
+    for (const inv of invoices) {
+      const p = toPaymentRowFromInvoice(inv?.invoice);
+      if (p) payments.push(p);
+    }
+
+    res.json({
+      detail: {
+        po,
+        grns,
+        invoice,
+        payments,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/grns/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const grnId = String(req.params.id ?? '').trim();
+    if (!grnId) return res.status(400).json({ error: 'id is required' });
+
+    const g = await fetchGrnDetail(pool, grnId);
+    if (!g) return res.status(404).json({ error: 'GRN not found' });
+
+    res.json({ detail: g });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/invoices/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'id is required' });
+
+    const inv = await fetchInvoiceHeaderAndItems(pool, invoiceId);
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+
+    const payment = toPaymentRowFromInvoice(inv.invoice);
+    const payments = payment ? [payment] : [];
+
+    res.json({ detail: { invoice: { invoice: inv.invoice, items: inv.items }, payments } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/payments/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'id is required' });
+
+    const inv = await fetchInvoiceHeaderAndItems(pool, invoiceId);
+    if (!inv) return res.status(404).json({ error: 'Payment not found' });
+
+    const [[linkRow]] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        inv.created_at AS createdAt,
+        inv.updated_at AS updatedAt
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE inv.id = ?
+      LIMIT 1
+      `,
+      [invoiceId]
+    );
+    if (!linkRow) return res.status(404).json({ error: 'Payment not found' });
+
+    const paymentStatus = inv.invoice.paymentStatus != null ? String(inv.invoice.paymentStatus) : null;
+    const paymentDate = toIsoDate(inv.invoice.paymentDate) || toIsoDate(linkRow.updatedAt) || toIsoDate(inv.invoice.invoiceDate) || '';
+
+    const payment = {
+      paymentId: String(invoiceId),
+      paymentDate,
+      amount: Number(inv.invoice.invoiceAmount ?? 0),
+      mode: undefined,
+      referenceNo: undefined,
+      status: paymentStatus,
+      invoiceId: String(invoiceId),
+      invoiceNo: String(inv.invoice.supplierInvoiceNo ?? invoiceId),
+      poId: String(linkRow.poId ?? ''),
+      poNumber: String(linkRow.poNumber ?? linkRow.poId ?? ''),
+      prId: String(linkRow.prId ?? ''),
+      prNumber: String(linkRow.prNumber ?? linkRow.prId ?? ''),
+      firmId: String(linkRow.firmId ?? ''),
+      firmName: String(linkRow.firmName ?? ''),
+      supplierId: String(linkRow.supplierId ?? ''),
+      supplierName: String(linkRow.supplierName ?? ''),
+      createdAt: toIsoDateTime(linkRow.createdAt) || new Date().toISOString(),
+    };
+
+    const po = await fetchPoHeaderAndItems(pool, String(linkRow.poId ?? ''));
+    const pr = await fetchPrHeaderAndItems(pool, String(linkRow.prId ?? ''));
+
+    res.json({
+      detail: {
+        payment,
+        invoice: { invoice: inv.invoice, items: inv.items },
+        po: po ? po : undefined,
+        pr: pr ? pr : undefined,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/operations/pos', async (req, res) => {
   try {
     const pool = getMysqlPool();
