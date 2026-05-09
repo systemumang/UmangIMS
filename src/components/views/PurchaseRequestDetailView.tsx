@@ -267,7 +267,7 @@ export default function PurchaseRequestDetailView({
 }: {
   requestId: string | null;
   initialScrollTo?: 'top' | 'existingPos';
-  initialView?: 'full' | 'existingPosOnly';
+  initialView?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly';
   onBack: () => void;
 }) {
 		  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
@@ -278,6 +278,8 @@ export default function PurchaseRequestDetailView({
 		  const [lastSupplierByItemId, setLastSupplierByItemId] = useState<Record<string, LastSupplierInfoWithId>>({});
 
 		  const existingPosOnly = initialView === 'existingPosOnly';
+		  const recordedGrnsOnly = initialView === 'recordedGrnsOnly';
+		  const recordedInvoicesOnly = initialView === 'recordedInvoicesOnly';
 
 		  useEffect(() => {
 		    try {
@@ -2770,6 +2772,301 @@ export default function PurchaseRequestDetailView({
 	            </div>
 	          ) : (
 	            <div className="text-sm text-on-surface-variant">No POs found.</div>
+	          )}
+	        </Section>
+	      </div>
+	    );
+	  }
+
+	  if (workflow && pr && recordedGrnsOnly) {
+	    return (
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
+	        <div className="flex items-center justify-between gap-3">
+	          <div>
+	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+	          </div>
+	          {headerRight}
+	        </div>
+
+	        {error ? (
+	          <div className="bg-error-container/40 rounded-xl border border-outline-variant p-3 text-sm text-on-surface">{error}</div>
+	        ) : null}
+
+	        <Section>
+	          <div className="text-center text-2xl font-bold text-blue-600">GRN</div>
+	          {loadingRecordedGrns ? <div className="pt-2 text-sm text-on-surface-variant">Loading GRNs...</div> : null}
+	          {!loadingRecordedGrns && recordedGrns.length ? (
+	            <div className="pt-2 space-y-2">
+	              <div className="text-center text-lg font-semibold text-blue-600">Recorded GRNs ({recordedGrns.length})</div>
+	              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+	                <div className="overflow-x-auto">
+	                  <table className="w-full min-w-[1440px] table-fixed text-left border-collapse border border-outline-variant">
+	                    <colgroup>
+	                      <col className="w-[170px]" />
+	                      <col className="w-[170px]" />
+	                      <col className="w-[140px]" />
+	                      <col className="w-[520px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[170px]" />
+	                      <col className="w-[160px]" />
+	                    </colgroup>
+	                    <thead>
+	                      <tr className="bg-blue-700">
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">GRN</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Number</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Received Date</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Qty</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Updated By</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Action</th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {recordedGrns.flatMap((g) => {
+	                        const lines = Array.isArray(g.items) && g.items.length ? g.items : [null];
+	                        const rowSpan = lines.length;
+	                        const updatedByCell =
+	                          g.grn.updatedBy != null
+	                            ? users.find((u) => u.id === g.grn.updatedBy)?.name ?? String(g.grn.updatedBy)
+	                            : '-';
+
+	                        return lines.map((it: any, idx: number) => {
+	                          const prRow = it ? prItems.find((r) => r.itemId === it.itemId) : null;
+	                          const specInline = (prRow?.specification || '')
+	                            .split(/\r?\n/)
+	                            .map((s) => s.trim())
+	                            .filter(Boolean)
+	                            .join(' - ');
+	                          const label = it ? [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ') : '-';
+	                          const qtyCell = it ? Number(it.quantityReceived ?? 0) : '-';
+
+	                          return (
+	                            <tr key={`${g.grn.id}||${it ? it.itemId : 'empty'}||${idx}`}>
+	                              {idx === 0 ? (
+	                                <>
+	                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+	                                    {displayGrnNumber(g.grn)}
+	                                  </td>
+	                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+	                                    {displayPoNumberById(g.grn.poId)}
+	                                  </td>
+	                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                    {formatDateDDMMYYYYOnly(g.grn.receivedDate)}
+	                                  </td>
+	                                </>
+	                              ) : null}
+	                              <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
+	                                <div className="whitespace-normal break-words">{renderInlineWithBoldSpecNames(label)}</div>
+	                              </td>
+	                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{qtyCell}</td>
+	                              {idx === 0 ? (
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  {updatedByCell}
+	                                </td>
+	                              ) : null}
+	                              {idx === 0 ? (
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  <div className="flex items-center gap-2">
+	                                    <button
+	                                      type="button"
+	                                      title="View"
+	                                      aria-label="View"
+	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
+	                                      onClick={() => openGrnDetails(g, 'view')}
+	                                    >
+	                                      <Eye size={16} />
+	                                    </button>
+	                                    <button
+	                                      type="button"
+	                                      title="Edit"
+	                                      aria-label="Edit"
+	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
+	                                      onClick={() => openGrnDetails(g, 'edit')}
+	                                    >
+	                                      <Pencil size={16} />
+	                                    </button>
+	                                  </div>
+	                                </td>
+	                              ) : null}
+	                            </tr>
+	                          );
+	                        });
+	                      })}
+	                    </tbody>
+	                  </table>
+	                </div>
+	              </div>
+	            </div>
+	          ) : !loadingRecordedGrns ? (
+	            <div className="text-sm text-on-surface-variant text-center">No recorded GRNs.</div>
+	          ) : null}
+	        </Section>
+	      </div>
+	    );
+	  }
+
+	  if (workflow && pr && recordedInvoicesOnly) {
+	    return (
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
+	        <div className="flex items-center justify-between gap-3">
+	          <div>
+	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+	          </div>
+	          {headerRight}
+	        </div>
+
+	        {error ? (
+	          <div className="bg-error-container/40 rounded-xl border border-outline-variant p-3 text-sm text-on-surface">{error}</div>
+	        ) : null}
+
+	        <Section>
+	          <div className="text-center text-2xl font-bold text-blue-600">Invoices</div>
+	          {invoicesForPr.length ? (
+	            <div className="space-y-2">
+	              <div className="text-center text-lg font-semibold text-blue-600">Recorded Invoices ({invoicesForPr.length})</div>
+	              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+	                <div className="overflow-x-auto">
+	                  <table className="w-full min-w-[2650px] table-fixed text-left border-collapse border border-outline-variant border-black [&_th]:border-black [&_td]:border-black">
+	                    <colgroup>
+	                      <col className="w-[140px]" />
+	                      <col className="w-[180px]" />
+	                      <col className="w-[140px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[120px]" />
+	                      <col className="w-[140px]" />
+	                      <col className="w-[520px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[140px]" />
+	                      <col className="w-[110px]" />
+	                      <col className="w-[140px]" />
+	                      <col className="w-[160px]" />
+	                    </colgroup>
+	                    <thead>
+	                      <tr className="bg-blue-700">
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Invoice No</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Invoice Date</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Amount</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Courier Charge</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Packing Charge</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Labour Charge</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Other Charge</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Status</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Payment Status</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Inv Qty</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Rate</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Inv Rate</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Effective Item Price</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Created At</th>
+	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Action</th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {invoicesForPr.flatMap((inv) => {
+	                        const lines = Array.isArray(inv.items) && inv.items.length ? inv.items : [null];
+	                        const rowSpan = lines.length;
+	                        const amountCell =
+	                          typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount) ? inv.invoice.invoiceAmount.toFixed(2) : '-';
+	                        const courierChargeCell =
+	                          typeof inv.invoice.courierCharge === 'number' && Number.isFinite(inv.invoice.courierCharge) ? inv.invoice.courierCharge.toFixed(2) : '-';
+	                        const packingChargeCell =
+	                          typeof inv.invoice.packingCharge === 'number' && Number.isFinite(inv.invoice.packingCharge) ? inv.invoice.packingCharge.toFixed(2) : '-';
+	                        const labourChargeCell =
+	                          typeof inv.invoice.labourCharge === 'number' && Number.isFinite(inv.invoice.labourCharge) ? inv.invoice.labourCharge.toFixed(2) : '-';
+	                        const otherChargeCell =
+	                          typeof inv.invoice.otherCharge === 'number' && Number.isFinite(inv.invoice.otherCharge) ? inv.invoice.otherCharge.toFixed(2) : '-';
+
+	                        return lines.map((it: any, idx: number) => (
+	                          <tr key={`${inv.invoice.id}||${it ? it.itemId : 'empty'}||${idx}`}>
+	                            {idx === 0 ? (
+	                              <>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {displayPoNumberById(inv.invoice.poId)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+	                                  {inv.invoice.supplierInvoiceNo || inv.invoice.id}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  {formatDateDDMMYYYYOnly(inv.invoice.invoiceDate)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+	                                  {amountCell}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+	                                  {courierChargeCell}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+	                                  {packingChargeCell}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+	                                  {labourChargeCell}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+	                                  {otherChargeCell}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  {inv.invoice.status ?? '-'}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  {inv.invoice.paymentStatus ?? '-'}
+	                                </td>
+	                              </>
+	                            ) : null}
+	                            <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
+	                              <div className="whitespace-normal break-words">{it ? renderInlineWithBoldSpecNames(it.item ?? '-') : '-'}</div>
+	                            </td>
+	                            <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it ? Number(it.quantity ?? 0) : '-'}</td>
+	                            <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it ? Number(it.poRate ?? it.rate ?? 0) : '-'}</td>
+	                            <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it ? Number(it.rate ?? 0) : '-'}</td>
+	                            <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it ? Number(it.effectiveItemPrice ?? 0) : '-'}</td>
+	                            <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it ? Number(it.grnQty ?? 0) : '-'}</td>
+	                            {idx === 0 ? (
+	                              <>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  {formatDateDDMMYYYYOnly(inv.invoice.createdAt)}
+	                                </td>
+	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+	                                  <div className="flex items-center gap-2">
+	                                    <button
+	                                      type="button"
+	                                      title="View"
+	                                      aria-label="View"
+	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
+	                                      onClick={() => openInvoiceDetails(inv, 'view')}
+	                                    >
+	                                      <Eye size={16} />
+	                                    </button>
+	                                    <button
+	                                      type="button"
+	                                      title="Edit"
+	                                      aria-label="Edit"
+	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
+	                                      onClick={() => openInvoiceDetails(inv, 'edit')}
+	                                    >
+	                                      <Pencil size={16} />
+	                                    </button>
+	                                  </div>
+	                                </td>
+	                              </>
+	                            ) : null}
+	                          </tr>
+	                        ));
+	                      })}
+	                    </tbody>
+	                  </table>
+	                </div>
+	              </div>
+	            </div>
+	          ) : (
+	            <div className="text-sm text-on-surface-variant text-center">No recorded invoices.</div>
 	          )}
 	        </Section>
 	      </div>

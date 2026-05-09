@@ -152,16 +152,27 @@ export default function App() {
 	  const activePendingQueue = isPendingQueueView(view) ? view : undefined;
 
 		  const [prDetailScrollTarget, setPrDetailScrollTarget] = useState<'top' | 'existingPos'>('top');
-		  const [prDetailInitialView, setPrDetailInitialView] = useState<'full' | 'existingPosOnly'>('full');
+		  const [prDetailInitialView, setPrDetailInitialView] = useState<'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly'>('full');
 
 		  const openPrDetail = (
 		    prId: string,
-		    opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' }
+		    opts?: {
+		      scrollTo?: 'top' | 'existingPos';
+		      view?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly';
+		    }
 		  ) => {
 		    setDetailBackView(view);
 		    setSelectedRequestId(prId);
 		    setPrDetailScrollTarget(opts?.scrollTo === 'existingPos' ? 'existingPos' : 'top');
-		    setPrDetailInitialView(opts?.view === 'existingPosOnly' ? 'existingPosOnly' : 'full');
+		    setPrDetailInitialView(
+		      opts?.view === 'existingPosOnly'
+		        ? 'existingPosOnly'
+		        : opts?.view === 'recordedGrnsOnly'
+		          ? 'recordedGrnsOnly'
+		          : opts?.view === 'recordedInvoicesOnly'
+		            ? 'recordedInvoicesOnly'
+		            : 'full'
+		    );
 		    setView('purchaseRequestDetail');
 		  };
 

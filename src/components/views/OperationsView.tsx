@@ -44,7 +44,10 @@ function formatIsoDateShort(s: string) {
 export default function OperationsView({
   onViewPr,
 }: {
-  onViewPr?: (prId: string, opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' }) => void;
+  onViewPr?: (
+    prId: string,
+    opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly' }
+  ) => void;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [tab, setTab] = useState<OpsTab>('prs');
@@ -276,7 +279,23 @@ export default function OperationsView({
 		    if (tab === 'pos' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
 		      if (prId) {
-		        onViewPr(prId, { scrollTo: 'existingPos', view: 'existingPosOnly' } as any);
+		        onViewPr(prId, { scrollTo: 'existingPos', view: 'existingPosOnly' });
+		        return;
+		      }
+		    }
+		    // GRN rows can optionally open PR view focused on Recorded GRNs.
+		    if (tab === 'grns' && typeof onViewPr === 'function') {
+		      const prId = String(row?.prId ?? '').trim();
+		      if (prId) {
+		        onViewPr(prId, { view: 'recordedGrnsOnly' });
+		        return;
+		      }
+		    }
+		    // Invoice rows can optionally open PR view focused on Recorded Invoices.
+		    if (tab === 'invoices' && typeof onViewPr === 'function') {
+		      const prId = String(row?.prId ?? '').trim();
+		      if (prId) {
+		        onViewPr(prId, { view: 'recordedInvoicesOnly' });
 		        return;
 		      }
 		    }
