@@ -3,6 +3,7 @@ import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { formatPrNumber } from '@/src/lib/docNumbers';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import {
 		  fetchOperationsGrnDetail,
 		  fetchOperationsGrns,
@@ -34,11 +35,10 @@ const TAB_LABEL: Record<OpsTab, string> = {
   payments: 'Payments',
 };
 
-function formatIsoDateShort(s: string) {
+function formatDateShort(s: string) {
   const t = String(s ?? '').trim();
   if (!t) return '-';
-  // Accept both ISO and YYYY-MM-DD
-  return t.length >= 10 ? t.slice(0, 10).split('-').reverse().join('/') : t;
+  return formatDateDDMMYYYYOnly(t) || '-';
 }
 
 export default function OperationsView({
@@ -536,52 +536,52 @@ export default function OperationsView({
             <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.department}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.requestedBy ?? '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(r.requisitionDate)}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-                      </>
-                    ) : tab === 'pos' ? (
-                      <>
-                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
-            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatIsoDateShort(r.orderDate) : '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-                      </>
-                    ) : tab === 'grns' ? (
+	                        <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.requestedBy ?? '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.requisitionDate)}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+	                      </>
+	                    ) : tab === 'pos' ? (
+	                      <>
+	                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
+	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+	                      </>
+	                    ) : tab === 'grns' ? (
                       <>
                         <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.grnNumber}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(r.receivedDate)}</td>
-                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalQty ?? 0)}</td>
-                      </>
-                    ) : tab === 'invoices' ? (
-                      <>
-                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(r.invoiceDate)}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-                      </>
-	                    ) : (
+	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.receivedDate)}</td>
+	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalQty ?? 0)}</td>
+	                      </>
+	                    ) : tab === 'invoices' ? (
 	                      <>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
+                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(r.paymentDate)}</td>
-	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
 	                      </>
-	                    )}
+		                    ) : (
+	                      <>
+	                        <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
+		                      </>
+		                    )}
                   </tr>
                 ))
               )}
@@ -699,7 +699,7 @@ export default function OperationsView({
 	                                onClick={() => pushDetail({ tab: 'grns', id: String(g?.grn?.id ?? ''), title: String(g?.grn?.id ?? 'GRN') })}
 	                              >
 	                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{g?.grn?.id ?? '-'}</td>
-	                                <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(g?.grn?.receivedDate ?? '')}</td>
+	                                <td className="px-3 py-2 border border-outline-variant">{formatDateShort(g?.grn?.receivedDate ?? '')}</td>
 	                              </tr>
 	                            ))
 	                          ) : (
@@ -734,7 +734,7 @@ export default function OperationsView({
 	                                onClick={() => pushDetail({ tab: 'invoices', id: String(inv?.invoice?.id ?? ''), title: String(inv?.invoice?.supplierInvoiceNo ?? inv?.invoice?.id ?? 'Invoice') })}
 	                              >
 	                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{inv?.invoice?.supplierInvoiceNo ?? inv?.invoice?.id ?? '-'}</td>
-	                                <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(inv?.invoice?.invoiceDate ?? '')}</td>
+	                                <td className="px-3 py-2 border border-outline-variant">{formatDateShort(inv?.invoice?.invoiceDate ?? '')}</td>
 	                                <td className="px-3 py-2 border border-outline-variant">{inv?.invoice?.status ?? '-'}</td>
 	                              </tr>
 	                            ))
@@ -770,11 +770,11 @@ export default function OperationsView({
 	                                className="hover:bg-surface-container-high/40 cursor-pointer"
 	                                onClick={() => pushDetail({ tab: 'grns', id: String(g?.grn?.id ?? ''), title: String(g?.grn?.id ?? 'GRN') })}
 	                              >
-	                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{g?.grn?.id ?? '-'}</td>
-	                                <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(g?.grn?.receivedDate ?? '')}</td>
-	                              </tr>
-	                            ))
-	                          ) : (
+		                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{g?.grn?.id ?? '-'}</td>
+		                                <td className="px-3 py-2 border border-outline-variant">{formatDateShort(g?.grn?.receivedDate ?? '')}</td>
+		                              </tr>
+		                            ))
+		                          ) : (
 	                            <tr>
 	                              <td colSpan={2} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
 	                                None
@@ -830,11 +830,11 @@ export default function OperationsView({
 	                                  className="hover:bg-surface-container-high/40 cursor-pointer"
 	                                  onClick={() => pushDetail({ tab: 'payments', id: String(p?.id ?? ''), title: String(p?.id ?? 'Payment') })}
 	                                >
-	                                  <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{p?.id ?? '-'}</td>
-	                                  <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(p?.paymentDate ?? '')}</td>
-	                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p?.amount ?? 0).toFixed(2)}</td>
-	                                </tr>
-	                              ))
+		                                  <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{p?.id ?? '-'}</td>
+		                                  <td className="px-3 py-2 border border-outline-variant">{formatDateShort(p?.paymentDate ?? '')}</td>
+		                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p?.amount ?? 0).toFixed(2)}</td>
+		                                </tr>
+		                              ))
 	                            ) : (
 	                              <tr>
 	                                <td colSpan={3} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
@@ -936,11 +936,11 @@ export default function OperationsView({
             {detailTab === 'grns' ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
-                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">GRN</div>
-                    <div className="mt-1 font-semibold text-on-surface">{detail.grn?.grn?.id ?? '-'}</div>
-                    <div className="mt-1 text-on-surface-variant">Received: {formatIsoDateShort(detail.grn?.grn?.receivedDate ?? '')}</div>
-                  </div>
+	                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
+	                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">GRN</div>
+	                    <div className="mt-1 font-semibold text-on-surface">{detail.grn?.grn?.id ?? '-'}</div>
+	                    <div className="mt-1 text-on-surface-variant">Received: {formatDateShort(detail.grn?.grn?.receivedDate ?? '')}</div>
+	                  </div>
                   <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
                     <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">PO</div>
                     <div className="mt-1 text-on-surface-variant">{detail.po?.po?.id ?? '-'}</div>
@@ -985,12 +985,12 @@ export default function OperationsView({
             {detailTab === 'invoices' ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
-                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Invoice</div>
-                    <div className="mt-1 font-semibold text-on-surface">{detail.invoice?.invoice?.supplierInvoiceNo ?? detail.invoice?.invoice?.id ?? '-'}</div>
-                    <div className="mt-1 text-on-surface-variant">Date: {formatIsoDateShort(detail.invoice?.invoice?.invoiceDate ?? '')}</div>
-                    <div className="mt-1 text-on-surface-variant">Status: {detail.invoice?.invoice?.status ?? '-'}</div>
-                  </div>
+	                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
+	                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Invoice</div>
+	                    <div className="mt-1 font-semibold text-on-surface">{detail.invoice?.invoice?.supplierInvoiceNo ?? detail.invoice?.invoice?.id ?? '-'}</div>
+	                    <div className="mt-1 text-on-surface-variant">Date: {formatDateShort(detail.invoice?.invoice?.invoiceDate ?? '')}</div>
+	                    <div className="mt-1 text-on-surface-variant">Status: {detail.invoice?.invoice?.status ?? '-'}</div>
+	                  </div>
                   <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
                     <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Amount</div>
                     <div className="mt-1 text-on-surface-variant tabular-nums">{Number(detail.invoice?.invoice?.invoiceAmount ?? 0).toFixed(2)}</div>
@@ -1068,13 +1068,13 @@ export default function OperationsView({
 	            {detailTab === 'payments' ? (
 	              <div className="space-y-3">
 	                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-	                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
-	                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Payment</div>
-	                    <div className="mt-1 font-semibold text-on-surface">{detail.payment?.paymentId ?? '-'}</div>
-	                    <div className="mt-1 text-on-surface-variant">Date: {formatIsoDateShort(detail.payment?.paymentDate ?? '')}</div>
-	                    <div className="mt-1 text-on-surface-variant">Amount: {Number(detail.payment?.amount ?? 0).toFixed(2)}</div>
-	                    <div className="mt-1 text-on-surface-variant">Status: {detail.payment?.status ?? '-'}</div>
-	                    <div className="mt-1 text-on-surface-variant">Mode: {detail.payment?.mode ?? '-'}</div>
+		                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
+		                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Payment</div>
+		                    <div className="mt-1 font-semibold text-on-surface">{detail.payment?.paymentId ?? '-'}</div>
+		                    <div className="mt-1 text-on-surface-variant">Date: {formatDateShort(detail.payment?.paymentDate ?? '')}</div>
+		                    <div className="mt-1 text-on-surface-variant">Amount: {Number(detail.payment?.amount ?? 0).toFixed(2)}</div>
+		                    <div className="mt-1 text-on-surface-variant">Status: {detail.payment?.status ?? '-'}</div>
+		                    <div className="mt-1 text-on-surface-variant">Mode: {detail.payment?.mode ?? '-'}</div>
 	                    <div className="mt-1 text-on-surface-variant">Ref: {detail.payment?.referenceNo ?? '-'}</div>
 	                  </div>
 	                  <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">

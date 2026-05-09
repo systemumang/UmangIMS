@@ -2737,13 +2737,21 @@ export default function PurchaseRequestDetailView({
 	                                  {Number((p as any)?.po?.rejectedQty ?? 0)}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
-	                                  {String((p as any)?.po?.checkPoUserId ?? '') || '-'}
+	                                  {(() => {
+	                                    const checkedById = String((p as any)?.po?.checkPoUserId ?? '').trim();
+	                                    if (!checkedById) return '-';
+	                                    return userNameById.get(checkedById) ?? checkedById;
+	                                  })()}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
 	                                  {String((p as any)?.po?.checkDate ?? '') || '-'}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
-	                                  {String((p as any)?.po?.sentBy ?? '') || '-'}
+	                                  {(() => {
+	                                    const sentById = String((p as any)?.po?.sentBy ?? '').trim();
+	                                    if (!sentById) return '-';
+	                                    return userNameById.get(sentById) ?? sentById;
+	                                  })()}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
 	                                  {String((p as any)?.po?.sentProof ?? '') ? (
