@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Settings, Save, ArrowUpDown } from 'lucide-react';
-import { fetchFirms, fetchStores, fetchItems, fetchSpecifications, type Firm, type Store, type Item, type Specification } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -12,6 +12,7 @@ const ALL_FIRMS_VALUE = '__all_firms__';
 export default function InventoryView() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [specNameById, setSpecNameById] = useState<Record<string, string>>({});
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
   const [selectedStoreFilterId, setSelectedStoreFilterId] = useState<string>('');
   const [rows, setRows] = useState<InventorySheetRow[]>([]);
@@ -31,6 +32,9 @@ export default function InventoryView() {
       setSelectedFirmId(ALL_FIRMS_VALUE);
     });
     fetchStores().then(setStores);
+    fetchSpecifications()
+      .then((list) => setSpecNameById(Object.fromEntries(list.map((s) => [s.id, s.name]))))
+      .catch(() => setSpecNameById({}));
     Promise.all([listIssues(), listReturns(), listDamages(), listTransfers()])
       .then(([issues, returnsList, damages, transfers]) => {
         setIssueRows(issues);
@@ -112,7 +116,7 @@ export default function InventoryView() {
         .filter((it) => {
           const txItem = normalize(it.item);
           if (!txItem) return false;
-          const rowInline = normalize(getFullSheetItemLabel(row));
+          const rowInline = normalize(getFullSheetItemLabel(row, specNameById));
           const rowName = normalize(row.itemName);
           return txItem === rowInline || txItem === rowName || txItem.includes(rowName) || rowInline.includes(txItem);
         })
@@ -158,11 +162,11 @@ export default function InventoryView() {
       const balance = opening + purchase + returns + transferIn - issue - damage - transferOut;
       return { ...row, issue, returns, damage, transferIn, transferOut, balance };
     });
-  }, [rows, firms, issueRows, returnRows, damageRows, transferRows]);
+  }, [rows, firms, issueRows, returnRows, damageRows, transferRows, specNameById]);
 
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
-    const fullLabel = getFullSheetItemLabel(r).toLowerCase();
+    const fullLabel = getFullSheetItemLabel(r, specNameById).toLowerCase();
     const bySearch =
       fullLabel.includes(search.toLowerCase()) ||
       r.itemCode.toLowerCase().includes(search.toLowerCase());
@@ -182,7 +186,7 @@ export default function InventoryView() {
     const strCmp = (x: string, y: string) => x.localeCompare(y);
     switch (sortBy) {
       case 'itemName':
-        return dir * strCmp(getFullSheetItemLabel(a), getFullSheetItemLabel(b));
+        return dir * strCmp(getFullSheetItemLabel(a, specNameById), getFullSheetItemLabel(b, specNameById));
       case 'firm':
         return dir * strCmp(getFirmLabel(a), getFirmLabel(b));
       case 'store':
@@ -273,7 +277,7 @@ export default function InventoryView() {
 	    for (const r of sortedRows) {
 	      lines.push(
 		        [
-		          getFullSheetItemLabel(r),
+		          getFullSheetItemLabel(r, specNameById),
 		          getFirmLabel(r),
 		          getStoreLabel(r),
 		          Number(r.opening ?? 0),
@@ -333,7 +337,7 @@ export default function InventoryView() {
 	              ${sortedRows
 	                .map((r) => {
 		                  const cols = [
-		                    `<td>${String(getFullSheetItemLabel(r)).replace(/</g, '&lt;')}</td>`,
+		                    `<td>${String(getFullSheetItemLabel(r, specNameById)).replace(/</g, '&lt;')}</td>`,
 		                    `<td>${String(getFirmLabel(r)).replace(/</g, '&lt;')}</td>`,
 		                    `<td>${String(getStoreLabel(r)).replace(/</g, '&lt;')}</td>`,
 		                    `<td class="num">${Number(r.opening ?? 0)}</td>`,
@@ -539,8 +543,11 @@ export default function InventoryView() {
 			                        isLow ? 'bg-red-200 hover:bg-red-200' : 'hover:bg-surface-container-low/50'
 			                      )}
 			                    >
-	                      <td className="p-3 border-r border-black text-on-surface font-semibold whitespace-normal break-words" title={getFullSheetItemLabel(r)}>
-		                        {getFullSheetItemLabel(r)}
+	                      <td
+	                        className="p-3 border-r border-black text-on-surface font-semibold whitespace-normal break-words"
+	                        title={getFullSheetItemLabel(r, specNameById)}
+	                      >
+		                        {getFullSheetItemLabel(r, specNameById)}
 		                      </td>
 	                      <td className="p-3 border-r border-black text-on-surface-variant">{getFirmLabel(r)}</td>
 	                      <td className="p-3 border-r border-black text-on-surface-variant">{getStoreLabel(r)}</td>
@@ -734,9 +741,9 @@ function OpeningStockModal({ onClose, firms }: { onClose: () => void; firms: Fir
                         <td className="p-3 border-r border-black">
                           <div
                             className="text-sm font-semibold text-on-surface whitespace-normal break-words"
-                            title={getFullItemLabel(item)}
+                            title={getFullItemLabel(item, specNameById)}
                           >
-                            {getFullItemLabel(item)}
+                            {getFullItemLabel(item, specNameById)}
                           </div>
                         </td>
                         <td className="p-2 border-r border-black">
@@ -777,12 +784,12 @@ function cn(...classes: any[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-function getFullItemLabel(item: Item) {
-  return formatItemInline(item.itemName, item.specificationsJson);
+function getFullItemLabel(item: Item, specNameById?: Record<string, string>) {
+  return formatItemInline(item.itemName, item.specificationsJson, specNameById);
 }
 
-function getFullSheetItemLabel(row: InventorySheetRow) {
-  return formatItemInline(row.itemName, row.specifications);
+function getFullSheetItemLabel(row: InventorySheetRow, specNameById?: Record<string, string>) {
+  return formatItemInline(row.itemName, row.specifications, specNameById);
 }
 
 function getStoreLabel(row: InventorySheetRow) {
