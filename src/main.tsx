@@ -1,6 +1,7 @@
 import React, { Component, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import App from './App.tsx';
 
 function formatUnknownError(err: unknown) {
   if (err instanceof Error) return { message: err.message, stack: err.stack };
@@ -61,18 +62,14 @@ window.addEventListener('unhandledrejection', (e) => {
   showFatal('Unhandled promise rejection', (e as PromiseRejectionEvent).reason);
 });
 
-(async () => {
-  try {
-    const mod = await import('./App.tsx');
-    const App = mod.default;
-    root.render(
-      <StrictMode>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
-      </StrictMode>
-    );
-  } catch (e) {
-    showFatal('Failed to start app', e);
-  }
-})();
+try {
+  root.render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>
+  );
+} catch (e) {
+  showFatal('Failed to start app', e);
+}
