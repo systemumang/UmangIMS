@@ -14,7 +14,5 @@ tmp/
 # App data: keep databases out, allow spreadsheets/exports
 data/**
 !data/**/
-!data/**/*.xlsx
-!data/**/*.xls
-!data/**/*.xlsm
+
 !data/**/*.csv

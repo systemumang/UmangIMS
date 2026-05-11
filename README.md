@@ -23,10 +23,8 @@ View your app in AI Studio: https://ai.studio/apps/479db784-1bff-4d22-a44d-2532d
 
 - App UI: `http://localhost:3000/`
 - API base: `http://localhost:3000/api`
-- Excel export: `http://localhost:3000/api/requests.xlsx`
 
 ## Data storage
 
-- Primary DB (SQLite): `data/purchase_system.sqlite` (auto-created on first run)
-- Excel snapshot: `data/purchase_workflow.xlsx` (auto-saved after each transaction; if the file is open/locked, it will be skipped until you close Excel)
-- Masters Excel snapshot: `data/master_data.xlsx` (auto-saved after each change; if the file is open/locked, it will be skipped until you close Excel)
+- Primary DB (MySQL): All data persisted to Hostinger MySQL database
+- All operations backed by database, no local files

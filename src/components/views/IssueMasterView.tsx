@@ -20,111 +20,6 @@ export default function IssueMasterView() {
   const cloneTx = (row: StockTransaction) =>
     JSON.parse(JSON.stringify(row)) as StockTransaction;
 
-  const downloadTextFile = (fileName: string, content: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportIssuesCsv = () => {
-    const date = new Date().toISOString().slice(0, 10);
-    const fileBase = `IssueMaster_${date}`.replace(/[^\w\-]+/g, '_');
-    const headers = ['Issue No', 'Issue Date', 'Issue Type', 'Issued To', 'Firm', 'Store', 'Department', 'Issued By', 'Total Items'];
-    const esc = (v: unknown) => {
-      const s = String(v ?? '');
-      if (s.includes('"') || s.includes(',') || s.includes('\n')) return `"${s.replace(/\"/g, '""')}"`;
-      return s;
-    };
-    const lines = [headers.map(esc).join(',')];
-    for (const row of filtered) {
-      lines.push(
-        [
-          row.transactionNo,
-          formatDate(row.date),
-          row.issueType ?? 'Stock',
-          row.issuedTo ?? '-',
-          getFirmDisplay(row.firmId),
-          row.store ?? '-',
-          row.department ?? '',
-          row.person ?? '',
-          row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0),
-        ].map(esc).join(',')
-      );
-    }
-    downloadTextFile(`${fileBase}.csv`, lines.join('\n'), 'text/csv;charset=utf-8');
-  };
-
-  const exportIssuesPdf = () => {
-    const date = new Date().toISOString().slice(0, 10);
-    const title = `Issue Master ${date}`;
-    const html = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 16px; }
-            h1 { font-size: 16px; margin: 0 0 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th, td { border: 1px solid #000; padding: 6px; vertical-align: top; }
-            th { background: #1d4ed8; color: #fff; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
-            td.num { text-align: right; white-space: nowrap; }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Issue No</th>
-                <th>Issue Date</th>
-                <th>Type</th>
-                <th>Issued To</th>
-                <th>Firm</th>
-                <th>Store</th>
-                <th>Department</th>
-                <th>Issued By</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filtered
-                .map((r) => {
-                  const total = r.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
-                  const cols = [
-                    `<td>${String(r.transactionNo).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(formatDate(r.date)).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.issueType ?? 'Stock').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.issuedTo ?? '-').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(getFirmDisplay(r.firmId)).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.store ?? '-').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.department ?? '').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.person ?? '').replace(/</g, '&lt;')}</td>`,
-                    `<td class="num">${total}</td>`,
-                  ];
-                  return `<tr>${cols.join('')}</tr>`;
-                })
-                .join('')}
-            </tbody>
-          </table>
-          <script>window.onload = () => window.print();</script>
-        </body>
-      </html>
-    `.trim();
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-  };
-
   const formatDate = (d: string) => {
     if (!d) return '';
     const [y, m, day] = d.split('-');
@@ -292,12 +187,6 @@ export default function IssueMasterView() {
 	                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
 	              />
 	            </div>
-	            <button type="button" className="btn btn-sm" onClick={exportIssuesCsv} title="Download Excel">
-	              Excel
-	            </button>
-	            <button type="button" className="btn btn-sm" onClick={exportIssuesPdf} title="Download PDF">
-	              Pdf
-	            </button>
 	          </div>
 	        </div>
 	        <div className="overflow-x-auto">

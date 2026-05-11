@@ -11,7 +11,6 @@ export type StockTransaction = {
   firmId: string;
   store?: string;
   department: string;
-  // For Stock Transfer flows
   toFirmId?: string;
   toStore?: string;
   toDepartment?: string;
@@ -25,153 +24,194 @@ export type StockTransaction = {
   items: StockTransactionItem[];
 };
 
-function getStorage(key: string): StockTransaction[] {
-  try {
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function setStorage(key: string, data: StockTransaction[]) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
-
-function updateById(key: string, id: string, updater: (row: StockTransaction) => StockTransaction) {
-  const rows = getStorage(key);
-  const next = rows.map((r) => (String(r.id) === String(id) ? updater(r) : r));
-  setStorage(key, next);
-  return next.find((r) => String(r.id) === String(id)) ?? null;
-}
-
-function getById(key: string, id: string) {
-  const rows = getStorage(key);
-  return rows.find((r) => String(r.id) === String(id)) ?? null;
-}
-
-function getFyPrefix() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  if (month < 3) {
-    return `${(year - 1).toString().slice(2)}-${year.toString().slice(2)}`;
-  } else {
-    return `${year.toString().slice(2)}-${(year + 1).toString().slice(2)}`;
-  }
-}
-
+// Issues API endpoints
 export async function createIssue(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  const issues = getStorage('stock_issues');
-  const nextNum = issues.length + 1;
-  const newRow = {
-    ...data,
-    id: String(Date.now()),
-    transactionNo: `ISS/${getFyPrefix()}/${String(nextNum).padStart(5, '0')}`
-  };
-  setStorage('stock_issues', [newRow, ...issues]);
-  return newRow;
+  const res = await fetch('/api/stock-transactions/issues', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to create issue (${res.status})`);
+  }
+  return res.json();
 }
 
-export async function listIssues() {
-  return getStorage('stock_issues');
+export async function listIssues(): Promise<StockTransaction[]> {
+  const res = await fetch('/api/stock-transactions/issues');
+  if (!res.ok) throw new Error(`Failed to list issues (${res.status})`);
+  const data = await res.json();
+  return data.issues || [];
 }
 
-export async function getIssue(id: string) {
-  return getById('stock_issues', id);
+export async function getIssue(id: string): Promise<StockTransaction | null> {
+  const res = await fetch(`/api/stock-transactions/issues/${id}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to get issue (${res.status})`);
+  const data = await res.json();
+  return data.issue || null;
 }
 
 export async function updateIssue(id: string, next: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  return updateById('stock_issues', id, (prev) => ({ ...prev, ...next, id: prev.id, transactionNo: prev.transactionNo }));
+  const res = await fetch(`/api/stock-transactions/issues/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(next),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update issue (${res.status})`);
+  }
+  const data = await res.json();
+  return data.issue || null;
 }
 
 export async function deleteIssue(id: string) {
-  const issues = getStorage('stock_issues');
-  setStorage('stock_issues', issues.filter(i => i.id !== id));
+  const res = await fetch(`/api/stock-transactions/issues/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete issue (${res.status})`);
 }
 
+// Returns API endpoints
 export async function createReturn(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  const returns = getStorage('stock_returns');
-  const nextNum = returns.length + 1;
-  const newRow = {
-    ...data,
-    id: String(Date.now()),
-    transactionNo: `RET/${getFyPrefix()}/${String(nextNum).padStart(5, '0')}`
-  };
-  setStorage('stock_returns', [newRow, ...returns]);
-  return newRow;
+  const res = await fetch('/api/stock-transactions/returns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to create return (${res.status})`);
+  }
+  return res.json();
 }
 
-export async function listReturns() {
-  return getStorage('stock_returns');
+export async function listReturns(): Promise<StockTransaction[]> {
+  const res = await fetch('/api/stock-transactions/returns');
+  if (!res.ok) throw new Error(`Failed to list returns (${res.status})`);
+  const data = await res.json();
+  return data.returns || [];
 }
 
-export async function getReturn(id: string) {
-  return getById('stock_returns', id);
+export async function getReturn(id: string): Promise<StockTransaction | null> {
+  const res = await fetch(`/api/stock-transactions/returns/${id}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to get return (${res.status})`);
+  const data = await res.json();
+  return data.return || null;
 }
 
 export async function updateReturn(id: string, next: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  return updateById('stock_returns', id, (prev) => ({ ...prev, ...next, id: prev.id, transactionNo: prev.transactionNo }));
+  const res = await fetch(`/api/stock-transactions/returns/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(next),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update return (${res.status})`);
+  }
+  const data = await res.json();
+  return data.return || null;
 }
 
 export async function deleteReturn(id: string) {
-  const returns = getStorage('stock_returns');
-  setStorage('stock_returns', returns.filter(i => i.id !== id));
+  const res = await fetch(`/api/stock-transactions/returns/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete return (${res.status})`);
 }
 
+// Damages API endpoints
 export async function createDamage(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  const damages = getStorage('stock_damages');
-  const nextNum = damages.length + 1;
-  const newRow = {
-    ...data,
-    id: String(Date.now()),
-    transactionNo: `DAM/${getFyPrefix()}/${String(nextNum).padStart(5, '0')}`
-  };
-  setStorage('stock_damages', [newRow, ...damages]);
-  return newRow;
+  const res = await fetch('/api/stock-transactions/damages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to create damage (${res.status})`);
+  }
+  return res.json();
 }
 
-export async function listDamages() {
-  return getStorage('stock_damages');
+export async function listDamages(): Promise<StockTransaction[]> {
+  const res = await fetch('/api/stock-transactions/damages');
+  if (!res.ok) throw new Error(`Failed to list damages (${res.status})`);
+  const data = await res.json();
+  return data.damages || [];
 }
 
-export async function getDamage(id: string) {
-  return getById('stock_damages', id);
+export async function getDamage(id: string): Promise<StockTransaction | null> {
+  const res = await fetch(`/api/stock-transactions/damages/${id}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to get damage (${res.status})`);
+  const data = await res.json();
+  return data.damage || null;
 }
 
 export async function updateDamage(id: string, next: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  return updateById('stock_damages', id, (prev) => ({ ...prev, ...next, id: prev.id, transactionNo: prev.transactionNo }));
+  const res = await fetch(`/api/stock-transactions/damages/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(next),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update damage (${res.status})`);
+  }
+  const data = await res.json();
+  return data.damage || null;
 }
 
 export async function deleteDamage(id: string) {
-  const damages = getStorage('stock_damages');
-  setStorage('stock_damages', damages.filter(i => i.id !== id));
+  const res = await fetch(`/api/stock-transactions/damages/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete damage (${res.status})`);
 }
 
+// Transfers API endpoints
 export async function createTransfer(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  const transfers = getStorage('stock_transfers');
-  const nextNum = transfers.length + 1;
-  const newRow = {
-    ...data,
-    id: String(Date.now()),
-    transactionNo: `TRF/${getFyPrefix()}/${String(nextNum).padStart(5, '0')}`
-  };
-  setStorage('stock_transfers', [newRow, ...transfers]);
-  return newRow;
+  const res = await fetch('/api/stock-transactions/transfers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to create transfer (${res.status})`);
+  }
+  return res.json();
 }
 
-export async function listTransfers() {
-  return getStorage('stock_transfers');
+export async function listTransfers(): Promise<StockTransaction[]> {
+  const res = await fetch('/api/stock-transactions/transfers');
+  if (!res.ok) throw new Error(`Failed to list transfers (${res.status})`);
+  const data = await res.json();
+  return data.transfers || [];
 }
 
-export async function getTransfer(id: string) {
-  return getById('stock_transfers', id);
+export async function getTransfer(id: string): Promise<StockTransaction | null> {
+  const res = await fetch(`/api/stock-transactions/transfers/${id}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to get transfer (${res.status})`);
+  const data = await res.json();
+  return data.transfer || null;
 }
 
 export async function updateTransfer(id: string, next: Omit<StockTransaction, 'id' | 'transactionNo'>) {
-  return updateById('stock_transfers', id, (prev) => ({ ...prev, ...next, id: prev.id, transactionNo: prev.transactionNo }));
+  const res = await fetch(`/api/stock-transactions/transfers/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(next),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update transfer (${res.status})`);
+  }
+  const data = await res.json();
+  return data.transfer || null;
 }
 
 export async function deleteTransfer(id: string) {
-  const transfers = getStorage('stock_transfers');
-  setStorage('stock_transfers', transfers.filter(i => i.id !== id));
+  const res = await fetch(`/api/stock-transactions/transfers/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete transfer (${res.status})`);
 }
