@@ -9,6 +9,7 @@ export default function ReturnMasterView() {
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [sortBy, setSortBy] = useState<
     'transactionNo' | 'date' | 'returnType' | 'customerName' | 'firm' | 'store' | 'department' | 'person' | 'total'
@@ -115,6 +116,7 @@ export default function ReturnMasterView() {
         date: editItem.date,
         returnType: editItem.returnType,
         customerName: editItem.customerName,
+        projectId: editItem.projectId,
         items: editItem.items,
       });
       setEditItem(null);
@@ -393,6 +395,22 @@ export default function ReturnMasterView() {
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Customer Name</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.customerName ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, customerName: e.target.value }) : p)} />
                 </label>
+                {editItem.returnType === 'Project' && (
+                  <label className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project</div>
+                    <select
+                      className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
+                      value={editItem.projectId ?? ''}
+                      onChange={(e) => setEditItem((p) => (p ? { ...p, projectId: e.target.value } : p))}
+                    >
+                      <option value="">Select Project...</option>
+                      {/* Projects are not fetched in this view yet, I should add them */}
+                      {projects.map((pr: any) => (
+                        <option key={pr.id} value={pr.id}>{pr.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="space-y-1 md:col-span-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Received By</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.person ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, person: e.target.value }) : p)} />
@@ -422,7 +440,7 @@ export default function ReturnMasterView() {
 	                                const selectedId = e.target.value;
 	                                const selected = items.find((x) => x.id === selectedId);
 	                                const nextSpec = selected ? formatSpecs(selected.specificationsJson) : nextItems[idx].specification ?? '';
-	                                nextItems[idx] = { ...nextItems[idx], item: selectedId, specification: nextSpec };
+	                                nextItems[idx] = { ...nextItems[idx], itemId: selectedId, item: selected?.itemName ?? '', specification: nextSpec };
 	                                return { ...p, items: nextItems };
 	                              })
 	                            }

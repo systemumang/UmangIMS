@@ -72,6 +72,7 @@ export default function DamageView({
 			  const [storeId, setStoreId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
+			  const [projectId, setProjectId] = useState('');
 			  const [approvedByUserId, setApprovedByUserId] = useState('');
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
@@ -478,6 +479,17 @@ export default function DamageView({
 		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Damage Date</div>
 		            <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
 		          </label>
+
+			          <label className="space-y-1">
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project (optional)</div>
+			            <SearchableSelect
+			              value={projectId}
+			              options={projectOptions}
+			              onChange={setProjectId}
+			              disabled={loadingProjects || !firmId}
+			              placeholder="Select project..."
+			            />
+			          </label>
 		        </div>
 
 			        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">

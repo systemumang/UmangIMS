@@ -56,6 +56,7 @@ function getMysqlPool() {
             transaction_no VARCHAR(255),
             firm_id VARCHAR(255),
             store VARCHAR(255),
+            store_id VARCHAR(255),
             department VARCHAR(255),
             person VARCHAR(255),
             date DATE,
@@ -66,7 +67,9 @@ function getMysqlPool() {
             approved_by VARCHAR(255),
             to_firm_id VARCHAR(255),
             to_store VARCHAR(255),
+            to_store_id VARCHAR(255),
             to_department VARCHAR(255),
+            project_id VARCHAR(255),
             created_at DATETIME,
             updated_at DATETIME
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -79,6 +82,7 @@ function getMysqlPool() {
           CREATE TABLE IF NOT EXISTS ${itemsTable} (
             id VARCHAR(255) PRIMARY KEY,
             ${kind}_id VARCHAR(255),
+            item_id VARCHAR(255),
             item_name VARCHAR(255),
             quantity DOUBLE,
             specification TEXT,
@@ -94,6 +98,7 @@ function getMysqlPool() {
         const needed = [
           ['transaction_no', 'VARCHAR(255)'],
           ['store', 'VARCHAR(255)'],
+          ['store_id', 'VARCHAR(255)'],
           ['department', 'VARCHAR(255)'],
           ['person', 'VARCHAR(255)'],
           ['date', 'DATE'],
@@ -107,12 +112,20 @@ function getMysqlPool() {
           ['to_store_id', 'VARCHAR(255)'],
           ['to_department', 'VARCHAR(255)'],
           ['project_id', 'VARCHAR(255)'],
-          ['store_id', 'VARCHAR(255)']
         ];
         for (const [name, def] of needed) {
           if (!colNames.includes(name)) {
             await pool.query(`ALTER TABLE ${t} ADD COLUMN ${name} ${def}`);
           }
+        }
+
+        const [itemCols] = await pool.query(`SHOW COLUMNS FROM ${itemsTable}`);
+        const itemColNames = itemCols.map(c => c.Field);
+        if (!itemColNames.includes('item_id')) {
+          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_id VARCHAR(255) AFTER ${kind}_id`);
+        }
+        if (!itemColNames.includes('item_name')) {
+          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_name VARCHAR(255) AFTER item_id`);
         }
 
         // Special fix for item_issues.issue_type_id foreign key constraint
@@ -5642,7 +5655,8 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         toStore: row.to_store_id || row.to_store,
         toDepartment: row.to_department,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
-          item: it.item_name || it.item_id, // Map correctly if needed
+          itemId: it.item_id,
+          item: it.item_name || it.item_id,
           quantity: it.quantity,
           specification: it.specification,
           remark: it.remark

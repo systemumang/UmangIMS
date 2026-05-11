@@ -243,6 +243,7 @@ export default function StockTransferView({
                   person: transferBy,
                   date: transferDate,
                   items: normalizedItems.map((it) => ({
+                    itemId: it.itemId,
                     item: it.item,
                     quantity: it.quantity,
                     specification: '',

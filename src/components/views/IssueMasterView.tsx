@@ -424,7 +424,7 @@ export default function IssueMasterView() {
 	                                const selectedId = e.target.value;
 	                                const selected = items.find((x) => x.id === selectedId);
 	                                const nextSpec = selected ? formatSpecs(selected.specificationsJson) : nextItems[idx].specification ?? '';
-	                                nextItems[idx] = { ...nextItems[idx], item: selectedId, specification: nextSpec };
+	                                nextItems[idx] = { ...nextItems[idx], itemId: selectedId, item: selected?.itemName ?? '', specification: nextSpec };
 	                                return { ...p, items: nextItems };
 	                              })
 	                            }
