@@ -3,6 +3,7 @@ import { LayoutDashboard } from 'lucide-react';
 import Sidebar, { type NavView, type PendingQueueKey, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
 import DashboardView from './components/views/DashboardView';
+import PowerBIDashboardView from './components/views/PowerBIDashboardView';
 import InventoryView from './components/views/InventoryView';
 import PurchasingView from './components/views/PurchasingView';
 import OperationsView from './components/views/OperationsView';
@@ -271,7 +272,39 @@ export default function App() {
           />
 	        
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
-				          {view === 'dashboard' || view === 'home' ? (
+				          {view === 'dashboard' ? (
+				            <PowerBIDashboardView
+				              onNewPurchaseRequest={() => {
+				                setSelectedRequestId(null);
+				                setView('newPurchaseRequest');
+				              }}
+				              onNavigateStockMasterTab={(tab) => {
+				                setStockMasterTab(tab);
+				                setSelectedRequestId(null);
+				                setStockMasterExpanded(true);
+				                setMastersExpanded(false);
+				                setPendingExpanded(false);
+				                setView('stockMaster');
+				              }}
+				              onNavigatePendingQueue={(key) => {
+				                setSelectedRequestId(null);
+				                setMastersExpanded(false);
+				                setStockMasterExpanded(false);
+				                setPendingExpanded(true);
+				                setView(key);
+				              }}
+				              onNavigateMastersTab={(tab) => {
+				                setMastersTab(tab);
+				                setSelectedRequestId(null);
+				                setMastersExpanded(true);
+				                setPendingExpanded(false);
+				                setStockMasterExpanded(false);
+				                setView('masters');
+				              }}
+				            />
+				          ) : null}
+
+				          {view === 'home' ? (
 				            <DashboardView
 				              onNewPurchaseRequest={() => {
 				                setSelectedRequestId(null);
