@@ -5617,7 +5617,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         id: row.id,
         transactionNo: row.transaction_no || row.id,
         firmId: row.firm_id,
-        store: row.store,
+        store: row.store_id || row.from_store_id || row.store,
         department: row.department,
         person: row.person || row.requested_by,
         date: toIsoDate(row.date) || toIsoDate(row.created_at),
@@ -5627,7 +5627,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         customerName: row.customer_name,
         approvedBy: row.approved_by,
         toFirmId: row.to_firm_id,
-        toStore: row.to_store,
+        toStore: row.to_store_id || row.to_store,
         toDepartment: row.to_department,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
           item: it.item_name || it.item_id, // Map correctly if needed
@@ -5653,16 +5653,31 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     const transactionNo = await getNextTransactionNo(pool, table, prefix);
     const data = req.body;
 
+    const storeId = data.storeId || data.store;
+    const toStoreId = data.toStoreId || data.toStore;
+
+    let storeCol = 'store';
+    if (table === 'item_issues' || table === 'item_returns' || table === 'item_damages') {
+      storeCol = 'store_id';
+    } else if (table === 'item_transfers') {
+      storeCol = 'from_store_id';
+    }
+
+    let toStoreCol = 'to_store';
+    if (table === 'item_transfers') {
+      toStoreCol = 'to_store_id';
+    }
+
     await pool.query(
       `INSERT INTO ${table} (
-        id, transaction_no, firm_id, store, department, person, date,
+        id, transaction_no, firm_id, ${storeCol}, department, person, date,
         issue_type, issued_to, return_type, customer_name, approved_by,
-        to_firm_id, to_store, to_department, created_at, updated_at
+        to_firm_id, ${toStoreCol}, to_department, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
-        id, transactionNo, data.firmId, data.store, data.department, data.person, data.date,
+        id, transactionNo, data.firmId, storeId, data.department, data.person, data.date,
         data.issueType, data.issuedTo, data.returnType, data.customerName, data.approvedBy,
-        data.toFirmId, data.toStore, data.toDepartment
+        data.toFirmId, toStoreId, data.toDepartment
       ]
     );
 

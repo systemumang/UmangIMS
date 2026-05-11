@@ -682,6 +682,7 @@ export default function DamageView({
 					                  setSaving(true);
 						                  createDamage({
 						                    firmId: firmId,
+						                    storeId: storeId,
 						                    store,
 						                    department,
 						                    person: requestedBy,

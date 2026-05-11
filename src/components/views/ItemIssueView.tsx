@@ -704,6 +704,7 @@ export default function ItemIssueView({
 					                  setSaving(true);
 						                  createIssue({ 
 						                    firmId: firmId,
+						                    storeId: storeId,
 						                    store,
 						                    department,
 						                    person: requestedBy, 
