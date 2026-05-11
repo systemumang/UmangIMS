@@ -42,19 +42,9 @@ export default function App() {
 		  const [pendingExpanded, setPendingExpanded] = useState(false);
 		  const [stockMasterTab, setStockMasterTab] = useState<StockMasterTab>('itemIssue');
 		  const [stockMasterExpanded, setStockMasterExpanded] = useState(false);
-		  const [sidebarOpen, setSidebarOpen] = useState(() => {
-		    try {
-	      const v = window.localStorage.getItem('sidebarOpen');
-      if (v === '0') return false;
-      if (v === '1') return true;
-      return true;
-    } catch {
-      return true;
-    }
-  });
+		  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [inFlightCount, setInFlightCount] = useState(0);
-  const [writeFlowActive, setWriteFlowActive] = useState(false);
+		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const inFlightRef = useRef(0);
   const mountedRef = useRef(true);
   const hideTimerRef = useRef<number | null>(null);
@@ -276,15 +266,7 @@ export default function App() {
             showSearch={topBar.showSearch}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => {
-              setSidebarOpen((prev) => {
-                const next = !prev;
-                try {
-                  window.localStorage.setItem('sidebarOpen', next ? '1' : '0');
-                } catch {
-                  // ignore
-                }
-                return next;
-              });
+              setSidebarOpen((prev) => !prev);
             }}
           />
 	        

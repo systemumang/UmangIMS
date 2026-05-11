@@ -680,16 +680,15 @@ export default function DamageView({
 						                  }
 
 					                  setSaving(true);
-						                  createDamage({ 
-						                    firmId: firms.find(f => f.id === firmId)?.name || firmId, 
+						                  createDamage({
+						                    firmId: firmId,
 						                    store,
-						                    department, 
-						                    person: requestedBy, 
-						                    date: requiredDate, 
+						                    department,
+						                    person: requestedBy,
+						                    date: requiredDate,
 						                    approvedBy: approvedByUserId,
-						                    items: normalizedItems 
-						                  }).then(created => onCreated(created.id))
-				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+						                    items: normalizedItems
+						                  }).then(created => onCreated(created.id))				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}
 							                className="btn-primary"

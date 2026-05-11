@@ -232,10 +232,10 @@ export default function StockTransferView({
 
                 setSaving(true);
                 createTransfer({
-                  firmId: fromFirmName,
+                  firmId: fromFirmId,
                   store: fromStoreName,
                   department: fromDepartment,
-                  toFirmId: toFirmName,
+                  toFirmId: toFirmId,
                   toStore: toStoreName,
                   toDepartment,
                   person: transferBy,

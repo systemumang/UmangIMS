@@ -732,7 +732,7 @@ export default function ReturnView({
 
 					                  setSaving(true);
 						                  createReturn({ 
-						                    firmId: firms.find(f => f.id === firmId)?.name || firmId, 
+						                    firmId: firmId, 
 						                    store,
 						                    department, 
 						                    person: requestedBy, 

@@ -703,7 +703,7 @@ export default function ItemIssueView({
 
 					                  setSaving(true);
 						                  createIssue({ 
-						                    firmId: firms.find((f) => f.id === firmId)?.name ?? firmId,
+						                    firmId: firmId,
 						                    store,
 						                    department,
 						                    person: requestedBy, 
