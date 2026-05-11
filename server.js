@@ -120,12 +120,14 @@ function getMysqlPool() {
         }
 
         const [itemCols] = await pool.query(`SHOW COLUMNS FROM ${itemsTable}`);
-        const itemColNames = itemCols.map(c => c.Field);
-        if (!itemColNames.includes('item_id')) {
+        const itemColNames = new Set(itemCols.map((c) => c.Field));
+        if (!itemColNames.has('item_id')) {
           await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_id VARCHAR(255) AFTER ${kind}_id`);
+          itemColNames.add('item_id');
         }
-        if (!itemColNames.includes('item_name')) {
+        if (!itemColNames.has('item_name')) {
           await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_name VARCHAR(255) AFTER item_id`);
+          itemColNames.add('item_name');
         }
 
         // Special fix for item_issues.issue_type_id foreign key constraint
@@ -137,16 +139,13 @@ function getMysqlPool() {
           }
         }
 
-        const [itemCols] = await pool.query(`SHOW COLUMNS FROM ${itemsTable}`);
-        const itemColNames = itemCols.map(c => c.Field);
-        if (!itemColNames.includes('item_name')) {
-          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_name VARCHAR(255)`);
-        }
-        if (!itemColNames.includes('specification')) {
+        if (!itemColNames.has('specification')) {
           await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN specification TEXT`);
+          itemColNames.add('specification');
         }
-        if (!itemColNames.includes('remark')) {
+        if (!itemColNames.has('remark')) {
           await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN remark TEXT`);
+          itemColNames.add('remark');
         }
       }
     } catch (err) {
