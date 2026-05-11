@@ -20,56 +20,7 @@ export default function ReturnMasterView() {
   const cloneTx = (row: StockTransaction) =>
     JSON.parse(JSON.stringify(row)) as StockTransaction;
 
-  const downloadTextFile = (fileName: string, content: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportReturnsCsv = () => {
-    const date = new Date().toISOString().slice(0, 10);
-    const fileBase = `ReturnMaster_${date}`.replace(/[^\w\-]+/g, '_');
-    const headers = ['Return No', 'Return Date', 'Return Type', 'Customer Name', 'Firm', 'Store', 'Department', 'Received By', 'Total Items'];
-    const esc = (v: unknown) => {
-      const s = String(v ?? '');
-      if (s.includes('"') || s.includes(',') || s.includes('\n')) return `"${s.replace(/\"/g, '""')}"`;
-      return s;
-    };
-    const lines = [headers.map(esc).join(',')];
-    for (const row of filtered) {
-      lines.push(
-        [
-          row.transactionNo,
-          formatDate(row.date),
-          row.returnType ?? 'Stock',
-          row.customerName ?? '-',
-          getFirmDisplay(row.firmId),
-          row.store ?? '-',
-          row.department ?? '',
-          row.person ?? '',
-          row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0),
-        ].map(esc).join(',')
-      );
-    }
-    downloadTextFile(`${fileBase}.csv`, lines.join('\n'), 'text/csv;charset=utf-8');
-  };
-
-  const exportReturnsPdf = () => {
-    const date = new Date().toISOString().slice(0, 10);
-    const title = `Return Master ${date}`;
-    const html = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${title}</title>
-          <style>
+  // Exports removed: handled by server-side or external reporting tools
             body { font-family: Arial, sans-serif; padding: 16px; }
             h1 { font-size: 16px; margin: 0 0 12px; }
             table { width: 100%; border-collapse: collapse; font-size: 11px; }
