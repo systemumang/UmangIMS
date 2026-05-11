@@ -666,8 +666,8 @@ export default function DamageView({
 					                      else if (!specification) rowMessages[i] = 'Missing specification.';
 					                      else if (!remark) rowMessages[i] = 'Remark is required.';
 					                      if (itemId) usedItemIds.add(itemId);
-					                      return { item: itemName, quantity: quantityNumber, specification, remark };
-					                    })
+					                      return { itemId, item: itemName, quantity: quantityNumber, specification };
+					                      })
 					                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 

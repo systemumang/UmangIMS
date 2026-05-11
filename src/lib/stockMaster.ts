@@ -1,4 +1,5 @@
 export type StockTransactionItem = {
+  itemId: string;
   item: string;
   quantity: number;
   specification?: string;

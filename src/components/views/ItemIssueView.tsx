@@ -684,7 +684,7 @@ export default function ItemIssueView({
 					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
 					                      else if (!specification) rowMessages[i] = 'Missing specification.';
 					                      if (itemId) usedItemIds.add(itemId);
-					                      return { item: itemName, quantity: quantityNumber, specification };
+					                      return { itemId, item: itemName, quantity: quantityNumber, specification };
 					                    })
 					                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);

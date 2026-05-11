@@ -5695,9 +5695,9 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
 
     for (const item of data.items || []) {
       await pool.query(
-        `INSERT INTO ${itemsTable} (id, ${kind}_id, item_name, quantity, specification, remark, created_at)
+        `INSERT INTO ${itemsTable} (id, ${kind}_id, item_id, quantity, specification, remark, created_at)
          VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [crypto.randomUUID(), id, item.item, item.quantity, item.specification, item.remark]
+        [crypto.randomUUID(), id, item.itemId, item.quantity, item.specification, item.remark]
       );
     }
 
