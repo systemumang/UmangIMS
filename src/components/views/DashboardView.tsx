@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, ClipboardList, Database } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Plus, ClipboardList, Database, TrendingUp, Activity, Layers } from 'lucide-react';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
@@ -16,8 +16,41 @@ export default function DashboardView({
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
   onNavigateMastersTab: (tab: MastersTab) => void;
 }) {
+  const kpis = useMemo(
+    () => [
+      { label: 'Pending Queues', value: String(pendingQueueItems.length), icon: Activity },
+      { label: 'Masters', value: String(MASTERS_TABS.length), icon: Database },
+      { label: 'Stock Actions', value: '4', icon: Layers },
+      { label: 'Today', value: new Date().toLocaleDateString(), icon: TrendingUp },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 shadow-sm relative overflow-hidden"
+            >
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-primary/10" />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold text-on-surface-variant">{kpi.label}</div>
+                  <div className="mt-1 text-lg font-bold text-on-surface">{kpi.value}</div>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <Icon size={18} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
         <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
