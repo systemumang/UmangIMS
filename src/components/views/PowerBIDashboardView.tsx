@@ -12,6 +12,44 @@ import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
 type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
+function MiniBarChart({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  return (
+    <div className="flex items-end gap-1 h-14">
+      {values.map((v, idx) => (
+        <div
+          key={idx}
+          className="flex-1 rounded-sm bg-primary/35"
+          style={{ height: `${Math.max(6, Math.round((v / max) * 56))}px` }}
+          title={String(v)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MiniSparkline({ values }: { values: number[] }) {
+  const w = 240;
+  const h = 56;
+  const max = Math.max(1, ...values);
+  const min = Math.min(...values);
+  const range = Math.max(1, max - min);
+  const pts = values
+    .map((v, i) => {
+      const x = (i / Math.max(1, values.length - 1)) * w;
+      const y = h - ((v - min) / range) * h;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-14">
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" className="text-primary" />
+      <polyline points={`${pts} ${w},${h} 0,${h}`} fill="currentColor" className="text-primary/10" />
+    </svg>
+  );
+}
+
 export default function PowerBIDashboardView({
   onNewPurchaseRequest,
   onNavigateStockMasterTab,
@@ -42,6 +80,21 @@ export default function PowerBIDashboardView({
       { label: 'Transfer', icon: ClipboardList, onClick: () => onNavigateStockMasterTab('transfer') },
     ],
     [onNavigateStockMasterTab, onNewPurchaseRequest]
+  );
+
+  // Placeholder series until we wire real analytics from APIs/DB.
+  const series = useMemo(
+    () => ({
+      prByStatus: [
+        { label: 'Draft', value: 3 },
+        { label: 'Pending', value: 9 },
+        { label: 'Approved', value: 6 },
+        { label: 'PO', value: 4 },
+        { label: 'GRN', value: 2 },
+      ],
+      weeklyActivity: [4, 7, 6, 10, 8, 12, 9],
+    }),
+    []
   );
 
   return (
@@ -131,7 +184,47 @@ export default function PowerBIDashboardView({
           ))}
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <div className="text-sm font-bold text-on-surface">Purchase Requests</div>
+              <div className="text-xs text-on-surface-variant mt-0.5">By status (sample)</div>
+            </div>
+            <div className="text-[10px] font-semibold text-on-surface-variant bg-surface-container-high rounded-full px-2 py-1">
+              This week
+            </div>
+          </div>
+
+          <MiniBarChart values={series.prByStatus.map((x) => x.value)} />
+          <div className="mt-3 grid grid-cols-5 gap-2">
+            {series.prByStatus.map((x) => (
+              <div key={x.label} className="text-center">
+                <div className="text-[10px] text-on-surface-variant">{x.label}</div>
+                <div className="text-xs font-bold text-on-surface">{x.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <div className="text-sm font-bold text-on-surface">Activity</div>
+              <div className="text-xs text-on-surface-variant mt-0.5">Last 7 days (sample)</div>
+            </div>
+            <div className="text-[10px] font-semibold text-on-surface-variant bg-surface-container-high rounded-full px-2 py-1">
+              Trend
+            </div>
+          </div>
+
+          <MiniSparkline values={series.weeklyActivity} />
+          <div className="mt-2 text-xs text-on-surface-variant">
+            Pending queues: <span className="text-on-surface font-semibold">{pendingQueueItems.length}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
