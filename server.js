@@ -43,6 +43,92 @@ function getMysqlPool() {
     queueLimit: 0,
     enableKeepAlive: true,
   });
+
+  // Ensure stock transaction tables and columns exist
+  (async () => {
+    try {
+      const pool = mysqlPool;
+      const tables = ['item_issues', 'item_returns', 'item_damages', 'item_transfers'];
+      for (const t of tables) {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS ${t} (
+            id VARCHAR(255) PRIMARY KEY,
+            transaction_no VARCHAR(255),
+            firm_id VARCHAR(255),
+            store VARCHAR(255),
+            department VARCHAR(255),
+            person VARCHAR(255),
+            date DATE,
+            issue_type VARCHAR(255),
+            issued_to VARCHAR(255),
+            return_type VARCHAR(255),
+            customer_name VARCHAR(255),
+            approved_by VARCHAR(255),
+            to_firm_id VARCHAR(255),
+            to_store VARCHAR(255),
+            to_department VARCHAR(255),
+            created_at DATETIME,
+            updated_at DATETIME
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        const itemsTable = t.endsWith('s') ? t.slice(0, -1) + '_items' : t + '_items';
+        const kind = t.includes('issue') ? 'issue' : t.includes('return') ? 'return' : t.includes('damage') ? 'damage' : 'transfer';
+        
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS ${itemsTable} (
+            id VARCHAR(255) PRIMARY KEY,
+            ${kind}_id VARCHAR(255),
+            item_name VARCHAR(255),
+            quantity DOUBLE,
+            specification TEXT,
+            remark TEXT,
+            created_at DATETIME,
+            FOREIGN KEY (${kind}_id) REFERENCES ${t}(id) ON DELETE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Add missing columns to existing tables if needed
+        const [cols] = await pool.query(`SHOW COLUMNS FROM ${t}`);
+        const colNames = cols.map(c => c.Field);
+        const needed = [
+          ['transaction_no', 'VARCHAR(255)'],
+          ['store', 'VARCHAR(255)'],
+          ['department', 'VARCHAR(255)'],
+          ['person', 'VARCHAR(255)'],
+          ['date', 'DATE'],
+          ['issue_type', 'VARCHAR(255)'],
+          ['issued_to', 'VARCHAR(255)'],
+          ['return_type', 'VARCHAR(255)'],
+          ['customer_name', 'VARCHAR(255)'],
+          ['approved_by', 'VARCHAR(255)'],
+          ['to_firm_id', 'VARCHAR(255)'],
+          ['to_store', 'VARCHAR(255)'],
+          ['to_department', 'VARCHAR(255)']
+        ];
+        for (const [name, def] of needed) {
+          if (!colNames.includes(name)) {
+            await pool.query(`ALTER TABLE ${t} ADD COLUMN ${name} ${def}`);
+          }
+        }
+
+        const [itemCols] = await pool.query(`SHOW COLUMNS FROM ${itemsTable}`);
+        const itemColNames = itemCols.map(c => c.Field);
+        if (!itemColNames.includes('item_name')) {
+          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN item_name VARCHAR(255)`);
+        }
+        if (!itemColNames.includes('specification')) {
+          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN specification TEXT`);
+        }
+        if (!itemColNames.includes('remark')) {
+          await pool.query(`ALTER TABLE ${itemsTable} ADD COLUMN remark TEXT`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to ensure stock tables:', err);
+    }
+  })();
+
   return mysqlPool;
 }
 
@@ -5507,6 +5593,136 @@ function num(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
+
+// --- Stock Transactions (Issues, Returns, Damages, Transfers) ---
+
+async function getNextTransactionNo(pool, table, prefix) {
+  const [rows] = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+  const count = rows[0].count + 1;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  return `${prefix}-${date}-${String(count).padStart(4, '0')}`;
+}
+
+async function handleListTransactions(req, res, table, itemsTable, kind) {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const [rows] = await pool.query(`SELECT * FROM ${table} ORDER BY created_at DESC`);
+    const transactions = [];
+
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const [itemRows] = await pool.query(`SELECT * FROM ${itemsTable} WHERE ${kind}_id = ?`, [row.id]);
+      transactions.push({
+        id: row.id,
+        transactionNo: row.transaction_no || row.id,
+        firmId: row.firm_id,
+        store: row.store,
+        department: row.department,
+        person: row.person || row.requested_by,
+        date: toIsoDate(row.date) || toIsoDate(row.created_at),
+        issueType: row.issue_type,
+        issuedTo: row.issued_to,
+        returnType: row.return_type,
+        customerName: row.customer_name,
+        approvedBy: row.approved_by,
+        toFirmId: row.to_firm_id,
+        toStore: row.to_store,
+        toDepartment: row.to_department,
+        items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
+          item: it.item_name || it.item_id, // Map correctly if needed
+          quantity: it.quantity,
+          specification: it.specification,
+          remark: it.remark
+        }))
+      });
+    }
+
+    res.json({ [table.includes('issue') ? 'issues' : table.includes('return') ? 'returns' : table.includes('damage') ? 'damages' : 'transfers']: transactions });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix) {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const id = crypto.randomUUID();
+    const transactionNo = await getNextTransactionNo(pool, table, prefix);
+    const data = req.body;
+
+    await pool.query(
+      `INSERT INTO ${table} (
+        id, transaction_no, firm_id, store, department, person, date,
+        issue_type, issued_to, return_type, customer_name, approved_by,
+        to_firm_id, to_store, to_department, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        id, transactionNo, data.firmId, data.store, data.department, data.person, data.date,
+        data.issueType, data.issuedTo, data.returnType, data.customerName, data.approvedBy,
+        data.toFirmId, data.toStore, data.toDepartment
+      ]
+    );
+
+    for (const item of data.items || []) {
+      await pool.query(
+        `INSERT INTO ${itemsTable} (id, ${kind}_id, item_name, quantity, specification, remark, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [crypto.randomUUID(), id, item.item, item.quantity, item.specification, item.remark]
+      );
+    }
+
+    res.json({ id, transactionNo });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+app.get('/api/stock-transactions/issues', (req, res) => handleListTransactions(req, res, 'item_issues', 'item_issue_items', 'issue'));
+app.post('/api/stock-transactions/issues', (req, res) => handleCreateTransaction(req, res, 'item_issues', 'item_issue_items', 'issue', 'ISS'));
+app.delete('/api/stock-transactions/issues/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await pool.query('DELETE FROM item_issues WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/stock-transactions/returns', (req, res) => handleListTransactions(req, res, 'item_returns', 'item_return_items', 'return'));
+app.post('/api/stock-transactions/returns', (req, res) => handleCreateTransaction(req, res, 'item_returns', 'item_return_items', 'return', 'RET'));
+app.delete('/api/stock-transactions/returns/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await pool.query('DELETE FROM item_returns WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/stock-transactions/damages', (req, res) => handleListTransactions(req, res, 'item_damages', 'item_damage_items', 'damage'));
+app.post('/api/stock-transactions/damages', (req, res) => handleCreateTransaction(req, res, 'item_damages', 'item_damage_items', 'damage', 'DAM'));
+app.delete('/api/stock-transactions/damages/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await pool.query('DELETE FROM item_damages WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/stock-transactions/transfers', (req, res) => handleListTransactions(req, res, 'item_transfers', 'item_transfer_items', 'transfer'));
+app.post('/api/stock-transactions/transfers', (req, res) => handleCreateTransaction(req, res, 'item_transfers', 'item_transfer_items', 'transfer', 'TRA'));
+app.delete('/api/stock-transactions/transfers/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await pool.query('DELETE FROM item_transfers WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // --- Inventory (minimal) ---
 app.get('/api/inventory/opening-balances', async (req, res) => {
