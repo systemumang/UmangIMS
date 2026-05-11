@@ -20,62 +20,6 @@ export default function ReturnMasterView() {
   const cloneTx = (row: StockTransaction) =>
     JSON.parse(JSON.stringify(row)) as StockTransaction;
 
-  // Exports removed: handled by server-side or external reporting tools
-            body { font-family: Arial, sans-serif; padding: 16px; }
-            h1 { font-size: 16px; margin: 0 0 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th, td { border: 1px solid #000; padding: 6px; vertical-align: top; }
-            th { background: #1d4ed8; color: #fff; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
-            td.num { text-align: right; white-space: nowrap; }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Return No</th>
-                <th>Return Date</th>
-                <th>Type</th>
-                <th>Customer</th>
-                <th>Firm</th>
-                <th>Store</th>
-                <th>Department</th>
-                <th>Received By</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filtered
-                .map((r) => {
-                  const total = r.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
-                  const cols = [
-                    `<td>${String(r.transactionNo).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(formatDate(r.date)).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.returnType ?? 'Stock').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.customerName ?? '-').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(getFirmDisplay(r.firmId)).replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.store ?? '-').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.department ?? '').replace(/</g, '&lt;')}</td>`,
-                    `<td>${String(r.person ?? '').replace(/</g, '&lt;')}</td>`,
-                    `<td class="num">${total}</td>`,
-                  ];
-                  return `<tr>${cols.join('')}</tr>`;
-                })
-                .join('')}
-            </tbody>
-          </table>
-          <script>window.onload = () => window.print();</script>
-        </body>
-      </html>
-    `.trim();
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-  };
-
   const formatDate = (d: string) => {
     if (!d) return '';
     const [y, m, day] = d.split('-');
@@ -241,17 +185,10 @@ export default function ReturnMasterView() {
 	                value={q}
 	                onChange={(e) => setQ(e.target.value)}
 	                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-	              />
-	            </div>
-	            <button type="button" className="btn btn-sm" onClick={exportReturnsCsv} title="Download Excel">
-	              Excel
-	            </button>
-	            <button type="button" className="btn btn-sm" onClick={exportReturnsPdf} title="Download PDF">
-	              Pdf
-	            </button>
-	          </div>
-	        </div>
-	        <div className="overflow-x-auto">
+	                />
+	                </div>
+	                </div>
+	                </div>	        <div className="overflow-x-auto">
 	          <table className="w-full text-left border-collapse text-sm">
 	            <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
 	              <tr>

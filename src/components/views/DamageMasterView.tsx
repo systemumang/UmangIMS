@@ -20,7 +20,6 @@ export default function DamageMasterView() {
   const cloneTx = (row: StockTransaction) =>
     JSON.parse(JSON.stringify(row)) as StockTransaction;
 
-  const downloadTextFile = (fileName: string, content: string, mime: string) => {
   // Exports removed: handled by server-side or external reporting tools
   // const exportDamagesPdf = () => {
   //   const date = new Date().toISOString().slice(0, 10);
@@ -308,17 +307,10 @@ export default function DamageMasterView() {
 	                value={q}
 	                onChange={(e) => setQ(e.target.value)}
 	                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-	              />
-	            </div>
-	            <button type="button" className="btn btn-sm" onClick={exportDamagesCsv} title="Download Excel">
-	              Excel
-	            </button>
-	            <button type="button" className="btn btn-sm" onClick={exportDamagesPdf} title="Download PDF">
-	              Pdf
-	            </button>
-	          </div>
-	        </div>
-        <div className="overflow-x-auto">
+	                />
+	                </div>
+	                </div>
+	                </div>        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
               <tr>
