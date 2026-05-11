@@ -702,18 +702,18 @@ export default function ItemIssueView({
 							                  }
 
 					                  setSaving(true);
-						                  createIssue({ 
+						                  createIssue({
 						                    firmId: firmId,
 						                    storeId: storeId,
 						                    store,
 						                    department,
-						                    person: requestedBy, 
-						                    date: requiredDate, 
+						                    projectId: issueType === 'Project' ? projectId : undefined,
+						                    person: requestedBy,
+						                    date: requiredDate,
 						                    issueType,
 						                    issuedTo,
-						                    items: normalizedItems 
-						                  })
-.then((created) => onCreated(created.id))
+						                    items: normalizedItems
+						                  }).then((created) => onCreated(created.id))
 				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}

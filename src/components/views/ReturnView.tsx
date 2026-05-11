@@ -731,18 +731,18 @@ export default function ReturnView({
 							                  }
 
 					                  setSaving(true);
-						                  createReturn({ 
-						                    firmId: firmId, 
+						                  createReturn({
+						                    firmId: firmId,
 						                    storeId: storeId,
 						                    store,
-						                    department, 
-						                    person: requestedBy, 
-						                    date: requiredDate, 
+						                    department,
+						                    projectId: returnType === 'Project' ? projectId : undefined,
+						                    person: requestedBy,
+						                    date: requiredDate,
 						                    returnType,
 						                    customerName,
-						                    items: normalizedItems 
-						                  }).then(created => onCreated(created.id))
-				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+						                    items: normalizedItems
+						                  }).then(created => onCreated(created.id))				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))
 				                    .finally(() => setSaving(false));
 				                }}
 							                className="btn-primary"

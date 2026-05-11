@@ -9,9 +9,12 @@ export type StockTransaction = {
   id: string;
   transactionNo: string;
   firmId: string;
+  storeId?: string;
   store?: string;
   department: string;
+  projectId?: string;
   toFirmId?: string;
+  toStoreId?: string;
   toStore?: string;
   toDepartment?: string;
   person: string;

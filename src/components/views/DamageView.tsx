@@ -685,6 +685,7 @@ export default function DamageView({
 						                    storeId: storeId,
 						                    store,
 						                    department,
+						                    projectId: projectId || undefined,
 						                    person: requestedBy,
 						                    date: requiredDate,
 						                    approvedBy: approvedByUserId,

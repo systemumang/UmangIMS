@@ -104,11 +104,23 @@ function getMysqlPool() {
           ['approved_by', 'VARCHAR(255)'],
           ['to_firm_id', 'VARCHAR(255)'],
           ['to_store', 'VARCHAR(255)'],
-          ['to_department', 'VARCHAR(255)']
+          ['to_store_id', 'VARCHAR(255)'],
+          ['to_department', 'VARCHAR(255)'],
+          ['project_id', 'VARCHAR(255)'],
+          ['store_id', 'VARCHAR(255)']
         ];
         for (const [name, def] of needed) {
           if (!colNames.includes(name)) {
             await pool.query(`ALTER TABLE ${t} ADD COLUMN ${name} ${def}`);
+          }
+        }
+
+        // Special fix for item_issues.issue_type_id foreign key constraint
+        if (t === 'item_issues' && colNames.includes('issue_type_id')) {
+          try {
+            await pool.query(`ALTER TABLE item_issues MODIFY COLUMN issue_type_id VARCHAR(255) NULL`);
+          } catch (e) {
+            console.error('Failed to make issue_type_id nullable:', e);
           }
         }
 
@@ -5672,12 +5684,12 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
       `INSERT INTO ${table} (
         id, transaction_no, firm_id, ${storeCol}, department, person, date,
         issue_type, issued_to, return_type, customer_name, approved_by,
-        to_firm_id, ${toStoreCol}, to_department, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        to_firm_id, ${toStoreCol}, to_department, project_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, transactionNo, data.firmId, storeId, data.department, data.person, data.date,
         data.issueType, data.issuedTo, data.returnType, data.customerName, data.approvedBy,
-        data.toFirmId, toStoreId, data.toDepartment
+        data.toFirmId, toStoreId, data.toDepartment, data.projectId
       ]
     );
 
