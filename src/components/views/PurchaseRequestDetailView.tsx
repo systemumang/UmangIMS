@@ -880,7 +880,11 @@ export default function PurchaseRequestDetailView({
 
 				    // Fallback to PO line specs (covers Direct PO where PR items may be empty).
 				    const poLine =
-				      posList.flatMap((p) => (Array.isArray(p.items) ? p.items : [])).find((x) => String((x as any)?.itemId ?? '').trim() === itemId) ??
+				      posList
+				        .flatMap((p) => (Array.isArray(p.items) ? p.items.map((it) => ({ it, poId: p.po.id })) : []))
+				        .filter((x) => x.poId === (selectedPo?.po?.id ?? ''))
+				        .map((x) => x.it)
+				        .find((x) => String((x as any)?.itemId ?? '').trim() === itemId) ??
 				      selectedPo?.items?.find((x) => String((x as any)?.itemId ?? '').trim() === itemId);
 				    const poSpecs =
 				      poLine && (poLine as any)?.specificationsJson

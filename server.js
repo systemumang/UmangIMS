@@ -4114,17 +4114,26 @@ app.post('/api/pos', async (req, res) => {
         const [[itRow]] = await pool.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
         const rawSpecs = itRow?.specificationsJson != null ? String(itRow.specificationsJson) : '';
         if (rawSpecs.trim()) {
-          const obj = JSON.parse(rawSpecs) || {};
-          if (obj && typeof obj === 'object') {
-            const lines = [];
-            for (const [specId, v] of Object.entries(obj)) {
-              const k = String(specId ?? '').trim();
-              const val = String(v ?? '').trim();
-              if (!k || !val) continue;
-              const specName = specNameById.get(k) || k;
-              lines.push(`${specName}: ${val}`);
+          try {
+            const obj = JSON.parse(rawSpecs) || {};
+            if (obj && typeof obj === 'object') {
+              const lines = [];
+              for (const [specId, v] of Object.entries(obj)) {
+                const k = String(specId ?? '').trim();
+                const val = String(v ?? '').trim();
+                if (!k || !val) continue;
+                const specName = specNameById.get(k) || k;
+                lines.push(`${specName}: ${val}`);
+              }
+              prSpecText = lines.join('\n');
             }
-            prSpecText = lines.join('\n');
+          } catch {
+            // Fallback: treat as newline-separated specification text.
+            prSpecText = rawSpecs
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join('\n');
           }
         }
       } catch {}
