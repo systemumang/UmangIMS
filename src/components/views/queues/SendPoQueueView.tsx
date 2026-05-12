@@ -6,6 +6,7 @@ import { fetchPos, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/
 import { fetchQueueSendPo, type QueueFilters, type SendPoQueueRow } from '@/src/lib/queues';
 import { cn } from '@/src/lib/utils';
 import { uploadFileToServer } from '@/src/lib/uploads';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -19,6 +20,7 @@ function displayPoNumber(raw: string) {
 
 export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<SendPoQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,14 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -303,7 +313,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                           </>
                         ) : null}
                         <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-                          {formatItemInline(it.item, it.specificationsJson)}
+                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
                         </td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>

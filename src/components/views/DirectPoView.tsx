@@ -116,7 +116,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       const obj = JSON.parse(raw) as Record<string, unknown>;
       const entries = Object.entries(obj);
       return entries
-        .map(([specId, v]) => `${specNameById?.[specId] ?? specId}: ${String(v ?? '')}`)
+        .map(([specId, v]) => {
+          const value = String(v ?? '').trim();
+          if (!value) return '';
+          const name = specNameById?.[specId];
+          // Never show raw ids in the UI; if the spec name isn't loaded, show only the value.
+          return name ? `${name}: ${value}` : value;
+        })
         .filter(Boolean);
     } catch {
       return raw
@@ -136,7 +142,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
   const itemOptions = useMemo(
     () => items.slice().sort((a, b) => getFullItemLabel(a).localeCompare(getFullItemLabel(b))).map((it) => ({ value: it.id, label: getFullItemLabel(it) })),
-    [items]
+    [items, specNameById]
   );
 
   const canSave = useMemo(() => {

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import mysql from 'mysql2/promise';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -4197,6 +4198,205 @@ app.post('/api/pos', async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Download PO PDF
+app.get('/api/pos/:id.pdf', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).send('Database is not configured.');
+
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).send('id is required');
+
+    const [[poRow]] = await pool.query(
+      `
+      SELECT
+        po.id AS id,
+        po.po_number AS poNumber,
+        po.order_date AS orderDate,
+        po.payment_terms AS paymentTerms,
+        po.shipping_address AS shippingAddress,
+        po.terms_conditions AS termsConditions,
+        f.name AS firmName,
+        st.name AS storeName,
+        proj.name AS projectName,
+        s.name AS supplierName
+      FROM purchase_orders po
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN stores st ON st.id = po.store_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poRow) return res.status(404).send('PO not found');
+
+    const [itemRows] = await pool.query(
+      `
+      SELECT
+        iname.name AS itemName,
+        it.specifications_json AS specificationsJson,
+        poi.quantity AS quantity,
+        poi.rate AS rate,
+        poi.total_amount AS totalAmount
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE poi.po_id = ?
+      ORDER BY poi.created_at ASC
+      `,
+      [poId]
+    );
+
+    const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
+    const specNameById = new Map(
+      (Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()])
+    );
+
+    const formatSpecParts = (specificationsJson) => {
+      const raw = String(specificationsJson ?? '').trim();
+      if (!raw) return [];
+      try {
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object') return [];
+        const out = [];
+        for (const [k, v] of Object.entries(obj)) {
+          const val = String(v ?? '').trim();
+          if (!val) continue;
+          const name = specNameById.get(String(k ?? '').trim()) || '';
+          out.push(name ? `${name}: ${val}` : val);
+        }
+        return out;
+      } catch {
+        return raw
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    };
+
+    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
+      const base = String(r.itemName ?? '').trim();
+      const specs = formatSpecParts(r.specificationsJson);
+      const label = [base, ...specs].filter(Boolean).join(' - ') || '-';
+      return {
+        label,
+        quantity: Number(r.quantity ?? 0),
+        rate: Number(r.rate ?? 0),
+        totalAmount: Number(r.totalAmount ?? 0),
+      };
+    });
+
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([595.28, 841.89]); // A4
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const margin = 36;
+    let y = 841.89 - margin;
+
+    const wrapLines = (text, f, size, maxWidth) => {
+      const raw = String(text ?? '').replace(/\r?\n/g, ' ').trim();
+      if (!raw) return [''];
+      const words = raw.split(/\s+/).filter(Boolean);
+      const lines = [];
+      let current = '';
+      for (const w of words) {
+        const candidate = current ? `${current} ${w}` : w;
+        const width = f.widthOfTextAtSize(candidate, size);
+        if (width <= maxWidth || !current) {
+          current = candidate;
+          continue;
+        }
+        lines.push(current);
+        current = w;
+      }
+      if (current) lines.push(current);
+      return lines.length ? lines : [''];
+    };
+
+    const drawText = (text, opts = {}) => {
+      const size = opts.size ?? 10;
+      const f = opts.bold ? fontBold : font;
+      const x = opts.x ?? margin;
+      const maxWidth = Math.max(10, opts.maxWidth ?? (595.28 - margin * 2));
+      const lineHeight = opts.lineHeight ?? size + 4;
+      const color = opts.color ?? rgb(0, 0, 0);
+
+      const lines = opts.wrap === false ? [String(text ?? '')] : wrapLines(text, f, size, maxWidth);
+      for (const line of lines) {
+        page.drawText(String(line ?? ''), { x, y, size, font: f, color });
+        y -= lineHeight;
+      }
+    };
+
+    const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
+    drawText(`Purchase Order (PO)`, { bold: true, size: 16 });
+    drawText(`PO No: ${poNumber || '-'}`, { bold: true, size: 12 });
+    drawText(`Date: ${poRow.orderDate ? String(poRow.orderDate) : '-'}`, { size: 10 });
+    y -= 4;
+
+    drawText(`Supplier: ${String(poRow.supplierName ?? '').trim() || '-'}`, { size: 10 });
+    drawText(`Firm: ${String(poRow.firmName ?? '').trim() || '-'}`, { size: 10 });
+    drawText(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, { size: 10 });
+    if (String(poRow.projectName ?? '').trim()) drawText(`Project: ${String(poRow.projectName).trim()}`, { size: 10 });
+    drawText(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, { size: 10 });
+    y -= 6;
+
+    const ship = String(poRow.shippingAddress ?? '').trim();
+    if (ship) {
+      drawText(`Shipping Address:`, { bold: true, size: 10 });
+      for (const line of ship.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)) drawText(line, { size: 10 });
+      y -= 4;
+    }
+
+    // Table header
+    const colX = { item: margin, qty: 420, rate: 470, total: 525 };
+    page.drawLine({ start: { x: margin, y: y + 2 }, end: { x: 595.28 - margin, y: y + 2 }, thickness: 1, color: rgb(0.2, 0.2, 0.2) });
+    drawText('Items', { bold: true, size: 11 });
+    const headerY = y + 14;
+    page.drawText('Qty', { x: colX.qty, y: headerY, size: 10, font: fontBold });
+    page.drawText('Rate', { x: colX.rate, y: headerY, size: 10, font: fontBold });
+    page.drawText('Amount', { x: colX.total, y: headerY, size: 10, font: fontBold });
+    y -= 6;
+    page.drawLine({ start: { x: margin, y }, end: { x: 595.28 - margin, y }, thickness: 1, color: rgb(0.2, 0.2, 0.2) });
+    y -= 14;
+
+    let grandTotal = 0;
+    for (const it of items) {
+      if (y < margin + 80) break; // simple guard
+      const label = String(it.label ?? '').trim() || '-';
+      const rowY = y;
+
+      // Wrap item label to available width and keep numeric columns aligned to the first line.
+      y = rowY;
+      drawText(label, { x: colX.item, size: 9, maxWidth: colX.qty - margin - 8 });
+      const afterLabelY = y;
+
+      const firstLineY = rowY;
+      page.drawText(String(it.quantity ?? 0), { x: colX.qty, y: firstLineY, size: 9, font });
+      page.drawText(String(it.rate ?? 0), { x: colX.rate, y: firstLineY, size: 9, font });
+      page.drawText(String(it.totalAmount ?? 0), { x: colX.total, y: firstLineY, size: 9, font });
+
+      // Ensure we move past at least one row height even if label is short.
+      y = Math.min(afterLabelY, firstLineY - 14);
+
+      grandTotal += Number(it.totalAmount ?? 0);
+    }
+
+    y -= 10;
+    drawText(`Total Amount: ${grandTotal.toFixed(2)}`, { bold: true, size: 12 });
+
+    const pdfBytes = await doc.save();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=\"${poNumber || poId}.pdf\"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (e) {
+    res.status(500).send(e instanceof Error ? e.message : String(e));
   }
 });
 
