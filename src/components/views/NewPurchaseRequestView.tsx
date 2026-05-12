@@ -17,6 +17,8 @@ import { Trash2 } from 'lucide-react';
 				  fetchItemNames,
 				  fetchUnits,
 				  fetchItemCategories,
+				  createUnit,
+				  createItemCategory,
 				  fetchItems,
 				  fetchSpecifications,
 				  fetchSpecificationValues,
@@ -832,6 +834,22 @@ export default function NewPurchaseRequestView({
                                     onChange={setCreateItemNameInlineUnitId}
                                     placeholder={loadingUnits ? 'Loading units...' : 'Select unit...'}
                                     disabled={loadingUnits}
+                                    showCreateWhenEmpty
+                                    allowEmptyCreate
+                                    closeOnCreate
+                                    createLabel={(q) => (q.trim() ? `+ Add Unit "${q.trim()}"` : '+ Add Unit')}
+                                    onCreate={async (label) => {
+                                      const name = String(label ?? '').trim();
+                                      if (!name) return null;
+                                      const created = await createUnit({ name, createdBy: 'system' });
+                                      const unit = created.unit;
+                                      if (!unit?.id) return null;
+                                      setUnits((prev) => {
+                                        if (prev.some((p) => p.id === unit.id)) return prev;
+                                        return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+                                      });
+                                      return { value: unit.id, label: unit.name };
+                                    }}
                                   />
                                 </label>
                                 <label className="space-y-1">
@@ -842,6 +860,22 @@ export default function NewPurchaseRequestView({
                                     onChange={setCreateItemNameInlineCategoryId}
                                     placeholder={loadingItemCategories ? 'Loading categories...' : 'Select category...'}
                                     disabled={loadingItemCategories}
+                                    showCreateWhenEmpty
+                                    allowEmptyCreate
+                                    closeOnCreate
+                                    createLabel={(q) => (q.trim() ? `+ Add Category "${q.trim()}"` : '+ Add Category')}
+                                    onCreate={async (label) => {
+                                      const name = String(label ?? '').trim();
+                                      if (!name) return null;
+                                      const created = await createItemCategory({ name, createdBy: 'system' });
+                                      const cat = created.itemCategory;
+                                      if (!cat?.id) return null;
+                                      setItemCategories((prev) => {
+                                        if (prev.some((p) => p.id === cat.id)) return prev;
+                                        return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
+                                      });
+                                      return { value: cat.id, label: cat.name };
+                                    }}
                                   />
                                 </label>
 			                          <div className="flex justify-end gap-2">

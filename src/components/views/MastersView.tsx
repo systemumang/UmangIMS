@@ -2123,6 +2123,22 @@ export default function MastersView({
                                       options={units.map((u) => ({ value: u.id, label: u.name }))}
                                       onChange={setInlineItemNameUnitId}
                                       placeholder="Select unit..."
+                                      showCreateWhenEmpty
+                                      allowEmptyCreate
+                                      closeOnCreate
+                                      createLabel={(q) => (q.trim() ? `+ Add Unit "${q.trim()}"` : '+ Add Unit')}
+                                      onCreate={async (label) => {
+                                        const name = String(label ?? '').trim();
+                                        if (!name) return null;
+                                        const created = await createUnit({ name, createdBy: 'system' });
+                                        const unit = created.unit;
+                                        if (!unit?.id) return null;
+                                        setUnits((prev) => {
+                                          if (prev.some((p) => p.id === unit.id)) return prev;
+                                          return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+                                        });
+                                        return { value: unit.id, label: unit.name };
+                                      }}
                                     />
                                   </label>
                                   <label className="space-y-1">
@@ -2132,6 +2148,22 @@ export default function MastersView({
                                       options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
                                       onChange={setInlineItemNameCategoryId}
                                       placeholder="Select category..."
+                                      showCreateWhenEmpty
+                                      allowEmptyCreate
+                                      closeOnCreate
+                                      createLabel={(q) => (q.trim() ? `+ Add Category "${q.trim()}"` : '+ Add Category')}
+                                      onCreate={async (label) => {
+                                        const name = String(label ?? '').trim();
+                                        if (!name) return null;
+                                        const created = await createItemCategory({ name, createdBy: 'system' });
+                                        const cat = created.itemCategory;
+                                        if (!cat?.id) return null;
+                                        setItemCategories((prev) => {
+                                          if (prev.some((p) => p.id === cat.id)) return prev;
+                                          return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
+                                        });
+                                        return { value: cat.id, label: cat.name };
+                                      }}
                                     />
                                   </label>
                                 </div>
