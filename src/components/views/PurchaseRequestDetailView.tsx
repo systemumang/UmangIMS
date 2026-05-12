@@ -2655,14 +2655,14 @@ export default function PurchaseRequestDetailView({
 	          {!loadingPos && posList.length ? (
 	            <div className="space-y-2">
 	              <div className="text-center text-lg font-semibold text-blue-600">Existing POs</div>
-	              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
-	                <div className="overflow-x-auto">
-	                  <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-outline-variant">
-	                    <colgroup>
-	                      <col className="w-[130px]" />
-	                      <col className="w-[170px]" />
-	                      <col className="w-[90px]" />
-	                      <col className="w-[420px]" />
+		              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+		                <div className="overflow-x-auto">
+		                  <table className="w-full min-w-[1760px] table-fixed text-left border-collapse border border-outline-variant">
+		                    <colgroup>
+		                      <col className="w-[130px]" />
+		                      <col className="w-[170px]" />
+		                      <col className="w-[90px]" />
+		                      <col className="w-[420px]" />
 	                      <col className="w-[90px]" />
 	                      <col className="w-[90px]" />
 	                      <col className="w-[80px]" />
@@ -2673,15 +2673,14 @@ export default function PurchaseRequestDetailView({
 	                      <col className="w-[110px]" />
 	                      <col className="w-[190px]" />
 	                      <col className="w-[130px]" />
-	                      <col className="w-[200px]" />
-	                      <col className="w-[200px]" />
-	                      <col className="w-[130px]" />
-	                      <col className="w-[130px]" />
-	                    </colgroup>
-	                    <thead>
-	                      <tr className="bg-blue-700">
-	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
-	                          PO No
+		                      <col className="w-[200px]" />
+		                      <col className="w-[200px]" />
+		                      <col className="w-[130px]" />
+		                    </colgroup>
+		                    <thead>
+		                      <tr className="bg-blue-700">
+		                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+		                          PO No
 	                        </th>
 	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
 	                          Supplier
@@ -2728,16 +2727,13 @@ export default function PurchaseRequestDetailView({
 	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
 	                          Sent Proof
 	                        </th>
-	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
-	                          Sent Date
-	                        </th>
-	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
-	                          Actions
-	                        </th>
-	                      </tr>
-	                    </thead>
-	                    <tbody>
-	                      {(posList ?? []).flatMap((p) => {
+		                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+		                          Sent Date
+		                        </th>
+		                      </tr>
+		                    </thead>
+		                    <tbody>
+		                      {(posList ?? []).flatMap((p) => {
 	                        const items = Array.isArray(p.items) ? p.items : [];
 	                        const safeItems = items.length ? items : [null];
 	                        const rowSpan = safeItems.length;
@@ -2812,17 +2808,14 @@ export default function PurchaseRequestDetailView({
 	                                    '-'
 	                                  )}
 	                                </td>
-	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
-	                                  {String((p as any)?.po?.sentDate ?? '') || '-'}
-	                                </td>
-	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
-	                                  -
-	                                </td>
-	                              </>
-	                            ) : null}
-	                          </tr>
-	                        ));
-	                      })}
+		                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+		                                  {String((p as any)?.po?.sentDate ?? '') || '-'}
+		                                </td>
+		                              </>
+		                            ) : null}
+		                          </tr>
+		                        ));
+		                      })}
 	                    </tbody>
 	                  </table>
 	                </div>
@@ -2856,31 +2849,29 @@ export default function PurchaseRequestDetailView({
 	          {!loadingRecordedGrns && recordedGrns.length ? (
 	            <div className="pt-2 space-y-2">
 	              <div className="text-center text-lg font-semibold text-blue-600">Recorded GRNs ({recordedGrns.length})</div>
-	              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
-	                <div className="overflow-x-auto">
-	                  <table className="w-full min-w-[1440px] table-fixed text-left border-collapse border border-outline-variant">
-	                    <colgroup>
-	                      <col className="w-[170px]" />
-	                      <col className="w-[170px]" />
-	                      <col className="w-[140px]" />
-	                      <col className="w-[520px]" />
-	                      <col className="w-[110px]" />
-	                      <col className="w-[170px]" />
-	                      <col className="w-[160px]" />
-	                    </colgroup>
-	                    <thead>
-	                      <tr className="bg-blue-700">
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">GRN</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Number</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Received Date</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Qty</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Updated By</th>
-	                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Action</th>
-	                      </tr>
-	                    </thead>
-	                    <tbody>
-	                      {recordedGrns.flatMap((g) => {
+		              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant">
+		                <div className="overflow-x-auto">
+		                  <table className="w-full min-w-[1280px] table-fixed text-left border-collapse border border-outline-variant">
+		                    <colgroup>
+		                      <col className="w-[170px]" />
+		                      <col className="w-[170px]" />
+		                      <col className="w-[140px]" />
+		                      <col className="w-[520px]" />
+		                      <col className="w-[110px]" />
+		                      <col className="w-[170px]" />
+		                    </colgroup>
+		                    <thead>
+		                      <tr className="bg-blue-700">
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">GRN</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Number</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Received Date</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Qty</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Updated By</th>
+		                      </tr>
+		                    </thead>
+		                    <tbody>
+		                      {recordedGrns.flatMap((g) => {
 	                        const lines = Array.isArray(g.items) && g.items.length ? g.items : [null];
 	                        const rowSpan = lines.length;
 	                        const updatedByCell =
@@ -2898,12 +2889,16 @@ export default function PurchaseRequestDetailView({
 	                          const label = it ? [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ') : '-';
 	                          const qtyCell = it ? Number(it.quantityReceived ?? 0) : '-';
 
-	                          return (
-	                            <tr key={`${g.grn.id}||${it ? it.itemId : 'empty'}||${idx}`}>
-	                              {idx === 0 ? (
-	                                <>
-	                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-	                                    {displayGrnNumber(g.grn)}
+		                          return (
+		                            <tr
+		                              key={`${g.grn.id}||${it ? it.itemId : 'empty'}||${idx}`}
+		                              className={idx === 0 ? 'cursor-pointer hover:bg-surface-container-low' : undefined}
+		                              onClick={idx === 0 ? () => openGrnDetails(g, 'view') : undefined}
+		                            >
+		                              {idx === 0 ? (
+		                                <>
+		                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
+		                                    {displayGrnNumber(g.grn)}
 	                                  </td>
 	                                  <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 	                                    {displayPoNumberById(g.grn.poId)}
@@ -2918,39 +2913,15 @@ export default function PurchaseRequestDetailView({
 	                              </td>
 	                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{qtyCell}</td>
 	                              {idx === 0 ? (
-	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
-	                                  {updatedByCell}
-	                                </td>
-	                              ) : null}
-	                              {idx === 0 ? (
-	                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
-	                                  <div className="flex items-center gap-2">
-	                                    <button
-	                                      type="button"
-	                                      title="View"
-	                                      aria-label="View"
-	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
-	                                      onClick={() => openGrnDetails(g, 'view')}
-	                                    >
-	                                      <Eye size={16} />
-	                                    </button>
-	                                    <button
-	                                      type="button"
-	                                      title="Edit"
-	                                      aria-label="Edit"
-	                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
-	                                      onClick={() => openGrnDetails(g, 'edit')}
-	                                    >
-	                                      <Pencil size={16} />
-	                                    </button>
-	                                  </div>
-	                                </td>
-	                              ) : null}
-	                            </tr>
-	                          );
-	                        });
-	                      })}
-	                    </tbody>
+		                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+		                                  {updatedByCell}
+		                                </td>
+		                              ) : null}
+		                            </tr>
+		                          );
+		                        });
+		                      })}
+		                    </tbody>
 	                  </table>
 	                </div>
 	              </div>
