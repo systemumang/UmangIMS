@@ -218,6 +218,18 @@ export default function MastersView({
   const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
+
+  const selectedItemUnitName = useMemo(() => {
+    const row = itemNames.find((n) => n.id === newItemItemNameId);
+    if (!row) return '';
+    if (row.unitName) return row.unitName;
+    if (row.unitId) return units.find((u) => u.id === row.unitId)?.name ?? '';
+    return '';
+  }, [itemNames, newItemItemNameId, units]);
+
+  useEffect(() => {
+    setNewItemUnit(selectedItemUnitName);
+  }, [selectedItemUnitName]);
   const groupedSpecValues = useMemo(() => {
     const map = new Map<string, { specId: string; specName: string; values: Array<{ id: string; value: string }> }>();
     for (const row of specValues) {
@@ -419,7 +431,6 @@ export default function MastersView({
 	      const row = items.find((it) => it.id === id);
 	      if (row) {
 	        setNewItemItemNameId(row.itemNameId);
-	        setNewItemUnit(row.unit ?? '');
 	        setNewItemDescription(row.description ?? '');
 	        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
@@ -2061,8 +2072,8 @@ export default function MastersView({
 			                          const name = String(label ?? '').trim();
                                     setInlineItemNameError(null);
                                     setInlineItemNameName(name);
-                                    setInlineItemNameUnitId(units[0]?.id ?? '');
-                                    setInlineItemNameCategoryId(itemCategories[0]?.id ?? '');
+                                    setInlineItemNameUnitId('');
+                                    setInlineItemNameCategoryId('');
                                     setInlineItemNameOpen(true);
 			                          return null;
 			                        }}
@@ -2170,12 +2181,13 @@ export default function MastersView({
                             </div>
                           ) : null}
 		                    <label className="space-y-1">
-		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
 		                      <input
-		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={newItemUnit}
-	                        onChange={(e) => setNewItemUnit(e.target.value)}
-	                        placeholder="Nos"
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none opacity-80"
+		                        value={newItemUnit}
+		                        readOnly
+		                        disabled
+	                        placeholder="Select item name first"
 	                      />
 	                    </label>
 	                    <label className="space-y-1">
@@ -2327,6 +2339,7 @@ export default function MastersView({
                       disabled={
                         busy ||
                         !newItemItemNameId ||
+                        !newItemUnit ||
                         newItemSpecs.filter((s) => s.specificationId.trim() && s.value.trim()).length === 0
                       }
 	                      onClick={() => {

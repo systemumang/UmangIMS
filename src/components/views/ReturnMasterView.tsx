@@ -11,6 +11,8 @@ export default function ReturnMasterView() {
   const [items, setItems] = useState<Item[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [q, setQ] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [sortBy, setSortBy] = useState<
     'transactionNo' | 'date' | 'returnType' | 'customerName' | 'firm' | 'store' | 'department' | 'person' | 'total'
   >('date');
@@ -137,17 +139,24 @@ export default function ReturnMasterView() {
   };
 
 	  const query = q.toLowerCase();
-	  const filtered = returns.filter(i => 
-	    i.transactionNo.toLowerCase().includes(query) ||
-	    i.firmId.toLowerCase().includes(query) ||
-	    getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
-	    String(i.store ?? '').toLowerCase().includes(query) ||
-	    getStoreDisplay(i.store).toLowerCase().includes(query) ||
-	    i.department.toLowerCase().includes(query) ||
-	    i.person.toLowerCase().includes(query) ||
-	    (i.returnType ?? '').toLowerCase().includes(query) ||
-	    (i.customerName ?? '').toLowerCase().includes(query)
-	  );
+	  const filtered = returns.filter((i) => {
+      const rowDate = String(i.date ?? '').slice(0, 10);
+      if ((fromDate || toDate) && !rowDate) return false;
+      if (fromDate && rowDate < fromDate) return false;
+      if (toDate && rowDate > toDate) return false;
+
+      return (
+        i.transactionNo.toLowerCase().includes(query) ||
+        i.firmId.toLowerCase().includes(query) ||
+        getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
+        String(i.store ?? '').toLowerCase().includes(query) ||
+        getStoreDisplay(i.store).toLowerCase().includes(query) ||
+        i.department.toLowerCase().includes(query) ||
+        i.person.toLowerCase().includes(query) ||
+        (i.returnType ?? '').toLowerCase().includes(query) ||
+        (i.customerName ?? '').toLowerCase().includes(query)
+      );
+    });
 
 	  const onSort = (key: typeof sortBy) => {
 	    if (sortBy === key) {

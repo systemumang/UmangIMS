@@ -10,6 +10,8 @@ export default function IssueMasterView() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [sortBy, setSortBy] = useState<
     'transactionNo' | 'date' | 'issueType' | 'issuedTo' | 'firm' | 'store' | 'department' | 'person' | 'total'
   >('date');
@@ -135,17 +137,24 @@ export default function IssueMasterView() {
   };
 
 	  const query = q.toLowerCase();
-	  const filtered = issues.filter(i => 
-	    i.transactionNo.toLowerCase().includes(query) ||
-	    i.firmId.toLowerCase().includes(query) ||
-	    getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
-	    String(i.store ?? '').toLowerCase().includes(query) ||
-	    getStoreDisplay(i.store).toLowerCase().includes(query) ||
-	    i.department.toLowerCase().includes(query) ||
-	    i.person.toLowerCase().includes(query) ||
-	    (i.issueType ?? '').toLowerCase().includes(query) ||
-	    (i.issuedTo ?? '').toLowerCase().includes(query)
-	  );
+	  const filtered = issues.filter((i) => {
+      const rowDate = String(i.date ?? '').slice(0, 10);
+      if ((fromDate || toDate) && !rowDate) return false;
+      if (fromDate && rowDate < fromDate) return false;
+      if (toDate && rowDate > toDate) return false;
+
+      return (
+        i.transactionNo.toLowerCase().includes(query) ||
+        i.firmId.toLowerCase().includes(query) ||
+        getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
+        String(i.store ?? '').toLowerCase().includes(query) ||
+        getStoreDisplay(i.store).toLowerCase().includes(query) ||
+        i.department.toLowerCase().includes(query) ||
+        i.person.toLowerCase().includes(query) ||
+        (i.issueType ?? '').toLowerCase().includes(query) ||
+        (i.issuedTo ?? '').toLowerCase().includes(query)
+      );
+    });
 
 	  const onSort = (key: typeof sortBy) => {
 	    if (sortBy === key) {
@@ -190,7 +199,27 @@ export default function IssueMasterView() {
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
 	        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
 	          <div className="font-headline font-bold text-sm text-on-surface">Issue Master</div>
-	          <div className="flex items-center gap-2">
+	          <div className="flex items-end gap-2">
+              <div className="flex items-end gap-2">
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
+                  <input
+                    type="date"
+                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
+                  <input
+                    type="date"
+                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </label>
+              </div>
 	            <div className="relative w-64">
 	              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
 	              <input
