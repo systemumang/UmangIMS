@@ -62,12 +62,15 @@
 		  }
 
 		  table th {
-		    @apply font-bold;
-		  }
+			    @apply font-bold;
+	        border-color: #1f2937 !important;
+	        border-bottom: 2px solid #111827 !important;
+			  }
 
-		  table td {
-		    @apply font-semibold;
-		  }
+			  table td {
+			    @apply font-semibold;
+	        border-color: #374151 !important;
+			  }
 		}
 
 @layer utilities {

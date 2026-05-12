@@ -102,9 +102,9 @@ export default function Sidebar({
   const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
   const sectionRowClass = cn(baseRowClass, 'bg-surface-container-high text-on-surface hover:border-[#111827]');
   const viewRowClass = cn(baseRowClass, 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:border-[#111827]');
-  const activeRowClass = 'bg-primary/10 text-on-surface font-semibold border-[#111827]';
+  const activeRowClass = 'bg-primary/15 text-on-surface font-semibold border-[#111827] shadow-[inset_0_0_0_1px_#111827]';
 
-  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
+	  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
   const subActiveClass = 'bg-primary/10 text-on-surface border-[#111827]';
   const subInactiveClass = 'text-on-surface-variant hover:bg-surface-container-high';
 
@@ -116,7 +116,7 @@ export default function Sidebar({
 	      )}
 	      aria-hidden={!open}
 	    >
-      <div className="px-6 pt-8 pb-6 shrink-0">
+	      <div className="px-6 pt-8 pb-6 shrink-0 border-b-2 border-[#1f2937]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
             <Boxes size={18} />
@@ -125,7 +125,7 @@ export default function Sidebar({
 		        </div>
 	      </div>
 
-	      <nav className="flex-1 overflow-y-auto px-2 space-y-2">
+	      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
             <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
             <span className="flex-1">Dashboard</span>

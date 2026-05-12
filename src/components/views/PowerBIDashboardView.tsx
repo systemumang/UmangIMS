@@ -213,41 +213,41 @@ export default function PowerBIDashboardView({
 	        <div className="text-xs font-semibold text-on-surface-variant">{formatDDMMYYYY(new Date())}</div>
 	      </div>
 
-        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-          <div className="font-headline font-bold text-sm text-on-surface mb-3">Quick Actions</div>
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={onNewPurchaseRequest}>
+	        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+	          <div className="font-headline font-bold text-sm text-on-surface mb-3 pb-2 border-b-2 border-[#374151]">Quick Actions</div>
+	          <div className="flex items-center gap-2 overflow-x-auto">
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
               <Plus size={14} />
               Purchase Request
             </button>
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={onDirectPo}>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onDirectPo}>
               <Plus size={14} />
               Direct PO
             </button>
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={() => onNavigateStock('inventory')}>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('inventory')}>
               <Package size={14} />
               Inventory
             </button>
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={() => onNavigateStock('issueMaster')}>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('issueMaster')}>
               <ArrowUpRight size={14} />
               Issue
             </button>
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={() => onNavigateStock('returnMaster')}>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('returnMaster')}>
               <ArrowDownLeft size={14} />
               Return
             </button>
-            <button type="button" className="btn btn-sm whitespace-nowrap" onClick={() => onNavigateStock('transferMaster')}>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
               <Boxes size={14} />
               Transfer
             </button>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="font-headline font-bold text-sm text-on-surface">Daily Activity</div>
-            {dailyLoading ? <div className="text-xs text-on-surface-variant">Loading...</div> : null}
-          </div>
+	        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+	          <div className="flex items-center justify-between gap-2 mb-3">
+	            <div className="font-headline font-bold text-sm text-on-surface">Daily Activity</div>
+	            {dailyLoading ? <div className="text-xs text-on-surface-variant">Loading...</div> : null}
+	          </div>
           <div className="flex items-center gap-2 overflow-x-auto mb-4">
 	            {dayTabs.map((t) => (
 	              <button
@@ -275,7 +275,7 @@ export default function PowerBIDashboardView({
                 { key: 'grns', label: 'GRN', color: 'bg-amber-500' },
                 { key: 'invoices', label: 'Invoices', color: 'bg-fuchsia-600' },
                 { key: 'payments', label: 'Payments', color: 'bg-teal-600' },
-                { key: 'stock', label: 'Stock Txn', color: 'bg-sky-600' },
+	                { key: 'stock', label: 'Stock Item', color: 'bg-sky-600' },
                 { key: 'total', label: 'Total', color: 'bg-slate-800' },
               ].map((c) => (
                 <div key={c.key} className="rounded-md border-2 border-[#111827] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
@@ -289,8 +289,8 @@ export default function PowerBIDashboardView({
           ) : null}
         </div>
 
-	      <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-	        <div className="flex items-center justify-between gap-3 mb-4">
+		      <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+		        <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <div className="font-headline font-bold text-sm text-on-surface">Pending Tasks</div>
               <div className="text-xs text-on-surface-variant mt-0.5">
@@ -324,8 +324,8 @@ export default function PowerBIDashboardView({
                         <td className="px-3 py-2 text-sm border border-[#111827]/70 tabular-nums font-bold text-on-surface">
                           {pendingCounts[item.key] ?? 0}
                         </td>
-                        <td className="px-3 py-2 text-sm border border-[#111827]/70">
-                          <button type="button" className="btn btn-sm" onClick={() => onNavigatePendingQueue(item.key)}>
+	                        <td className="px-3 py-2 text-sm border border-[#111827]/70">
+	                          <button type="button" className="btn btn-sm border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigatePendingQueue(item.key)}>
                             Open
                           </button>
                         </td>
@@ -339,7 +339,7 @@ export default function PowerBIDashboardView({
 	      </div>
 
 		      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-		        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+			        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	          <div className="flex items-center justify-between gap-3 mb-4">
 	            <div>
 	              <div className="text-sm font-bold text-on-surface">Purchase Requests</div>

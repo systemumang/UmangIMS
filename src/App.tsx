@@ -292,7 +292,7 @@ export default function App() {
         }}
       />
       
-	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200', sidebarOpen ? 'ml-72' : 'ml-0')}>
+	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200 border-l-2 border-[#1f2937]', sidebarOpen ? 'ml-72' : 'ml-0')}>
 	        <TopBar
             title={topBar.title}
             subtitle={topBar.subtitle}
