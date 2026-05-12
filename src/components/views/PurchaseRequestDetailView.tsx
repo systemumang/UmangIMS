@@ -766,6 +766,7 @@ export default function PurchaseRequestDetailView({
 
 			  const pr = workflow?.pr.pr;
 			  const prItems = workflow?.pr.items ?? [];
+			  const isDirectPoRequest = String(pr?.department ?? '').trim().toLowerCase() === 'direct po';
 			  const showApprovedPrItemSummaryCols = pr?.status === 'Approved';
 		  const [draftPrItems, setDraftPrItems] = useState<PurchaseRequestItem[]>([]);
 
@@ -3162,6 +3163,7 @@ export default function PurchaseRequestDetailView({
 	                </span>
 	              ) : null}
 	            </div>
+				            {!isDirectPoRequest ? (
 				            <div className="space-y-2">
 						              <div className="text-base font-semibold text-on-surface-variant">Items</div>
 				              <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-black">
@@ -3336,6 +3338,7 @@ export default function PurchaseRequestDetailView({
 	              ))}
 	              */}
 		            </div>
+		            ) : null}
 		            {pr.status === 'Pending Approval' ? (
 		              <div className="flex justify-end gap-2">
 		                <button
