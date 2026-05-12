@@ -7,28 +7,39 @@ type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
 export default function DashboardView({
   onNewPurchaseRequest,
+  onDirectPo,
   onNavigateStockMasterTab,
   onNavigatePendingQueue,
   onNavigateMastersTab,
 }: {
   onNewPurchaseRequest: () => void;
+  onDirectPo: () => void;
   onNavigateStockMasterTab: (tab: StockMasterTab) => void;
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
   onNavigateMastersTab: (tab: MastersTab) => void;
 }) {
   return (
     <div className="space-y-6">
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-        <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-            onClick={onNewPurchaseRequest}
-          >
-            <Plus size={16} />
-            Purchase Request
-          </button>
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+	        <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
+	        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+	          <button
+	            type="button"
+	            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+	            onClick={onNewPurchaseRequest}
+	          >
+	            <Plus size={16} />
+	            Purchase Request
+	          </button>
+
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+              onClick={onDirectPo}
+            >
+              <Plus size={16} />
+              Direct PO
+            </button>
 
           <button
             type="button"

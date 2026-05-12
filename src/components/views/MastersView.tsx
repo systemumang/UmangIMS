@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { Trash2 } from 'lucide-react';
+import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import {
   createDepartment,
   createFirm,
-	  createProject,
+		  createProject,
 	  createItem,
 	  createUnit,
 	  createItemCategory,
@@ -112,12 +113,15 @@ export default function MastersView({
   tab?: MastersTab;
   onTabChange?: (tab: MastersTab) => void;
 }) {
-	  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
+		  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
 	  const [addOpen, setAddOpen] = useState(false);
 	  const [editCtx, setEditCtx] = useState<{ tab: MastersTab; id: string } | null>(null);
 	  const [error, setError] = useState<string | null>(null);
 	  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-	  const [busy, setBusy] = useState(false);
+		  const [busy, setBusy] = useState(false);
+      const [templateBusy, setTemplateBusy] = useState(false);
+      const [templateError, setTemplateError] = useState<string | null>(null);
+      const [templateInfo, setTemplateInfo] = useState<string | null>(null);
 
 	  const clearFieldError = (key: string) =>
 	    setFieldErrors((m) => {
@@ -549,19 +553,221 @@ export default function MastersView({
 	    return () => ac.abort();
 	  }, [specIdForValues, specs, specNameById]);
 	
-		  useEffect(() => {
-		    if (!addOpen) return;
-		    if (tab !== 'specValues') return;
-		    setNewSpecValueSpecId((prev) => prev || specIdForValues || '');
-		  }, [addOpen, specIdForValues, specs, tab]);
+			  useEffect(() => {
+			    if (!addOpen) return;
+			    if (tab !== 'specValues') return;
+			    setNewSpecValueSpecId((prev) => prev || specIdForValues || '');
+			  }, [addOpen, specIdForValues, specs, tab]);
 
-  return (
-    <div className="space-y-4">
-	      {error ? <div className="text-xs text-error">{error}</div> : null}
+        const apiKeyForTab = (t: MastersTab) => {
+          if (t === 'itemCategories') return 'item-categories';
+          if (t === 'itemNames') return 'item-names';
+          if (t === 'specs') return 'specifications';
+          if (t === 'specValues') return 'specification-values';
+          return t;
+        };
 
-	      <div className="flex flex-wrap gap-2">
-	        {MASTERS_TABS.map(({ key, label }) => (
-	          <button
+        async function refreshCurrentTab(t: MastersTab) {
+          if (t === 'firms') return fetchFirms().then(setFirms);
+          if (t === 'stores') return fetchStores().then(setStores);
+          if (t === 'departments') return fetchDepartments().then(setDepartments);
+          if (t === 'users') return fetchUsers().then(setUsers);
+          if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
+          if (t === 'customers') return fetchCustomers().then(setCustomers);
+          if (t === 'transporters') return fetchTransporters().then(setTransporters);
+          if (t === 'projects') return fetchProjects().then(setProjects);
+          if (t === 'units') return fetchUnits().then(setUnits);
+          if (t === 'itemCategories') return fetchItemCategories().then(setItemCategories);
+          if (t === 'itemNames') return fetchItemNames().then(setItemNames);
+          if (t === 'specs') return fetchSpecifications().then(setSpecs);
+          if (t === 'specValues') {
+            if (specIdForValues) return fetchSpecificationValues(specIdForValues).then(setSpecValues);
+            const all = await Promise.all(specs.map((s) => fetchSpecificationValues(s.id)));
+            const flat = all
+              .flat()
+              .sort((a, b) => {
+                const an = specNameById[a.specificationId] ?? '';
+                const bn = specNameById[b.specificationId] ?? '';
+                if (an !== bn) return an.localeCompare(bn);
+                return a.value.localeCompare(b.value);
+              });
+            setSpecValues(flat);
+            return;
+          }
+          if (t === 'items') return fetchItems().then(setItems);
+        }
+
+        async function downloadCurrentTemplate() {
+          try {
+            setTemplateBusy(true);
+            setTemplateError(null);
+            setTemplateInfo(null);
+            const key = apiKeyForTab(tab);
+            const res = await fetch(`/api/masters/${encodeURIComponent(key)}/template`);
+            const text = await res.text();
+            if (!res.ok) throw new Error(text || `Failed to download template (${res.status})`);
+            downloadTextFile(`${key}-template.csv`, text, 'text/csv; charset=utf-8');
+            setTemplateInfo('Template downloaded.');
+          } catch (e) {
+            setTemplateError(e instanceof Error ? e.message : String(e));
+          } finally {
+            setTemplateBusy(false);
+          }
+        }
+
+        async function uploadTemplateFile(file: File) {
+          try {
+            setTemplateBusy(true);
+            setTemplateError(null);
+            setTemplateInfo(null);
+            const content = await file.text();
+            const parsed = parseCsv(content);
+            if (!parsed.rows.length) throw new Error('Template file is empty.');
+            const key = apiKeyForTab(tab);
+            const res = await fetch(`/api/masters/${encodeURIComponent(key)}/import`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: parsed.rows }),
+            });
+            const data = await (async () => {
+              try {
+                return await res.json();
+              } catch {
+                return null;
+              }
+            })();
+            if (!res.ok) {
+              const duplicates = Array.isArray((data as any)?.duplicates) ? (data as any).duplicates : null;
+              if (duplicates?.length) throw new Error(`Duplicates found: ${duplicates.join(', ')}`);
+              const unknownFirms = (data as any)?.unknownFirms;
+              if (Array.isArray(unknownFirms) && unknownFirms.length) throw new Error(`Unknown firms: ${unknownFirms.join(', ')}`);
+              const unknownUnits = (data as any)?.unknownUnits;
+              if (Array.isArray(unknownUnits) && unknownUnits.length) throw new Error(`Unknown units: ${unknownUnits.join(', ')}`);
+              const unknownItemCategories = (data as any)?.unknownItemCategories;
+              if (Array.isArray(unknownItemCategories) && unknownItemCategories.length) throw new Error(`Unknown item categories: ${unknownItemCategories.join(', ')}`);
+              const unknownSpecifications = (data as any)?.unknownSpecifications;
+              if (Array.isArray(unknownSpecifications) && unknownSpecifications.length) throw new Error(`Unknown specifications: ${unknownSpecifications.join(', ')}`);
+              const unknownItemNames = (data as any)?.unknownItemNames;
+              if (Array.isArray(unknownItemNames) && unknownItemNames.length) throw new Error(`Unknown item names: ${unknownItemNames.join(', ')}`);
+              throw new Error((data as any)?.error ? String((data as any).error) : `Upload failed (${res.status})`);
+            }
+            await refreshCurrentTab(tab);
+            setTemplateInfo('Template uploaded successfully.');
+          } catch (e) {
+            setTemplateError(e instanceof Error ? e.message : String(e));
+          } finally {
+            setTemplateBusy(false);
+          }
+        }
+
+        function exportCurrentTab() {
+          const key = apiKeyForTab(tab);
+          const stamp = new Date().toISOString().slice(0, 10);
+          if (tab === 'firms') {
+            const header = ['name', 'sortName', 'cin', 'gstNumber', 'address', 'phone', 'logoUrl', 'termsConditions'];
+            const rows = firms.map((f) => ({
+              name: f.name,
+              sortName: f.sortName ?? '',
+              cin: f.cin ?? '',
+              gstNumber: f.gstNumber ?? '',
+              address: f.address ?? '',
+              phone: f.phone ?? '',
+              logoUrl: f.logoUrl ?? '',
+              termsConditions: f.termsConditions ?? '',
+            }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'stores') {
+            const header = ['firmId', 'name', 'location'];
+            const rows = stores.map((s) => ({ firmId: s.firmId, name: s.name, location: s.location ?? '' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'departments') {
+            const header = ['name'];
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, departments.map((d) => ({ name: d.name }))), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'users') {
+            const header = ['name', 'designation', 'email', 'mobile'];
+            const rows = users.map((u) => ({ name: u.name, designation: u.designation ?? '', email: u.email ?? '', mobile: u.mobile ?? '' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'suppliers') {
+            const header = ['name', 'gstNumber', 'gstType', 'address', 'phone', 'paymentTerms'];
+            const rows = suppliers.map((s) => ({
+              name: s.name,
+              gstNumber: s.gstNumber ?? '',
+              gstType: s.gstType ?? '',
+              address: s.address ?? '',
+              phone: s.phone ?? '',
+              paymentTerms: s.paymentTerms ?? '',
+            }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'customers') {
+            const header = ['name', 'phone', 'address'];
+            const rows = customers.map((c) => ({ name: c.name, phone: c.phone ?? '', address: c.address ?? '' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'transporters') {
+            const header = ['name', 'phone'];
+            const rows = transporters.map((t) => ({ name: t.name, phone: t.phone ?? '' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'projects') {
+            const header = ['firmId', 'name', 'clientName', 'startDate', 'endDate', 'status'];
+            const rows = projects.map((p) => ({
+              firmId: p.firmId,
+              name: p.name,
+              clientName: p.clientName ?? '',
+              startDate: p.startDate ?? '',
+              endDate: p.endDate ?? '',
+              status: p.status ?? '',
+            }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'units') {
+            const header = ['name'];
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, units.map((u) => ({ name: u.name }))), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'itemCategories') {
+            const header = ['name'];
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, itemCategories.map((c) => ({ name: c.name }))), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'itemNames') {
+            const header = ['name', 'unitName', 'itemCategoryName'];
+            const rows = itemNames.map((n) => ({ name: n.name, unitName: n.unitName ?? '', itemCategoryName: n.itemCategoryName ?? '' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'specs') {
+            const header = ['name'];
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, specs.map((s) => ({ name: s.name }))), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'specValues') {
+            const header = ['specificationId', 'value', 'isActive'];
+            const rows = specValues.map((v) => ({ specificationId: v.specificationId, value: v.value, isActive: v.isActive ? 'true' : 'false' }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+          if (tab === 'items') {
+            const header = ['itemCode', 'itemName', 'specificationsJson', 'uniqueKey', 'description', 'unit'];
+            const rows = items.map((it) => ({
+              itemCode: it.itemCode,
+              itemName: it.itemName,
+              specificationsJson: it.specificationsJson,
+              uniqueKey: it.uniqueKey,
+              description: it.description ?? '',
+              unit: it.unit ?? '',
+            }));
+            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+          }
+        }
+
+	  return (
+	    <div className="space-y-4">
+		      {error ? <div className="text-xs text-error">{error}</div> : null}
+
+		      <div className="flex flex-wrap gap-2">
+		        {MASTERS_TABS.map(({ key, label }) => (
+		          <button
 	            key={key}
 	            type="button"
 	            className={
@@ -575,9 +781,35 @@ export default function MastersView({
 	            }}
 	          >
 	            {label}
-	          </button>
-	        ))}
-	      </div>
+		          </button>
+		        ))}
+		      </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn btn-sm" onClick={exportCurrentTab}>
+              Export Excel
+            </button>
+            <button type="button" className="btn btn-sm" disabled={templateBusy} onClick={downloadCurrentTemplate}>
+              Download Template
+            </button>
+            <label className={templateBusy ? 'btn btn-sm opacity-60 cursor-not-allowed' : 'btn btn-sm cursor-pointer'}>
+              Upload Template
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                disabled={templateBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!f) return;
+                  uploadTemplateFile(f);
+                }}
+              />
+            </label>
+            {templateInfo ? <span className="text-xs text-on-surface-variant">{templateInfo}</span> : null}
+            {templateError ? <span className="text-xs text-error">{templateError}</span> : null}
+          </div>
 
 			      {addOpen ? (
 			        <div className="fixed inset-0 z-50 flex items-stretch justify-center py-4 px-8 md:px-12">

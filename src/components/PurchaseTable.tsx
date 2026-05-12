@@ -6,6 +6,7 @@ import { formatDateDDMMYYYY, formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Pagination from '@/src/components/common/Pagination';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 
 import { motion } from 'motion/react';
 			
@@ -92,10 +93,26 @@ export default function PurchaseTable({
 	    setPage(1);
 	  }, [statusFilter, departmentFilter, dateFrom, dateTo]);
 
-	  const pagedRequests = useMemo(() => {
-	    const start = (page - 1) * pageSize;
-	    return filteredRequests.slice(start, start + pageSize);
-	  }, [filteredRequests, page, pageSize]);
+		  const pagedRequests = useMemo(() => {
+		    const start = (page - 1) * pageSize;
+		    return filteredRequests.slice(start, start + pageSize);
+		  }, [filteredRequests, page, pageSize]);
+
+      const exportCsv = () => {
+        if (onExportExcel) return onExportExcel();
+        const stamp = new Date().toISOString().slice(0, 10);
+        const header = ['pr', 'firm', 'department', 'requestedBy', 'requisitionDate', 'requiredDate', 'status'];
+        const rows = filteredRequests.map((r) => ({
+          pr: formatPrNumber(r.prNumber ?? r.id),
+          firm: firmNameById[r.firmId] ?? r.firmId,
+          department: r.department ?? '',
+          requestedBy: r.requestedBy ?? '',
+          requisitionDate: formatDateDDMMYYYYOnly(r.requisitionDate),
+          requiredDate: formatDateDDMMYYYYOnly(r.requiredDate),
+          status: r.status ?? '',
+        }));
+        downloadTextFile(`purchase-requests-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+      };
 
 			  return (
 			    <div className="space-y-6">
@@ -151,15 +168,14 @@ export default function PurchaseTable({
                 <Plus size={14} />
                 Add Purchase Request
               </button>
-		          <button
-		            type="button"
-		            onClick={onExportExcel}
-	            className="btn btn-sm"
-                disabled={!onExportExcel}
-		          >
-		            <Download size={14} />
-		            Export Excel
-		          </button>
+			          <button
+			            type="button"
+			            onClick={exportCsv}
+		            className="btn btn-sm"
+			          >
+			            <Download size={14} />
+			            Export Excel
+			          </button>
           {/* Advanced Filters removed for Purchase Requisitions */}
 	        </div>
 	      </div>

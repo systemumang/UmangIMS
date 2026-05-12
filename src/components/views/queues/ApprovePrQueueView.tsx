@@ -4,7 +4,7 @@ import { approvePr, fetchRequest, rejectPr, statusPillClass, type PurchaseReques
 import { fetchQueueApprovePr, type ApprovePrQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
-import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
+import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
 function formatItemWithSpecification(item: string, specification: string) {
@@ -114,6 +114,9 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} showSupplier={false} />
+      <div className="flex justify-end">
+        <ExportCsvButton filename={`queue-approve-pr-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
 
       {loading ? (
         <LoadingCard label="Loading pending PR approvals..." />

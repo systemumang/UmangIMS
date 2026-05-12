@@ -3,7 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { approveInvoice } from '@/src/lib/purchaseRequests';
 import { fetchQueueApproveInvoice, type ApproveInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatPoNumber } from '@/src/lib/docNumbers';
-import { LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
+import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
 export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
@@ -49,6 +49,9 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+      <div className="flex justify-end">
+        <ExportCsvButton filename={`queue-approve-invoice-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
 
       {loading ? (
         <LoadingCard label="Loading invoices awaiting approval..." />

@@ -4,10 +4,11 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import {
-		  fetchOperationsGrnDetail,
-		  fetchOperationsGrns,
-		  fetchOperationsInvoiceDetail,
+			  fetchOperationsGrnDetail,
+			  fetchOperationsGrns,
+			  fetchOperationsInvoiceDetail,
 	  fetchOperationsInvoices,
 	  fetchOperationsPaymentDetail,
 	  fetchOperationsPayments,
@@ -15,12 +16,11 @@ import {
 	  fetchOperationsPos,
 	  fetchOperationsPrDetail,
 	  fetchOperationsPrs,
-  operationsExportUrl,
-  type OperationsFilters,
-  type OperationsGrnListRow,
-  type OperationsInvoiceListRow,
-  type OperationsPaymentListRow,
-  type OperationsPoListRow,
+	  type OperationsFilters,
+	  type OperationsGrnListRow,
+	  type OperationsInvoiceListRow,
+	  type OperationsPaymentListRow,
+	  type OperationsPoListRow,
   type OperationsPrListRow,
 } from '@/src/lib/operations';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
@@ -316,7 +316,14 @@ export default function OperationsView({
 	    if (top) loadDetail(top);
 	  }
 
-	  const exportHref = useMemo(() => operationsExportUrl(tab, filters), [filters, tab]);
+      const exportCsv = () => {
+        const stamp = new Date().toISOString().slice(0, 10);
+        const filename = `operations-${tab}-${stamp}.csv`;
+        const list: any[] = sortedRows as any[];
+        if (!list.length) return downloadTextFile(filename, 'id\n', 'text/csv; charset=utf-8');
+        const header = Object.keys(list[0] ?? {});
+        downloadTextFile(filename, toCsv(header, list), 'text/csv; charset=utf-8');
+      };
 
 	  const toggleSort = (key: string) => {
 	    setSort((prev) => {
@@ -364,19 +371,16 @@ export default function OperationsView({
           </button>
         ))}
         <div className="flex-1" />
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={() => {
-            if (!exportHref) return;
-            window.location.href = exportHref;
-          }}
-          disabled={loading || !exportHref}
-          title={exportHref ? 'Export' : 'Export is not available'}
-        >
-          Export
-        </button>
-      </div>
+	        <button
+	          type="button"
+	          className="btn btn-sm"
+	          onClick={exportCsv}
+	          disabled={loading}
+	          title="Export"
+	        >
+	          Export
+	        </button>
+	      </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">

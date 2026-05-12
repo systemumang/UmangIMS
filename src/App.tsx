@@ -180,7 +180,7 @@ export default function App() {
 		    setView('purchaseRequestDetail');
 		  };
 
-	  const showBusyOverlay = writeFlowActive && inFlightCount > 0;
+		  const showBusyOverlay = inFlightCount > 0;
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -302,16 +302,20 @@ export default function App() {
 				            />
 				          ) : null}
 
-				          {view === 'home' ? (
-				            <DashboardView
-				              onNewPurchaseRequest={() => {
-				                setSelectedRequestId(null);
-				                setView('newPurchaseRequest');
-				              }}
-				              onNavigateStockMasterTab={(tab) => {
-				                setStockMasterTab(tab);
-				                setSelectedRequestId(null);
-				                setStockMasterExpanded(true);
+					          {view === 'home' ? (
+					            <DashboardView
+					              onNewPurchaseRequest={() => {
+					                setSelectedRequestId(null);
+					                setView('newPurchaseRequest');
+					              }}
+                        onDirectPo={() => {
+                          setSelectedRequestId(null);
+                          setView('directPo');
+                        }}
+					              onNavigateStockMasterTab={(tab) => {
+					                setStockMasterTab(tab);
+					                setSelectedRequestId(null);
+					                setStockMasterExpanded(true);
 				                setMastersExpanded(false);
 				                setPendingExpanded(false);
 				                setView('stockMaster');

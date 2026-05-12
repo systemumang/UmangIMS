@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { cn } from '@/src/lib/utils';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import {
   fetchDepartments,
   fetchFirms,
@@ -307,6 +308,27 @@ export function QueueCard({ title, subtitle, children }: { title: string; subtit
       </div>
       <div className="p-5">{children}</div>
     </div>
+  );
+}
+
+export function ExportCsvButton({ filename, rows, disabled }: { filename: string; rows: any[]; disabled?: boolean }) {
+  const safeDisabled = Boolean(disabled);
+  return (
+    <button
+      type="button"
+      className="btn btn-sm"
+      disabled={safeDisabled}
+      onClick={() => {
+        const list = Array.isArray(rows) ? rows : [];
+        const first = list[0] ?? {};
+        const header = Object.keys(first);
+        const csv = toCsv(header.length ? header : ['id'], list);
+        downloadTextFile(filename, csv, 'text/csv; charset=utf-8');
+      }}
+      title="Export"
+    >
+      Export Excel
+    </button>
   );
 }
 

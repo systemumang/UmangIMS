@@ -7,7 +7,7 @@ import { fetchQueueSendPo, type QueueFilters, type SendPoQueueRow } from '@/src/
 import { cn } from '@/src/lib/utils';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
-import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
+import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
 function todayIsoDate() {
@@ -133,6 +133,9 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+      <div className="flex justify-end">
+        <ExportCsvButton filename={`queue-send-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
 
       {loading ? (
         <LoadingCard label="Loading POs pending send..." />

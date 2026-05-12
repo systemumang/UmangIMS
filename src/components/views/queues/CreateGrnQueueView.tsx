@@ -5,7 +5,7 @@ import { fetchQueueCreateGrn, type CreateGrnQueueRow, type QueueFilters } from '
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
-import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
+import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -160,6 +160,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+      <div className="flex justify-end">
+        <ExportCsvButton filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
 
       {loading ? (
         <LoadingCard label="Loading POs pending GRN..." />

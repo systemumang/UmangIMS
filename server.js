@@ -6096,6 +6096,671 @@ app.delete('/api/masters/items/:id', async (req, res) => {
   }
 });
 
+// --- Masters: Bulk templates & import (CSV over JSON rows) ---
+function normalizeKey(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function requireRows(body) {
+  const rows = Array.isArray(body?.rows) ? body.rows : [];
+  return rows.map((r) => (r && typeof r === 'object' ? r : {}));
+}
+
+function findDuplicates(list) {
+  const counts = new Map();
+  for (const v of list) {
+    const k = normalizeKey(v);
+    if (!k) continue;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .filter(([, c]) => c > 1)
+    .map(([k]) => k);
+}
+
+function csvTemplateResponse(res, filename, headerLine) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(`${headerLine}\n`);
+}
+
+async function selectExistingNames(pool, table, names) {
+  const norm = names.map((n) => String(n ?? '').trim()).filter(Boolean);
+  if (!norm.length) return [];
+  const placeholders = norm.map(() => '?').join(',');
+  const [rows] = await pool.query(`SELECT name FROM ${table} WHERE LOWER(TRIM(name)) IN (${placeholders})`, norm.map((n) => n.toLowerCase()));
+  return (rows || []).map((r) => normalizeKey(r.name));
+}
+
+// Firms
+app.get('/api/masters/firms/template', async (_req, res) => {
+  csvTemplateResponse(res, 'firms-template.csv', 'name,sortName,cin,gstNumber,address,phone,logoUrl,termsConditions');
+});
+app.post('/api/masters/firms/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'firms', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate firm names found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query(
+        `
+        INSERT INTO firms (id, name, sort_name, cin, gst_number, address, phone, logo_url, terms_conditions, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [
+          crypto.randomUUID(),
+          name,
+          r.sortName != null ? String(r.sortName).trim() || null : null,
+          r.cin != null ? String(r.cin).trim() || null : null,
+          r.gstNumber != null ? String(r.gstNumber).trim() || null : null,
+          r.address != null ? String(r.address).trim() || null : null,
+          r.phone != null ? String(r.phone).trim() || null : null,
+          r.logoUrl != null ? String(r.logoUrl).trim() || null : null,
+          r.termsConditions != null ? String(r.termsConditions).trim() || null : null,
+        ]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Departments
+app.get('/api/masters/departments/template', async (_req, res) => {
+  csvTemplateResponse(res, 'departments-template.csv', 'name');
+});
+app.post('/api/masters/departments/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'departments', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate department names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO departments (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Units
+app.get('/api/masters/units/template', async (_req, res) => {
+  csvTemplateResponse(res, 'units-template.csv', 'name');
+});
+app.post('/api/masters/units/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'units', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate unit names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO units (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Item Categories
+app.get('/api/masters/item-categories/template', async (_req, res) => {
+  csvTemplateResponse(res, 'item-categories-template.csv', 'name');
+});
+app.post('/api/masters/item-categories/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'item_categories', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate item category names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO item_categories (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Specifications
+app.get('/api/masters/specifications/template', async (_req, res) => {
+  csvTemplateResponse(res, 'specifications-template.csv', 'name');
+});
+app.post('/api/masters/specifications/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'specifications', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate specification names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO specifications (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Suppliers
+app.get('/api/masters/suppliers/template', async (_req, res) => {
+  csvTemplateResponse(res, 'suppliers-template.csv', 'name,gstNumber,gstType,address,phone,paymentTerms');
+});
+app.post('/api/masters/suppliers/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'suppliers', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate supplier names found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      const gstTypeRaw = r.gstType != null ? String(r.gstType).trim() : '';
+      const gstType = gstTypeRaw === 'Intra-State' || gstTypeRaw === 'Inter-State' ? gstTypeRaw : null;
+      await pool.query(
+        `
+        INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [
+          crypto.randomUUID(),
+          name,
+          r.gstNumber != null ? String(r.gstNumber).trim() || null : null,
+          gstType,
+          r.address != null ? String(r.address).trim() || null : null,
+          r.phone != null ? String(r.phone).trim() || null : null,
+          r.paymentTerms != null ? String(r.paymentTerms).trim() || null : null,
+        ]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Customers
+app.get('/api/masters/customers/template', async (_req, res) => {
+  csvTemplateResponse(res, 'customers-template.csv', 'name,phone,address');
+});
+app.post('/api/masters/customers/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'customers', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate customer names found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query(
+        `INSERT INTO customers (id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())`,
+        [
+          crypto.randomUUID(),
+          name,
+          r.phone != null ? String(r.phone).trim() || null : null,
+          r.address != null ? String(r.address).trim() || null : null,
+        ]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Transporters
+app.get('/api/masters/transporters/template', async (_req, res) => {
+  csvTemplateResponse(res, 'transporters-template.csv', 'name,phone');
+});
+app.post('/api/masters/transporters/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'transporters', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate transporter names found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO transporters (id, name, phone, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [
+        crypto.randomUUID(),
+        name,
+        r.phone != null ? String(r.phone).trim() || null : null,
+      ]);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Users
+app.get('/api/masters/users/template', async (_req, res) => {
+  csvTemplateResponse(res, 'users-template.csv', 'name,designation,email,mobile');
+});
+app.post('/api/masters/users/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const emails = rows.map((r) => String(r.email ?? '').trim()).filter(Boolean);
+    const dupEmailInFile = findDuplicates(emails);
+
+    let existingEmail = [];
+    if (emails.length) {
+      const placeholders = emails.map(() => '?').join(',');
+      const [found] = await pool.query(`SELECT email FROM users WHERE LOWER(TRIM(email)) IN (${placeholders})`, emails.map((e) => e.toLowerCase()));
+      existingEmail = (found || []).map((r) => normalizeKey(r.email));
+    }
+
+    const dupAll = Array.from(new Set([...dupEmailInFile, ...existingEmail]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate user emails found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      const designation = String(r.designation ?? '').trim();
+      if (!name || !designation) continue;
+      const email = r.email != null ? String(r.email).trim() || null : null;
+      const mobile = r.mobile != null ? String(r.mobile).trim() || null : null;
+      await pool.query(
+        `
+        INSERT INTO users (id, name, designation, email, mobile, password_hash, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, NULL, NOW(), NOW())
+        `,
+        [crypto.randomUUID(), name, designation, email, mobile]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Projects
+app.get('/api/masters/projects/template', async (_req, res) => {
+  csvTemplateResponse(res, 'projects-template.csv', 'firmName,name,clientName,startDate,endDate,status');
+});
+app.post('/api/masters/projects/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+
+    const [firmRows] = await pool.query('SELECT id, name FROM firms');
+    const firmIdByName = new Map((firmRows || []).map((f) => [normalizeKey(f.name), String(f.id)]));
+
+    const pairs = rows
+      .map((r) => {
+        const firmName = String(r.firmName ?? '').trim();
+        const name = String(r.name ?? '').trim();
+        return { firmName, name };
+      })
+      .filter((p) => p.firmName && p.name);
+
+    const dupInFile = findDuplicates(pairs.map((p) => `${normalizeKey(p.firmName)}::${normalizeKey(p.name)}`));
+
+    // Existing duplicates
+    let existingPairs = [];
+    if (pairs.length) {
+      const firmIds = Array.from(new Set(pairs.map((p) => firmIdByName.get(normalizeKey(p.firmName))).filter(Boolean)));
+      if (firmIds.length) {
+        const placeholders = firmIds.map(() => '?').join(',');
+        const [projRows] = await pool.query(`SELECT firm_id AS firmId, name FROM projects WHERE firm_id IN (${placeholders})`, firmIds);
+        const existingSet = new Set((projRows || []).map((p) => `${String(p.firmId)}::${normalizeKey(p.name)}`));
+        existingPairs = pairs
+          .map((p) => {
+            const firmId = firmIdByName.get(normalizeKey(p.firmName));
+            return firmId ? `${firmId}::${normalizeKey(p.name)}` : '';
+          })
+          .filter((k) => k && existingSet.has(k));
+      }
+    }
+
+    const dupAll = Array.from(new Set([...dupInFile, ...existingPairs]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate projects found (firm+name)', duplicates: dupAll });
+
+    const unknownFirms = Array.from(new Set(pairs.map((p) => normalizeKey(p.firmName)).filter((k) => !firmIdByName.has(k))));
+    if (unknownFirms.length) return res.status(400).json({ error: 'Unknown firm names in template', unknownFirms });
+
+    for (const r of rows) {
+      const firmName = String(r.firmName ?? '').trim();
+      const name = String(r.name ?? '').trim();
+      if (!firmName || !name) continue;
+      const firmId = firmIdByName.get(normalizeKey(firmName));
+      if (!firmId) continue;
+      const clientName = r.clientName != null ? String(r.clientName).trim() || null : null;
+      const startDate = r.startDate != null ? String(r.startDate).trim() || null : null;
+      const endDate = r.endDate != null ? String(r.endDate).trim() || null : null;
+      const status = r.status != null ? String(r.status).trim() || null : null;
+      await pool.query(
+        `
+        INSERT INTO projects (id, firm_id, name, client_name, start_date, end_date, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [crypto.randomUUID(), firmId, name, clientName, startDate, endDate, status]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Stores
+app.get('/api/masters/stores/template', async (_req, res) => {
+  csvTemplateResponse(res, 'stores-template.csv', 'firmName,name,location');
+});
+app.post('/api/masters/stores/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+
+    const [firmRows] = await pool.query('SELECT id, name FROM firms');
+    const firmIdByName = new Map((firmRows || []).map((f) => [normalizeKey(f.name), String(f.id)]));
+
+    const pairs = rows
+      .map((r) => ({ firmName: String(r.firmName ?? '').trim(), name: String(r.name ?? '').trim() }))
+      .filter((p) => p.firmName && p.name);
+
+    const dupInFile = findDuplicates(pairs.map((p) => `${normalizeKey(p.firmName)}::${normalizeKey(p.name)}`));
+
+    const unknownFirms = Array.from(new Set(pairs.map((p) => normalizeKey(p.firmName)).filter((k) => !firmIdByName.has(k))));
+    if (unknownFirms.length) return res.status(400).json({ error: 'Unknown firm names in template', unknownFirms });
+
+    // Existing duplicates by firm+name
+    let existingPairs = [];
+    if (pairs.length) {
+      const firmIds = Array.from(new Set(pairs.map((p) => firmIdByName.get(normalizeKey(p.firmName))).filter(Boolean)));
+      if (firmIds.length) {
+        const placeholders = firmIds.map(() => '?').join(',');
+        const [storeRows] = await pool.query(`SELECT firm_id AS firmId, name FROM stores WHERE firm_id IN (${placeholders})`, firmIds);
+        const existingSet = new Set((storeRows || []).map((s) => `${String(s.firmId)}::${normalizeKey(s.name)}`));
+        existingPairs = pairs
+          .map((p) => {
+            const firmId = firmIdByName.get(normalizeKey(p.firmName));
+            return firmId ? `${firmId}::${normalizeKey(p.name)}` : '';
+          })
+          .filter((k) => k && existingSet.has(k));
+      }
+    }
+
+    const dupAll = Array.from(new Set([...dupInFile, ...existingPairs]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate stores found (firm+name)', duplicates: dupAll });
+
+    for (const r of rows) {
+      const firmName = String(r.firmName ?? '').trim();
+      const name = String(r.name ?? '').trim();
+      if (!firmName || !name) continue;
+      const firmId = firmIdByName.get(normalizeKey(firmName));
+      if (!firmId) continue;
+      const location = r.location != null ? String(r.location).trim() || null : null;
+      await pool.query('INSERT INTO stores (id, firm_id, name, location, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())', [
+        crypto.randomUUID(),
+        firmId,
+        name,
+        location,
+      ]);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Item Names
+app.get('/api/masters/item-names/template', async (_req, res) => {
+  csvTemplateResponse(res, 'item-names-template.csv', 'name,unitName,itemCategoryName');
+});
+app.post('/api/masters/item-names/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'item_names', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate item name values found', duplicates: dupAll });
+
+    const [unitRows] = await pool.query('SELECT id, name FROM units');
+    const unitIdByName = new Map((unitRows || []).map((u) => [normalizeKey(u.name), String(u.id)]));
+    const [catRows] = await pool.query('SELECT id, name FROM item_categories');
+    const catIdByName = new Map((catRows || []).map((c) => [normalizeKey(c.name), String(c.id)]));
+
+    const unknownUnits = new Set();
+    const unknownCats = new Set();
+    for (const r of rows) {
+      const unitName = String(r.unitName ?? '').trim();
+      const catName = String(r.itemCategoryName ?? '').trim();
+      if (unitName && !unitIdByName.has(normalizeKey(unitName))) unknownUnits.add(unitName);
+      if (catName && !catIdByName.has(normalizeKey(catName))) unknownCats.add(catName);
+    }
+    if (unknownUnits.size || unknownCats.size) {
+      return res.status(400).json({ error: 'Unknown unit or item category names', unknownUnits: Array.from(unknownUnits), unknownItemCategories: Array.from(unknownCats) });
+    }
+
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      const unitName = String(r.unitName ?? '').trim();
+      const catName = String(r.itemCategoryName ?? '').trim();
+      const unitId = unitName ? unitIdByName.get(normalizeKey(unitName)) : null;
+      const catId = catName ? catIdByName.get(normalizeKey(catName)) : null;
+      await pool.query(
+        'INSERT INTO item_names (id, name, unit_id, item_category_id, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [crypto.randomUUID(), name, unitId ?? null, catId ?? null]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Specification Values
+app.get('/api/masters/specification-values/template', async (_req, res) => {
+  csvTemplateResponse(res, 'spec-values-template.csv', 'specificationName,value,isActive');
+});
+app.post('/api/masters/specification-values/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+
+    const [specRows] = await pool.query('SELECT id, name FROM specifications');
+    const specIdByName = new Map((specRows || []).map((s) => [normalizeKey(s.name), String(s.id)]));
+
+    const pairs = rows
+      .map((r) => ({ specName: String(r.specificationName ?? '').trim(), value: String(r.value ?? '').trim() }))
+      .filter((p) => p.specName && p.value);
+
+    const unknownSpecs = Array.from(new Set(pairs.map((p) => normalizeKey(p.specName)).filter((k) => !specIdByName.has(k))));
+    if (unknownSpecs.length) return res.status(400).json({ error: 'Unknown specification names', unknownSpecifications: unknownSpecs });
+
+    const dupInFile = findDuplicates(pairs.map((p) => `${normalizeKey(p.specName)}::${normalizeKey(p.value)}`));
+
+    // Existing duplicates
+    let existingPairs = [];
+    if (pairs.length) {
+      const specIds = Array.from(new Set(pairs.map((p) => specIdByName.get(normalizeKey(p.specName))).filter(Boolean)));
+      if (specIds.length) {
+        const placeholders = specIds.map(() => '?').join(',');
+        const [valRows] = await pool.query(
+          `SELECT specification_id AS specificationId, value FROM specification_values WHERE specification_id IN (${placeholders})`,
+          specIds
+        );
+        const existingSet = new Set((valRows || []).map((v) => `${String(v.specificationId)}::${normalizeKey(v.value)}`));
+        existingPairs = pairs
+          .map((p) => {
+            const specId = specIdByName.get(normalizeKey(p.specName));
+            return specId ? `${specId}::${normalizeKey(p.value)}` : '';
+          })
+          .filter((k) => k && existingSet.has(k));
+      }
+    }
+
+    const dupAll = Array.from(new Set([...dupInFile, ...existingPairs]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate specification values found', duplicates: dupAll });
+
+    for (const r of rows) {
+      const specName = String(r.specificationName ?? '').trim();
+      const value = String(r.value ?? '').trim();
+      if (!specName || !value) continue;
+      const specId = specIdByName.get(normalizeKey(specName));
+      if (!specId) continue;
+      const isActiveRaw = String(r.isActive ?? 'true').trim().toLowerCase();
+      const isActive = !(isActiveRaw === '0' || isActiveRaw === 'false' || isActiveRaw === 'no');
+      await pool.query(
+        'INSERT INTO specification_values (id, specification_id, value, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [crypto.randomUUID(), specId, value, isActive ? 1 : 0]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Items
+app.get('/api/masters/items/template', async (_req, res) => {
+  csvTemplateResponse(res, 'items-template.csv', 'itemName,unit,description,specs');
+});
+app.post('/api/masters/items/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+
+    const [itemNameRows] = await pool.query('SELECT id, name FROM item_names');
+    const itemNameIdByName = new Map((itemNameRows || []).map((n) => [normalizeKey(n.name), String(n.id)]));
+    const [specRows] = await pool.query('SELECT id, name FROM specifications');
+    const specIdByName = new Map((specRows || []).map((s) => [normalizeKey(s.name), String(s.id)]));
+
+    const unknownItemNames = new Set();
+    const unknownSpecs = new Set();
+
+    const normalized = rows
+      .map((r) => {
+        const itemName = String(r.itemName ?? '').trim();
+        const unit = r.unit != null ? String(r.unit).trim() : '';
+        const description = r.description != null ? String(r.description).trim() : '';
+        const specsRaw = String(r.specs ?? '').trim();
+        const specs = [];
+        if (specsRaw) {
+          for (const part of specsRaw.split(';').map((p) => p.trim()).filter(Boolean)) {
+            const [k, ...rest] = part.split('=');
+            const specName = String(k ?? '').trim();
+            const value = rest.join('=').trim();
+            if (!specName || !value) continue;
+            const specId = specIdByName.get(normalizeKey(specName));
+            if (!specId) unknownSpecs.add(specName);
+            specs.push({ specName, specId: specId || null, value });
+          }
+        }
+        const itemNameId = itemNameIdByName.get(normalizeKey(itemName)) || null;
+        if (itemName && !itemNameId) unknownItemNames.add(itemName);
+        return { itemName, itemNameId, unit, description, specs };
+      })
+      .filter((r) => r.itemName);
+
+    if (unknownItemNames.size) return res.status(400).json({ error: 'Unknown item names', unknownItemNames: Array.from(unknownItemNames) });
+    if (unknownSpecs.size) return res.status(400).json({ error: 'Unknown specifications', unknownSpecifications: Array.from(unknownSpecs) });
+
+    // Compute uniqueKey for duplicates check
+    const uniqueKeys = normalized.map((r) => {
+      const specsObj = Object.fromEntries((r.specs || []).filter((s) => s.specId).map((s) => [String(s.specId), String(s.value)]));
+      const specificationsJson = JSON.stringify(specsObj);
+      return `${r.itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+    });
+
+    const dupInFile = findDuplicates(uniqueKeys);
+    if (dupInFile.length) return res.status(409).json({ error: 'Duplicate items found in upload (same name+specs)', duplicates: dupInFile });
+
+    let existing = [];
+    if (uniqueKeys.length) {
+      const placeholders = uniqueKeys.map(() => '?').join(',');
+      const [found] = await pool.query(`SELECT unique_key AS uniqueKey FROM items WHERE unique_key IN (${placeholders})`, uniqueKeys);
+      existing = (found || []).map((r) => String(r.uniqueKey));
+    }
+    if (existing.length) return res.status(409).json({ error: 'Duplicate items already exist (unique key)', duplicates: existing });
+
+    for (let i = 0; i < normalized.length; i++) {
+      const r = normalized[i];
+      const itemNameId = r.itemNameId;
+      if (!itemNameId) continue;
+      const id = crypto.randomUUID();
+      const itemCode = `IT-${id.slice(0, 8).toUpperCase()}`;
+      const specsObj = Object.fromEntries((r.specs || []).filter((s) => s.specId).map((s) => [String(s.specId), String(s.value)]));
+      const specificationsJson = JSON.stringify(specsObj);
+      const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+      await pool.query(
+        'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        [id, itemNameId, itemCode, specificationsJson, uniqueKey, r.description || null, r.unit || null]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 function parseFiscalYearRange(label) {
   const raw = String(label ?? '').trim();
   const m = raw.match(/^(\d{4})-(\d{2}|\d{4})$/);

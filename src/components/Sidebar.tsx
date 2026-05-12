@@ -1,15 +1,21 @@
 import React from 'react';
-				import { 
-						  LayoutDashboard, 
-						  Home,
-						  ShoppingCart, 
-						  Boxes, 
-						  Database,
-						  ClipboardList,
-						  ChevronDown,
-						  Plus, 
-						  LogOut,
-					} from 'lucide-react';
+					import { 
+							  LayoutDashboard, 
+							  Home,
+							  ShoppingCart, 
+							  Boxes, 
+							  Database,
+							  ClipboardList,
+                Activity,
+                Package,
+                ArrowUpRight,
+                ArrowDownLeft,
+                AlertTriangle,
+                Repeat2,
+							  ChevronDown,
+							  Plus, 
+							  LogOut,
+						} from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
@@ -66,16 +72,16 @@ const stockMasterItems: Array<{ key: StockMasterTab; label: string }> = [
 	}> = [
 	  { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
 	  { icon: Home, label: 'Home', view: 'home' },
-			  { icon: ShoppingCart, label: 'Purchase Requests', view: 'purchasing' },
-			  { icon: ClipboardList, label: 'Pending Tasks', view: 'pendingTasks' },
-			  { icon: Boxes, label: 'Operations', view: 'operations' },
-			  { icon: Boxes, label: 'Inventory', view: 'inventory' },
-			  { icon: Database, label: 'Issue Master', view: 'issueMaster' },
-			  { icon: Database, label: 'Return Master', view: 'returnMaster' },
-			  { icon: Database, label: 'Damage Master', view: 'damageMaster' },
-			  { icon: Database, label: 'Transfer Master', view: 'transferMaster' },
-			  { icon: Database, label: 'Masters', view: 'masters' },
-			];
+				  { icon: ShoppingCart, label: 'Purchase Requests', view: 'purchasing' },
+				  { icon: ClipboardList, label: 'Pending Tasks', view: 'pendingTasks' },
+				  { icon: Activity, label: 'Operations', view: 'operations' },
+				  { icon: Package, label: 'Inventory', view: 'inventory' },
+				  { icon: ArrowUpRight, label: 'Issue Master', view: 'issueMaster' },
+				  { icon: ArrowDownLeft, label: 'Return Master', view: 'returnMaster' },
+				  { icon: AlertTriangle, label: 'Damage Master', view: 'damageMaster' },
+				  { icon: Repeat2, label: 'Transfer Master', view: 'transferMaster' },
+				  { icon: Database, label: 'Masters', view: 'masters' },
+				];
 
 export default function Sidebar({
   activeView,
@@ -127,20 +133,20 @@ export default function Sidebar({
 		        </div>
 	      </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
-		        {navItems.map((item) => (
-			          <React.Fragment key={item.label}>
-		            <motion.button
-		              whileHover={{ x: 4 }}
-		              type="button"
-		              onClick={() => onNavigate(item.view)}
-		              className={cn(
-		                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left",
-		                activeView === item.view
-		                  ? "bg-error text-on-primary font-semibold"
-		                  : "text-on-surface-variant hover:bg-surface-container-high"
-		              )}
-			            >
+	      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
+			        {navItems.map((item) => (
+				          <React.Fragment key={item.label}>
+			            <motion.button
+			              whileHover={{ x: 4 }}
+			              type="button"
+			              onClick={() => onNavigate(item.view)}
+			              className={cn(
+			                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/15 bg-surface-container-lowest",
+			                activeView === item.view
+			                  ? "bg-error text-on-primary font-semibold"
+			                  : "text-on-surface-variant hover:bg-surface-container-high"
+			              )}
+				            >
 			              <item.icon className={cn("mr-3", activeView === item.view ? "text-on-primary" : "text-on-surface-variant")} size={18} />
 			              <span className="flex-1">{item.label}</span>
 			              {item.view === 'masters' || item.view === 'pendingTasks' ? (
@@ -207,7 +213,7 @@ export default function Sidebar({
 		        ))}
 		      </nav>
 
-	      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 space-y-3">
+		      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 space-y-3 bg-surface-container-lowest">
 	        <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Quick Actions</div>
 	        <div className="space-y-2">
 	          <motion.button 
@@ -226,18 +232,7 @@ export default function Sidebar({
 	            Purchase Request
 	          </motion.button>
 
-	          {onDirectPo ? (
-	            <motion.button
-	              whileHover={{ scale: 1.02 }}
-	              whileTap={{ scale: 0.98 }}
-	              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-	              type="button"
-	              onClick={onDirectPo}
-	            >
-	              <Plus size={16} />
-	              Direct PO
-	            </motion.button>
-	          ) : null}
+              {/* Direct PO quick action removed from sidebar (available on Home). */}
 
 	          {stockMasterItems.map((t) => (
 	            <motion.button
@@ -259,12 +254,12 @@ export default function Sidebar({
 	          ))}
 	        </div>
 
-	        <div className="pt-2">
-	          <button
-	            type="button"
-	            className="flex items-center px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left"
-	            onClick={() => {}}
-	          >
+		        <div className="pt-2">
+		          <button
+		            type="button"
+		            className="flex items-center px-4 py-2 bg-surface-container-high text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/20"
+		            onClick={() => {}}
+		          >
 	            <LogOut className="mr-3" size={18} />
 	            Logout
 	          </button>

@@ -6,7 +6,7 @@ import { fetchQueueQc, type QcQueueRow, type QueueFilters } from '@/src/lib/queu
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
-import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
+import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
 type QcLine = {
@@ -150,6 +150,9 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+      <div className="flex justify-end">
+        <ExportCsvButton filename={`queue-qc-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
 
       {loading ? (
         <LoadingCard label="Loading GRNs pending QC..." />
