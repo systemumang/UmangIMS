@@ -213,7 +213,7 @@ export default function PowerBIDashboardView({
 	        <div className="text-xs font-semibold text-on-surface-variant">{formatDDMMYYYY(new Date())}</div>
 	      </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
           <div className="font-headline font-bold text-sm text-on-surface mb-3">Quick Actions</div>
           <div className="flex items-center gap-2 overflow-x-auto">
             <button type="button" className="btn btn-sm whitespace-nowrap" onClick={onNewPurchaseRequest}>
@@ -243,7 +243,7 @@ export default function PowerBIDashboardView({
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="font-headline font-bold text-sm text-on-surface">Daily Activity</div>
             {dailyLoading ? <div className="text-xs text-on-surface-variant">Loading...</div> : null}
@@ -256,8 +256,8 @@ export default function PowerBIDashboardView({
 	                className={cn(
                     'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-colors',
                     activeDayIso === t.iso
-                      ? 'bg-primary text-on-primary border-outline-variant/60'
-                      : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60 hover:bg-surface-container-high'
+                      ? 'bg-primary text-on-primary border-[#111827]'
+                      : 'bg-surface-container-lowest text-on-surface-variant border-[#111827] hover:bg-surface-container-high'
                   )}
 	                onClick={() => setActiveDayIso(t.iso)}
 	              >
@@ -278,7 +278,7 @@ export default function PowerBIDashboardView({
                 { key: 'stock', label: 'Stock Txn', color: 'bg-sky-600' },
                 { key: 'total', label: 'Total', color: 'bg-slate-800' },
               ].map((c) => (
-                <div key={c.key} className="rounded-xl border border-outline-variant/10 overflow-hidden">
+                <div key={c.key} className="rounded-md border-2 border-[#111827] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
                   <div className={cn('px-4 py-2 text-xs font-bold text-white', c.color)}>{c.label}</div>
                   <div className="px-4 py-3 bg-white">
                     <div className="text-2xl font-extrabold text-on-surface tabular-nums">{Number(dailyCounts[c.key] ?? 0)}</div>
@@ -289,7 +289,7 @@ export default function PowerBIDashboardView({
           ) : null}
         </div>
 
-	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+	      <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	        <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <div className="font-headline font-bold text-sm text-on-surface">Pending Tasks</div>
@@ -302,29 +302,29 @@ export default function PowerBIDashboardView({
           {pendingError ? <div className="text-xs text-error">Failed to load: {pendingError}</div> : null}
           {!pendingError ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left border-collapse border border-outline-variant">
+              <table className="w-full min-w-[640px] text-left border-collapse border-2 border-[#111827]">
                 <thead>
                   <tr className="bg-primary text-on-primary">
-                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Task</th>
-                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Pending</th>
-                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Open</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-[#111827] border-b-2">Task</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-[#111827] border-b-2">Pending</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-[#111827] border-b-2">Open</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pendingQueueItems.map((item, idx) => {
                     const Icon = pendingIconByKey[item.key];
                     return (
-                      <tr key={item.key} className={cn(pendingRowBg(idx), 'border-b border-outline-variant/40')}>
-                        <td className="px-3 py-2 text-sm border border-outline-variant/60">
+                      <tr key={item.key} className={cn(pendingRowBg(idx), 'border-b border-[#111827]/70')}>
+                        <td className="px-3 py-2 text-sm border border-[#111827]/70">
                           <span className="inline-flex items-center gap-2 font-semibold text-on-surface">
                             <Icon size={16} />
                             {item.label}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant/60 tabular-nums font-bold text-on-surface">
+                        <td className="px-3 py-2 text-sm border border-[#111827]/70 tabular-nums font-bold text-on-surface">
                           {pendingCounts[item.key] ?? 0}
                         </td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant/60">
+                        <td className="px-3 py-2 text-sm border border-[#111827]/70">
                           <button type="button" className="btn btn-sm" onClick={() => onNavigatePendingQueue(item.key)}>
                             Open
                           </button>
@@ -339,7 +339,7 @@ export default function PowerBIDashboardView({
 	      </div>
 
 		      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+		        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	          <div className="flex items-center justify-between gap-3 mb-4">
 	            <div>
 	              <div className="text-sm font-bold text-on-surface">Purchase Requests</div>

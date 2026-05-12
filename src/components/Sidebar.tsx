@@ -98,20 +98,20 @@ export default function Sidebar({
 	  onDirectPo?: () => void;
 	  open?: boolean;
 	}) {
-  const borderClass = 'border border-outline-variant/30';
-  const baseRowClass = `flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
-  const sectionRowClass = cn(baseRowClass, 'bg-surface-container-high text-on-surface');
-  const viewRowClass = cn(baseRowClass, 'bg-surface-container-lowest');
-  const activeRowClass = 'bg-primary text-on-primary font-semibold';
+  const borderClass = 'border-2 border-[#1f2937]';
+  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
+  const sectionRowClass = cn(baseRowClass, 'bg-surface-container-high text-on-surface hover:border-[#111827]');
+  const viewRowClass = cn(baseRowClass, 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:border-[#111827]');
+  const activeRowClass = 'bg-primary/10 text-on-surface font-semibold border-[#111827]';
 
-  const subRowClass = `w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest`;
-  const subActiveClass = 'bg-primary text-on-primary';
+  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
+  const subActiveClass = 'bg-primary/10 text-on-surface border-[#111827]';
   const subInactiveClass = 'text-on-surface-variant hover:bg-surface-container-high';
 
   return (
 		    <aside
 	      className={cn(
-	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r border-outline-variant/10 shadow-lg',
+	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r-2 border-[#1f2937] shadow-lg',
 	        open ? 'translate-x-0' : '-translate-x-full'
 	      )}
 	      aria-hidden={!open}
@@ -126,20 +126,20 @@ export default function Sidebar({
 	      </div>
 
 	      <nav className="flex-1 overflow-y-auto px-2 space-y-2">
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : 'text-on-surface-variant hover:bg-surface-container-high')}>
-            <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-primary' : 'text-on-surface-variant')} size={18} />
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
+            <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
             <span className="flex-1">Dashboard</span>
           </motion.button>
 
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('home')} className={cn(viewRowClass, activeView === 'home' ? activeRowClass : 'text-on-surface-variant hover:bg-surface-container-high')}>
-            <Home className={cn('mr-3', activeView === 'home' ? 'text-on-primary' : 'text-on-surface-variant')} size={18} />
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('home')} className={cn(viewRowClass, activeView === 'home' ? activeRowClass : '')}>
+            <Home className={cn('mr-3', activeView === 'home' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
             <span className="flex-1">Home</span>
           </motion.button>
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
-            <Database className={cn('mr-3', activeView === 'masters' ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <Database className={cn('mr-3', activeView === 'masters' ? 'text-on-surface' : 'text-on-surface')} size={18} />
             <span className="flex-1">Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', mastersExpanded ? 'rotate-180' : 'rotate-0', activeView === 'masters' ? 'text-on-primary' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', mastersExpanded ? 'rotate-180' : 'rotate-0', activeView === 'masters' ? 'text-on-surface' : 'text-on-surface')} />
           </motion.button>
           {mastersExpanded ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -152,9 +152,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('pendingTasks')} className={cn(sectionRowClass, pendingExpanded ? activeRowClass : '')}>
-            <ClipboardList className={cn('mr-3', pendingExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <ClipboardList className={cn('mr-3', pendingExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
             <span className="flex-1">Pending Tasks</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', pendingExpanded ? 'rotate-180' : 'rotate-0', pendingExpanded ? 'text-on-primary' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', pendingExpanded ? 'rotate-180' : 'rotate-0', pendingExpanded ? 'text-on-surface' : 'text-on-surface')} />
           </motion.button>
           {pendingExpanded && onNavigatePendingQueue ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -173,9 +173,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('stockMaster')} className={cn(sectionRowClass, stockMasterExpanded ? activeRowClass : '')}>
-            <Package className={cn('mr-3', stockMasterExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <Package className={cn('mr-3', stockMasterExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
             <span className="flex-1">Stock</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', stockMasterExpanded ? 'rotate-180' : 'rotate-0', stockMasterExpanded ? 'text-on-primary' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', stockMasterExpanded ? 'rotate-180' : 'rotate-0', stockMasterExpanded ? 'text-on-surface' : 'text-on-surface')} />
           </motion.button>
           {stockMasterExpanded && onNavigateStockView ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -213,9 +213,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
-            <ShoppingCart className={cn('mr-3', purchaseMastersExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <ShoppingCart className={cn('mr-3', purchaseMastersExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
             <span className="flex-1">Purchase Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0', purchaseMastersExpanded ? 'text-on-primary' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0', purchaseMastersExpanded ? 'text-on-surface' : 'text-on-surface')} />
           </motion.button>
           {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
             <div className="ml-7 mr-1 space-y-1">
