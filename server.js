@@ -1084,27 +1084,40 @@ app.get('/api/queues/create-po', async (req, res) => {
         proj.name AS projectName,
         pr.created_at AS requisitionDate,
         pr.remarks AS remarks,
-        COALESCE(SUM(COALESCE(pri.approved_qty, pri.requested_qty)), 0) AS approvedTotalQty,
         COUNT(DISTINCT po.id) AS poCount,
-        COALESCE(SUM(poi.quantity), 0) AS poTotalQty
+        COALESCE(
+          SUM(
+            GREATEST(
+              0,
+              COALESCE(pri.approved_qty, pri.requested_qty) - COALESCE(poAgg.orderedQty, 0)
+            )
+          ),
+          0
+        ) AS remainingQty
       FROM purchase_requisitions pr
       LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
       LEFT JOIN firms f ON f.id = pr.firm_id
       LEFT JOIN projects proj ON proj.id = pr.project_id
       LEFT JOIN purchase_orders po ON po.pr_id = pr.id
-      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id AND poi.item_id = pri.item_id
+      LEFT JOIN (
+        SELECT
+          po2.pr_id AS prId,
+          poi2.item_id AS itemId,
+          SUM(COALESCE(poi2.quantity, 0)) AS orderedQty
+        FROM purchase_orders po2
+        INNER JOIN purchase_order_items poi2 ON poi2.po_id = po2.id
+        GROUP BY po2.pr_id, poi2.item_id
+      ) poAgg ON poAgg.prId = pr.id AND poAgg.itemId = pri.item_id
       WHERE ${where.join(' AND ')}
       GROUP BY pr.id
-      HAVING (approvedTotalQty - poTotalQty) > 1e-9
+      HAVING remainingQty > 1e-9
       ORDER BY pr.created_at DESC
       `,
       params
     );
 
     let out = (Array.isArray(rows) ? rows : []).map((r) => {
-      const approvedTotalQty = Number(r.approvedTotalQty ?? 0);
-      const poTotalQty = Number(r.poTotalQty ?? 0);
-      const remainingQty = Math.max(0, approvedTotalQty - poTotalQty);
+      const remainingQty = Math.max(0, Number(r.remainingQty ?? 0));
       return {
         prId: String(r.prId ?? ''),
         prNumber: String(r.prNumber ?? r.prId ?? ''),
