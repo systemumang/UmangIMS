@@ -28,12 +28,23 @@ import IssueMasterView from './components/views/IssueMasterView';
 import ReturnMasterView from './components/views/ReturnMasterView';
 import DamageMasterView from './components/views/DamageMasterView';
 import TransferMasterView from './components/views/TransferMasterView';
+import DirectPoView from './components/views/DirectPoView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
-		  type View = NavView | PendingQueueView | 'newPurchaseRequest' | 'purchaseRequestDetail' | 'stockMaster' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster';
+		  type View =
+		    | NavView
+		    | PendingQueueView
+		    | 'newPurchaseRequest'
+		    | 'purchaseRequestDetail'
+		    | 'directPo'
+		    | 'stockMaster'
+		    | 'issueMaster'
+		    | 'returnMaster'
+		    | 'damageMaster'
+		    | 'transferMaster';
 		  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
 		  const [view, setView] = useState<View>('dashboard');
 		  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -258,6 +269,13 @@ export default function App() {
           setSelectedRequestId(null);
           setView('newPurchaseRequest');
         }}
+        onDirectPo={() => {
+          setSelectedRequestId(null);
+          setMastersExpanded(false);
+          setStockMasterExpanded(false);
+          setPendingExpanded(false);
+          setView('directPo');
+        }}
       />
       
 	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200', sidebarOpen ? 'ml-72' : 'ml-0')}>
@@ -312,6 +330,21 @@ export default function App() {
 				                setPendingExpanded(false);
 				                setStockMasterExpanded(false);
 				                setView('masters');
+				              }}
+				            />
+				          ) : null}
+
+				          {view === 'directPo' ? (
+				            <DirectPoView
+				              onCreated={() => {
+				                setSelectedRequestId(null);
+				                setMastersExpanded(false);
+				                setStockMasterExpanded(false);
+				                setPendingExpanded(true);
+				                setView('queueCheckPo');
+				              }}
+				              onCancel={() => {
+				                setView('dashboard');
 				              }}
 				            />
 				          ) : null}

@@ -91,6 +91,7 @@ export default function Sidebar({
   onNavigateMastersTab,
   onNavigateStockMasterTab,
   onNewPurchaseRequest,
+  onDirectPo,
   open = true,
 	}: {
 	  activeView: NavView;
@@ -106,6 +107,7 @@ export default function Sidebar({
   onNavigateMastersTab?: (tab: MastersTab) => void;
   onNavigateStockMasterTab?: (tab: StockMasterTab) => void;
   onNewPurchaseRequest: () => void;
+  onDirectPo?: () => void;
   open?: boolean;
 }) {
   return (
@@ -223,6 +225,19 @@ export default function Sidebar({
 	            <Plus size={16} />
 	            Purchase Request
 	          </motion.button>
+
+	          {onDirectPo ? (
+	            <motion.button
+	              whileHover={{ scale: 1.02 }}
+	              whileTap={{ scale: 0.98 }}
+	              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+	              type="button"
+	              onClick={onDirectPo}
+	            >
+	              <Plus size={16} />
+	              Direct PO
+	            </motion.button>
+	          ) : null}
 
 	          {stockMasterItems.map((t) => (
 	            <motion.button

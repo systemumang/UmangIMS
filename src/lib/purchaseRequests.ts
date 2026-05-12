@@ -308,6 +308,24 @@ export async function createPo(
   return requireOk<{ po?: { po: Po; items: PoItem[] }; error?: string }>(res, 'Failed to create PO');
 }
 
+export async function createDirectPo(input: {
+  firmId: string;
+  storeId: string;
+  projectId?: string | null;
+  supplierId: string;
+  paymentTerms: string;
+  shippingAddress?: string;
+  termsConditions?: string;
+  items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
+}) {
+  const res = await fetch('/api/pos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ po?: { po: Po; items: PoItem[] }; error?: string }>(res, 'Failed to create PO');
+}
+
 export async function createInvoice(poId: string, input: { 
 				  supplierInvoiceNo: string; 
 				  invoiceDate: string; 

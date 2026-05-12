@@ -1090,7 +1090,7 @@ app.get('/api/queues/check-po', async (req, res) => {
         po.order_date AS orderDate,
         po.created_at AS createdAt
       FROM purchase_orders po
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -1174,7 +1174,7 @@ app.get('/api/queues/send-po', async (req, res) => {
         po.order_date AS orderDate,
         po.created_at AS createdAt
       FROM purchase_orders po
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -1258,7 +1258,7 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
         COALESCE(SUM(poi.quantity), 0) AS poQty,
         COALESCE(SUM(ii.quantity), 0) AS invQty
       FROM purchase_orders po
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
       LEFT JOIN invoices inv ON inv.po_id = po.id
       LEFT JOIN invoice_items ii ON ii.invoice_id = inv.id AND ii.item_id = poi.item_id
@@ -1350,7 +1350,7 @@ app.get('/api/queues/create-grn', async (req, res) => {
         COALESCE(SUM(poi.quantity), 0) AS poQty,
         COALESCE(SUM(gi.received_qty), 0) AS grnQty
       FROM purchase_orders po
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
       LEFT JOIN grns g ON g.po_id = po.id
       LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
@@ -1445,7 +1445,7 @@ app.get('/api/queues/check-quality', async (req, res) => {
         SUM(CASE WHEN qc.id IS NULL THEN 1 ELSE 0 END) AS pendingItems
       FROM grns g
       INNER JOIN purchase_orders po ON po.id = g.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN grn_items gi ON gi.grn_id = g.id
       LEFT JOIN qc_records qc ON qc.grn_id = g.id AND qc.item_id = gi.item_id
       LEFT JOIN firms f ON f.id = po.firm_id
@@ -1544,7 +1544,7 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
         ) AS pendingItems
       FROM grns g
       INNER JOIN purchase_orders po ON po.id = g.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       INNER JOIN grn_items gi ON gi.grn_id = g.id
       LEFT JOIN qc_records qc ON qc.grn_id = g.id AND qc.item_id = gi.item_id
       LEFT JOIN (
@@ -1646,7 +1646,7 @@ app.get('/api/queues/payment', async (req, res) => {
         s.name AS supplierName
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -2548,7 +2548,7 @@ app.get('/api/operations/payments/:id', async (req, res) => {
         inv.updated_at AS updatedAt
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE inv.id = ?
@@ -2651,7 +2651,7 @@ app.get('/api/operations/pos', async (req, res) => {
         COUNT(poi.id) AS itemCount,
         COALESCE(SUM(poi.total_amount), 0) AS totalAmount
       FROM purchase_orders po
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
@@ -2744,7 +2744,7 @@ app.get('/api/operations/grns', async (req, res) => {
         COALESCE(SUM(gi.received_qty), 0) AS totalQty
       FROM grns g
       INNER JOIN purchase_orders po ON po.id = g.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN grn_items gi ON gi.grn_id = g.id
       LEFT JOIN firms f ON f.id = g.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -2832,7 +2832,7 @@ app.get('/api/operations/invoices', async (req, res) => {
         s.name AS supplierName
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
@@ -2925,7 +2925,7 @@ app.get('/api/operations/payments', async (req, res) => {
         s.name AS supplierName
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
-      INNER JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
@@ -3987,6 +3987,135 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    });
 	  } catch (e) {
 	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Create Direct PO (not linked to any PR)
+app.post('/api/pos', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const storeId = String(req.body?.storeId ?? '').trim();
+    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
+    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
+    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
+    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+    if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    let supplierId = supplierIdRaw;
+    let supplierName = supplierNameRaw;
+    if (!supplierId) {
+      if (!supplierName) return res.status(400).json({ error: 'supplierId is required' });
+      const [supRows] = await pool.query('SELECT id, name FROM suppliers WHERE name = ? LIMIT 1', [supplierName]);
+      const supRow = Array.isArray(supRows) ? supRows[0] : null;
+      if (!supRow?.id) return res.status(400).json({ error: 'Supplier not found' });
+      supplierId = String(supRow.id);
+      supplierName = String(supRow.name ?? supplierName);
+    } else {
+      const [[sRow]] = await pool.query('SELECT id, name FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+      if (!sRow?.id) return res.status(400).json({ error: 'Supplier not found' });
+      supplierName = String(sRow.name ?? supplierName);
+    }
+
+    const poId = crypto.randomUUID();
+    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+
+    await pool.query(
+      `
+      INSERT INTO purchase_orders
+        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+      VALUES
+        (?, ?, ?, ?, ?, ?, NULL, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+      `,
+      [
+        poId,
+        poNumber,
+        firmId,
+        storeId,
+        projectId ? projectId : null,
+        supplierId,
+        paymentTerms,
+        'system',
+        shippingAddress,
+        termsConditions,
+      ]
+    );
+
+    const outItems = [];
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const quantity = Number(row?.quantity ?? 0);
+      const rate = Number(row?.rate ?? 0);
+      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
+      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
+      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+
+      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
+      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
+      const gross = quantity * rate;
+      const goodsAmount = gross * (1 - disc / 100);
+      const taxAmount = goodsAmount * (tax / 100);
+      const totalAmount = goodsAmount + taxAmount;
+
+      const poItemId = crypto.randomUUID();
+      await pool.query(
+        `
+        INSERT INTO purchase_order_items
+          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [poItemId, poId, itemId, quantity, rate, disc || null, tax || null, goodsAmount, taxAmount, totalAmount, 'system']
+      );
+
+      outItems.push({
+        poId,
+        itemId,
+        item: '',
+        specificationsJson: undefined,
+        quantity,
+        rate,
+        discountPercent: disc || undefined,
+        taxPercent: tax || undefined,
+        goodsAmount,
+        taxAmount,
+        totalAmount,
+      });
+    }
+
+    res.status(201).json({
+      po: {
+        po: {
+          id: poId,
+          poNumber,
+          prId: '',
+          firmId,
+          orderDate: new Date().toISOString().slice(0, 10),
+          createdBy: 'system',
+          supplierId,
+          supplier: supplierName,
+          paymentTerms,
+          shippingAddress: shippingAddress || undefined,
+          termsConditions: termsConditions || undefined,
+          status: 'Open',
+          createdAt: new Date().toISOString(),
+        },
+        items: outItems,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
