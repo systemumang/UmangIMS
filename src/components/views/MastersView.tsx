@@ -97,6 +97,11 @@ type PendingItemUploadRow = {
   itemCategoryName: string;
   specs: Array<{ specificationId: string; value: string }>;
 };
+type ItemUploadIssue = {
+  type: 'duplicate_in_file' | 'already_exists' | 'unit_mismatch' | 'item_name_missing' | 'create_failed';
+  combination: string;
+  message: string;
+};
 const specNameById: Record<string, string> = {};
 
 function formatSpecsForDisplay(specificationsJson: string, specNameById?: Record<string, string>) {
@@ -136,6 +141,7 @@ export default function MastersView({
       const [templateBusy, setTemplateBusy] = useState(false);
       const [templateError, setTemplateError] = useState<string | null>(null);
       const [templateInfo, setTemplateInfo] = useState<string | null>(null);
+      const [itemUploadIssues, setItemUploadIssues] = useState<ItemUploadIssue[]>([]);
       const [pendingItemUploadRows, setPendingItemUploadRows] = useState<PendingItemUploadRow[] | null>(null);
       const [missingItemNames, setMissingItemNames] = useState<Array<{ name: string; unitId: string; itemCategoryId: string }>>([]);
 
@@ -706,7 +712,7 @@ export default function MastersView({
 
         async function importItemRows(rows: PendingItemUploadRow[]) {
           let created = 0;
-          const failures: string[] = [];
+          const failures: ItemUploadIssue[] = [];
           const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
           const itemNameUnitByName = new Map(itemNames.map((n) => [normalizeKey(n.name), normalizeKey(n.unitName ?? '')]));
           const formatCombo = (itemName: string, specs: Array<{ specificationId: string; value: string }>) => {
@@ -752,18 +758,24 @@ export default function MastersView({
           if (duplicateInFileRows.length || duplicateExistingRows.length) {
             const dupInFile = Array.from(new Set(duplicateInFileRows));
             const dupExisting = Array.from(new Set(duplicateExistingRows));
-            setTemplateError(
-              [
-                dupInFile.length ? `Duplicate rows in file: ${dupInFile.join(', ')}` : '',
-                dupExisting.length ? `Already existing item combinations: ${dupExisting.join(', ')}` : '',
-                'Please correct the template and upload again.',
-              ]
-                .filter(Boolean)
-                .join(' | ')
-            );
+            const issues: ItemUploadIssue[] = [
+              ...dupInFile.map((combination) => ({
+                type: 'duplicate_in_file' as const,
+                combination,
+                message: 'Duplicate combination found in uploaded file.',
+              })),
+              ...dupExisting.map((combination) => ({
+                type: 'already_exists' as const,
+                combination,
+                message: 'This item combination already exists in system.',
+              })),
+            ];
+            setItemUploadIssues(issues);
+            setTemplateError('Validation failed. Please correct the template and upload again.');
             setTemplateInfo(null);
             return;
           }
+          setItemUploadIssues([]);
           const specValueSetBySpecId = new Map<string, Set<string>>();
           for (const spec of specs) {
             try {
@@ -775,14 +787,23 @@ export default function MastersView({
           }
           for (const row of rows) {
             const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
+            const combination = formatCombo(row.itemName, row.specs);
             if (!itemNameId) {
-              failures.push(`${row.itemName}: item name not found`);
+              failures.push({
+                type: 'item_name_missing',
+                combination,
+                message: 'Item name does not exist.',
+              });
               continue;
             }
             const existingUnitKey = itemNameUnitByName.get(normalizeKey(row.itemName)) ?? '';
             const incomingUnitKey = normalizeKey(row.unitName);
             if (incomingUnitKey && existingUnitKey && incomingUnitKey !== existingUnitKey) {
-              failures.push(`${row.itemName}: unit mismatch (existing "${existingUnitKey}", uploaded "${incomingUnitKey}")`);
+              failures.push({
+                type: 'unit_mismatch',
+                combination,
+                message: `Unit mismatch: existing "${existingUnitKey}", uploaded "${incomingUnitKey}".`,
+              });
               continue;
             }
             for (const specRow of row.specs) {
@@ -810,12 +831,17 @@ export default function MastersView({
               });
               created += 1;
             } catch (e) {
-              failures.push(`${row.itemName}: ${e instanceof Error ? e.message : String(e)}`);
+              failures.push({
+                type: 'create_failed',
+                combination,
+                message: e instanceof Error ? e.message : String(e),
+              });
             }
           }
           await refreshCurrentTab('items');
           const message = `Upload complete. Created: ${created}, Failed: ${failures.length}.`;
-          setTemplateInfo(failures.length ? `${message} ${failures.slice(0, 3).join(' | ')}${failures.length > 3 ? ' ...' : ''}` : message);
+          setItemUploadIssues(failures);
+          setTemplateInfo(message);
         }
 
         async function createMissingItemNamesAndContinue() {
@@ -859,6 +885,7 @@ export default function MastersView({
             setTemplateBusy(true);
             setTemplateError(null);
             setTemplateInfo(null);
+            setItemUploadIssues([]);
             if (tab === 'items') {
               const specColumns = specs.map((s) => s.name);
               const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns];
@@ -891,6 +918,7 @@ export default function MastersView({
             setTemplateBusy(true);
             setTemplateError(null);
             setTemplateInfo(null);
+            setItemUploadIssues([]);
             setPendingItemUploadRows(null);
             setMissingItemNames([]);
             const content = await file.text();
@@ -1176,6 +1204,31 @@ export default function MastersView({
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          ) : null}
+          {tab === 'items' && itemUploadIssues.length ? (
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4 space-y-3">
+              <div className="text-sm font-semibold text-on-surface">Upload Failures</div>
+              <div className="overflow-auto">
+                <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
+                  <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+                    <tr>
+                      <th className="text-left px-3 py-2 border border-blue-600">Type</th>
+                      <th className="text-left px-3 py-2 border border-blue-600">Item Combination</th>
+                      <th className="text-left px-3 py-2 border border-blue-600">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itemUploadIssues.map((issue, idx) => (
+                      <tr key={`${issue.type}-${issue.combination}-${idx}`}>
+                        <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">{issue.type}</td>
+                        <td className="px-3 py-2 border border-blue-600">{issue.combination}</td>
+                        <td className="px-3 py-2 border border-blue-600">{issue.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : null}
