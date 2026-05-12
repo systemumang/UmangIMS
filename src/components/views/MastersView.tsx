@@ -209,6 +209,12 @@ export default function MastersView({
   ]);
   const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
+  const [inlineItemNameOpen, setInlineItemNameOpen] = useState(false);
+  const [inlineItemNameName, setInlineItemNameName] = useState('');
+  const [inlineItemNameUnitId, setInlineItemNameUnitId] = useState('');
+  const [inlineItemNameCategoryId, setInlineItemNameCategoryId] = useState('');
+  const [inlineItemNameError, setInlineItemNameError] = useState<string | null>(null);
+
   const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
@@ -2048,23 +2054,125 @@ export default function MastersView({
 			                        placeholder="Search item name..."
                                   alwaysShowCreate
                                   showCreateWhenEmpty
+                                  allowEmptyCreate
+                                  closeOnCreate
                                   createLabel={(query) => (query ? `+ Add Item Name "${query}"` : '+ Add New Item Name')}
 			                        onCreate={async (label) => {
-			                          const name = label.trim();
-			                          if (!name) return null;
-			                          const created = await createItemName({ name, createdBy: 'system' });
-		                          const next = created.itemName;
-		                          if (!next?.id) return null;
-		                          await loadAll();
-		                          setNewItemItemNameId(next.id);
-		                          return { value: next.id, label: next.name };
-		                        }}
-		                      />
-		                    </label>
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
-	                      <input
-	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                          const name = String(label ?? '').trim();
+                                    setInlineItemNameError(null);
+                                    setInlineItemNameName(name);
+                                    setInlineItemNameUnitId(units[0]?.id ?? '');
+                                    setInlineItemNameCategoryId(itemCategories[0]?.id ?? '');
+                                    setInlineItemNameOpen(true);
+			                          return null;
+			                        }}
+			                      />
+			                    </label>
+                          {inlineItemNameOpen ? (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                              <button
+                                type="button"
+                                className="absolute inset-0 bg-black/40"
+                                aria-label="Close"
+                                onClick={() => {
+                                  setInlineItemNameOpen(false);
+                                  setInlineItemNameError(null);
+                                }}
+                              />
+                              <div className="relative w-full max-w-xl bg-surface-container-lowest border border-outline-variant shadow-xl rounded-2xl overflow-hidden">
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container-lowest">
+                                  <div className="text-sm font-bold text-on-surface">Create new Item Name</div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={() => {
+                                      setInlineItemNameOpen(false);
+                                      setInlineItemNameError(null);
+                                    }}
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+
+                                <div className="p-5 space-y-3">
+                                  {inlineItemNameError ? <div className="text-xs text-error">{inlineItemNameError}</div> : null}
+                                  <label className="space-y-1">
+                                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
+                                    <input
+                                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                                      value={inlineItemNameName}
+                                      onChange={(e) => setInlineItemNameName(e.target.value)}
+                                      placeholder="Laptop"
+                                    />
+                                  </label>
+                                  <label className="space-y-1">
+                                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+                                    <SearchableSelect
+                                      value={inlineItemNameUnitId}
+                                      options={units.map((u) => ({ value: u.id, label: u.name }))}
+                                      onChange={setInlineItemNameUnitId}
+                                      placeholder="Select unit..."
+                                    />
+                                  </label>
+                                  <label className="space-y-1">
+                                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
+                                    <SearchableSelect
+                                      value={inlineItemNameCategoryId}
+                                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+                                      onChange={setInlineItemNameCategoryId}
+                                      placeholder="Select category..."
+                                    />
+                                  </label>
+                                </div>
+
+                                <div className="px-5 py-4 border-t border-outline-variant flex items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={() => {
+                                      setInlineItemNameOpen(false);
+                                      setInlineItemNameError(null);
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    disabled={busy || !inlineItemNameName.trim() || !inlineItemNameUnitId || !inlineItemNameCategoryId}
+                                    onClick={() => {
+                                      const name = inlineItemNameName.trim();
+                                      if (!name) return setInlineItemNameError('name is required');
+                                      if (!inlineItemNameUnitId) return setInlineItemNameError('unitId is required');
+                                      if (!inlineItemNameCategoryId) return setInlineItemNameError('itemCategoryId is required');
+                                      setBusy(true);
+                                      setInlineItemNameError(null);
+                                      createItemName({
+                                        name,
+                                        unitId: inlineItemNameUnitId,
+                                        itemCategoryId: inlineItemNameCategoryId,
+                                        createdBy: 'system',
+                                      })
+                                        .then(async (created) => {
+                                          const next = created.itemName;
+                                          await loadAll();
+                                          if (next?.id) setNewItemItemNameId(next.id);
+                                          setInlineItemNameOpen(false);
+                                        })
+                                        .catch((e) => setInlineItemNameError(e instanceof Error ? e.message : String(e)))
+                                        .finally(() => setBusy(false));
+                                    }}
+                                  >
+                                    Create
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                        value={newItemUnit}
 	                        onChange={(e) => setNewItemUnit(e.target.value)}
 	                        placeholder="Nos"
