@@ -25,11 +25,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [supplierId, setSupplierId] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
-  const [termsConditions, setTermsConditions] = useState('');
 
   const [lines, setLines] = useState<Line[]>([{ itemId: '', quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedFirm = useMemo(() => firms.find((f) => f.id === firmId) ?? null, [firmId, firms]);
+  const firmTermsConditions = useMemo(() => String(selectedFirm?.termsConditions ?? '').trim(), [selectedFirm]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -49,6 +51,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     const storeOk = stores.some((s) => s.id === storeId && s.firmId === firmId);
     if (!storeOk) setStoreId('');
   }, [firmId, storeId, stores]);
+
+  useEffect(() => {
+    if (!supplierId) return;
+    const s = suppliers.find((x) => x.id === supplierId);
+    const next = String(s?.paymentTerms ?? '').trim();
+    if (next) setPaymentTerms(next);
+  }, [supplierId, suppliers]);
 
   const firmOptions = useMemo(
     () =>
@@ -104,11 +113,12 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   );
 
   const canSave = useMemo(() => {
-    if (!firmId || !storeId || !supplierId) return false;
+    if (!firmId || !supplierId) return false;
+    if (!storeId && !projectId) return false;
     if (!String(paymentTerms ?? '').trim()) return false;
     const hasLine = lines.some((l) => String(l.itemId ?? '').trim() && Number(l.quantity) > 0 && Number(l.rate) > 0);
     return hasLine;
-  }, [firmId, storeId, supplierId, paymentTerms, lines]);
+  }, [firmId, storeId, projectId, supplierId, paymentTerms, lines]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -140,12 +150,12 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
       await createDirectPo({
         firmId,
-        storeId,
+        storeId: storeId ? storeId : null,
         projectId: projectId ? projectId : null,
         supplierId,
         paymentTerms: paymentTerms.trim(),
         shippingAddress: shippingAddress.trim() || undefined,
-        termsConditions: termsConditions.trim() || undefined,
+        termsConditions: firmTermsConditions || undefined,
         items: picked,
       });
       onCreated();
@@ -179,22 +189,60 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <label className="space-y-1">
               <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
-              <SearchableSelect value={firmId} options={firmOptions} onChange={setFirmId} placeholder="Select firm..." />
+              <SearchableSelect
+                value={firmId}
+                options={firmOptions}
+                onChange={(v) => {
+                  setFirmId(v);
+                  setProjectId('');
+                  setStoreId('');
+                }}
+                placeholder="Select firm..."
+              />
             </label>
 
             <label className="space-y-1">
               <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Store</div>
-              <SearchableSelect value={storeId} options={storeOptions} onChange={setStoreId} placeholder="Select store..." />
+              <SearchableSelect
+                value={storeId}
+                options={storeOptions}
+                onChange={(v) => {
+                  setStoreId(v);
+                  if (v) setProjectId('');
+                }}
+                placeholder="Select store..."
+                disabled={Boolean(projectId)}
+              />
             </label>
 
             <label className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project (Optional)</div>
-              <SearchableSelect value={projectId} options={projectOptions} onChange={setProjectId} placeholder="Select project..." allowClear />
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project</div>
+              <SearchableSelect
+                value={projectId}
+                options={projectOptions}
+                onChange={(v) => {
+                  setProjectId(v);
+                  if (v) setStoreId('');
+                }}
+                placeholder="Select project..."
+                allowClear
+                disabled={Boolean(storeId)}
+              />
             </label>
 
             <label className="space-y-1 md:col-span-2">
               <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier</div>
-              <SearchableSelect value={supplierId} options={supplierOptions} onChange={setSupplierId} placeholder="Select supplier..." />
+              <SearchableSelect
+                value={supplierId}
+                options={supplierOptions}
+                onChange={(v) => {
+                  setSupplierId(v);
+                  const s = suppliers.find((x) => x.id === v);
+                  const next = String(s?.paymentTerms ?? '').trim();
+                  if (next) setPaymentTerms(next);
+                }}
+                placeholder="Select supplier..."
+              />
             </label>
 
             <label className="space-y-1">
@@ -217,15 +265,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
               />
             </label>
 
-            <label className="space-y-1 md:col-span-3">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Terms & Conditions (Optional)</div>
-              <textarea
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm min-h-24"
-                value={termsConditions}
-                onChange={(e) => setTermsConditions(e.target.value)}
-                placeholder="Terms & conditions..."
-              />
-            </label>
           </div>
 
           <div className="flex items-center justify-between">
@@ -304,4 +343,3 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     </div>
   );
 }
-

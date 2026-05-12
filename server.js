@@ -4007,7 +4007,7 @@ app.post('/api/pos', async (req, res) => {
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
     if (!firmId) return res.status(400).json({ error: 'firmId is required' });
-    if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+    if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
     if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
     if (!items.length) return res.status(400).json({ error: 'items are required' });
 
@@ -4040,7 +4040,7 @@ app.post('/api/pos', async (req, res) => {
         poId,
         poNumber,
         firmId,
-        storeId,
+        storeId ? storeId : null,
         projectId ? projectId : null,
         supplierId,
         paymentTerms,

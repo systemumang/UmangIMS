@@ -310,7 +310,7 @@ export async function createPo(
 
 export async function createDirectPo(input: {
   firmId: string;
-  storeId: string;
+  storeId?: string | null;
   projectId?: string | null;
   supplierId: string;
   paymentTerms: string;
