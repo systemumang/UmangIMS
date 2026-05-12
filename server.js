@@ -4034,7 +4034,7 @@ app.post('/api/pos', async (req, res) => {
       INSERT INTO purchase_orders
         (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
       VALUES
-        (?, ?, ?, ?, ?, ?, NULL, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+        (?, ?, ?, ?, ?, ?, '', 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
       `,
       [
         poId,

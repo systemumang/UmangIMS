@@ -1,7 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { createDirectPo } from '@/src/lib/purchaseRequests';
-import { fetchFirms, fetchItems, fetchProjects, fetchStores, fetchSuppliers, type Firm, type Item, type Project, type Store, type Supplier } from '@/src/lib/masters';
+import {
+  fetchFirms,
+  fetchItems,
+  fetchProjects,
+  fetchSpecifications,
+  fetchStores,
+  fetchSuppliers,
+  type Firm,
+  type Item,
+  type Project,
+  type Specification,
+  type Store,
+  type Supplier,
+} from '@/src/lib/masters';
 import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
 
 type Line = {
@@ -18,6 +31,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [specs, setSpecs] = useState<Specification[]>([]);
 
   const [firmId, setFirmId] = useState('');
   const [storeId, setStoreId] = useState('');
@@ -41,6 +55,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     fetchProjects(ac.signal).then(setProjects).catch(() => setProjects([]));
     fetchItems(ac.signal).then(setItems).catch(() => setItems([]));
     fetchSuppliers(ac.signal).then(setSuppliers).catch(() => setSuppliers([]));
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
     return () => ac.abort();
   }, []);
 
@@ -92,27 +107,30 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     [suppliers]
   );
 
-  const formatSpecs = (specificationsJson: string) => {
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+
+  const formatSpecsLines = (specificationsJson: string) => {
     const raw = String(specificationsJson ?? '').trim();
-    if (!raw) return '';
+    if (!raw) return [];
     try {
       const obj = JSON.parse(raw) as Record<string, unknown>;
-      if (!obj || typeof obj !== 'object') return '';
-      const entries = Object.entries(obj)
-        .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()] as const)
-        .filter(([k, v]) => k && v);
-      if (entries.length === 0) return '';
-      return entries.map(([k, v]) => `${k}: ${v}`).join(' - ');
+      const entries = Object.entries(obj);
+      return entries
+        .map(([specId, v]) => `${specNameById?.[specId] ?? specId}: ${String(v ?? '')}`)
+        .filter(Boolean);
     } catch {
-      return '';
+      return raw
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
   };
 
   const getFullItemLabel = (item: Item) => {
     const name = String(item.itemName ?? '').trim();
     const desc = String(item.description ?? '').trim();
-    const specText = formatSpecs(item.specificationsJson);
-    const parts = [name, specText, desc].filter(Boolean);
+    const specs = formatSpecsLines(item.specificationsJson);
+    const parts = [name, ...specs, desc].filter(Boolean);
     return parts.join(' - ') || item.itemCode;
   };
 
