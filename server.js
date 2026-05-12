@@ -5918,10 +5918,30 @@ app.get('/api/masters/specification-values', async (req, res) => {
     const specificationId = String(req.query.specificationId ?? '').trim();
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     const [rows] = await pool.query(
-      'SELECT id, specification_id AS specificationId, value, is_active AS isActive FROM specification_values WHERE specification_id=? ORDER BY value',
+      `
+      SELECT
+        sv.id,
+        sv.specification_id AS specificationId,
+        sv.value,
+        sv.is_active AS isActive,
+        (
+          SELECT COUNT(*)
+          FROM items it
+          WHERE JSON_VALID(it.specifications_json)
+            AND JSON_UNQUOTE(JSON_EXTRACT(it.specifications_json, CONCAT('$.', sv.specification_id))) = sv.value
+        ) AS usageCount
+      FROM specification_values sv
+      WHERE sv.specification_id=?
+      ORDER BY sv.value
+      `,
       [specificationId]
     );
-    const specificationValues = (rows || []).map((r) => ({ ...r, isActive: Boolean(r.isActive) }));
+    const specificationValues = (rows || []).map((r) => ({
+      ...r,
+      isActive: Boolean(r.isActive),
+      usageCount: Number(r.usageCount ?? 0),
+      isUsed: Number(r.usageCount ?? 0) > 0,
+    }));
     res.json({ specificationValues });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

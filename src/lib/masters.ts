@@ -42,7 +42,14 @@ export type ItemName = {
   itemCategoryName?: string | null;
 };
 export type Specification = { id: string; name: string };
-export type SpecificationValue = { id: string; specificationId: string; value: string; isActive: boolean };
+export type SpecificationValue = {
+  id: string;
+  specificationId: string;
+  value: string;
+  isActive: boolean;
+  usageCount?: number;
+  isUsed?: boolean;
+};
 export type User = {
   id: string;
   name: string;

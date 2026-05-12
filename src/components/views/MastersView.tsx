@@ -327,12 +327,15 @@ export default function MastersView({
     setNewItemUnit(selectedItemUnitName);
   }, [selectedItemUnitName]);
   const groupedSpecValues = useMemo(() => {
-    const map = new Map<string, { specId: string; specName: string; values: Array<{ id: string; value: string }> }>();
+    const map = new Map<
+      string,
+      { specId: string; specName: string; values: Array<{ id: string; value: string; isUsed: boolean; usageCount: number }> }
+    >();
     for (const row of specValues) {
       const specId = row.specificationId;
       const specName = specNameById[specId] ?? specId;
       const entry = map.get(specId) ?? { specId, specName, values: [] };
-      entry.values.push({ id: row.id, value: row.value });
+      entry.values.push({ id: row.id, value: row.value, isUsed: Boolean(row.isUsed), usageCount: Number(row.usageCount ?? 0) });
       map.set(specId, entry);
     }
     const list = Array.from(map.values());
@@ -3645,35 +3648,46 @@ export default function MastersView({
 		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{r.specName}</td>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
 			                      <div className="flex flex-wrap gap-2">
-			                        {r.values.map((v) => (
-			                          <span key={v.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-600 bg-surface-container-low text-xs">
-			                            <span className="whitespace-nowrap">{v.value}</span>
-			                            <button
-			                              type="button"
-			                              className="btn-primary btn-sm"
-			                              onClick={() => openEditModal(v.id)}
-			                            >
-			                              Edit
-			                            </button>
-			                            <button
-			                              type="button"
-			                              title="Delete"
-			                              aria-label="Delete"
-			                              className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-			                              onClick={() => {
-			                                if (!window.confirm(`Delete value "${v.value}"?`)) return;
-			                                setBusy(true);
-			                                setError(null);
-			                                deleteSpecificationValue(v.id, { deletedBy: 'system' })
-			                                  .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
-			                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                                  .finally(() => setBusy(false));
-			                              }}
-			                            >
-			                              <Trash2 size={14} />
-			                            </button>
-			                          </span>
-			                        ))}
+				                        {r.values.map((v) => (
+				                          <span key={v.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-600 bg-surface-container-low text-xs">
+				                            <span className="whitespace-nowrap">{v.value}</span>
+				                            {v.isUsed ? (
+				                              <span
+				                                className="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant"
+				                                title={`Used in ${v.usageCount} item(s)`}
+				                              >
+				                                Used
+				                              </span>
+				                            ) : (
+				                              <>
+				                                <button
+				                                  type="button"
+				                                  className="btn-primary btn-sm"
+				                                  onClick={() => openEditModal(v.id)}
+				                                >
+				                                  Edit
+				                                </button>
+				                                <button
+				                                  type="button"
+				                                  title="Delete"
+				                                  aria-label="Delete"
+				                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+				                                  onClick={() => {
+				                                    if (!window.confirm(`Delete value "${v.value}"?`)) return;
+				                                    setBusy(true);
+				                                    setError(null);
+				                                    deleteSpecificationValue(v.id, { deletedBy: 'system' })
+				                                      .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
+				                                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                                      .finally(() => setBusy(false));
+				                                  }}
+				                                >
+				                                  <Trash2 size={14} />
+				                                </button>
+				                              </>
+				                            )}
+				                          </span>
+				                        ))}
 			                      </div>
 			                    </td>
 		                  </tr>
