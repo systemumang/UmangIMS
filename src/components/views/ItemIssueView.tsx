@@ -17,6 +17,7 @@ import { Trash2 } from 'lucide-react';
 				  fetchUsers,
 				  fetchItemNames,
 				  fetchUnits,
+				  fetchItemCategories,
 				  fetchItems,
 				  fetchSpecifications,
 				  fetchSpecificationValues,
@@ -29,6 +30,7 @@ import { Trash2 } from 'lucide-react';
 				  type Specification,
 				  type SpecificationValue,
 				  type Unit,
+				  type ItemCategory,
 				  type User,
 				} from '@/src/lib/masters';
 
@@ -85,6 +87,8 @@ export default function ItemIssueView({
 	  const [loadingItemNames, setLoadingItemNames] = useState(true);
 	  const [units, setUnits] = useState<Unit[]>([]);
 	  const [loadingUnits, setLoadingUnits] = useState(true);
+	  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
+	  const [loadingItemCategories, setLoadingItemCategories] = useState(true);
 	  const [masterItems, setMasterItems] = useState<Item[]>([]);
 	  const [loadingMasterItems, setLoadingMasterItems] = useState(true);
 	  const [specs, setSpecs] = useState<Specification[]>([]);
@@ -105,6 +109,7 @@ export default function ItemIssueView({
   const [createItemNameInlineOpen, setCreateItemNameInlineOpen] = useState(false);
   const [createItemNameInlineValue, setCreateItemNameInlineValue] = useState('');
   const [createItemNameInlineUnitId, setCreateItemNameInlineUnitId] = useState('');
+  const [createItemNameInlineCategoryId, setCreateItemNameInlineCategoryId] = useState('');
   const [createItemNameInlineBusy, setCreateItemNameInlineBusy] = useState(false);
   const [createItemNameInlineError, setCreateItemNameInlineError] = useState<string | null>(null);
 
@@ -175,6 +180,16 @@ export default function ItemIssueView({
 	      .then((rows) => setUnits(rows))
 	      .catch(() => {})
 	      .finally(() => setLoadingUnits(false));
+	    return () => ac.abort();
+	  }, []);
+
+	  useEffect(() => {
+	    const ac = new AbortController();
+	    setLoadingItemCategories(true);
+	    fetchItemCategories(ac.signal)
+	      .then((rows) => setItemCategories(rows))
+	      .catch(() => {})
+	      .finally(() => setLoadingItemCategories(false));
 	    return () => ac.abort();
 	  }, []);
 
@@ -268,6 +283,7 @@ export default function ItemIssueView({
 		          setCreateItemNameInlineOpen(false);
 	          setCreateItemNameInlineValue('');
             setCreateItemNameInlineUnitId('');
+            setCreateItemNameInlineCategoryId('');
 	          setCreateItemNameInlineBusy(false);
 	          setCreateItemNameInlineError(null);
 	          setCreateSpecInlineIndex(null);
@@ -303,6 +319,7 @@ export default function ItemIssueView({
 		    setCreateItemNameInlineOpen(false);
 		    setCreateItemNameInlineValue('');
         setCreateItemNameInlineUnitId('');
+        setCreateItemNameInlineCategoryId('');
 		    setCreateItemNameInlineError(null);
 		  };
 
@@ -316,10 +333,14 @@ export default function ItemIssueView({
           setCreateItemNameInlineError('Please select Unit.');
           return;
         }
+        if (!createItemNameInlineCategoryId) {
+          setCreateItemNameInlineError('Please select Item Category.');
+          return;
+        }
 		    if (createItemNameInlineBusy) return;
 		    setCreateItemNameInlineBusy(true);
 		    setCreateItemNameInlineError(null);
-		    createItemName({ name: v, unitId: createItemNameInlineUnitId, createdBy: 'system' })
+		    createItemName({ name: v, unitId: createItemNameInlineUnitId, itemCategoryId: createItemNameInlineCategoryId, createdBy: 'system' })
 		      .then((created) => {
 		        const next = created.itemName;
 		        if (!next?.id) return;
@@ -829,6 +850,16 @@ export default function ItemIssueView({
                                     disabled={loadingUnits}
                                   />
                                 </label>
+                                <label className="space-y-1">
+                                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
+                                  <SearchableSelect
+                                    value={createItemNameInlineCategoryId}
+                                    options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+                                    onChange={setCreateItemNameInlineCategoryId}
+                                    placeholder={loadingItemCategories ? 'Loading categories...' : 'Select category...'}
+                                    disabled={loadingItemCategories}
+                                  />
+                                </label>
 			                          <div className="flex justify-end gap-2">
 			                            <button
 			                              type="button"
@@ -840,7 +871,7 @@ export default function ItemIssueView({
 			                            <button
 			                              type="button"
 			                              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-			                              disabled={createItemNameInlineBusy || !createItemNameInlineValue.trim() || !createItemNameInlineUnitId}
+			                              disabled={createItemNameInlineBusy || !createItemNameInlineValue.trim() || !createItemNameInlineUnitId || !createItemNameInlineCategoryId}
 			                              onClick={submitCreateItemName}
 			                            >
 			                              {createItemNameInlineBusy ? 'Creating...' : 'Create'}
@@ -985,6 +1016,7 @@ export default function ItemIssueView({
 		                  onCreate={async (label) => {
 			                    setCreateItemNameInlineError(null);
 			                    setCreateItemNameInlineValue(label.trim());
+                          setCreateItemNameInlineCategoryId('');
 			                    setCreateItemNameInlineOpen(true);
 			                    return null;
 			                  }}
