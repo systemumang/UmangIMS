@@ -98,6 +98,7 @@ type PendingItemUploadRow = {
   itemCategoryName: string;
   specs: Array<{ specificationId: string; value: string }>;
 };
+const specNameById: Record<string, string> = {};
 
 function formatSpecsForDisplay(specificationsJson: string, specNameById?: Record<string, string>) {
   try {
