@@ -710,11 +710,42 @@ export default function MastersView({
           const failures: string[] = [];
           const seenKeys = new Set<string>();
           const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
+          const itemNameUnitByName = new Map(itemNames.map((n) => [normalizeKey(n.name), normalizeKey(n.unitName ?? '')]));
+          const specValueSetBySpecId = new Map<string, Set<string>>();
+          for (const spec of specs) {
+            try {
+              const values = await fetchSpecificationValues(spec.id);
+              specValueSetBySpecId.set(spec.id, new Set(values.map((v) => normalizeKey(v.value))));
+            } catch {
+              specValueSetBySpecId.set(spec.id, new Set());
+            }
+          }
           for (const row of rows) {
             const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
             if (!itemNameId) {
               failures.push(`${row.itemName}: item name not found`);
               continue;
+            }
+            const existingUnitKey = itemNameUnitByName.get(normalizeKey(row.itemName)) ?? '';
+            const incomingUnitKey = normalizeKey(row.unitName);
+            if (incomingUnitKey && existingUnitKey && incomingUnitKey !== existingUnitKey) {
+              failures.push(`${row.itemName}: unit mismatch (existing "${existingUnitKey}", uploaded "${incomingUnitKey}")`);
+              continue;
+            }
+            for (const specRow of row.specs) {
+              const specId = specRow.specificationId;
+              const specValueKey = normalizeKey(specRow.value);
+              if (!specId || !specValueKey) continue;
+              const existingSet = specValueSetBySpecId.get(specId) ?? new Set<string>();
+              if (!existingSet.has(specValueKey)) {
+                try {
+                  await createSpecificationValue({ specificationId: specId, value: specRow.value, createdBy: 'system' });
+                } catch {
+                  // ignore duplicate race/errors if value was inserted in parallel
+                }
+                existingSet.add(specValueKey);
+                specValueSetBySpecId.set(specId, existingSet);
+              }
             }
             const specsKey = row.specs
               .slice()
