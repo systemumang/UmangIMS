@@ -92,7 +92,6 @@ function normalizeKey(value: string) {
 
 type PendingItemUploadRow = {
   itemName: string;
-  itemCode: string;
   description: string;
   unitName: string;
   itemCategoryName: string;
@@ -789,10 +788,9 @@ export default function MastersView({
             setTemplateInfo(null);
             if (tab === 'items') {
               const specColumns = specs.map((s) => s.name);
-              const header = ['item_name', 'item_code', 'description', 'unit', 'item_category', ...specColumns];
+              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns];
               const sampleRow: Record<string, string> = {
                 item_name: '',
-                item_code: '',
                 description: '',
                 unit: '',
                 item_category: '',
@@ -829,7 +827,6 @@ export default function MastersView({
               const headerMap = new Map(parsed.header.map((h) => [normalizeKey(h), h]));
               const itemNameColumn = headerMap.get('item_name') ?? headerMap.get('itemname') ?? headerMap.get('item name');
               if (!itemNameColumn) throw new Error('Missing required column: item_name');
-              const itemCodeColumn = headerMap.get('item_code') ?? headerMap.get('itemcode') ?? '';
               const descriptionColumn = headerMap.get('description') ?? '';
               const unitColumn = headerMap.get('unit') ?? '';
               const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
@@ -841,14 +838,13 @@ export default function MastersView({
               const rows = parsed.rows
                 .map((r) => {
                   const itemName = String(r[itemNameColumn] ?? '').trim();
-                  const itemCode = itemCodeColumn ? String(r[itemCodeColumn] ?? '').trim() : '';
                   const description = descriptionColumn ? String(r[descriptionColumn] ?? '').trim() : '';
                   const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
                   const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
                   const rowSpecs = Array.from(specIdByColumn.entries())
                     .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
                     .filter((x) => x.value);
-                  return { itemName, itemCode, description, unitName, itemCategoryName, specs: rowSpecs };
+                  return { itemName, description, unitName, itemCategoryName, specs: rowSpecs };
                 })
                 .filter((r) => r.itemName);
               if (!rows.length) throw new Error('No valid item rows found in file.');
@@ -996,7 +992,7 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'items') {
-            const header = ['item_name', 'item_code', 'description', 'unit', 'item_category', ...specs.map((s) => s.name)];
+            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name)];
             const rows = items.map((it) => {
               const specObj = (() => {
                 try {
@@ -1011,7 +1007,6 @@ export default function MastersView({
               );
               return {
                 item_name: it.itemName,
-                item_code: it.itemCode,
                 description: it.description ?? '',
                 unit: it.unit ?? '',
                 item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
