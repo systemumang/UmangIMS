@@ -997,6 +997,7 @@ export default function PurchaseRequestDetailView({
 				      .filter((p) => eligiblePoIdSet.has(p.po.id))
 				      .map((p) => {
 				        const poId = p.po.id;
+				        const poNumber = String((p.po as any)?.poNumber ?? (p as any)?.po?.poNumber ?? '').trim();
 				        const lines = (p.items ?? [])
 				          .map((it) => {
 				            const itemId = String((it as any)?.itemId ?? '').trim();
@@ -1030,6 +1031,7 @@ export default function PurchaseRequestDetailView({
 
 				        return {
 				          poId,
+				          poNumber,
 				          supplier: String((p.po as any)?.supplier ?? (p.po as any)?.supplierName ?? '').trim(),
 				          paymentTerms: String((p.po as any)?.paymentTerms ?? '').trim(),
 				          checkedBy: checkedByName,
@@ -1882,6 +1884,7 @@ export default function PurchaseRequestDetailView({
 						      .filter((p) => sentPoIdSet.has(p.po.id))
 						      .map((p) => {
 						        const poId = p.po.id;
+						        const poNumber = String((p.po as any)?.poNumber ?? (p as any)?.po?.poNumber ?? '').trim();
 						        const lines = (p.items ?? [])
 						          .map((it) => {
 						            const ordered = Number((it as any)?.quantity ?? 0);
@@ -1904,6 +1907,7 @@ export default function PurchaseRequestDetailView({
 						        const sentByName = sentById ? userNameById.get(sentById) ?? sentById : '';
 						        return {
 						          poId,
+						          poNumber,
 						          supplier: String((p.po as any)?.supplier ?? (p.po as any)?.supplierName ?? '').trim(),
 						          paymentTerms: String((p.po as any)?.paymentTerms ?? '').trim(),
 						          checkedBy: checkedByName,
@@ -5978,7 +5982,7 @@ export default function PurchaseRequestDetailView({
 			                                {idx === 0 ? (
 			                                  <>
 				                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-					                                      {formatPoNumber((r as any).poNumber ?? '') || '-'}
+					                                      {formatPoNumber(r.poNumber ?? '') || '-'}
 				                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 			                                      {r.supplier || '-'}
@@ -7193,8 +7197,8 @@ export default function PurchaseRequestDetailView({
 				                                    {idx === 0 ? (
 				                                      <>
 					                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
-					                                      {formatPoNumber((r as any).poNumber ?? '') || '-'}
-					                                        </td>
+					                                      {formatPoNumber(r.poNumber ?? '') || '-'}
+				                                    </td>
 				                                        <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface border border-outline-variant align-top">
 				                                          {r.supplier || '-'}
 				                                        </td>

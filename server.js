@@ -4020,6 +4020,11 @@ app.post('/api/pos', async (req, res) => {
     const effectiveStoreId = storeId || (fallbackStoreRow?.id ? String(fallbackStoreRow.id) : '');
     if (!effectiveStoreId) return res.status(400).json({ error: 'Store not found for selected firm' });
 
+    const [specRows] = await pool.query('SELECT id, name FROM specifications');
+    const specNameById = new Map(
+      (Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()])
+    );
+
     let supplierId = supplierIdRaw;
     let supplierName = supplierNameRaw;
     if (!supplierId) {
@@ -4102,6 +4107,38 @@ app.post('/api/pos', async (req, res) => {
       const goodsAmount = gross * (1 - disc / 100);
       const taxAmount = goodsAmount * (tax / 100);
       const totalAmount = goodsAmount + taxAmount;
+
+      // Create a placeholder PR item so PR-based screens can still show item/spec details.
+      let prSpecText = '';
+      try {
+        const [[itRow]] = await pool.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
+        const rawSpecs = itRow?.specificationsJson != null ? String(itRow.specificationsJson) : '';
+        if (rawSpecs.trim()) {
+          const obj = JSON.parse(rawSpecs) || {};
+          if (obj && typeof obj === 'object') {
+            const lines = [];
+            for (const [specId, v] of Object.entries(obj)) {
+              const k = String(specId ?? '').trim();
+              const val = String(v ?? '').trim();
+              if (!k || !val) continue;
+              const specName = specNameById.get(k) || k;
+              lines.push(`${specName}: ${val}`);
+            }
+            prSpecText = lines.join('\n');
+          }
+        }
+      } catch {}
+
+      const prItemId = crypto.randomUUID();
+      await pool.query(
+        `
+        INSERT INTO purchase_requisition_items
+          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, ?, CURDATE(), ?, 'approved', ?, NOW(), NOW())
+        `,
+        [prItemId, directPrId, itemId, quantity, quantity, prSpecText, 'system']
+      );
 
       const poItemId = crypto.randomUUID();
       await pool.query(
