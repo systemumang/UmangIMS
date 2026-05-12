@@ -2041,15 +2041,18 @@ export default function MastersView({
 	                  <div className="space-y-2">
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
-		                      <SearchableSelect
-		                        value={newItemItemNameId}
-		                        options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
-		                        onChange={setNewItemItemNameId}
-		                        placeholder="Search item name..."
-		                        onCreate={async (label) => {
-		                          const name = label.trim();
-		                          if (!name) return null;
-		                          const created = await createItemName({ name, createdBy: 'system' });
+			                      <SearchableSelect
+			                        value={newItemItemNameId}
+			                        options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+			                        onChange={setNewItemItemNameId}
+			                        placeholder="Search item name..."
+                                  alwaysShowCreate
+                                  showCreateWhenEmpty
+                                  createLabel={(query) => (query ? `+ Add Item Name "${query}"` : '+ Add New Item Name')}
+			                        onCreate={async (label) => {
+			                          const name = label.trim();
+			                          if (!name) return null;
+			                          const created = await createItemName({ name, createdBy: 'system' });
 		                          const next = created.itemName;
 		                          if (!next?.id) return null;
 		                          await loadAll();
