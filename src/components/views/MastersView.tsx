@@ -709,6 +709,15 @@ export default function MastersView({
           const failures: string[] = [];
           const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
           const itemNameUnitByName = new Map(itemNames.map((n) => [normalizeKey(n.name), normalizeKey(n.unitName ?? '')]));
+          const formatCombo = (itemName: string, specs: Array<{ specificationId: string; value: string }>) => {
+            const specText = specs
+              .slice()
+              .sort((a, b) => a.specificationId.localeCompare(b.specificationId))
+              .map((s) => `${specNameById[s.specificationId] ?? s.specificationId}: ${String(s.value ?? '').trim()}`)
+              .filter((x) => x.endsWith(': ') === false)
+              .join(' | ');
+            return specText ? `${itemName} - ${specText}` : itemName;
+          };
           const makeSignature = (itemNameId: string, specs: Array<{ specificationId: string; value: string }>) =>
             `${itemNameId}::${specs
               .slice()
@@ -735,9 +744,10 @@ export default function MastersView({
             const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
             if (!itemNameId) continue;
             const sig = makeSignature(itemNameId, row.specs);
-            if (inFileSignatures.has(sig)) duplicateInFileRows.push(row.itemName);
+            const comboLabel = formatCombo(row.itemName, row.specs);
+            if (inFileSignatures.has(sig)) duplicateInFileRows.push(comboLabel);
             inFileSignatures.add(sig);
-            if (existingSignatures.has(sig)) duplicateExistingRows.push(row.itemName);
+            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
           }
           if (duplicateInFileRows.length || duplicateExistingRows.length) {
             const dupInFile = Array.from(new Set(duplicateInFileRows));
