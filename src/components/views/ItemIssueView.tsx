@@ -4,6 +4,7 @@ import { fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
 import { createIssue } from '@/src/lib/stockMaster';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
+import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Trash2 } from 'lucide-react';
 				import {
 				  createItem,
@@ -114,6 +115,16 @@ export default function ItemIssueView({
   const [createItemNameInlineCategoryId, setCreateItemNameInlineCategoryId] = useState('');
   const [createItemNameInlineBusy, setCreateItemNameInlineBusy] = useState(false);
   const [createItemNameInlineError, setCreateItemNameInlineError] = useState<string | null>(null);
+
+  const [createUnitInlineOpen, setCreateUnitInlineOpen] = useState(false);
+  const [createUnitInlineName, setCreateUnitInlineName] = useState('');
+  const [createUnitInlineBusy, setCreateUnitInlineBusy] = useState(false);
+  const [createUnitInlineError, setCreateUnitInlineError] = useState<string | null>(null);
+
+  const [createCategoryInlineOpen, setCreateCategoryInlineOpen] = useState(false);
+  const [createCategoryInlineName, setCreateCategoryInlineName] = useState('');
+  const [createCategoryInlineBusy, setCreateCategoryInlineBusy] = useState(false);
+  const [createCategoryInlineError, setCreateCategoryInlineError] = useState<string | null>(null);
 
 	  const [createSpecInlineIndex, setCreateSpecInlineIndex] = useState<number | null>(null);
 	  const [createSpecInlineValue, setCreateSpecInlineValue] = useState('');
@@ -288,6 +299,14 @@ export default function ItemIssueView({
             setCreateItemNameInlineCategoryId('');
 	          setCreateItemNameInlineBusy(false);
 	          setCreateItemNameInlineError(null);
+	          setCreateUnitInlineOpen(false);
+	          setCreateUnitInlineName('');
+	          setCreateUnitInlineBusy(false);
+	          setCreateUnitInlineError(null);
+	          setCreateCategoryInlineOpen(false);
+	          setCreateCategoryInlineName('');
+	          setCreateCategoryInlineBusy(false);
+	          setCreateCategoryInlineError(null);
 	          setCreateSpecInlineIndex(null);
 	          setCreateSpecInlineValue('');
 	          setCreateSpecInlineBusy(false);
@@ -298,6 +317,66 @@ export default function ItemIssueView({
 	          setCreateValueInlineError(null);
 	        }
 	      }, [createItemOpen]);
+
+  const closeCreateUnitInline = () => {
+    setCreateUnitInlineOpen(false);
+    setCreateUnitInlineName('');
+    setCreateUnitInlineError(null);
+  };
+
+  const submitCreateUnitInline = () => {
+    const name = createUnitInlineName.trim();
+    if (!name) {
+      setCreateUnitInlineError('Please enter Unit.');
+      return;
+    }
+    if (createUnitInlineBusy) return;
+    setCreateUnitInlineBusy(true);
+    setCreateUnitInlineError(null);
+    createUnit({ name, createdBy: 'system' })
+      .then((created) => {
+        const unit = created.unit;
+        if (!unit?.id) return;
+        setUnits((prev) => {
+          if (prev.some((p) => p.id === unit.id)) return prev;
+          return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setCreateItemNameInlineUnitId(unit.id);
+        closeCreateUnitInline();
+      })
+      .catch((e) => setCreateUnitInlineError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setCreateUnitInlineBusy(false));
+  };
+
+  const closeCreateCategoryInline = () => {
+    setCreateCategoryInlineOpen(false);
+    setCreateCategoryInlineName('');
+    setCreateCategoryInlineError(null);
+  };
+
+  const submitCreateCategoryInline = () => {
+    const name = createCategoryInlineName.trim();
+    if (!name) {
+      setCreateCategoryInlineError('Please enter Item Category.');
+      return;
+    }
+    if (createCategoryInlineBusy) return;
+    setCreateCategoryInlineBusy(true);
+    setCreateCategoryInlineError(null);
+    createItemCategory({ name, createdBy: 'system' })
+      .then((created) => {
+        const cat = created.itemCategory;
+        if (!cat?.id) return;
+        setItemCategories((prev) => {
+          if (prev.some((p) => p.id === cat.id)) return prev;
+          return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setCreateItemNameInlineCategoryId(cat.id);
+        closeCreateCategoryInline();
+      })
+      .catch((e) => setCreateCategoryInlineError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setCreateCategoryInlineBusy(false));
+  };
 
 					  const canSubmit = useMemo(() => {
 					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
@@ -855,16 +934,10 @@ export default function ItemIssueView({
                                     closeOnCreate
                                     createLabel={(q) => (q.trim() ? `+ Add Unit "${q.trim()}"` : '+ Add Unit')}
                                     onCreate={async (label) => {
-                                      const name = String(label ?? '').trim();
-                                      if (!name) return null;
-                                      const created = await createUnit({ name, createdBy: 'system' });
-                                      const unit = created.unit;
-                                      if (!unit?.id) return null;
-                                      setUnits((prev) => {
-                                        if (prev.some((p) => p.id === unit.id)) return prev;
-                                        return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
-                                      });
-                                      return { value: unit.id, label: unit.name };
+                                      setCreateUnitInlineError(null);
+                                      setCreateUnitInlineName(String(label ?? '').trim());
+                                      setCreateUnitInlineOpen(true);
+                                      return null;
                                     }}
                                   />
                                 </label>
@@ -881,16 +954,10 @@ export default function ItemIssueView({
                                     closeOnCreate
                                     createLabel={(q) => (q.trim() ? `+ Add Category "${q.trim()}"` : '+ Add Category')}
                                     onCreate={async (label) => {
-                                      const name = String(label ?? '').trim();
-                                      if (!name) return null;
-                                      const created = await createItemCategory({ name, createdBy: 'system' });
-                                      const cat = created.itemCategory;
-                                      if (!cat?.id) return null;
-                                      setItemCategories((prev) => {
-                                        if (prev.some((p) => p.id === cat.id)) return prev;
-                                        return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
-                                      });
-                                      return { value: cat.id, label: cat.name };
+                                      setCreateCategoryInlineError(null);
+                                      setCreateCategoryInlineName(String(label ?? '').trim());
+                                      setCreateCategoryInlineOpen(true);
+                                      return null;
                                     }}
                                   />
                                 </label>
@@ -917,6 +984,30 @@ export default function ItemIssueView({
 			                    document.body
 			                  )
 			                : null}
+
+			              <InlineCreateDialog
+                  open={createUnitInlineOpen}
+                  title="Add Unit"
+                  value={createUnitInlineName}
+                  setValue={setCreateUnitInlineName}
+                  error={createUnitInlineError}
+                  busy={createUnitInlineBusy}
+                  placeholder="Enter unit name"
+                  onClose={closeCreateUnitInline}
+                  onSubmit={submitCreateUnitInline}
+                />
+
+			              <InlineCreateDialog
+                  open={createCategoryInlineOpen}
+                  title="Add Item Category"
+                  value={createCategoryInlineName}
+                  setValue={setCreateCategoryInlineName}
+                  error={createCategoryInlineError}
+                  busy={createCategoryInlineBusy}
+                  placeholder="Enter category name"
+                  onClose={closeCreateCategoryInline}
+                  onSubmit={submitCreateCategoryInline}
+                />
 
 			              {createSpecInlineIndex != null
 			                ? createPortal(

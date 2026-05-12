@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Trash2 } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import {
@@ -215,9 +216,79 @@ export default function MastersView({
   const [inlineItemNameCategoryId, setInlineItemNameCategoryId] = useState('');
   const [inlineItemNameError, setInlineItemNameError] = useState<string | null>(null);
 
+  const [inlineUnitCreateOpen, setInlineUnitCreateOpen] = useState(false);
+  const [inlineUnitCreateName, setInlineUnitCreateName] = useState('');
+  const [inlineUnitCreateBusy, setInlineUnitCreateBusy] = useState(false);
+  const [inlineUnitCreateError, setInlineUnitCreateError] = useState<string | null>(null);
+
+  const [inlineCategoryCreateOpen, setInlineCategoryCreateOpen] = useState(false);
+  const [inlineCategoryCreateName, setInlineCategoryCreateName] = useState('');
+  const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
+  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
+
   const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
+
+  const closeInlineUnitCreate = () => {
+    setInlineUnitCreateOpen(false);
+    setInlineUnitCreateName('');
+    setInlineUnitCreateError(null);
+  };
+
+  const submitInlineUnitCreate = () => {
+    const name = inlineUnitCreateName.trim();
+    if (!name) {
+      setInlineUnitCreateError('Please enter Unit.');
+      return;
+    }
+    if (inlineUnitCreateBusy) return;
+    setInlineUnitCreateBusy(true);
+    setInlineUnitCreateError(null);
+    createUnit({ name, createdBy: 'system' })
+      .then((created) => {
+        const unit = created.unit;
+        if (!unit?.id) return;
+        setUnits((prev) => {
+          if (prev.some((p) => p.id === unit.id)) return prev;
+          return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setInlineItemNameUnitId(unit.id);
+        closeInlineUnitCreate();
+      })
+      .catch((e) => setInlineUnitCreateError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setInlineUnitCreateBusy(false));
+  };
+
+  const closeInlineCategoryCreate = () => {
+    setInlineCategoryCreateOpen(false);
+    setInlineCategoryCreateName('');
+    setInlineCategoryCreateError(null);
+  };
+
+  const submitInlineCategoryCreate = () => {
+    const name = inlineCategoryCreateName.trim();
+    if (!name) {
+      setInlineCategoryCreateError('Please enter Item Category.');
+      return;
+    }
+    if (inlineCategoryCreateBusy) return;
+    setInlineCategoryCreateBusy(true);
+    setInlineCategoryCreateError(null);
+    createItemCategory({ name, createdBy: 'system' })
+      .then((created) => {
+        const cat = created.itemCategory;
+        if (!cat?.id) return;
+        setItemCategories((prev) => {
+          if (prev.some((p) => p.id === cat.id)) return prev;
+          return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setInlineItemNameCategoryId(cat.id);
+        closeInlineCategoryCreate();
+      })
+      .catch((e) => setInlineCategoryCreateError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setInlineCategoryCreateBusy(false));
+  };
 
   const selectedItemUnitName = useMemo(() => {
     const row = itemNames.find((n) => n.id === newItemItemNameId);
@@ -2128,16 +2199,10 @@ export default function MastersView({
                                       closeOnCreate
                                       createLabel={(q) => (q.trim() ? `+ Add Unit "${q.trim()}"` : '+ Add Unit')}
                                       onCreate={async (label) => {
-                                        const name = String(label ?? '').trim();
-                                        if (!name) return null;
-                                        const created = await createUnit({ name, createdBy: 'system' });
-                                        const unit = created.unit;
-                                        if (!unit?.id) return null;
-                                        setUnits((prev) => {
-                                          if (prev.some((p) => p.id === unit.id)) return prev;
-                                          return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
-                                        });
-                                        return { value: unit.id, label: unit.name };
+                                        setInlineUnitCreateError(null);
+                                        setInlineUnitCreateName(String(label ?? '').trim());
+                                        setInlineUnitCreateOpen(true);
+                                        return null;
                                       }}
                                     />
                                   </label>
@@ -2153,16 +2218,10 @@ export default function MastersView({
                                       closeOnCreate
                                       createLabel={(q) => (q.trim() ? `+ Add Category "${q.trim()}"` : '+ Add Category')}
                                       onCreate={async (label) => {
-                                        const name = String(label ?? '').trim();
-                                        if (!name) return null;
-                                        const created = await createItemCategory({ name, createdBy: 'system' });
-                                        const cat = created.itemCategory;
-                                        if (!cat?.id) return null;
-                                        setItemCategories((prev) => {
-                                          if (prev.some((p) => p.id === cat.id)) return prev;
-                                          return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
-                                        });
-                                        return { value: cat.id, label: cat.name };
+                                        setInlineCategoryCreateError(null);
+                                        setInlineCategoryCreateName(String(label ?? '').trim());
+                                        setInlineCategoryCreateOpen(true);
+                                        return null;
                                       }}
                                     />
                                   </label>
@@ -2212,6 +2271,30 @@ export default function MastersView({
                               </div>
                             </div>
                           ) : null}
+
+                          <InlineCreateDialog
+                            open={inlineUnitCreateOpen}
+                            title="Add Unit"
+                            value={inlineUnitCreateName}
+                            setValue={setInlineUnitCreateName}
+                            error={inlineUnitCreateError}
+                            busy={inlineUnitCreateBusy}
+                            placeholder="Enter unit name"
+                            onClose={closeInlineUnitCreate}
+                            onSubmit={submitInlineUnitCreate}
+                          />
+
+                          <InlineCreateDialog
+                            open={inlineCategoryCreateOpen}
+                            title="Add Item Category"
+                            value={inlineCategoryCreateName}
+                            setValue={setInlineCategoryCreateName}
+                            error={inlineCategoryCreateError}
+                            busy={inlineCategoryCreateBusy}
+                            placeholder="Enter category name"
+                            onClose={closeInlineCategoryCreate}
+                            onSubmit={submitInlineCategoryCreate}
+                          />
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
 		                      <input
