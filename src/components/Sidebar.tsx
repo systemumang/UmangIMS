@@ -1,21 +1,22 @@
 import React from 'react';
-					import { 
-							  LayoutDashboard, 
-							  Home,
-							  ShoppingCart, 
-							  Boxes, 
-							  Database,
-							  ClipboardList,
-                Activity,
-                Package,
-                ArrowUpRight,
-                ArrowDownLeft,
-                AlertTriangle,
-                Repeat2,
-							  ChevronDown,
-							  Plus, 
-							  LogOut,
-						} from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Boxes,
+  ChevronDown,
+  ClipboardList,
+  CreditCard,
+  Database,
+  FileText,
+  Home,
+  LayoutDashboard,
+  Package,
+  Receipt,
+  ShoppingCart,
+  Truck,
+  LogOut,
+} from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
@@ -58,66 +59,57 @@ export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> =
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
-const stockMasterItems: Array<{ key: StockMasterTab; label: string }> = [
-  { key: 'itemIssue', label: 'Issue' },
-  { key: 'return', label: 'Return' },
-  { key: 'damage', label: 'Damage' },
-  { key: 'transfer', label: 'Transfer' },
-];
-
-	const navItems: Array<{
-	  icon: React.ComponentType<{ size?: number; className?: string }>;
-	  label: string;
-	  view: NavView;
-	}> = [
-	  { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
-	  { icon: Home, label: 'Home', view: 'home' },
-				  { icon: ShoppingCart, label: 'Purchase Requests', view: 'purchasing' },
-				  { icon: ClipboardList, label: 'Pending Tasks', view: 'pendingTasks' },
-				  { icon: Activity, label: 'Operations', view: 'operations' },
-				  { icon: Package, label: 'Inventory', view: 'inventory' },
-				  { icon: ArrowUpRight, label: 'Issue Master', view: 'issueMaster' },
-				  { icon: ArrowDownLeft, label: 'Return Master', view: 'returnMaster' },
-				  { icon: AlertTriangle, label: 'Damage Master', view: 'damageMaster' },
-				  { icon: Repeat2, label: 'Transfer Master', view: 'transferMaster' },
-				  { icon: Database, label: 'Masters', view: 'masters' },
-				];
+type PurchaseMastersTab = 'prs' | 'pos' | 'grns' | 'invoices' | 'payments';
 
 export default function Sidebar({
   activeView,
   activePendingQueue,
   activeMastersTab,
-  activeStockMasterTab,
   mastersExpanded,
   pendingExpanded,
   stockMasterExpanded,
+  purchaseMastersExpanded,
+  activeOperationsTab,
   isNewPurchaseRequestActive,
   onNavigate,
   onNavigatePendingQueue,
   onNavigateMastersTab,
-  onNavigateStockMasterTab,
+  onNavigateStockView,
+  onNavigatePurchaseMasters,
   onNewPurchaseRequest,
   onDirectPo,
   open = true,
-	}: {
-	  activeView: NavView;
-	  activePendingQueue?: PendingQueueKey;
-	  activeMastersTab?: MastersTab;
-	  activeStockMasterTab?: StockMasterTab;
-	  mastersExpanded?: boolean;
-	  pendingExpanded?: boolean;
-	  stockMasterExpanded?: boolean;
-  isNewPurchaseRequestActive?: boolean;
-  onNavigate: (view: NavView) => void;
-  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
-  onNavigateMastersTab?: (tab: MastersTab) => void;
-  onNavigateStockMasterTab?: (tab: StockMasterTab) => void;
-  onNewPurchaseRequest: () => void;
-  onDirectPo?: () => void;
-  open?: boolean;
-}) {
+		}: {
+		  activeView: NavView;
+		  activePendingQueue?: PendingQueueKey;
+		  activeMastersTab?: MastersTab;
+		  mastersExpanded?: boolean;
+		  pendingExpanded?: boolean;
+		  stockMasterExpanded?: boolean;
+      purchaseMastersExpanded?: boolean;
+      activeOperationsTab?: PurchaseMastersTab;
+	  isNewPurchaseRequestActive?: boolean;
+	  onNavigate: (view: NavView) => void;
+	  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
+	  onNavigateMastersTab?: (tab: MastersTab) => void;
+	  onNavigateStockView?: (view: NavView) => void;
+      onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
+	  onNewPurchaseRequest: () => void;
+	  onDirectPo?: () => void;
+	  open?: boolean;
+	}) {
+  const borderClass = 'border border-outline-variant/30';
+  const baseRowClass = `flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
+  const sectionRowClass = cn(baseRowClass, 'bg-surface-container-high text-on-surface');
+  const viewRowClass = cn(baseRowClass, 'bg-surface-container-lowest');
+  const activeRowClass = 'bg-primary text-on-primary font-semibold';
+
+  const subRowClass = `w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest`;
+  const subActiveClass = 'bg-primary text-on-primary';
+  const subInactiveClass = 'text-on-surface-variant hover:bg-surface-container-high';
+
   return (
-	    <aside
+		    <aside
 	      className={cn(
 	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r border-outline-variant/10 shadow-lg',
 	        open ? 'translate-x-0' : '-translate-x-full'
@@ -133,88 +125,133 @@ export default function Sidebar({
 		        </div>
 	      </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
-			        {navItems.map((item) => (
-				          <React.Fragment key={item.label}>
-			            <motion.button
-			              whileHover={{ x: 4 }}
-			              type="button"
-			              onClick={() => onNavigate(item.view)}
-			              className={cn(
-			                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/15",
-                      item.view === 'masters' || item.view === 'pendingTasks'
-                        ? 'bg-surface-container-high text-on-surface'
-                        : 'bg-surface-container-lowest',
-			                activeView === item.view
-			                  ? "bg-primary text-on-primary font-semibold"
-			                  : "text-on-surface-variant hover:bg-surface-container-high"
-			              )}
-				            >
-			              <item.icon className={cn("mr-3", activeView === item.view ? "text-on-primary" : item.view === 'masters' || item.view === 'pendingTasks' ? 'text-on-surface' : "text-on-surface-variant")} size={18} />
-			              <span className="flex-1">{item.label}</span>
-			              {item.view === 'masters' || item.view === 'pendingTasks' ? (
-			                <ChevronDown
-			                  size={16}
-			                  className={cn(
-			                    'ml-2 transition-transform text-on-surface-variant',
-			                    activeView === item.view ? 'text-on-primary' : '',
-			                    item.view === 'masters'
-			                      ? mastersExpanded
-			                        ? 'rotate-180'
-			                        : 'rotate-0'
-		                      : pendingExpanded
-		                        ? 'rotate-180'
-		                        : 'rotate-0'
-		                  )}
-		                />
-		              ) : null}
-		            </motion.button>
+	      <nav className="flex-1 overflow-y-auto px-2 space-y-2">
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : 'text-on-surface-variant hover:bg-surface-container-high')}>
+            <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-primary' : 'text-on-surface-variant')} size={18} />
+            <span className="flex-1">Dashboard</span>
+          </motion.button>
 
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('home')} className={cn(viewRowClass, activeView === 'home' ? activeRowClass : 'text-on-surface-variant hover:bg-surface-container-high')}>
+            <Home className={cn('mr-3', activeView === 'home' ? 'text-on-primary' : 'text-on-surface-variant')} size={18} />
+            <span className="flex-1">Home</span>
+          </motion.button>
 
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
+            <Database className={cn('mr-3', activeView === 'masters' ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <span className="flex-1">Masters</span>
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', mastersExpanded ? 'rotate-180' : 'rotate-0', activeView === 'masters' ? 'text-on-primary' : 'text-on-surface')} />
+          </motion.button>
+          {mastersExpanded ? (
+            <div className="ml-7 mr-1 space-y-1">
+              {MASTERS_TABS.map((t) => (
+                <button key={t.key} type="button" onClick={() => onNavigateMastersTab?.(t.key)} className={cn(subRowClass, activeMastersTab === t.key ? subActiveClass : subInactiveClass)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-		            {item.view === 'masters' && mastersExpanded ? (
-		              <div className="ml-7 mr-1 mt-1 space-y-1">
-		                {MASTERS_TABS.map((t) => (
-		                  <button
-		                    key={t.key}
-	                    type="button"
-	                    onClick={() => onNavigateMastersTab?.(t.key)}
-	                    className={cn(
-	                      'w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors',
-	                      activeMastersTab === t.key
-	                        ? 'bg-error text-on-primary'
-	                        : 'text-on-surface-variant hover:bg-surface-container-high'
-	                    )}
-	                  >
-		                    {t.label}
-		                  </button>
-		                ))}
-		              </div>
-		            ) : null}
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('pendingTasks')} className={cn(sectionRowClass, pendingExpanded ? activeRowClass : '')}>
+            <ClipboardList className={cn('mr-3', pendingExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <span className="flex-1">Pending Tasks</span>
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', pendingExpanded ? 'rotate-180' : 'rotate-0', pendingExpanded ? 'text-on-primary' : 'text-on-surface')} />
+          </motion.button>
+          {pendingExpanded && onNavigatePendingQueue ? (
+            <div className="ml-7 mr-1 space-y-1">
+              {pendingQueueItems.map((q) => (
+                <motion.button
+                  key={q.key}
+                  whileHover={{ x: 4 }}
+                  type="button"
+                  onClick={() => onNavigatePendingQueue(q.key)}
+                  className={cn(subRowClass, activePendingQueue === q.key ? subActiveClass : subInactiveClass)}
+                >
+                  {q.label}
+                </motion.button>
+              ))}
+            </div>
+          ) : null}
 
-			            {item.view === 'pendingTasks' && onNavigatePendingQueue && pendingExpanded ? (
-			              <div className="ml-7 mr-1 mt-1 space-y-1">
-			                {pendingQueueItems.map((q) => (
-			                  <motion.button
-			                    key={q.key}
-			                    whileHover={{ x: 4 }}
-			                    type="button"
-			                    onClick={() => onNavigatePendingQueue(q.key)}
-			                    className={cn(
-			                      'w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors',
-			                      activePendingQueue === q.key
-			                        ? 'bg-error text-on-primary'
-			                        : 'text-on-surface-variant hover:bg-surface-container-high'
-			                    )}
-			                  >
-			                    {q.label}
-			                  </motion.button>
-			                ))}
-			              </div>
-			            ) : null}
-		          </React.Fragment>
-		        ))}
-		      </nav>
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('stockMaster')} className={cn(sectionRowClass, stockMasterExpanded ? activeRowClass : '')}>
+            <Package className={cn('mr-3', stockMasterExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <span className="flex-1">Stock</span>
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', stockMasterExpanded ? 'rotate-180' : 'rotate-0', stockMasterExpanded ? 'text-on-primary' : 'text-on-surface')} />
+          </motion.button>
+          {stockMasterExpanded && onNavigateStockView ? (
+            <div className="ml-7 mr-1 space-y-1">
+              <button type="button" onClick={() => onNavigateStockView('inventory')} className={cn(subRowClass, activeView === 'inventory' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <Package size={14} />
+                  Inventory
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigateStockView('issueMaster')} className={cn(subRowClass, activeView === 'issueMaster' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <ArrowUpRight size={14} />
+                  Issue Master
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigateStockView('returnMaster')} className={cn(subRowClass, activeView === 'returnMaster' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <ArrowDownLeft size={14} />
+                  Return Master
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigateStockView('damageMaster')} className={cn(subRowClass, activeView === 'damageMaster' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <AlertTriangle size={14} />
+                  Damage Master
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigateStockView('transferMaster')} className={cn(subRowClass, activeView === 'transferMaster' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <Boxes size={14} />
+                  Transfer Master
+                </span>
+              </button>
+            </div>
+          ) : null}
+
+          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
+            <ShoppingCart className={cn('mr-3', purchaseMastersExpanded ? 'text-on-primary' : 'text-on-surface')} size={18} />
+            <span className="flex-1">Purchase Masters</span>
+            <ChevronDown size={16} className={cn('ml-2 transition-transform', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0', purchaseMastersExpanded ? 'text-on-primary' : 'text-on-surface')} />
+          </motion.button>
+          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
+            <div className="ml-7 mr-1 space-y-1">
+              <button type="button" onClick={() => onNavigatePurchaseMasters('prs')} className={cn(subRowClass, activeView === 'purchasing' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <FileText size={14} />
+                  Requisitions
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigatePurchaseMasters('pos')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'pos' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <Receipt size={14} />
+                  Purchase Orders
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigatePurchaseMasters('grns')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'grns' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <Truck size={14} />
+                  GRN
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigatePurchaseMasters('invoices')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'invoices' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <FileText size={14} />
+                  Invoices
+                </span>
+              </button>
+              <button type="button" onClick={() => onNavigatePurchaseMasters('payments')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'payments' ? subActiveClass : subInactiveClass)}>
+                <span className="inline-flex items-center gap-2">
+                  <CreditCard size={14} />
+                  Payments
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </nav>
 
 		      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 bg-surface-container-lowest">
 		        <button

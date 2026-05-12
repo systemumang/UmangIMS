@@ -43,14 +43,21 @@ function formatDateShort(s: string) {
 
 export default function OperationsView({
   onViewPr,
+  initialTab = 'prs',
 }: {
   onViewPr?: (
     prId: string,
     opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly' }
   ) => void;
+  initialTab?: OpsTab;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true });
-  const [tab, setTab] = useState<OpsTab>('prs');
+  const [tab, setTab] = useState<OpsTab>(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+    setDetailOpen(false);
+  }, [initialTab]);
 
   const [filters, setFilters] = useState<OperationsFilters>({
     q: '',

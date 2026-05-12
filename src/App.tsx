@@ -49,12 +49,14 @@ export default function App() {
 		  const [view, setView] = useState<View>('dashboard');
 		  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 		  const [detailBackView, setDetailBackView] = useState<View>('dashboard');
-		  const [mastersTab, setMastersTab] = useState<MastersTab>('firms');
-		  const [mastersExpanded, setMastersExpanded] = useState(false);
-		  const [pendingExpanded, setPendingExpanded] = useState(false);
-		  const [stockMasterTab, setStockMasterTab] = useState<StockMasterTab>('itemIssue');
-		  const [stockMasterExpanded, setStockMasterExpanded] = useState(false);
-		  const [sidebarOpen, setSidebarOpen] = useState(true);
+			  const [mastersTab, setMastersTab] = useState<MastersTab>('firms');
+			  const [mastersExpanded, setMastersExpanded] = useState(false);
+			  const [pendingExpanded, setPendingExpanded] = useState(false);
+			  const [stockMasterTab, setStockMasterTab] = useState<StockMasterTab>('itemIssue');
+			  const [stockMasterExpanded, setStockMasterExpanded] = useState(false);
+        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
+        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
+			  const [sidebarOpen, setSidebarOpen] = useState(true);
 
 		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const inFlightRef = useRef(0);
@@ -184,84 +186,103 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-surface">
-		      <Sidebar
-		        activeView={sidebarActive}
-		        activePendingQueue={activePendingQueue}
-		        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
-		        activeStockMasterTab={sidebarActive === 'stockMaster' ? stockMasterTab : undefined}
-		        mastersExpanded={mastersExpanded}
-		        pendingExpanded={pendingExpanded}
-		        stockMasterExpanded={stockMasterExpanded}
-		        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
-		        open={sidebarOpen}
-			        onNavigate={(next) => {
-			          if (next === 'masters') {
-			            setSelectedRequestId(null);
-			            setPendingExpanded(false);
-			            setStockMasterExpanded(false);
-			            if (sidebarActive === 'masters') {
-			              setMastersExpanded((prev) => !prev);
-			              return;
-			            }
-			            setMastersExpanded(true);
-			            return;
-			          }
+			      <Sidebar
+			        activeView={sidebarActive}
+			        activePendingQueue={activePendingQueue}
+			        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
+			        mastersExpanded={mastersExpanded}
+			        pendingExpanded={pendingExpanded}
+			        stockMasterExpanded={stockMasterExpanded}
+              purchaseMastersExpanded={purchaseMastersExpanded}
+              activeOperationsTab={operationsTab}
+			        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
+			        open={sidebarOpen}
+				        onNavigate={(next) => {
+				          if (next === 'masters') {
+				            setSelectedRequestId(null);
+				            setPendingExpanded(false);
+				            setStockMasterExpanded(false);
+                    setPurchaseMastersExpanded(false);
+				            if (sidebarActive === 'masters') {
+				              setMastersExpanded((prev) => !prev);
+				              return;
+				            }
+				            setMastersExpanded(true);
+				            return;
+				          }
 
-			          if (next === 'pendingTasks') {
+				          if (next === 'pendingTasks') {
+				            setSelectedRequestId(null);
+				            setMastersExpanded(false);
+				            setStockMasterExpanded(false);
+                    setPurchaseMastersExpanded(false);
+				            setPendingExpanded((prev) => !prev);
+				            return;
+				          }
+
+			          if (next === 'stockMaster') {
 			            setSelectedRequestId(null);
 			            setMastersExpanded(false);
-			            setStockMasterExpanded(false);
-			            setPendingExpanded((prev) => !prev);
+			            setPendingExpanded(false);
+                  setPurchaseMastersExpanded(false);
+			            setStockMasterExpanded((prev) => !prev);
 			            return;
 			          }
 
-		          if (next === 'stockMaster') {
-		            setSelectedRequestId(null);
-		            setMastersExpanded(false);
-		            setPendingExpanded(false);
-		            if (sidebarActive === 'stockMaster') {
-		              setStockMasterExpanded((prev) => !prev);
-		              setView('stockMaster');
-		              return;
-		            }
-		            setStockMasterExpanded(true);
-		            setView('stockMaster');
-		            return;
-		          }
+                if (next === 'operations') {
+                  setSelectedRequestId(null);
+                  setMastersExpanded(false);
+                  setPendingExpanded(false);
+                  setStockMasterExpanded(false);
+                  setPurchaseMastersExpanded((prev) => !prev);
+                  return;
+                }
 
-		          setSelectedRequestId(null);
-		          setMastersExpanded(false);
-		          setPendingExpanded(false);
-		          setStockMasterExpanded(false);
-		          setView(next);
+			          setSelectedRequestId(null);
+			          setMastersExpanded(false);
+			          setPendingExpanded(false);
+			          setStockMasterExpanded(false);
+                setPurchaseMastersExpanded(false);
+			          setView(next);
+			        }}
+			        onNavigatePendingQueue={(key) => {
+			          setSelectedRequestId(null);
+			          setMastersExpanded(false);
+			          setStockMasterExpanded(false);
+                setPurchaseMastersExpanded(false);
+			          setPendingExpanded(true);
+			          setView(key);
+			        }}
+			        onNavigateMastersTab={(tab) => {
+			          setMastersTab(tab);
+			          setSelectedRequestId(null);
+			          setMastersExpanded(true);
+			          setPendingExpanded(false);
+			          setStockMasterExpanded(false);
+                setPurchaseMastersExpanded(false);
+			          setView('masters');
 		        }}
-		        onNavigatePendingQueue={(key) => {
-		          setSelectedRequestId(null);
-		          setMastersExpanded(false);
-		          setStockMasterExpanded(false);
-		          setPendingExpanded(true);
-		          setView(key);
-		        }}
-		        onNavigateMastersTab={(tab) => {
-		          setMastersTab(tab);
-		          setSelectedRequestId(null);
-		          setMastersExpanded(true);
-		          setPendingExpanded(false);
-		          setStockMasterExpanded(false);
-		          setView('masters');
-	        }}
-	        onNavigateStockMasterTab={(tab) => {
-	          setStockMasterTab(tab);
+              onNavigateStockView={(next) => {
+                setSelectedRequestId(null);
+                setMastersExpanded(false);
+                setPendingExpanded(false);
+                setPurchaseMastersExpanded(false);
+                setStockMasterExpanded(true);
+                setView(next);
+              }}
+              onNavigatePurchaseMasters={(tab) => {
+                setSelectedRequestId(null);
+                setMastersExpanded(false);
+                setPendingExpanded(false);
+                setStockMasterExpanded(false);
+                setPurchaseMastersExpanded(true);
+                setOperationsTab(tab);
+                setView(tab === 'prs' ? 'purchasing' : 'operations');
+              }}
+	        onNewPurchaseRequest={() => {
 	          setSelectedRequestId(null);
-	          setStockMasterExpanded(true);
-	          setMastersExpanded(false);
-	          setPendingExpanded(false);
-	          setView('stockMaster');
+	          setView('newPurchaseRequest');
 	        }}
-        onNewPurchaseRequest={() => {
-          setSelectedRequestId(null);
-          setView('newPurchaseRequest');
-        }}
         onDirectPo={() => {
           setSelectedRequestId(null);
           setMastersExpanded(false);
@@ -384,7 +405,7 @@ export default function App() {
               }}
             />
 		          ) : null}
-			          {view === 'operations' ? <OperationsView onViewPr={openPrDetail} /> : null}
+				          {view === 'operations' ? <OperationsView onViewPr={openPrDetail} initialTab={operationsTab} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 		          {view === 'stockMaster' ? (
