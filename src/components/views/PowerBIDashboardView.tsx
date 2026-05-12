@@ -20,6 +20,7 @@ import {
   Repeat2,
   Plus,
 } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 import { fetchRequests } from '@/src/lib/purchaseRequests';
 import {
