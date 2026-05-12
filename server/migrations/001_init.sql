@@ -91,6 +91,13 @@ CREATE TABLE IF NOT EXISTS items (
   unique_key TEXT NOT NULL UNIQUE,
   description TEXT,
   unit TEXT,
+  photo_1 TEXT,
+  photo_2 TEXT,
+  photo_3 TEXT,
+  photo_4 TEXT,
+  photo_5 TEXT,
+  item_link TEXT,
+  video_link TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -531,4 +538,3 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_module ON audit_logs(module);
 CREATE INDEX IF NOT EXISTS idx_audit_record_id ON audit_logs(record_id);
 CREATE INDEX IF NOT EXISTS idx_audit_performed_by ON audit_logs(performed_by);
-

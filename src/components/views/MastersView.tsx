@@ -102,23 +102,21 @@ type ItemUploadIssue = {
   combination: string;
   message: string;
 };
-const specNameById: Record<string, string> = {};
-
-function formatSpecsForDisplay(specificationsJson: string, specNameById?: Record<string, string>) {
+function formatSpecsForDisplay(specificationsJson: string, specNameLookup?: Record<string, string>) {
   try {
     const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
     const entries = Object.entries(obj);
     if (!entries.length) return '';
     return entries
-      .map(([specId, v]) => `${specNameById?.[specId] ?? specId}: ${String(v ?? '')}`)
+      .map(([specId, v]) => `${specNameLookup?.[specId] ?? specId}: ${String(v ?? '')}`)
       .join('\n');
   } catch {
     return specificationsJson;
   }
 }
 
-function formatItemInline(itemName: string, specificationsJson: string, specNameById?: Record<string, string>) {
-  const specs = formatSpecsForDisplay(specificationsJson, specNameById)
+function formatItemInline(itemName: string, specificationsJson: string, specNameLookup?: Record<string, string>) {
+  const specs = formatSpecsForDisplay(specificationsJson, specNameLookup)
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -252,7 +250,7 @@ export default function MastersView({
   }, [tab]);
 
   const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
-  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+  const specNameLookup = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
 
   const closeInlineUnitCreate = () => {
@@ -333,7 +331,7 @@ export default function MastersView({
     >();
     for (const row of specValues) {
       const specId = row.specificationId;
-      const specName = specNameById[specId] ?? specId;
+      const specName = specNameLookup[specId] ?? specId;
       const entry = map.get(specId) ?? { specId, specName, values: [] };
       entry.values.push({ id: row.id, value: row.value, isUsed: Boolean(row.isUsed), usageCount: Number(row.usageCount ?? 0) });
       map.set(specId, entry);
@@ -342,7 +340,7 @@ export default function MastersView({
     list.forEach((r) => r.values.sort((a, b) => a.value.localeCompare(b.value)));
     list.sort((a, b) => a.specName.localeCompare(b.specName));
     return list;
-  }, [specNameById, specValues]);
+  }, [specNameLookup, specValues]);
 
   useEffect(() => {
     if (!externalTab) return;
@@ -654,8 +652,8 @@ export default function MastersView({
 	      const flat = all
 	        .flat()
 	        .sort((a, b) => {
-	          const an = specNameById[a.specificationId] ?? '';
-	          const bn = specNameById[b.specificationId] ?? '';
+          const an = specNameLookup[a.specificationId] ?? '';
+          const bn = specNameLookup[b.specificationId] ?? '';
 	          if (an !== bn) return an.localeCompare(bn);
 	          return a.value.localeCompare(b.value);
 	        });
@@ -667,7 +665,7 @@ export default function MastersView({
 	      setError(e instanceof Error ? e.message : String(e));
 	    });
 	    return () => ac.abort();
-	  }, [specIdForValues, specs, specNameById]);
+	  }, [specIdForValues, specs, specNameLookup]);
 	
 			  useEffect(() => {
 			    if (!addOpen) return;
@@ -702,8 +700,8 @@ export default function MastersView({
             const flat = all
               .flat()
               .sort((a, b) => {
-                const an = specNameById[a.specificationId] ?? '';
-                const bn = specNameById[b.specificationId] ?? '';
+                const an = specNameLookup[a.specificationId] ?? '';
+                const bn = specNameLookup[b.specificationId] ?? '';
                 if (an !== bn) return an.localeCompare(bn);
                 return a.value.localeCompare(b.value);
               });
@@ -722,7 +720,7 @@ export default function MastersView({
             const specText = specs
               .slice()
               .sort((a, b) => a.specificationId.localeCompare(b.specificationId))
-              .map((s) => `${specNameById[s.specificationId] ?? s.specificationId}: ${String(s.value ?? '').trim()}`)
+              .map((s) => `${specNameLookup[s.specificationId] ?? s.specificationId}: ${String(s.value ?? '').trim()}`)
               .filter((x) => x.endsWith(': ') === false)
               .join(' | ');
             return specText ? `${itemName} - ${specText}` : itemName;
@@ -1107,7 +1105,7 @@ export default function MastersView({
                 }
               })();
               const specByName = Object.fromEntries(
-                Object.entries(specObj).map(([specId, value]) => [specNameById[String(specId)] ?? String(specId), String(value ?? '')])
+                Object.entries(specObj).map(([specId, value]) => [specNameLookup[String(specId)] ?? String(specId), String(value ?? '')])
               );
               return {
                 item_name: it.itemName,
@@ -2440,8 +2438,8 @@ export default function MastersView({
 		                            const flat = all
 		                              .flat()
 		                              .sort((a, b) => {
-		                                const an = specNameById[a.specificationId] ?? '';
-		                                const bn = specNameById[b.specificationId] ?? '';
+		                                const an = specNameLookup[a.specificationId] ?? '';
+		                                const bn = specNameLookup[b.specificationId] ?? '';
 		                                if (an !== bn) return an.localeCompare(bn);
 		                                return a.value.localeCompare(b.value);
 		                              });
@@ -3651,14 +3649,7 @@ export default function MastersView({
 				                        {r.values.map((v) => (
 				                          <span key={v.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-600 bg-surface-container-low text-xs">
 				                            <span className="whitespace-nowrap">{v.value}</span>
-				                            {v.isUsed ? (
-				                              <span
-				                                className="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant"
-				                                title={`Used in ${v.usageCount} item(s)`}
-				                              >
-				                                Used
-				                              </span>
-				                            ) : (
+				                            {v.isUsed ? null : (
 				                              <>
 				                                <button
 				                                  type="button"
@@ -3724,7 +3715,7 @@ export default function MastersView({
 			                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
-				                      {formatItemInline(it.itemName, it.specificationsJson, specNameById)}
+				                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
 				                    </td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">

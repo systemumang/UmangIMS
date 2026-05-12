@@ -2598,8 +2598,8 @@ export default function PurchaseRequestDetailView({
 	    setRejectReason('');
 	  };
 
-		  const headerRight = (
-		    <div className="flex items-center gap-2">
+			  const headerRight = (
+			    <div className="flex items-center gap-2">
 		      <button
 		        type="button"
 		        onClick={() => (window.location.href = `/api/requests/${encodeURIComponent(requestId)}.pdf`)}
@@ -2624,17 +2624,18 @@ export default function PurchaseRequestDetailView({
       >
         Back
       </button>
-    </div>
-	  );
+			    </div>
+			  );
+		  const prTitle = formatPrNumber(pr?.prNumber ?? '') || 'Request Details';
 
-	  if (!requestId) return null;
+		  if (!requestId) return null;
 
 	  if (workflow && pr && existingPosOnly) {
 	    return (
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
 	        <div className="flex items-center justify-between gap-3">
 	          <div>
-	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+		            <div className="font-headline font-bold text-sm text-on-surface">{prTitle}</div>
 	          </div>
 	          {headerRight}
 	        </div>
@@ -2834,7 +2835,7 @@ export default function PurchaseRequestDetailView({
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
 	        <div className="flex items-center justify-between gap-3">
 	          <div>
-	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+		            <div className="font-headline font-bold text-sm text-on-surface">{prTitle}</div>
 	          </div>
 	          {headerRight}
 	        </div>
@@ -2939,7 +2940,7 @@ export default function PurchaseRequestDetailView({
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
 	        <div className="flex items-center justify-between gap-3">
 	          <div>
-	            <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+		            <div className="font-headline font-bold text-sm text-on-surface">{prTitle}</div>
 	          </div>
 	          {headerRight}
 	        </div>
@@ -3106,7 +3107,7 @@ export default function PurchaseRequestDetailView({
 		    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-	          <div className="font-headline font-bold text-sm text-on-surface">{formatPrNumber(pr?.prNumber ?? requestId)}</div>
+		          <div className="font-headline font-bold text-sm text-on-surface">{prTitle}</div>
         </div>
         {headerRight}
       </div>

@@ -606,13 +606,22 @@ export default function InventoryView() {
 	            }
 	          }} 
 	          firms={firms}
+	          specNameById={specNameById}
 	        />
 	      )}
     </div>
   );
 }
 
-function OpeningStockModal({ onClose, firms }: { onClose: () => void; firms: Firm[] }) {
+function OpeningStockModal({
+  onClose,
+  firms,
+  specNameById,
+}: {
+  onClose: () => void;
+  firms: Firm[];
+  specNameById: Record<string, string>;
+}) {
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedFirmId, setSelectedFirmId] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState('');
