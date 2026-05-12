@@ -249,17 +249,22 @@ export default function PowerBIDashboardView({
             {dailyLoading ? <div className="text-xs text-on-surface-variant">Loading...</div> : null}
           </div>
           <div className="flex items-center gap-2 overflow-x-auto mb-4">
-            {dayTabs.map((t) => (
-              <button
-                key={t.iso}
-                type="button"
-                className={activeDayIso === t.iso ? 'btn-danger btn-sm whitespace-nowrap' : 'btn btn-sm whitespace-nowrap'}
-                onClick={() => setActiveDayIso(t.iso)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+	            {dayTabs.map((t) => (
+	              <button
+	                key={t.iso}
+	                type="button"
+	                className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-colors',
+                    activeDayIso === t.iso
+                      ? 'bg-primary text-on-primary border-outline-variant/60'
+                      : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60 hover:bg-surface-container-high'
+                  )}
+	                onClick={() => setActiveDayIso(t.iso)}
+	              >
+	                {t.label}
+	              </button>
+	            ))}
+	          </div>
           {dailyError ? <div className="text-xs text-error">{dailyError}</div> : null}
           {!dailyError ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -333,8 +338,8 @@ export default function PowerBIDashboardView({
           ) : null}
 	      </div>
 
-	      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-	        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+		      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
 	          <div className="flex items-center justify-between gap-3 mb-4">
 	            <div>
 	              <div className="text-sm font-bold text-on-surface">Purchase Requests</div>
@@ -357,22 +362,8 @@ export default function PowerBIDashboardView({
                 })()}
               </div>
             ) : null}
-	        </div>
-
-	        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-	          <div className="flex items-center justify-between gap-3 mb-4">
-	            <div>
-	              <div className="text-sm font-bold text-on-surface">Notes</div>
-	              <div className="text-xs text-on-surface-variant mt-0.5">Dashboard is now live and count-based</div>
-	            </div>
-	          </div>
-            <div className="text-sm text-on-surface-variant space-y-2">
-              <div>Pending Tasks table shows live queue counts.</div>
-              <div>Purchase Requests chart is live and shows values on bars.</div>
-              <div>Daily Activity counts are date-based tabs.</div>
-            </div>
-	        </div>
-	      </div>
+		        </div>
+		      </div>
 	    </div>
 	  );
 }
