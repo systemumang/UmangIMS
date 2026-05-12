@@ -32,6 +32,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
   const selectedFirm = useMemo(() => firms.find((f) => f.id === firmId) ?? null, [firmId, firms]);
   const firmTermsConditions = useMemo(() => String(selectedFirm?.termsConditions ?? '').trim(), [selectedFirm]);
+  const firmAddress = useMemo(() => String(selectedFirm?.address ?? '').trim(), [selectedFirm]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -51,6 +52,14 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     const storeOk = stores.some((s) => s.id === storeId && s.firmId === firmId);
     if (!storeOk) setStoreId('');
   }, [firmId, storeId, stores]);
+
+  useEffect(() => {
+    if (!firmId) {
+      setShippingAddress('');
+      return;
+    }
+    setShippingAddress(firmAddress);
+  }, [firmAddress, firmId]);
 
   useEffect(() => {
     if (!supplierId) return;
@@ -256,7 +265,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
             </label>
 
             <label className="space-y-1 md:col-span-3">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Shipping Address (Optional)</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Shipping Address</div>
               <textarea
                 className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm min-h-20"
                 value={shippingAddress}
