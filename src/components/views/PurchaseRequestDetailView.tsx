@@ -876,7 +876,17 @@ export default function PurchaseRequestDetailView({
 				      .map((s) => s.trim())
 				      .filter(Boolean)
 				      .join(' - ');
-				    return [itemName, specInline || null].filter(Boolean).join(' - ') || '-';
+				    if (specInline) return [itemName, specInline].filter(Boolean).join(' - ') || '-';
+
+				    // Fallback to PO line specs (covers Direct PO where PR items may be empty).
+				    const poLine =
+				      posList.flatMap((p) => (Array.isArray(p.items) ? p.items : [])).find((x) => String((x as any)?.itemId ?? '').trim() === itemId) ??
+				      selectedPo?.items?.find((x) => String((x as any)?.itemId ?? '').trim() === itemId);
+				    const poSpecs =
+				      poLine && (poLine as any)?.specificationsJson
+				        ? formatSpecsLines(String((poLine as any).specificationsJson), specNameById).join(' - ').trim()
+				        : '';
+				    return [itemName, poSpecs || null].filter(Boolean).join(' - ') || '-';
 				  };
 
 					  const scrollToPo = (poId: string) => {
@@ -2420,13 +2430,17 @@ export default function PurchaseRequestDetailView({
 
 					    setEditPoLines(
 					      (p.items ?? []).map((it) => {
-					        const prRow = prItems.find((r) => r.itemId === it.itemId);
-					        const specInline = (prRow?.specification || '')
-					          .split(/\r?\n/)
-					          .map((s) => s.trim())
-					          .filter(Boolean)
-					          .join(' - ');
-					        const label = [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ');
+					                            const prRow = prItems.find((r) => r.itemId === it.itemId);
+					                            const poLine = selectedPo?.items?.find((x) => x.itemId === it.itemId);
+					                            const specInline = (prRow?.specification || '')
+					                              .split(/\r?\n/)
+					                              .map((s) => s.trim())
+			                              .filter(Boolean)
+			                              .join(' - ');
+					                            const poSpecsInline = poLine?.specificationsJson
+					                              ? formatSpecsLines(poLine.specificationsJson, specNameById).join(' - ').trim()
+					                              : '';
+					                            const label = [prRow?.item || it.item, specInline || poSpecsInline || null].filter(Boolean).join(' - ');
 					        const discPct = Number((it as any)?.discountPercent ?? 0);
 					        const taxPct = Number((it as any)?.taxPercent ?? 0);
 					        return {
