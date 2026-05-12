@@ -3643,41 +3643,39 @@ export default function MastersView({
 		                {groupedSpecValues.map((r) => (
 		                  <tr key={r.specId} className="align-top">
 		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{r.specName}</td>
-		                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words">
-		                      <ul className="list-disc pl-5 space-y-0.5">
-		                        {r.values.map((v) => (
-		                          <li key={v.id} className="whitespace-pre-wrap flex items-start justify-between gap-2">
-		                            <span>{v.value}</span>
-		                            <span className="flex items-center gap-1 whitespace-nowrap">
-			                              <button
-			                                type="button"
-			                                className="btn-primary btn-sm"
-			                                onClick={() => openEditModal(v.id)}
-			                              >
-			                                Edit
-			                              </button>
-			                                <button
-			                                  type="button"
-			                                  title="Delete"
-			                                  aria-label="Delete"
-			                                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-			                                  onClick={() => {
-			                                    if (!window.confirm(`Delete value "${v.value}"?`)) return;
-			                                    setBusy(true);
-			                                    setError(null);
-		                                  deleteSpecificationValue(v.id, { deletedBy: 'system' })
-		                                    .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
-			                                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-			                                      .finally(() => setBusy(false));
-			                                  }}
-			                                >
-			                                  <Trash2 size={16} />
-			                                </button>
-		                            </span>
-		                          </li>
-		                        ))}
-		                      </ul>
-		                    </td>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+			                      <div className="flex flex-wrap gap-2">
+			                        {r.values.map((v) => (
+			                          <span key={v.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-600 bg-surface-container-low text-xs">
+			                            <span className="whitespace-nowrap">{v.value}</span>
+			                            <button
+			                              type="button"
+			                              className="btn-primary btn-sm"
+			                              onClick={() => openEditModal(v.id)}
+			                            >
+			                              Edit
+			                            </button>
+			                            <button
+			                              type="button"
+			                              title="Delete"
+			                              aria-label="Delete"
+			                              className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+			                              onClick={() => {
+			                                if (!window.confirm(`Delete value "${v.value}"?`)) return;
+			                                setBusy(true);
+			                                setError(null);
+			                                deleteSpecificationValue(v.id, { deletedBy: 'system' })
+			                                  .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
+			                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+			                                  .finally(() => setBusy(false));
+			                              }}
+			                            >
+			                              <Trash2 size={14} />
+			                            </button>
+			                          </span>
+			                        ))}
+			                      </div>
+			                    </td>
 		                  </tr>
 		                ))}
 		              </tbody>
