@@ -254,7 +254,7 @@ export default function SearchableSelect({
         ? createPortal(
             <div
               ref={dropdownRef}
-              className="absolute z-[9999] rounded-lg border border-outline-variant bg-surface-container-lowest shadow-xl flex flex-col overflow-hidden"
+              className="absolute z-[20000] rounded-lg border border-outline-variant bg-surface-container-lowest shadow-xl flex flex-col overflow-hidden"
               style={{
                 top: dropdownPos.top,
                 left: dropdownPos.left,
