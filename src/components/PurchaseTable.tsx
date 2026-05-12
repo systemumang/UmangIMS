@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Filter, Calendar, Plus } from 'lucide-react';
+import { Download, Calendar, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { avatarColorClass, getInitials, statusPillClass, type Firm, type PurchaseRequest } from '@/src/lib/purchaseRequests';
 import { formatDateDDMMYYYY, formatDateDDMMYYYYOnly } from '@/src/lib/date';

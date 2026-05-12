@@ -579,6 +579,92 @@ app.get('/api/requests', async (_req, res) => {
   }
 });
 
+function csvEscape(value) {
+  const s = String(value ?? '');
+  if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r') || /^\s|\s$/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+app.get('/api/requests.xlsx', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pr.id,
+        pr.pr_number AS prNumber,
+        pr.firm_id AS firmId,
+        f.name AS firmName,
+        pr.project_id AS projectId,
+        proj.name AS projectName,
+        pr.store_id AS storeId,
+        st.name AS store,
+        pr.requested_by AS requestedBy,
+        pr.created_at AS requisitionDate,
+        pr.request_type AS requestType,
+        pr.status AS status,
+        pr.remarks AS remarks,
+        MIN(pri.required_date) AS requiredDate
+      FROM purchase_requisitions pr
+      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+      LEFT JOIN stores st ON st.id = pr.store_id
+      LEFT JOIN projects proj ON proj.id = pr.project_id
+      LEFT JOIN firms f ON f.id = pr.firm_id
+      GROUP BY pr.id
+      ORDER BY pr.created_at DESC
+      `
+    );
+
+    const header = [
+      'PR ID',
+      'PR Number',
+      'Firm',
+      'Department',
+      'Requested By',
+      'Requisition Date',
+      'Required Date',
+      'Type',
+      'Status',
+      'Project',
+      'Store',
+    ];
+
+    const lines = [header.map(csvEscape).join(',')];
+    for (const r of rows || []) {
+      const department = parseDepartmentFromRemarks(r.remarks) || 'N/A';
+      lines.push(
+        [
+          r.id,
+          r.prNumber || '',
+          r.firmName || r.firmId || '',
+          department,
+          r.requestedBy || '',
+          toIsoDateTime(r.requisitionDate) || '',
+          toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || '',
+          r.requestType || '',
+          mapPrStatus(r.status),
+          r.projectName || r.projectId || '',
+          r.store || r.storeId || '',
+        ]
+          .map(csvEscape)
+          .join(',')
+      );
+    }
+
+    const csv = `${lines.join('\n')}\n`;
+    const today = toIsoDate(new Date()) || new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="purchase-requests-${today}.csv"`);
+    res.send(csv);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/requests/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
