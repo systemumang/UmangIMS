@@ -133,7 +133,7 @@ export default function Sidebar({
 		        </div>
 	      </div>
 
-	      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
 			        {navItems.map((item) => (
 				          <React.Fragment key={item.label}>
 			            <motion.button
@@ -141,13 +141,16 @@ export default function Sidebar({
 			              type="button"
 			              onClick={() => onNavigate(item.view)}
 			              className={cn(
-			                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/15 bg-surface-container-lowest",
+			                "flex items-center px-4 py-2.5 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/15",
+                      item.view === 'masters' || item.view === 'pendingTasks'
+                        ? 'bg-surface-container-high text-on-surface'
+                        : 'bg-surface-container-lowest',
 			                activeView === item.view
-			                  ? "bg-error text-on-primary font-semibold"
+			                  ? "bg-primary text-on-primary font-semibold"
 			                  : "text-on-surface-variant hover:bg-surface-container-high"
 			              )}
 				            >
-			              <item.icon className={cn("mr-3", activeView === item.view ? "text-on-primary" : "text-on-surface-variant")} size={18} />
+			              <item.icon className={cn("mr-3", activeView === item.view ? "text-on-primary" : item.view === 'masters' || item.view === 'pendingTasks' ? 'text-on-surface' : "text-on-surface-variant")} size={18} />
 			              <span className="flex-1">{item.label}</span>
 			              {item.view === 'masters' || item.view === 'pendingTasks' ? (
 			                <ChevronDown

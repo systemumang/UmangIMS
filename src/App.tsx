@@ -194,33 +194,26 @@ export default function App() {
 		        stockMasterExpanded={stockMasterExpanded}
 		        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
 		        open={sidebarOpen}
-		        onNavigate={(next) => {
-		          if (next === 'masters') {
-		            setSelectedRequestId(null);
-		            setPendingExpanded(false);
-		            setStockMasterExpanded(false);
-		            if (sidebarActive === 'masters') {
-		              setMastersExpanded((prev) => !prev);
-		              setView('masters');
-		              return;
-		            }
-		            setMastersExpanded(true);
-		            setView('masters');
-		            return;
-		          }
+			        onNavigate={(next) => {
+			          if (next === 'masters') {
+			            setSelectedRequestId(null);
+			            setPendingExpanded(false);
+			            setStockMasterExpanded(false);
+			            if (sidebarActive === 'masters') {
+			              setMastersExpanded((prev) => !prev);
+			              return;
+			            }
+			            setMastersExpanded(true);
+			            return;
+			          }
 
-		          if (next === 'pendingTasks') {
-		            setSelectedRequestId(null);
-		            setMastersExpanded(false);
-		            setStockMasterExpanded(false);
-		            if (isPendingQueueView(view)) {
-		              setPendingExpanded((prev) => !prev);
-		              return;
-		            }
-		            setPendingExpanded(true);
-		            setView('queueApprovePr');
-		            return;
-		          }
+			          if (next === 'pendingTasks') {
+			            setSelectedRequestId(null);
+			            setMastersExpanded(false);
+			            setStockMasterExpanded(false);
+			            setPendingExpanded((prev) => !prev);
+			            return;
+			          }
 
 		          if (next === 'stockMaster') {
 		            setSelectedRequestId(null);
