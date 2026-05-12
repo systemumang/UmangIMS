@@ -86,6 +86,19 @@ function isValidTenDigitPhone(value: string) {
   return /^\d{10}$/.test(value);
 }
 
+function normalizeKey(value: string) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+type PendingItemUploadRow = {
+  itemName: string;
+  itemCode: string;
+  description: string;
+  unitName: string;
+  itemCategoryName: string;
+  specs: Array<{ specificationId: string; value: string }>;
+};
+
 function formatSpecsForDisplay(specificationsJson: string, specNameById?: Record<string, string>) {
   try {
     const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
@@ -123,6 +136,8 @@ export default function MastersView({
       const [templateBusy, setTemplateBusy] = useState(false);
       const [templateError, setTemplateError] = useState<string | null>(null);
       const [templateInfo, setTemplateInfo] = useState<string | null>(null);
+      const [pendingItemUploadRows, setPendingItemUploadRows] = useState<PendingItemUploadRow[] | null>(null);
+      const [missingItemNames, setMissingItemNames] = useState<Array<{ name: string; unitId: string; itemCategoryId: string }>>([]);
 
 	  const clearFieldError = (key: string) =>
 	    setFieldErrors((m) => {
@@ -689,11 +704,103 @@ export default function MastersView({
           if (t === 'items') return fetchItems().then(setItems);
         }
 
+        async function importItemRows(rows: PendingItemUploadRow[]) {
+          let created = 0;
+          let skipped = 0;
+          const failures: string[] = [];
+          const seenKeys = new Set<string>();
+          const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
+          for (const row of rows) {
+            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
+            if (!itemNameId) {
+              failures.push(`${row.itemName}: item name not found`);
+              continue;
+            }
+            const specsKey = row.specs
+              .slice()
+              .sort((a, b) => a.specificationId.localeCompare(b.specificationId))
+              .map((s) => `${s.specificationId}=${s.value}`)
+              .join('|');
+            const dedupeKey = `${itemNameId}::${specsKey}`;
+            if (seenKeys.has(dedupeKey)) {
+              skipped += 1;
+              continue;
+            }
+            seenKeys.add(dedupeKey);
+            try {
+              await createItem({
+                itemNameId,
+                unit: row.unitName || undefined,
+                description: row.description || undefined,
+                specs: row.specs,
+                createdBy: 'system',
+              });
+              created += 1;
+            } catch (e) {
+              failures.push(`${row.itemName}: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
+          await refreshCurrentTab('items');
+          const message = `Upload complete. Created: ${created}, Skipped: ${skipped}, Failed: ${failures.length}.`;
+          setTemplateInfo(failures.length ? `${message} ${failures.slice(0, 3).join(' | ')}${failures.length > 3 ? ' ...' : ''}` : message);
+        }
+
+        async function createMissingItemNamesAndContinue() {
+          try {
+            if (!pendingItemUploadRows?.length || !missingItemNames.length) return;
+            const missingCategory = missingItemNames.find((x) => !x.itemCategoryId);
+            if (missingCategory) {
+              setTemplateError(`Select item category for "${missingCategory.name}" before continuing.`);
+              return;
+            }
+            setTemplateBusy(true);
+            setTemplateError(null);
+            setTemplateInfo(null);
+            const existing = new Set(itemNames.map((n) => normalizeKey(n.name)));
+            for (const row of missingItemNames) {
+              if (!row.name.trim()) continue;
+              const key = normalizeKey(row.name);
+              if (existing.has(key)) continue;
+              await createItemName({
+                name: row.name.trim(),
+                unitId: row.unitId || null,
+                itemCategoryId: row.itemCategoryId || null,
+                createdBy: 'system',
+              });
+              existing.add(key);
+            }
+            const updatedNames = await fetchItemNames();
+            setItemNames(updatedNames);
+            setMissingItemNames([]);
+            await importItemRows(pendingItemUploadRows);
+            setPendingItemUploadRows(null);
+          } catch (e) {
+            setTemplateError(e instanceof Error ? e.message : String(e));
+          } finally {
+            setTemplateBusy(false);
+          }
+        }
+
         async function downloadCurrentTemplate() {
           try {
             setTemplateBusy(true);
             setTemplateError(null);
             setTemplateInfo(null);
+            if (tab === 'items') {
+              const specColumns = specs.map((s) => s.name);
+              const header = ['item_name', 'item_code', 'description', 'unit', 'item_category', ...specColumns];
+              const sampleRow: Record<string, string> = {
+                item_name: '',
+                item_code: '',
+                description: '',
+                unit: '',
+                item_category: '',
+              };
+              for (const col of specColumns) sampleRow[col] = '';
+              downloadTextFile('items-template.csv', toCsv(header, [sampleRow]), 'text/csv; charset=utf-8');
+              setTemplateInfo('Template downloaded.');
+              return;
+            }
             const key = apiKeyForTab(tab);
             const res = await fetch(`/api/masters/${encodeURIComponent(key)}/template`);
             const text = await res.text();
@@ -712,9 +819,57 @@ export default function MastersView({
             setTemplateBusy(true);
             setTemplateError(null);
             setTemplateInfo(null);
+            setPendingItemUploadRows(null);
+            setMissingItemNames([]);
             const content = await file.text();
             const parsed = parseCsv(content);
             if (!parsed.rows.length) throw new Error('Template file is empty.');
+            if (tab === 'items') {
+              const headerMap = new Map(parsed.header.map((h) => [normalizeKey(h), h]));
+              const itemNameColumn = headerMap.get('item_name') ?? headerMap.get('itemname') ?? headerMap.get('item name');
+              if (!itemNameColumn) throw new Error('Missing required column: item_name');
+              const itemCodeColumn = headerMap.get('item_code') ?? headerMap.get('itemcode') ?? '';
+              const descriptionColumn = headerMap.get('description') ?? '';
+              const unitColumn = headerMap.get('unit') ?? '';
+              const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
+              const specIdByColumn = new Map<string, string>();
+              for (const s of specs) {
+                const col = headerMap.get(normalizeKey(s.name));
+                if (col) specIdByColumn.set(col, s.id);
+              }
+              const rows = parsed.rows
+                .map((r) => {
+                  const itemName = String(r[itemNameColumn] ?? '').trim();
+                  const itemCode = itemCodeColumn ? String(r[itemCodeColumn] ?? '').trim() : '';
+                  const description = descriptionColumn ? String(r[descriptionColumn] ?? '').trim() : '';
+                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
+                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
+                  const rowSpecs = Array.from(specIdByColumn.entries())
+                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
+                    .filter((x) => x.value);
+                  return { itemName, itemCode, description, unitName, itemCategoryName, specs: rowSpecs };
+                })
+                .filter((r) => r.itemName);
+              if (!rows.length) throw new Error('No valid item rows found in file.');
+              const itemNameSet = new Set(itemNames.map((n) => normalizeKey(n.name)));
+              const unitIdByName = new Map(units.map((u) => [normalizeKey(u.name), u.id]));
+              const categoryIdByName = new Map(itemCategories.map((c) => [normalizeKey(c.name), c.id]));
+              const missing = Array.from(new Set(rows.map((r) => r.itemName).filter((n) => !itemNameSet.has(normalizeKey(n)))));
+              if (missing.length) {
+                const defaults = missing.map((name) => {
+                  const source = rows.find((r) => normalizeKey(r.itemName) === normalizeKey(name));
+                  const unitId = source?.unitName ? unitIdByName.get(normalizeKey(source.unitName)) ?? '' : '';
+                  const itemCategoryId = source?.itemCategoryName ? categoryIdByName.get(normalizeKey(source.itemCategoryName)) ?? '' : '';
+                  return { name, unitId, itemCategoryId };
+                });
+                setPendingItemUploadRows(rows);
+                setMissingItemNames(defaults);
+                setTemplateInfo(`Found ${missing.length} missing item names. Create them below to continue upload.`);
+                return;
+              }
+              await importItemRows(rows);
+              return;
+            }
             const key = apiKeyForTab(tab);
             const res = await fetch(`/api/masters/${encodeURIComponent(key)}/import`, {
               method: 'POST',
@@ -840,15 +995,28 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'items') {
-            const header = ['itemCode', 'itemName', 'specificationsJson', 'uniqueKey', 'description', 'unit'];
-            const rows = items.map((it) => ({
-              itemCode: it.itemCode,
-              itemName: it.itemName,
-              specificationsJson: it.specificationsJson,
-              uniqueKey: it.uniqueKey,
-              description: it.description ?? '',
-              unit: it.unit ?? '',
-            }));
+            const header = ['item_name', 'item_code', 'description', 'unit', 'item_category', ...specs.map((s) => s.name)];
+            const rows = items.map((it) => {
+              const specObj = (() => {
+                try {
+                  const parsed = JSON.parse(it.specificationsJson || '{}');
+                  return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+                } catch {
+                  return {};
+                }
+              })();
+              const specByName = Object.fromEntries(
+                Object.entries(specObj).map(([specId, value]) => [specNameById[String(specId)] ?? String(specId), String(value ?? '')])
+              );
+              return {
+                item_name: it.itemName,
+                item_code: it.itemCode,
+                description: it.description ?? '',
+                unit: it.unit ?? '',
+                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
+                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
+              };
+            });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
         }
@@ -885,8 +1053,65 @@ export default function MastersView({
             {templateError ? <span className="text-xs text-error">{templateError}</span> : null}
             </div>
           </div>
+          {tab === 'items' && missingItemNames.length ? (
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4 space-y-3">
+              <div className="text-sm font-semibold text-on-surface">Missing Item Names Found</div>
+              <div className="text-xs text-on-surface-variant">Create these item names first, then upload will continue automatically.</div>
+              <div className="overflow-auto">
+                <table className="min-w-[760px] w-full text-sm border-collapse border border-blue-600">
+                  <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+                    <tr>
+                      <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
+                      <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
+                      <th className="text-left px-3 py-2 border border-blue-600">Item Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missingItemNames.map((row, idx) => (
+                      <tr key={`${row.name}-${idx}`}>
+                        <td className="px-3 py-2 border border-blue-600">{row.name}</td>
+                        <td className="px-3 py-2 border border-blue-600">
+                          <SearchableSelect
+                            value={row.unitId}
+                            options={[{ value: '', label: 'Select Unit' }, ...units.map((u) => ({ value: u.id, label: u.name }))]}
+                            onChange={(value) => setMissingItemNames((prev) => prev.map((p, i) => (i === idx ? { ...p, unitId: value } : p)))}
+                            placeholder="Select Unit"
+                          />
+                        </td>
+                        <td className="px-3 py-2 border border-blue-600">
+                          <SearchableSelect
+                            value={row.itemCategoryId}
+                            options={[{ value: '', label: 'Select Category' }, ...itemCategories.map((c) => ({ value: c.id, label: c.name }))]}
+                            onChange={(value) => setMissingItemNames((prev) => prev.map((p, i) => (i === idx ? { ...p, itemCategoryId: value } : p)))}
+                            placeholder="Select Category"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" className="btn btn-sm" disabled={templateBusy} onClick={createMissingItemNamesAndContinue}>
+                  Create Missing Item Names & Continue Upload
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={templateBusy}
+                  onClick={() => {
+                    setPendingItemUploadRows(null);
+                    setMissingItemNames([]);
+                    setTemplateInfo('Pending upload cancelled.');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
 
-			      {addOpen ? (
+				      {addOpen ? (
 			        <div className="fixed inset-0 z-50 flex items-stretch justify-center py-4 px-8 md:px-12">
 			          <button
 			            type="button"
