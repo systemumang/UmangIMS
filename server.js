@@ -5977,6 +5977,31 @@ app.delete('/api/masters/specification-values/:id', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
+
+    const [[specValueRow]] = await pool.query(
+      'SELECT id, specification_id AS specificationId, value FROM specification_values WHERE id=? LIMIT 1',
+      [id]
+    );
+    if (!specValueRow) return res.status(404).json({ error: 'Specification value not found' });
+
+    const specificationId = String(specValueRow.specificationId ?? '').trim();
+    const value = String(specValueRow.value ?? '').trim();
+    const [[usageRow]] = await pool.query(
+      `
+      SELECT COUNT(*) AS usageCount
+      FROM items
+      WHERE JSON_VALID(specifications_json)
+        AND JSON_UNQUOTE(JSON_EXTRACT(specifications_json, CONCAT('$.', ?))) = ?
+      `,
+      [specificationId, value]
+    );
+    const usageCount = Number(usageRow?.usageCount ?? 0);
+    if (usageCount > 0) {
+      return res.status(409).json({
+        error: `Cannot delete. This specification value is already used in ${usageCount} item(s).`,
+      });
+    }
+
     await pool.query('DELETE FROM specification_values WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
