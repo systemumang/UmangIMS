@@ -5,6 +5,7 @@ import { fetchQueuePayment, type PaymentQueueRow, type QueueFilters } from '@/sr
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -14,6 +15,7 @@ function todayIsoDate() {
 
 export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<PaymentQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,14 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
     () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
     [masters.departments, masters.firms, masters.projects, masters.suppliers]
   );
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -265,7 +275,7 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
                           </td>
                         </>
 	                      ) : null}
-		                      <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(l.item, l.specificationsJson)}</td>
+		                      <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
 		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.invoiceQty}</td>
 		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.linkedQty}</td>
 		                    </tr>

@@ -5,6 +5,7 @@ import { fetchQueueLinkInvoiceGrn, type LinkInvoiceGrnQueueRow, type QueueFilter
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -12,6 +13,7 @@ type RowDraft = { invoiceItemId: string; linkQty: string };
 
 export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<LinkInvoiceGrnQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,14 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
     () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
     [masters.departments, masters.firms, masters.projects, masters.suppliers]
   );
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -277,7 +287,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.grnNumber}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.poNumber}</td>
-	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson)}</td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson, specNameById)}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{r.grnQty}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">
 	                          <select

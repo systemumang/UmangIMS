@@ -4,6 +4,7 @@ import { createGrnForPo, fetchPendingGrnItems, fetchPos, type Po, type PoItem } 
 import { fetchQueueCreateGrn, type CreateGrnQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import Pagination from '@/src/components/common/Pagination';
@@ -16,6 +17,7 @@ type PendingItem = { itemId: string; item: string; pendingQty: number; rate: num
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<CreateGrnQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
     [masters.departments, masters.firms, masters.projects, masters.suppliers]
   );
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -420,7 +430,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           </>
                         ) : null}
                         <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-                          {formatItemInline(it.item, it.specificationsJson)}
+                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
                         </td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>

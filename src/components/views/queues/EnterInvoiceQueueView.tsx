@@ -6,6 +6,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { inputClass, labelClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -29,6 +30,7 @@ type InvoiceLine = {
 
 export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true, includeTransporters: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<EnterInvoiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,14 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
     [masters.departments, masters.firms, masters.projects, masters.suppliers]
   );
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -609,7 +619,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                 {lines.length ? (
 	                  lines.map((ln, idx) => (
 	                    <tr key={ln.itemId}>
-	                      <td className="px-3 py-2 text-sm border border-outline-variant/30">{formatItemInline(ln.item, ln.specificationsJson)}</td>
+	                      <td className="px-3 py-2 text-sm border border-outline-variant/30">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
 	                      <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.pendingQty}</td>
 	                      <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.poRate}</td>
 		                      <td className="px-3 py-2 border border-outline-variant/30">
