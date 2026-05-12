@@ -17,7 +17,6 @@ import { Trash2 } from 'lucide-react';
 				  fetchUsers,
 				  fetchItemNames,
 				  fetchUnits,
-				  createUnit,
 				  fetchItems,
 				  fetchSpecifications,
 				  fetchSpecificationValues,
@@ -104,6 +103,7 @@ export default function DamageView({
 
   const [createItemNameInlineOpen, setCreateItemNameInlineOpen] = useState(false);
   const [createItemNameInlineValue, setCreateItemNameInlineValue] = useState('');
+  const [createItemNameInlineUnitId, setCreateItemNameInlineUnitId] = useState('');
   const [createItemNameInlineBusy, setCreateItemNameInlineBusy] = useState(false);
   const [createItemNameInlineError, setCreateItemNameInlineError] = useState<string | null>(null);
 
@@ -250,10 +250,21 @@ export default function DamageView({
 	    return () => ac.abort();
 	  }, []);
 
+  useEffect(() => {
+    const row = itemNames.find((n) => n.id === newItemItemNameId);
+    if (!row) {
+      setNewItemUnit('');
+      return;
+    }
+    const unitName = row.unitName || (row.unitId ? units.find((u) => u.id === row.unitId)?.name ?? '' : '');
+    setNewItemUnit(unitName);
+  }, [itemNames, newItemItemNameId, units]);
+
 		      useEffect(() => {
 		        if (!createItemOpen) {
 		          setCreateItemNameInlineOpen(false);
 	          setCreateItemNameInlineValue('');
+            setCreateItemNameInlineUnitId('');
 	          setCreateItemNameInlineBusy(false);
 	          setCreateItemNameInlineError(null);
 	          setCreateSpecInlineIndex(null);
@@ -288,6 +299,7 @@ export default function DamageView({
 		  const closeCreateItemName = () => {
 		    setCreateItemNameInlineOpen(false);
 		    setCreateItemNameInlineValue('');
+        setCreateItemNameInlineUnitId('');
 		    setCreateItemNameInlineError(null);
 		  };
 
@@ -297,10 +309,14 @@ export default function DamageView({
 		      setCreateItemNameInlineError('Please enter Item Name.');
 		      return;
 		    }
+        if (!createItemNameInlineUnitId) {
+          setCreateItemNameInlineError('Please select Unit.');
+          return;
+        }
 		    if (createItemNameInlineBusy) return;
 		    setCreateItemNameInlineBusy(true);
 		    setCreateItemNameInlineError(null);
-		    createItemName({ name: v, createdBy: 'system' })
+		    createItemName({ name: v, unitId: createItemNameInlineUnitId, createdBy: 'system' })
 		      .then((created) => {
 		        const next = created.itemName;
 		        if (!next?.id) return;
@@ -791,6 +807,16 @@ export default function DamageView({
 			                              if (e.key === 'Enter') submitCreateItemName();
 			                            }}
 			                          />
+                                <label className="space-y-1">
+                                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+                                  <SearchableSelect
+                                    value={createItemNameInlineUnitId}
+                                    options={units.map((u) => ({ value: u.id, label: u.name }))}
+                                    onChange={setCreateItemNameInlineUnitId}
+                                    placeholder={loadingUnits ? 'Loading units...' : 'Select unit...'}
+                                    disabled={loadingUnits}
+                                  />
+                                </label>
 			                          <div className="flex justify-end gap-2">
 			                            <button
 			                              type="button"
@@ -802,7 +828,7 @@ export default function DamageView({
 			                            <button
 			                              type="button"
 			                              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-			                              disabled={createItemNameInlineBusy || !createItemNameInlineValue.trim()}
+			                              disabled={createItemNameInlineBusy || !createItemNameInlineValue.trim() || !createItemNameInlineUnitId}
 			                              onClick={submitCreateItemName}
 			                            >
 			                              {createItemNameInlineBusy ? 'Creating...' : 'Create'}
@@ -933,7 +959,12 @@ export default function DamageView({
 			                <SearchableSelect
 			                  value={newItemItemNameId}
 			                  options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
-		                  onChange={setNewItemItemNameId}
+		                  onChange={(id) => {
+                        setNewItemItemNameId(id);
+                        const row = itemNames.find((n) => n.id === id);
+                        const unitName = row?.unitName || (row?.unitId ? units.find((u) => u.id === row.unitId)?.name ?? '' : '');
+                        setNewItemUnit(unitName);
+                      }}
 		                  placeholder="Search item name..."
 		                  showCreateWhenEmpty
 		                  allowEmptyCreate
@@ -949,30 +980,14 @@ export default function DamageView({
 			              </label>
 
 			              <label className="space-y-1">
-			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit (optional)</div>
-			                <SearchableSelect
-			                  value={newItemUnit}
-			                  options={units.map((u) => ({ value: u.name, label: u.name }))}
-			                  onChange={setNewItemUnit}
-			                  placeholder={loadingUnits ? 'Loading units...' : 'Select unit...'}
-			                  disabled={loadingUnits}
-			                  showCreateWhenEmpty
-			                  allowEmptyCreate
-			                  closeOnCreate
-			                  createLabel={(q) => (q.trim() ? `+ Create Unit "${q.trim()}"` : '+ Create Unit')}
-			                  onCreate={async (label) => {
-			                    const name = label.trim();
-			                    if (!name) return null;
-			                    const created = await createUnit({ name, createdBy: 'system' });
-			                    const unit = created.unit;
-			                    if (!unit?.id) return null;
-			                    setUnits((prev) => {
-			                      if (prev.some((p) => p.id === unit.id)) return prev;
-			                      return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
-			                    });
-			                    return { value: unit.name, label: unit.name };
-			                  }}
-			                />
+			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
+                      <input
+                        className={`${inputClass} opacity-80`}
+                        value={newItemUnit}
+                        readOnly
+                        disabled
+                        placeholder="Select item name first"
+                      />
 			              </label>
 
 		              <label className="space-y-1">
