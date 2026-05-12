@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Filter, Calendar } from 'lucide-react';
+import { Download, Filter, Calendar, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { avatarColorClass, getInitials, statusPillClass, type Firm, type PurchaseRequest } from '@/src/lib/purchaseRequests';
 import { formatDateDDMMYYYY, formatDateDDMMYYYYOnly } from '@/src/lib/date';
@@ -13,15 +13,17 @@ export default function PurchaseTable({
   requests,
   firms,
   onSelectRequest,
+  onAddPurchaseRequest,
   onExportExcel,
   showStatusFilter = true,
 }: {
   requests: PurchaseRequest[];
   firms: Firm[];
   onSelectRequest?: (id: string) => void;
+  onAddPurchaseRequest?: () => void;
 	onExportExcel?: () => void;
   showStatusFilter?: boolean;
-		}) {
+			}) {
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -144,15 +146,20 @@ export default function PurchaseTable({
 		            />
 		          </div>
         </div>
-	        <div className="flex items-center gap-2">
-	          <button
-	            type="button"
-	            onClick={onExportExcel}
-            className="btn btn-sm"
-	          >
-	            <Download size={14} />
-	            Export Excel
-	          </button>
+		        <div className="flex items-center gap-2">
+              <button type="button" onClick={onAddPurchaseRequest} className="btn-danger btn-sm" disabled={!onAddPurchaseRequest}>
+                <Plus size={14} />
+                Add Purchase Request
+              </button>
+		          <button
+		            type="button"
+		            onClick={onExportExcel}
+	            className="btn btn-sm"
+                disabled={!onExportExcel}
+		          >
+		            <Download size={14} />
+		            Export Excel
+		          </button>
           <button className="btn btn-sm">
 	            <Filter size={14} />
             Advanced Filters

@@ -348,15 +348,19 @@ export default function App() {
 				              }}
 				            />
 				          ) : null}
-		          {view === 'purchasing' ? (
-			            <PurchasingView
-			              onSelectRequest={(id) => {
-		                setDetailBackView('purchasing');
-		                setSelectedRequestId(id);
-		                setView('purchaseRequestDetail');
-	              }}
-	            />
-	          ) : null}
+			          {view === 'purchasing' ? (
+				            <PurchasingView
+				              onSelectRequest={(id) => {
+			                setDetailBackView('purchasing');
+			                setSelectedRequestId(id);
+			                setView('purchaseRequestDetail');
+		              }}
+                    onAddPurchaseRequest={() => {
+                      setSelectedRequestId(null);
+                      setView('newPurchaseRequest');
+                    }}
+		            />
+		          ) : null}
 		          {view === 'purchaseRequestDetail' ? (
 		            <PurchaseRequestDetailView
 		              requestId={selectedRequestId}

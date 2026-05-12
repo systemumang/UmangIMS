@@ -4,7 +4,7 @@ import { fetchFirms, fetchRequests, type Firm, type PurchaseRequest } from '@/sr
 import Spinner from '@/src/components/common/Spinner';
 import { cn } from '@/src/lib/utils';
 
-export default function PurchasingView({ onSelectRequest }: { onSelectRequest: (id: string) => void }) {
+export default function PurchasingView({ onSelectRequest, onAddPurchaseRequest }: { onSelectRequest: (id: string) => void; onAddPurchaseRequest?: () => void }) {
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,12 +70,13 @@ export default function PurchasingView({ onSelectRequest }: { onSelectRequest: (
                   ))}
                 </div>
 				        <PurchaseTable
-				          requests={viewRequests}
-				          firms={firms}
-				          onSelectRequest={onSelectRequest}
-				          onExportExcel={undefined}
-	                showStatusFilter={false}
-			        />
+					          requests={viewRequests}
+					          firms={firms}
+					          onSelectRequest={onSelectRequest}
+                    onAddPurchaseRequest={onAddPurchaseRequest}
+					          onExportExcel={undefined}
+		                showStatusFilter={false}
+				        />
               </>
 		      )}
 
