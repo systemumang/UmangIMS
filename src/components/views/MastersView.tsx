@@ -706,11 +706,54 @@ export default function MastersView({
 
         async function importItemRows(rows: PendingItemUploadRow[]) {
           let created = 0;
-          let skipped = 0;
           const failures: string[] = [];
-          const seenKeys = new Set<string>();
           const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
           const itemNameUnitByName = new Map(itemNames.map((n) => [normalizeKey(n.name), normalizeKey(n.unitName ?? '')]));
+          const makeSignature = (itemNameId: string, specs: Array<{ specificationId: string; value: string }>) =>
+            `${itemNameId}::${specs
+              .slice()
+              .sort((a, b) => a.specificationId.localeCompare(b.specificationId))
+              .map((s) => `${s.specificationId}=${String(s.value ?? '').trim()}`)
+              .join('|')}`;
+          const existingSignatures = new Set(
+            items
+              .map((it) => {
+                try {
+                  const raw = JSON.parse(it.specificationsJson || '{}') as Record<string, unknown>;
+                  const specs = Object.entries(raw).map(([specificationId, value]) => ({ specificationId, value: String(value ?? '') }));
+                  return makeSignature(it.itemNameId, specs);
+                } catch {
+                  return '';
+                }
+              })
+              .filter(Boolean)
+          );
+          const inFileSignatures = new Set<string>();
+          const duplicateInFileRows: string[] = [];
+          const duplicateExistingRows: string[] = [];
+          for (const row of rows) {
+            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
+            if (!itemNameId) continue;
+            const sig = makeSignature(itemNameId, row.specs);
+            if (inFileSignatures.has(sig)) duplicateInFileRows.push(row.itemName);
+            inFileSignatures.add(sig);
+            if (existingSignatures.has(sig)) duplicateExistingRows.push(row.itemName);
+          }
+          if (duplicateInFileRows.length || duplicateExistingRows.length) {
+            const dupInFile = Array.from(new Set(duplicateInFileRows));
+            const dupExisting = Array.from(new Set(duplicateExistingRows));
+            setTemplateError(
+              [
+                dupInFile.length ? `Duplicate rows in file: ${dupInFile.join(', ')}` : '',
+                dupExisting.length ? `Already existing item combinations: ${dupExisting.join(', ')}` : '',
+                'Please correct the template and upload again.',
+              ]
+                .filter(Boolean)
+                .join(' | ')
+            );
+            setTemplateInfo(null);
+            return;
+          }
           const specValueSetBySpecId = new Map<string, Set<string>>();
           for (const spec of specs) {
             try {
@@ -747,17 +790,6 @@ export default function MastersView({
                 specValueSetBySpecId.set(specId, existingSet);
               }
             }
-            const specsKey = row.specs
-              .slice()
-              .sort((a, b) => a.specificationId.localeCompare(b.specificationId))
-              .map((s) => `${s.specificationId}=${s.value}`)
-              .join('|');
-            const dedupeKey = `${itemNameId}::${specsKey}`;
-            if (seenKeys.has(dedupeKey)) {
-              skipped += 1;
-              continue;
-            }
-            seenKeys.add(dedupeKey);
             try {
               await createItem({
                 itemNameId,
@@ -772,7 +804,7 @@ export default function MastersView({
             }
           }
           await refreshCurrentTab('items');
-          const message = `Upload complete. Created: ${created}, Skipped: ${skipped}, Failed: ${failures.length}.`;
+          const message = `Upload complete. Created: ${created}, Failed: ${failures.length}.`;
           setTemplateInfo(failures.length ? `${message} ${failures.slice(0, 3).join(' | ')}${failures.length > 3 ? ' ...' : ''}` : message);
         }
 
