@@ -226,6 +226,10 @@ export default function MastersView({
   const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
   const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
 
+  const activeTabLabel = useMemo(() => {
+    return MASTERS_TABS.find((t) => t.key === tab)?.label ?? 'Masters';
+  }, [tab]);
+
   const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
@@ -853,27 +857,9 @@ export default function MastersView({
 	    <div className="space-y-4">
 		      {error ? <div className="text-xs text-error">{error}</div> : null}
 
-		      <div className="flex flex-wrap gap-2">
-		        {MASTERS_TABS.map(({ key, label }) => (
-		          <button
-	            key={key}
-	            type="button"
-	            className={
-	              key === tab
-	                ? 'px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white'
-	                : 'px-3 py-2 text-xs font-semibold rounded-lg text-on-surface-variant hover:bg-surface-container-high'
-	            }
-	            onClick={() => {
-	              setTab(key);
-	              onTabChange?.(key);
-	            }}
-	          >
-	            {label}
-		          </button>
-		        ))}
-		      </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-bold text-on-surface">{activeTabLabel}</div>
+            <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-sm" onClick={exportCurrentTab}>
               Export Excel
             </button>
@@ -897,6 +883,7 @@ export default function MastersView({
             </label>
             {templateInfo ? <span className="text-xs text-on-surface-variant">{templateInfo}</span> : null}
             {templateError ? <span className="text-xs text-error">{templateError}</span> : null}
+            </div>
           </div>
 
 			      {addOpen ? (
