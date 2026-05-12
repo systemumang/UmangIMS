@@ -4011,6 +4011,15 @@ app.post('/api/pos', async (req, res) => {
     if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
     if (!items.length) return res.status(400).json({ error: 'items are required' });
 
+    // Some DB schemas require store_id and pr_id to be non-null + FK-constrained.
+    // For "Direct PO", we create an internal placeholder PR and link the PO to it.
+    const [[fallbackStoreRow]] = await pool.query(
+      'SELECT id FROM stores WHERE firm_id = ? ORDER BY name LIMIT 1',
+      [firmId]
+    );
+    const effectiveStoreId = storeId || (fallbackStoreRow?.id ? String(fallbackStoreRow.id) : '');
+    if (!effectiveStoreId) return res.status(400).json({ error: 'Store not found for selected firm' });
+
     let supplierId = supplierIdRaw;
     let supplierName = supplierNameRaw;
     if (!supplierId) {
@@ -4029,20 +4038,46 @@ app.post('/api/pos', async (req, res) => {
     const poId = crypto.randomUUID();
     const poNumber = await allocateDocNumber(pool, 'PO', new Date());
 
+    const directPrId = crypto.randomUUID();
+    const directPrNumber = `DPO-${poNumber}`;
+    const directRemarks = JSON.stringify({ department: 'Direct PO', directPo: true });
+    const directRequestType = projectId ? 'Project' : 'Stock';
+
+    await pool.query(
+      `
+      INSERT INTO purchase_requisitions
+        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
+      VALUES
+        (?, ?, ?, ?, ?, ?, 'approved', ?, ?, NOW(), NOW(), ?)
+      `,
+      [
+        directPrId,
+        directPrNumber,
+        firmId,
+        effectiveStoreId,
+        projectId ? projectId : null,
+        'system',
+        directRemarks,
+        'system',
+        directRequestType,
+      ]
+    );
+
     await pool.query(
       `
       INSERT INTO purchase_orders
         (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
       VALUES
-        (?, ?, ?, ?, ?, ?, '', 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
       `,
       [
         poId,
         poNumber,
         firmId,
-        storeId ? storeId : null,
+        effectiveStoreId,
         projectId ? projectId : null,
         supplierId,
+        directPrId,
         paymentTerms,
         'system',
         shippingAddress,
@@ -4099,7 +4134,7 @@ app.post('/api/pos', async (req, res) => {
         po: {
           id: poId,
           poNumber,
-          prId: '',
+          prId: directPrId,
           firmId,
           orderDate: new Date().toISOString().slice(0, 10),
           createdBy: 'system',
