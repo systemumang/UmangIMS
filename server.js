@@ -6761,6 +6761,73 @@ app.post('/api/masters/items/import', async (req, res) => {
   }
 });
 
+// --- Dashboard helpers ---
+app.get('/api/dashboard/activity', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const day = String(req.query?.date ?? '').trim(); // YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return res.status(400).json({ error: 'date (YYYY-MM-DD) is required' });
+
+    const countByDay = async (table, field = 'created_at', extraWhere = '', extraParams = []) => {
+      const sql = `SELECT COUNT(*) AS c FROM ${table} WHERE DATE(${field}) = ? ${extraWhere}`;
+      const [rows] = await pool.query(sql, [day, ...extraParams]);
+      return Number(rows?.[0]?.c ?? 0);
+    };
+
+    const mastersParts = await Promise.all([
+      countByDay('firms'),
+      countByDay('stores'),
+      countByDay('departments'),
+      countByDay('users'),
+      countByDay('suppliers'),
+      countByDay('customers'),
+      countByDay('transporters'),
+      countByDay('projects'),
+      countByDay('units'),
+      countByDay('item_categories'),
+      countByDay('item_names'),
+      countByDay('specifications'),
+      countByDay('specification_values'),
+      countByDay('items'),
+    ]);
+    const masters = mastersParts.reduce((a, b) => a + b, 0);
+
+    const prs = await countByDay('purchase_requisitions');
+    const pos = await countByDay('purchase_orders');
+    const grns = await countByDay('grns');
+    const invoices = await countByDay('invoices');
+    // Payments are stored on invoices; count invoices updated on the day with a payment status.
+    const payments = await countByDay('invoices', 'updated_at', 'AND payment_status IS NOT NULL AND TRIM(payment_status) <> ""');
+
+    const stockParts = await Promise.all([
+      countByDay('item_issues'),
+      countByDay('item_returns'),
+      countByDay('item_damages'),
+      countByDay('item_transfers'),
+    ]);
+    const stock = stockParts.reduce((a, b) => a + b, 0);
+
+    const total = masters + prs + pos + grns + invoices + payments + stock;
+
+    res.json({
+      counts: {
+        masters,
+        prs,
+        pos,
+        grns,
+        invoices,
+        payments,
+        stock,
+        total,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 function parseFiscalYearRange(label) {
   const raw = String(label ?? '').trim();
   const m = raw.match(/^(\d{4})-(\d{2}|\d{4})$/);

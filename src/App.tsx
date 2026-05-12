@@ -304,17 +304,34 @@ export default function App() {
           />
 	        
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
-				          {view === 'dashboard' ? (
-				            <PowerBIDashboardView
-				              onNavigatePendingQueue={(key) => {
-				                setSelectedRequestId(null);
-				                setMastersExpanded(false);
-				                setStockMasterExpanded(false);
-				                setPendingExpanded(true);
-				                setView(key);
-				              }}
-				            />
-				          ) : null}
+					          {view === 'dashboard' ? (
+					            <PowerBIDashboardView
+					              onNavigatePendingQueue={(key) => {
+					                setSelectedRequestId(null);
+					                setMastersExpanded(false);
+					                setStockMasterExpanded(false);
+                          setPurchaseMastersExpanded(false);
+					                setPendingExpanded(true);
+					                setView(key);
+					              }}
+                        onNewPurchaseRequest={() => {
+                          setSelectedRequestId(null);
+                          setView('newPurchaseRequest');
+                        }}
+                        onDirectPo={() => {
+                          setSelectedRequestId(null);
+                          setView('directPo');
+                        }}
+                        onNavigateStock={(next) => {
+                          setSelectedRequestId(null);
+                          setMastersExpanded(false);
+                          setPendingExpanded(false);
+                          setPurchaseMastersExpanded(false);
+                          setStockMasterExpanded(true);
+                          setView(next);
+                        }}
+					            />
+					          ) : null}
 
 					          {view === 'home' ? (
 					            <DashboardView
