@@ -29,8 +29,17 @@ export function formatSpecsLines(specificationsJson?: string, specNameById?: Rec
     if (Array.isArray(obj)) {
       return obj
         .map((s: any) => {
-          const rawName = s.specificationName || s.name || '';
-          const name = specNameById?.[rawName] ?? stripEmbeddedIds(rawName);
+          const rawNameCandidate =
+            s?.specificationName ||
+            s?.name ||
+            s?.specificationId ||
+            s?.specId ||
+            s?.specification ||
+            s?.specificationMasterId ||
+            s?.id ||
+            '';
+          const rawName = String(rawNameCandidate ?? '').trim();
+          const name = (rawName && specNameById?.[rawName]) || stripEmbeddedIds(rawName);
           const val = stripEmbeddedIds(s.specificationValue || s.value || '');
           const safeKey = isUuidLike(name) ? '' : name;
           const safeValue = isUuidLike(val) ? '' : val;
