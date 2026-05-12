@@ -108,6 +108,16 @@ export default function TransferMasterView() {
     return raw;
   };
 
+  const getStoreDisplay = (value?: string | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const byId = stores.find((s) => s.id === raw);
+    if (byId) return byId.name;
+    const byName = stores.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+    if (byName) return byName.name;
+    return raw;
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this transfer?')) return;
     await deleteTransfer(id);
@@ -141,8 +151,14 @@ export default function TransferMasterView() {
     return (
       i.transactionNo.toLowerCase().includes(needle) ||
       i.firmId.toLowerCase().includes(needle) ||
+      getFirmDisplay(i.firmId).toLowerCase().includes(needle) ||
+      String(i.store ?? '').toLowerCase().includes(needle) ||
+      getStoreDisplay(i.store).toLowerCase().includes(needle) ||
       i.department.toLowerCase().includes(needle) ||
       (i.toFirmId ?? '').toLowerCase().includes(needle) ||
+      getFirmDisplay(i.toFirmId).toLowerCase().includes(needle) ||
+      String(i.toStore ?? '').toLowerCase().includes(needle) ||
+      getStoreDisplay(i.toStore).toLowerCase().includes(needle) ||
       (i.toDepartment ?? '').toLowerCase().includes(needle) ||
       i.person.toLowerCase().includes(needle)
     );
@@ -170,13 +186,13 @@ export default function TransferMasterView() {
       case 'fromFirm':
         return dir * strCmp(getFirmDisplay(a.firmId), getFirmDisplay(b.firmId));
       case 'fromStore':
-        return dir * strCmp(String(a.store ?? ''), String(b.store ?? ''));
+        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
       case 'fromDepartment':
         return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
       case 'toFirm':
         return dir * strCmp(getFirmDisplay(a.toFirmId), getFirmDisplay(b.toFirmId));
       case 'toStore':
-        return dir * strCmp(String(a.toStore ?? ''), String(b.toStore ?? ''));
+        return dir * strCmp(getStoreDisplay(a.toStore), getStoreDisplay(b.toStore));
       case 'toDepartment':
         return dir * strCmp(String(a.toDepartment ?? ''), String(b.toDepartment ?? ''));
       case 'person':
@@ -276,10 +292,10 @@ export default function TransferMasterView() {
                   <td className="p-3 border-r border-black text-on-surface font-medium">{row.transactionNo}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.store ?? '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.toFirmId)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.toStore ?? '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.toStore)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.toDepartment ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant text-right">

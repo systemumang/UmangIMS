@@ -224,6 +224,16 @@ export default function DamageMasterView() {
     return raw;
   };
 
+  const getStoreDisplay = (value?: string | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const byId = stores.find((s) => s.id === raw);
+    if (byId) return byId.name;
+    const byName = stores.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+    if (byName) return byName.name;
+    return raw;
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this damage record?')) return;
     await deleteDamage(id);
@@ -250,12 +260,16 @@ export default function DamageMasterView() {
     }
   };
 
+  const query = q.toLowerCase();
   const filtered = damages.filter(i =>
-    i.transactionNo.toLowerCase().includes(q.toLowerCase()) ||
-    i.firmId.toLowerCase().includes(q.toLowerCase()) ||
-    i.department.toLowerCase().includes(q.toLowerCase()) ||
-    i.person.toLowerCase().includes(q.toLowerCase()) ||
-    (i.approvedBy ?? '').toLowerCase().includes(q.toLowerCase())
+    i.transactionNo.toLowerCase().includes(query) ||
+    i.firmId.toLowerCase().includes(query) ||
+    getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
+    String(i.store ?? '').toLowerCase().includes(query) ||
+    getStoreDisplay(i.store).toLowerCase().includes(query) ||
+    i.department.toLowerCase().includes(query) ||
+    i.person.toLowerCase().includes(query) ||
+    (i.approvedBy ?? '').toLowerCase().includes(query)
   );
 
   const onSort = (key: typeof sortBy) => {
@@ -282,7 +296,7 @@ export default function DamageMasterView() {
       case 'firm':
         return dir * strCmp(getFirmDisplay(a.firmId), getFirmDisplay(b.firmId));
       case 'store':
-        return dir * strCmp(String(a.store ?? ''), String(b.store ?? ''));
+        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
       case 'department':
         return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
       case 'person':
@@ -371,7 +385,7 @@ export default function DamageMasterView() {
                   <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.approvedBy ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.store ?? '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + it.quantity, 0)}</td>                  <td className="p-3 text-right">

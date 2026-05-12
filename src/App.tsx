@@ -274,32 +274,12 @@ export default function App() {
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
 				          {view === 'dashboard' ? (
 				            <PowerBIDashboardView
-				              onNewPurchaseRequest={() => {
-				                setSelectedRequestId(null);
-				                setView('newPurchaseRequest');
-				              }}
-				              onNavigateStockMasterTab={(tab) => {
-				                setStockMasterTab(tab);
-				                setSelectedRequestId(null);
-				                setStockMasterExpanded(true);
-				                setMastersExpanded(false);
-				                setPendingExpanded(false);
-				                setView('stockMaster');
-				              }}
 				              onNavigatePendingQueue={(key) => {
 				                setSelectedRequestId(null);
 				                setMastersExpanded(false);
 				                setStockMasterExpanded(false);
 				                setPendingExpanded(true);
 				                setView(key);
-				              }}
-				              onNavigateMastersTab={(tab) => {
-				                setMastersTab(tab);
-				                setSelectedRequestId(null);
-				                setMastersExpanded(true);
-				                setPendingExpanded(false);
-				                setStockMasterExpanded(false);
-				                setView('masters');
 				              }}
 				            />
 				          ) : null}

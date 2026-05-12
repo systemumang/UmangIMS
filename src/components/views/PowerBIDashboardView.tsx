@@ -1,16 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   Activity,
-  ClipboardList,
   Database,
   Layers,
-  Plus,
   TrendingUp,
 } from 'lucide-react';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
-import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
-
-type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
+import { MASTERS_TABS } from '@/src/lib/mastersTabs';
 
 function MiniBarChart({ values }: { values: number[] }) {
   const max = Math.max(1, ...values);
@@ -51,15 +47,9 @@ function MiniSparkline({ values }: { values: number[] }) {
 }
 
 export default function PowerBIDashboardView({
-  onNewPurchaseRequest,
-  onNavigateStockMasterTab,
   onNavigatePendingQueue,
-  onNavigateMastersTab,
 }: {
-  onNewPurchaseRequest: () => void;
-  onNavigateStockMasterTab: (tab: StockMasterTab) => void;
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
-  onNavigateMastersTab: (tab: MastersTab) => void;
 }) {
   const kpis = useMemo(
     () => [
@@ -69,17 +59,6 @@ export default function PowerBIDashboardView({
       { label: 'Today', value: new Date().toLocaleDateString(), icon: TrendingUp },
     ],
     []
-  );
-
-  const quickLinks = useMemo(
-    () => [
-      { label: 'New Purchase Request', icon: Plus, onClick: onNewPurchaseRequest },
-      { label: 'Issue', icon: ClipboardList, onClick: () => onNavigateStockMasterTab('itemIssue') },
-      { label: 'Return', icon: ClipboardList, onClick: () => onNavigateStockMasterTab('return') },
-      { label: 'Damage', icon: ClipboardList, onClick: () => onNavigateStockMasterTab('damage') },
-      { label: 'Transfer', icon: ClipboardList, onClick: () => onNavigateStockMasterTab('transfer') },
-    ],
-    [onNavigateStockMasterTab, onNewPurchaseRequest]
   );
 
   // Placeholder series until we wire real analytics from APIs/DB.
@@ -129,57 +108,21 @@ export default function PowerBIDashboardView({
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-          <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Links</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {quickLinks.map((l) => (
-              <button
-                key={l.label}
-                type="button"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-                onClick={l.onClick}
-              >
-                <l.icon size={16} />
-                {l.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-          <div className="font-headline font-bold text-sm text-on-surface mb-4">Pending Tasks</div>
-          <div className="space-y-2">
-            {pendingQueueItems.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-on-surface-variant hover:bg-surface-container-high"
-                onClick={() => onNavigatePendingQueue(item.key)}
-              >
-                <span className="flex items-center gap-2">
-                  <Activity size={14} className="opacity-70" />
-                  {item.label}
-                </span>
-                <span className="text-[10px] opacity-60">Open</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-        <div className="font-headline font-bold text-sm text-on-surface mb-4">Masters</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {MASTERS_TABS.map((tab) => (
+        <div className="font-headline font-bold text-sm text-on-surface mb-4">Pending Tasks</div>
+        <div className="space-y-2">
+          {pendingQueueItems.map((item) => (
             <button
-              key={tab.key}
+              key={item.key}
               type="button"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-              onClick={() => onNavigateMastersTab(tab.key)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-on-surface-variant hover:bg-surface-container-high"
+              onClick={() => onNavigatePendingQueue(item.key)}
             >
-              <Database size={16} />
-              {tab.label}
+              <span className="flex items-center gap-2">
+                <Activity size={14} className="opacity-70" />
+                {item.label}
+              </span>
+              <span className="text-[10px] opacity-60">Open</span>
             </button>
           ))}
         </div>

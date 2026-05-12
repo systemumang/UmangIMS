@@ -98,6 +98,16 @@ export default function ReturnMasterView() {
     return raw;
   };
 
+  const getStoreDisplay = (value?: string | null) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '-';
+    const byId = stores.find((s) => s.id === raw);
+    if (byId) return byId.name;
+    const byName = stores.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+    if (byName) return byName.name;
+    return raw;
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this return?')) return;
     await deleteReturn(id);
@@ -126,13 +136,17 @@ export default function ReturnMasterView() {
     }
   };
 
+	  const query = q.toLowerCase();
 	  const filtered = returns.filter(i => 
-	    i.transactionNo.toLowerCase().includes(q.toLowerCase()) ||
-	    i.firmId.toLowerCase().includes(q.toLowerCase()) ||
-	    i.department.toLowerCase().includes(q.toLowerCase()) ||
-	    i.person.toLowerCase().includes(q.toLowerCase()) ||
-	    (i.returnType ?? '').toLowerCase().includes(q.toLowerCase()) ||
-	    (i.customerName ?? '').toLowerCase().includes(q.toLowerCase())
+	    i.transactionNo.toLowerCase().includes(query) ||
+	    i.firmId.toLowerCase().includes(query) ||
+	    getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
+	    String(i.store ?? '').toLowerCase().includes(query) ||
+	    getStoreDisplay(i.store).toLowerCase().includes(query) ||
+	    i.department.toLowerCase().includes(query) ||
+	    i.person.toLowerCase().includes(query) ||
+	    (i.returnType ?? '').toLowerCase().includes(query) ||
+	    (i.customerName ?? '').toLowerCase().includes(query)
 	  );
 
 	  const onSort = (key: typeof sortBy) => {
@@ -161,7 +175,7 @@ export default function ReturnMasterView() {
 	      case 'firm':
 	        return dir * strCmp(getFirmDisplay(a.firmId), getFirmDisplay(b.firmId));
 	      case 'store':
-	        return dir * strCmp(String(a.store ?? ''), String(b.store ?? ''));
+	        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
 	      case 'department':
 	        return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
 	      case 'person':
@@ -257,7 +271,7 @@ export default function ReturnMasterView() {
 	                  <td className="p-3 border-r border-black text-on-surface-variant">{row.returnType ?? 'Stock'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.customerName ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.store ?? '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + it.quantity, 0)}</td>
@@ -293,6 +307,7 @@ export default function ReturnMasterView() {
 	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Type</span> {viewItem.returnType ?? 'Stock'}</div>
 	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Customer Name</span> {viewItem.customerName ?? '-'}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Returned By</span> {viewItem.person}</div>
               </div>
