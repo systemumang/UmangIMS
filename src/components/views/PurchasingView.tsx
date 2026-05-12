@@ -74,7 +74,9 @@ export default function PurchasingView({ onSelectRequest, onAddPurchaseRequest }
 					          firms={firms}
 					          onSelectRequest={onSelectRequest}
                     onAddPurchaseRequest={onAddPurchaseRequest}
-					          onExportExcel={undefined}
+					          onExportExcel={() => {
+                      window.location.href = '/api/requests.xlsx';
+                    }}
 		                showStatusFilter={false}
 				        />
               </>

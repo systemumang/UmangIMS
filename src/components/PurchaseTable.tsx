@@ -160,12 +160,9 @@ export default function PurchaseTable({
 		            <Download size={14} />
 		            Export Excel
 		          </button>
-          <button className="btn btn-sm">
-	            <Filter size={14} />
-            Advanced Filters
-          </button>
-        </div>
-      </div>
+          {/* Advanced Filters removed for Purchase Requisitions */}
+	        </div>
+	      </div>
 
 	      {/* Table */}
 	      <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-blue-600">
