@@ -5960,6 +5960,31 @@ app.put('/api/masters/specification-values/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     if (!value) return res.status(400).json({ error: 'value is required' });
+    const [[currentRow]] = await pool.query(
+      'SELECT id, specification_id AS specificationId, value FROM specification_values WHERE id=? LIMIT 1',
+      [id]
+    );
+    if (!currentRow) return res.status(404).json({ error: 'Specification value not found' });
+    const currentSpecificationId = String(currentRow.specificationId ?? '').trim();
+    const currentValue = String(currentRow.value ?? '').trim();
+    const changingKey = currentSpecificationId !== specificationId || currentValue !== value;
+    if (changingKey) {
+      const [[usageRow]] = await pool.query(
+        `
+        SELECT COUNT(*) AS usageCount
+        FROM items
+        WHERE JSON_VALID(specifications_json)
+          AND JSON_UNQUOTE(JSON_EXTRACT(specifications_json, CONCAT('$.', ?))) = ?
+        `,
+        [currentSpecificationId, currentValue]
+      );
+      const usageCount = Number(usageRow?.usageCount ?? 0);
+      if (usageCount > 0) {
+        return res.status(409).json({
+          error: `Cannot edit. This specification value is already used in ${usageCount} item(s).`,
+        });
+      }
+    }
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     await pool.query(
       'UPDATE specification_values SET specification_id=?, value=?, updated_by=?, updated_at=NOW() WHERE id=?',
