@@ -4595,7 +4595,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const drawBox = (x, boxY, width, height) => {
       page.drawRectangle({ x, y: boxY, width, height, borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
     };
-    const drawLine = (x1, y1, x2, y2, thickness = 0.6) => {
+    const drawLine = (x1, y1, x2, y2, thickness = 0.8) => {
       page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, color: rgb(0, 0, 0) });
     };
     const drawAt = (text, x, textY, opts = {}) => {
@@ -4670,7 +4670,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const tableRight = pageWidth - margin;
     const tableWidth = tableRight - tableLeft;
     const col = {
-      serial: tableLeft + 18,
+      serial: tableLeft + 28,
       item: tableLeft + 30,
       qty: tableLeft + 250,
       rate: tableLeft + 322,
@@ -4687,10 +4687,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       width: tableWidth,
       height: 20,
       color: rgb(0.88, 0.9, 0.93),
-      borderColor: rgb(0.72, 0.74, 0.78),
-      borderWidth: 0.9,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1,
     });
-    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 0.8);
+    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 1);
     drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
     drawAt('Item Description', col.item + 2, headerY - 10, { bold: true, size: 8 });
     drawRight('Qty', col.qty, headerY - 10, { bold: true, size: 8 });
@@ -4705,6 +4705,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     let grandCgst = 0;
     let grandSgst = 0;
     let grandIgst = 0;
+    let grandDisc = 0;
     let grandTotal = 0;
     for (const [itemIndex, it] of items.entries()) {
       addPageIfNeeded(80);
@@ -4717,7 +4718,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const igstAmount = isInterState ? taxAmount : 0;
       const rowBottom = rowTop - rowHeight + 6;
       drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
-      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 0.8);
+      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 1);
       drawRight(String(itemIndex + 1), tableLeft + 22, rowTop - 6, { size: 8 });
       let labelY = rowTop - 6;
       for (const line of labelLines) {
@@ -4735,6 +4736,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       grandCgst += cgstAmount;
       grandSgst += sgstAmount;
       grandIgst += igstAmount;
+      grandDisc += (Number(it.quantity ?? 0) * Number(it.rate ?? 0) * Number(it.discountPercent ?? 0)) / 100;
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
@@ -4759,12 +4761,14 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       ? [
           ['Taxable Subtotal', formatMoney(grandGoods)],
           [`IGST (${toPctLabel(igstPct)}%)`, formatMoney(grandIgst)],
+          ['Disc. Amount', formatMoney(grandDisc)],
           ['Grand Total', formatMoney(grandTotal)],
         ]
       : [
           ['Taxable Subtotal', formatMoney(grandGoods)],
           [`CGST (${toPctLabel(cgstPct)}%)`, formatMoney(grandCgst)],
           [`SGST (${toPctLabel(sgstPct)}%)`, formatMoney(grandSgst)],
+          ['Disc. Amount', formatMoney(grandDisc)],
           ['Grand Total', formatMoney(grandTotal)],
         ];
     const summaryTop = y;
@@ -4792,7 +4796,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         font: isGrand ? fontBold : font,
         color,
       });
-      const amt = `INR ${amount}`;
+      const amt = String(amount ?? '');
       const amtFont = isGrand ? fontBold : fontBold;
       page.drawText(amt, {
         x: summaryLeft + summaryWidth - 10 - amtFont.widthOfTextAtSize(amt, 9),
@@ -4802,7 +4806,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         color: isGrand ? rgb(1, 1, 1) : rgb(0, 0, 0),
       });
     }
-    y = summaryTop - summaryHeight - 14;
+    y = summaryTop - summaryHeight - 12;
 
     const terms = String(poRow.termsConditions ?? '').trim();
     if (terms) {
