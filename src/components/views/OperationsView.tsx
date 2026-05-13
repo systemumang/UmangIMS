@@ -356,7 +356,7 @@ export default function OperationsView({
 
 	  const SortTh = ({ label, colKey }: { label: string; colKey: string }) => {
 	    const active = sort.key === colKey;
-	    const arrow = active ? (sort.dir === 'asc' ? ' ^' : ' v') : '';
+    const arrow = active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
 	    return (
 	      <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">
 	        <button
@@ -474,12 +474,13 @@ export default function OperationsView({
 	              <tr className="bg-primary text-on-primary">
 		            {tab === 'prs' ? (
 	                  <>
-	                    <SortTh label="PR" colKey="prNumber" />
-	                    <SortTh label="Firm" colKey="firmName" />
-	                    <SortTh label="Dept" colKey="department" />
-	                    <SortTh label="Project" colKey="projectName" />
-	                    <SortTh label="Req By" colKey="requestedBy" />
-	                    <SortTh label="Req Date" colKey="requisitionDate" />
+                    <SortTh label="PR" colKey="prNumber" />
+                    <SortTh label="Firm" colKey="firmName" />
+                    <SortTh label="Dept" colKey="department" />
+                    <SortTh label="Store" colKey="store" />
+                    <SortTh label="Project" colKey="projectName" />
+                    <SortTh label="Req By" colKey="requestedBy" />
+                    <SortTh label="Req Date" colKey="requisitionDate" />
 	                    <SortTh label="Status" colKey="status" />
 	                  </>
 	                ) : tab === 'pos' ? (
@@ -529,16 +530,16 @@ export default function OperationsView({
             <tbody>
 	              {loading ? (
 	                <tr>
-	                  <td colSpan={tab === 'pos' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-	                    Loading...
-	                  </td>
-	                </tr>
-	              ) : !paged.length ? (
-	                <tr>
-	                  <td colSpan={tab === 'pos' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-	                    No records.
-	                  </td>
-	                </tr>
+                  <td colSpan={tab === 'pos' || tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    Loading...
+                  </td>
+                </tr>
+              ) : !paged.length ? (
+                <tr>
+                  <td colSpan={tab === 'pos' || tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    No records.
+                  </td>
+                </tr>
 	              ) : (
 	                (paged as any[]).map((r) => (
 	                  <tr
@@ -559,11 +560,12 @@ export default function OperationsView({
 	                    {tab === 'prs' ? (
 	                      <>
             <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.department}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.requestedBy ?? '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.requisitionDate)}</td>
+                        <td className="px-3 py-2 border border-outline-variant">{r.store ?? '-'}</td>
+                        <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
+                        <td className="px-3 py-2 border border-outline-variant">{r.requestedBy ?? '-'}</td>
+                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.requisitionDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 	                      </>
 	                    ) : tab === 'pos' ? (

@@ -60,6 +60,7 @@ export type OperationsPrListRow = {
   firmId: string;
   firmName: string;
   department: string;
+  store?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   requestedBy: string;

@@ -2156,6 +2156,8 @@ app.get('/api/operations/prs', async (req, res) => {
         pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
         f.name AS firmName,
+        pr.store_id AS storeId,
+        st.name AS store,
         pr.project_id AS projectId,
         proj.name AS projectName,
         pr.remarks AS remarks,
@@ -2169,6 +2171,7 @@ app.get('/api/operations/prs', async (req, res) => {
       FROM purchase_requisitions pr
       LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
       LEFT JOIN firms f ON f.id = pr.firm_id
+      LEFT JOIN stores st ON st.id = pr.store_id
       LEFT JOIN projects proj ON proj.id = pr.project_id
       WHERE ${where.join(' AND ')}
       GROUP BY pr.id
@@ -2183,6 +2186,7 @@ app.get('/api/operations/prs', async (req, res) => {
       firmId: String(r.firmId ?? ''),
       firmName: String(r.firmName ?? ''),
       department: parseDepartmentFromRemarks(r.remarks) || 'N/A',
+      store: r.store ? String(r.store) : null,
       projectId: r.projectId ? String(r.projectId) : null,
       projectName: r.projectName ? String(r.projectName) : null,
       requestedBy: String(r.requestedBy ?? ''),
