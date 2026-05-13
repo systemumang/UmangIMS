@@ -4787,7 +4787,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         font: isGrand ? fontBold : font,
         color,
       });
-      const amt = `₹${amount}`;
+      const amt = `INR ${amount}`;
       const amtFont = isGrand ? fontBold : fontBold;
       page.drawText(amt, {
         x: summaryLeft + summaryWidth - 10 - amtFont.widthOfTextAtSize(amt, 9),
