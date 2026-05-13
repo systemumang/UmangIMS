@@ -598,10 +598,12 @@ app.put('/api/masters/firms/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/firms/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM firms WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5456,10 +5458,12 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/suppliers/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM suppliers WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5573,10 +5577,12 @@ app.put('/api/masters/projects/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/projects/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM projects WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5637,10 +5643,12 @@ app.put('/api/masters/departments/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/departments/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM departments WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5708,10 +5716,12 @@ app.put('/api/masters/stores/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/stores/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM stores WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5781,10 +5791,12 @@ app.put('/api/masters/customers/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/customers/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM customers WHERE id=?', [id]);
     res.json({ ok: true });
@@ -5850,10 +5862,12 @@ app.put('/api/masters/transporters/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/transporters/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM transporters WHERE id=?', [id]);
     res.json({ ok: true });
@@ -6003,10 +6017,12 @@ app.put('/api/masters/units/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/units/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM units WHERE id=?', [id]);
     res.json({ ok: true });
@@ -6065,10 +6081,12 @@ app.put('/api/masters/item-categories/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/item-categories/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM item_categories WHERE id=?', [id]);
     res.json({ ok: true });
@@ -6186,10 +6204,12 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/item-names/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM item_names WHERE id=?', [id]);
     res.json({ ok: true });
@@ -6248,10 +6268,12 @@ app.put('/api/masters/specifications/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/specifications/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM specifications WHERE id=?', [id]);
     res.json({ ok: true });
@@ -6526,10 +6548,12 @@ app.put('/api/masters/items/:id', async (req, res) => {
 });
 
 app.delete('/api/masters/items/:id', async (req, res) => {
+  let pool;
+  let id = '';
   try {
-    const pool = getMysqlPool();
+    pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
+    id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM items WHERE id=?', [id]);
     res.json({ ok: true });
