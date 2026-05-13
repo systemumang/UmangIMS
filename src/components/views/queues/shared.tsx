@@ -22,7 +22,7 @@ import {
 import type { QueueFilters } from '@/src/lib/queues';
 
 export const inputClass =
-  'w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary-container';
+  'w-full bg-surface-container-low border border-black rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-black';
 
 export const labelClass = 'text-[11px] font-bold text-on-surface-variant uppercase tracking-widest';
 
@@ -217,7 +217,7 @@ export function QueueFiltersBar({
 
       <div className="min-w-[170px]">
         <div className={labelClass}>Firm</div>
-        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg">
+        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
           <SearchableSelect
             options={firmOptions}
             value={filters.firmId ?? ''}
@@ -230,7 +230,7 @@ export function QueueFiltersBar({
 
       <div className="min-w-[170px]">
         <div className={labelClass}>Department</div>
-        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg">
+        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
           <SearchableSelect
             options={deptOptions}
             value={filters.department ?? ''}
@@ -243,7 +243,7 @@ export function QueueFiltersBar({
 
       <div className="min-w-[190px]">
         <div className={labelClass}>Project</div>
-        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg">
+        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
           <SearchableSelect
             options={projectOptions}
             value={filters.projectId ?? ''}
@@ -257,7 +257,7 @@ export function QueueFiltersBar({
       {showSupplier ? (
         <div className="min-w-[200px]">
           <div className={labelClass}>Supplier</div>
-          <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg">
+          <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
             <SearchableSelect
               options={supplierOptions}
               value={filters.supplierId ?? ''}

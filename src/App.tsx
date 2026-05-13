@@ -31,6 +31,17 @@ import TransferMasterView from './components/views/TransferMasterView';
 import DirectPoView from './components/views/DirectPoView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
+import {
+  fetchQueueApprovePr,
+  fetchQueueCheckPo,
+  fetchQueueCreateGrn,
+  fetchQueueCreatePo,
+  fetchQueueEnterInvoice,
+  fetchQueueLinkInvoiceGrn,
+  fetchQueuePayment,
+  fetchQueueQc,
+  fetchQueueSendPo,
+} from '@/src/lib/queues';
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
@@ -56,7 +67,8 @@ export default function App() {
 			  const [stockMasterExpanded, setStockMasterExpanded] = useState(false);
         const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
         const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
-			  const [sidebarOpen, setSidebarOpen] = useState(true);
+		  const [sidebarOpen, setSidebarOpen] = useState(true);
+      const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
 
 		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const inFlightRef = useRef(0);
@@ -111,6 +123,28 @@ export default function App() {
       window.fetch = originalFetch;
     };
   }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    Promise.all([
+      fetchQueueApprovePr(undefined, ac.signal).then((r) => ['queueApprovePr', r.length] as const),
+      fetchQueueCreatePo(undefined, ac.signal).then((r) => ['queueCreatePo', r.length] as const),
+      fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
+      fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
+      fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
+      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
+      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
+      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
+      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
+    ])
+      .then((pairs) => {
+        const next: Partial<Record<PendingQueueKey, number>> = {};
+        for (const [k, v] of pairs) next[k] = v;
+        setPendingQueueCounts(next);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, [view]);
 
 		  const topBar = useMemo(() => {
 		    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
@@ -187,9 +221,10 @@ export default function App() {
 	
 	  return (
     <div className="flex min-h-screen bg-surface">
-			      <Sidebar
-			        activeView={sidebarActive}
-			        activePendingQueue={activePendingQueue}
+				      <Sidebar
+				        activeView={sidebarActive}
+				        activePendingQueue={activePendingQueue}
+                pendingQueueCounts={pendingQueueCounts}
 			        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
 			        mastersExpanded={mastersExpanded}
 			        pendingExpanded={pendingExpanded}

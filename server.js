@@ -4629,7 +4629,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const logoImage = await loadLogoImage(poRow.firmLogoUrl);
     const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
     drawText('PURCHASE ORDER', { bold: true, size: 16 });
-    drawText(`PO No: ${poNumber || '-'}`, { bold: true, size: 11 });
+    drawText(`${poNumber || '-'}`, { bold: true, size: 11 });
     drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9 });
     if (logoImage) {
       const maxLogoWidth = 110;

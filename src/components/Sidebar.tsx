@@ -64,6 +64,7 @@ type PurchaseMastersTab = 'prs' | 'pos' | 'grns' | 'invoices' | 'payments';
 export default function Sidebar({
   activeView,
   activePendingQueue,
+  pendingQueueCounts,
   activeMastersTab,
   mastersExpanded,
   pendingExpanded,
@@ -82,6 +83,7 @@ export default function Sidebar({
 		}: {
 		  activeView: NavView;
 		  activePendingQueue?: PendingQueueKey;
+      pendingQueueCounts?: Partial<Record<PendingQueueKey, number>>;
 		  activeMastersTab?: MastersTab;
 		  mastersExpanded?: boolean;
 		  pendingExpanded?: boolean;
@@ -158,17 +160,22 @@ export default function Sidebar({
           </motion.button>
           {pendingExpanded && onNavigatePendingQueue ? (
             <div className="ml-7 mr-1 space-y-1">
-              {pendingQueueItems.map((q) => (
-                <motion.button
+	              {pendingQueueItems.map((q) => (
+	                <motion.button
                   key={q.key}
                   whileHover={{ x: 4 }}
                   type="button"
                   onClick={() => onNavigatePendingQueue(q.key)}
-                  className={cn(subRowClass, activePendingQueue === q.key ? subActiveClass : subInactiveClass)}
-                >
-                  {q.label}
-                </motion.button>
-              ))}
+	                  className={cn(subRowClass, activePendingQueue === q.key ? subActiveClass : subInactiveClass)}
+	                >
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      <span>{q.label}</span>
+                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+                        {Number(pendingQueueCounts?.[q.key] ?? 0)}
+                      </span>
+                    </span>
+	                </motion.button>
+	              ))}
             </div>
           ) : null}
 
