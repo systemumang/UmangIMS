@@ -104,9 +104,9 @@ export default function Sidebar({
 	}) {
   const borderClass = 'border-2 border-[#1f2937]';
   const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
-  const sectionRowClass = cn(baseRowClass, 'bg-[#1d4ed8] text-white hover:bg-[#1e40af] border-[#1f2937]');
-  const viewRowClass = cn(baseRowClass, 'bg-[#1d4ed8] text-white hover:bg-[#1e40af] border-[#1f2937]');
-  const activeRowClass = 'bg-[#dc2626] text-white font-semibold border-[#7f1d1d] shadow-[inset_0_0_0_1px_#7f1d1d]';
+  const sectionRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
+  const viewRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
+  const activeRowClass = 'bg-[#dc2626] hover:bg-[#dc2626] text-white font-semibold border-[#7f1d1d] shadow-[inset_0_0_0_1px_#7f1d1d]';
 
 	  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
   const subActiveClass = 'bg-primary/10 text-on-surface border-[#111827]';
