@@ -4750,16 +4750,26 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const summaryWidth = 200;
     const summaryLeft = tableRight - summaryWidth;
     const rowH = 26;
+    const toPctLabel = (value) => {
+      const n = Number(value ?? 0);
+      if (!Number.isFinite(n) || n <= 0) return '0';
+      const rounded = Number(n.toFixed(2));
+      return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    };
+    const igstPct = grandGoods > 0 ? (grandIgst / grandGoods) * 100 : 0;
+    const cgstPct = grandGoods > 0 ? (grandCgst / grandGoods) * 100 : 0;
+    const sgstPct = grandGoods > 0 ? (grandSgst / grandGoods) * 100 : 0;
+
     const summaryRows = isInterState
       ? [
           ['Taxable Subtotal', formatMoney(grandGoods)],
-          ['IGST (0%)', formatMoney(grandIgst)],
+          [`IGST (${toPctLabel(igstPct)}%)`, formatMoney(grandIgst)],
           ['Grand Total', formatMoney(grandTotal)],
         ]
       : [
           ['Taxable Subtotal', formatMoney(grandGoods)],
-          ['CGST (0%)', formatMoney(grandCgst)],
-          ['SGST (0%)', formatMoney(grandSgst)],
+          [`CGST (${toPctLabel(cgstPct)}%)`, formatMoney(grandCgst)],
+          [`SGST (${toPctLabel(sgstPct)}%)`, formatMoney(grandSgst)],
           ['Grand Total', formatMoney(grandTotal)],
         ];
     const summaryTop = y;
