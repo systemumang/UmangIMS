@@ -4480,7 +4480,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
           bytes = Buffer.from(await response.arrayBuffer());
         } else {
           const localPath = resolveUploadPath(value) || path.resolve(__dirname, value.replace(/^[\\/]+/, ''));
-          bytes = await fs.readFile(localPath);
+          try {
+            bytes = await fs.readFile(localPath);
+          } catch {
+            if (value.startsWith('/')) {
+              const baseUrl = `${req.protocol}://${req.get('host')}`;
+              const response = await fetch(`${baseUrl}${value}`);
+              if (!response.ok) return null;
+              bytes = Buffer.from(await response.arrayBuffer());
+            } else {
+              return null;
+            }
+          }
         }
         if (!bytes?.length) return null;
         try {
@@ -4562,18 +4573,28 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
 
     const isInterState = String(poRow.supplierGstType ?? '').trim().toLowerCase() === 'inter-state';
-    const col = {
-      item: margin,
-      qty: 232,
-      rate: 272,
-      disc: 315,
-      gst: 352,
-      taxable: 405,
-      cgst: 450,
-      sgst: 490,
-      igst: 530,
-      total: pageWidth - margin - 4,
-    };
+    const col = isInterState
+      ? {
+          item: margin,
+          qty: 282,
+          rate: 326,
+          disc: 372,
+          gst: 412,
+          taxable: 470,
+          igst: 522,
+          total: pageWidth - margin - 4,
+        }
+      : {
+          item: margin,
+          qty: 260,
+          rate: 304,
+          disc: 348,
+          gst: 388,
+          taxable: 444,
+          cgst: 492,
+          sgst: 532,
+          total: pageWidth - margin - 4,
+        };
     const headerY = y;
     page.drawRectangle({ x: margin, y: headerY - 16, width: pageWidth - margin * 2, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
     drawAt('Item', col.item + 4, headerY - 10, { bold: true });
@@ -4582,9 +4603,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawRight('Disc %', col.disc, headerY - 10, { bold: true });
     drawRight('GST %', col.gst, headerY - 10, { bold: true });
     drawRight('Taxable', col.taxable, headerY - 10, { bold: true });
-    drawRight('CGST', col.cgst, headerY - 10, { bold: true });
-    drawRight('SGST', col.sgst, headerY - 10, { bold: true });
-    drawRight('IGST', col.igst, headerY - 10, { bold: true });
+    if (isInterState) {
+      drawRight('IGST', col.igst, headerY - 10, { bold: true });
+    } else {
+      drawRight('CGST', col.cgst, headerY - 10, { bold: true });
+      drawRight('SGST', col.sgst, headerY - 10, { bold: true });
+    }
     drawRight('Total', col.total, headerY - 10, { bold: true });
     y -= 30;
 
@@ -4614,9 +4638,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       drawRight(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
       drawRight(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
       drawRight(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(cgstAmount), col.cgst, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(sgstAmount), col.sgst, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(igstAmount), col.igst, rowTop - 6, { size: 8 });
+      if (isInterState) {
+        drawRight(formatMoney(igstAmount), col.igst, rowTop - 6, { size: 8 });
+      } else {
+        drawRight(formatMoney(cgstAmount), col.cgst, rowTop - 6, { size: 8 });
+        drawRight(formatMoney(sgstAmount), col.sgst, rowTop - 6, { size: 8 });
+      }
       drawRight(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
