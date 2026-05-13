@@ -2821,7 +2821,7 @@ export default function PurchaseRequestDetailView({
 			                                  <button
 			                                    type="button"
 			                                    className="btn btn-sm"
-			                                    onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(String((p as any)?.po?.id ?? ''))}.pdf`)}
+				                                    onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(String((p as any)?.po?.id ?? ''))}.pdf?t=${Date.now()}`)}
 			                                  >
 			                                    PO PDF
 			                                  </button>
@@ -3898,7 +3898,7 @@ export default function PurchaseRequestDetailView({
 							                                      <button
 							                                        type="button"
 							                                        className="btn btn-sm"
-							                                        onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(p.po.id)}.pdf`)}
+								                                        onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(p.po.id)}.pdf?t=${Date.now()}`)}
 							                                      >
 							                                        PO PDF
 							                                      </button>

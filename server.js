@@ -4321,11 +4321,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         f.name AS firmName,
         f.address AS firmAddress,
         f.gst_number AS firmGstNumber,
+        f.logo_url AS firmLogoUrl,
         st.name AS storeName,
         proj.name AS projectName,
         s.name AS supplierName,
         s.address AS supplierAddress,
-        s.gst_number AS supplierGstNumber
+        s.gst_number AS supplierGstNumber,
+        s.gst_type AS supplierGstType
       FROM purchase_orders po
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN stores st ON st.id = po.store_id
@@ -4458,6 +4460,38 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const [year, month, day] = iso.split('-');
       return `${day}/${month}/${year}`;
     };
+    const resolveUploadPath = (url) => {
+      const value = String(url ?? '').trim();
+      if (!value || !value.startsWith('/uploads/')) return null;
+      const file = decodeURIComponent(value.replace(/^\/uploads\//, '')).replace(/[\\/]/g, '');
+      return path.join(uploadsDir, file);
+    };
+    const loadLogoImage = async (logoUrl) => {
+      const value = String(logoUrl ?? '').trim();
+      if (!value) return null;
+      try {
+        let bytes = null;
+        if (value.startsWith('data:image/')) {
+          const base64 = value.split(',')[1] ?? '';
+          bytes = Buffer.from(base64, 'base64');
+        } else if (/^https?:\/\//i.test(value)) {
+          const response = await fetch(value);
+          if (!response.ok) return null;
+          bytes = Buffer.from(await response.arrayBuffer());
+        } else {
+          const localPath = resolveUploadPath(value) || path.resolve(__dirname, value.replace(/^[\\/]+/, ''));
+          bytes = await fs.readFile(localPath);
+        }
+        if (!bytes?.length) return null;
+        try {
+          return await doc.embedPng(bytes);
+        } catch {
+          return await doc.embedJpg(bytes);
+        }
+      } catch {
+        return null;
+      }
+    };
     const drawBox = (x, boxY, width, height) => {
       page.drawRectangle({ x, y: boxY, width, height, borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
     };
@@ -4488,10 +4522,19 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       y = pageHeight - margin;
     };
 
+    const logoImage = await loadLogoImage(poRow.firmLogoUrl);
     const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
     drawText('PURCHASE ORDER', { bold: true, size: 16 });
     drawText(`PO No: ${poNumber || '-'}`, { bold: true, size: 11 });
     drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9 });
+    if (logoImage) {
+      const maxLogoWidth = 110;
+      const maxLogoHeight = 45;
+      const scale = Math.min(maxLogoWidth / logoImage.width, maxLogoHeight / logoImage.height, 1);
+      const width = logoImage.width * scale;
+      const height = logoImage.height * scale;
+      page.drawImage(logoImage, { x: pageWidth - margin - width, y: pageHeight - margin - height, width, height });
+    }
     y -= 4;
 
     const topY = y;
@@ -4518,14 +4561,17 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       y -= 4;
     }
 
+    const isInterState = String(poRow.supplierGstType ?? '').trim().toLowerCase() === 'inter-state';
     const col = {
       item: margin,
-      qty: 285,
-      rate: 330,
-      disc: 375,
-      gst: 415,
-      taxable: 470,
-      tax: 520,
+      qty: 232,
+      rate: 272,
+      disc: 315,
+      gst: 352,
+      taxable: 405,
+      cgst: 450,
+      sgst: 490,
+      igst: 530,
       total: pageWidth - margin - 4,
     };
     const headerY = y;
@@ -4536,18 +4582,27 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawRight('Disc %', col.disc, headerY - 10, { bold: true });
     drawRight('GST %', col.gst, headerY - 10, { bold: true });
     drawRight('Taxable', col.taxable, headerY - 10, { bold: true });
-    drawRight('GST Amt', col.tax, headerY - 10, { bold: true });
+    drawRight('CGST', col.cgst, headerY - 10, { bold: true });
+    drawRight('SGST', col.sgst, headerY - 10, { bold: true });
+    drawRight('IGST', col.igst, headerY - 10, { bold: true });
     drawRight('Total', col.total, headerY - 10, { bold: true });
     y -= 30;
 
     let grandGoods = 0;
     let grandTax = 0;
+    let grandCgst = 0;
+    let grandSgst = 0;
+    let grandIgst = 0;
     let grandTotal = 0;
     for (const it of items) {
       addPageIfNeeded(80);
       const rowTop = y;
       const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.qty - margin - 8);
       const rowHeight = Math.max(18, labelLines.length * 11 + 8);
+      const taxAmount = Number(it.taxAmount ?? 0);
+      const cgstAmount = isInterState ? 0 : taxAmount / 2;
+      const sgstAmount = isInterState ? 0 : taxAmount / 2;
+      const igstAmount = isInterState ? taxAmount : 0;
       drawBox(margin, rowTop - rowHeight + 6, pageWidth - margin * 2, rowHeight);
       let labelY = rowTop - 6;
       for (const line of labelLines) {
@@ -4559,17 +4614,28 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       drawRight(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
       drawRight(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
       drawRight(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(it.taxAmount), col.tax, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(cgstAmount), col.cgst, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(sgstAmount), col.sgst, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(igstAmount), col.igst, rowTop - 6, { size: 8 });
       drawRight(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
-      grandTax += Number(it.taxAmount ?? 0);
+      grandTax += taxAmount;
+      grandCgst += cgstAmount;
+      grandSgst += sgstAmount;
+      grandIgst += igstAmount;
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
     addPageIfNeeded(110);
     y -= 8;
     drawText(`Taxable Amount: ${formatMoney(grandGoods)}`, { bold: true, size: 10, x: 360, wrap: false });
+    if (isInterState) {
+      drawText(`IGST Amount: ${formatMoney(grandIgst)}`, { bold: true, size: 10, x: 360, wrap: false });
+    } else {
+      drawText(`CGST Amount: ${formatMoney(grandCgst)}`, { bold: true, size: 10, x: 360, wrap: false });
+      drawText(`SGST Amount: ${formatMoney(grandSgst)}`, { bold: true, size: 10, x: 360, wrap: false });
+    }
     drawText(`GST Amount: ${formatMoney(grandTax)}`, { bold: true, size: 10, x: 360, wrap: false });
     drawText(`Total Amount: ${formatMoney(grandTotal)}`, { bold: true, size: 12, x: 360, wrap: false });
     y -= 6;
@@ -4583,6 +4649,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.setHeader('Content-Disposition', `attachment; filename=\"${poNumber || poId}.pdf\"`);
     res.send(Buffer.from(pdfBytes));
   } catch (e) {

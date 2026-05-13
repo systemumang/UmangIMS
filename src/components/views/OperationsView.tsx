@@ -568,7 +568,7 @@ export default function OperationsView({
 		                            className="btn btn-sm"
 		                            onClick={(e) => {
 		                              e.stopPropagation();
-		                              window.location.href = `/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf`;
+                              window.location.href = `/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf?t=${Date.now()}`;
 		                            }}
 		                          >
 		                            PO PDF
