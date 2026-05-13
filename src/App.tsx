@@ -182,9 +182,10 @@ export default function App() {
 		    setView('purchaseRequestDetail');
 		  };
 
-		  const showBusyOverlay = inFlightCount > 0;
-
-  return (
+			  const showBusyOverlay = inFlightCount > 0;
+        const hideSidebarAfterViewChange = () => setSidebarOpen(false);
+	
+	  return (
     <div className="flex min-h-screen bg-surface">
 			      <Sidebar
 			        activeView={sidebarActive}
@@ -237,55 +238,62 @@ export default function App() {
 			          setSelectedRequestId(null);
 			          setMastersExpanded(false);
 			          setPendingExpanded(false);
-			          setStockMasterExpanded(false);
-                setPurchaseMastersExpanded(false);
-			          setView(next);
-			        }}
+				          setStockMasterExpanded(false);
+	                setPurchaseMastersExpanded(false);
+                  hideSidebarAfterViewChange();
+				          setView(next);
+				        }}
 			        onNavigatePendingQueue={(key) => {
 			          setSelectedRequestId(null);
 			          setMastersExpanded(false);
 			          setStockMasterExpanded(false);
-                setPurchaseMastersExpanded(false);
-			          setPendingExpanded(true);
-			          setView(key);
-			        }}
+	                setPurchaseMastersExpanded(false);
+				          setPendingExpanded(true);
+                  hideSidebarAfterViewChange();
+				          setView(key);
+				        }}
 			        onNavigateMastersTab={(tab) => {
 			          setMastersTab(tab);
 			          setSelectedRequestId(null);
 			          setMastersExpanded(true);
 			          setPendingExpanded(false);
 			          setStockMasterExpanded(false);
-                setPurchaseMastersExpanded(false);
-			          setView('masters');
-		        }}
+	                setPurchaseMastersExpanded(false);
+                  hideSidebarAfterViewChange();
+				          setView('masters');
+			        }}
               onNavigateStockView={(next) => {
                 setSelectedRequestId(null);
                 setMastersExpanded(false);
                 setPendingExpanded(false);
-                setPurchaseMastersExpanded(false);
-                setStockMasterExpanded(true);
-                setView(next);
-              }}
+	                setPurchaseMastersExpanded(false);
+	                setStockMasterExpanded(true);
+                  hideSidebarAfterViewChange();
+	                setView(next);
+	              }}
               onNavigatePurchaseMasters={(tab) => {
                 setSelectedRequestId(null);
                 setMastersExpanded(false);
                 setPendingExpanded(false);
                 setStockMasterExpanded(false);
-                setPurchaseMastersExpanded(true);
-                setOperationsTab(tab);
-                setView(tab === 'prs' ? 'purchasing' : 'operations');
-              }}
-	        onNewPurchaseRequest={() => {
-	          setSelectedRequestId(null);
-	          setView('newPurchaseRequest');
-	        }}
-        onDirectPo={() => {
+	                setPurchaseMastersExpanded(true);
+	                setOperationsTab(tab);
+                  hideSidebarAfterViewChange();
+	                setView(tab === 'prs' ? 'purchasing' : 'operations');
+	              }}
+		        onNewPurchaseRequest={() => {
+		          setSelectedRequestId(null);
+              hideSidebarAfterViewChange();
+		          setView('newPurchaseRequest');
+		        }}
+	        onDirectPo={() => {
           setSelectedRequestId(null);
           setMastersExpanded(false);
-          setStockMasterExpanded(false);
-          setPendingExpanded(false);
-          setView('directPo');
-        }}
+	          setStockMasterExpanded(false);
+	          setPendingExpanded(false);
+            hideSidebarAfterViewChange();
+	          setView('directPo');
+	        }}
       />
       
 	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200 border-l-2 border-[#1f2937]', sidebarOpen ? 'ml-72' : 'ml-0')}>
@@ -306,62 +314,71 @@ export default function App() {
 					                setSelectedRequestId(null);
 					                setMastersExpanded(false);
 					                setStockMasterExpanded(false);
-                          setPurchaseMastersExpanded(false);
-					                setPendingExpanded(true);
-					                setView(key);
-					              }}
-                        onNewPurchaseRequest={() => {
-                          setSelectedRequestId(null);
-                          setView('newPurchaseRequest');
-                        }}
-                        onDirectPo={() => {
-                          setSelectedRequestId(null);
-                          setView('directPo');
-                        }}
+	                          setPurchaseMastersExpanded(false);
+						                setPendingExpanded(true);
+                            hideSidebarAfterViewChange();
+						                setView(key);
+						              }}
+	                        onNewPurchaseRequest={() => {
+	                          setSelectedRequestId(null);
+                            hideSidebarAfterViewChange();
+	                          setView('newPurchaseRequest');
+	                        }}
+	                        onDirectPo={() => {
+	                          setSelectedRequestId(null);
+                            hideSidebarAfterViewChange();
+	                          setView('directPo');
+	                        }}
                         onNavigateStock={(next) => {
                           setSelectedRequestId(null);
                           setMastersExpanded(false);
                           setPendingExpanded(false);
-                          setPurchaseMastersExpanded(false);
-                          setStockMasterExpanded(true);
-                          setView(next);
-                        }}
+	                          setPurchaseMastersExpanded(false);
+	                          setStockMasterExpanded(true);
+                            hideSidebarAfterViewChange();
+	                          setView(next);
+	                        }}
 					            />
 					          ) : null}
 
 					          {view === 'home' ? (
 					            <DashboardView
-					              onNewPurchaseRequest={() => {
-					                setSelectedRequestId(null);
-					                setView('newPurchaseRequest');
-					              }}
-                        onDirectPo={() => {
-                          setSelectedRequestId(null);
-                          setView('directPo');
-                        }}
+						              onNewPurchaseRequest={() => {
+						                setSelectedRequestId(null);
+                            hideSidebarAfterViewChange();
+						                setView('newPurchaseRequest');
+						              }}
+	                        onDirectPo={() => {
+	                          setSelectedRequestId(null);
+                            hideSidebarAfterViewChange();
+	                          setView('directPo');
+	                        }}
 					              onNavigateStockMasterTab={(tab) => {
 					                setStockMasterTab(tab);
 					                setSelectedRequestId(null);
 					                setStockMasterExpanded(true);
-				                setMastersExpanded(false);
-				                setPendingExpanded(false);
-				                setView('stockMaster');
-				              }}
+					                setMastersExpanded(false);
+					                setPendingExpanded(false);
+                          hideSidebarAfterViewChange();
+					                setView('stockMaster');
+					              }}
 				              onNavigatePendingQueue={(key) => {
 				                setSelectedRequestId(null);
 				                setMastersExpanded(false);
-				                setStockMasterExpanded(false);
-				                setPendingExpanded(true);
-				                setView(key);
-				              }}
+					                setStockMasterExpanded(false);
+					                setPendingExpanded(true);
+                          hideSidebarAfterViewChange();
+					                setView(key);
+					              }}
 				              onNavigateMastersTab={(tab) => {
 				                setMastersTab(tab);
 				                setSelectedRequestId(null);
 				                setMastersExpanded(true);
-				                setPendingExpanded(false);
-				                setStockMasterExpanded(false);
-				                setView('masters');
-				              }}
+					                setPendingExpanded(false);
+					                setStockMasterExpanded(false);
+                          hideSidebarAfterViewChange();
+					                setView('masters');
+					              }}
 				            />
 				          ) : null}
 
@@ -370,10 +387,11 @@ export default function App() {
 				              onCreated={() => {
 				                setSelectedRequestId(null);
 				                setMastersExpanded(false);
-				                setStockMasterExpanded(false);
-				                setPendingExpanded(true);
-				                setView('queueCheckPo');
-				              }}
+					                setStockMasterExpanded(false);
+					                setPendingExpanded(true);
+                          hideSidebarAfterViewChange();
+					                setView('queueCheckPo');
+					              }}
 				              onCancel={() => {
 				                setView('dashboard');
 				              }}
@@ -382,14 +400,16 @@ export default function App() {
 			          {view === 'purchasing' ? (
 				            <PurchasingView
 				              onSelectRequest={(id) => {
-			                setDetailBackView('purchasing');
-			                setSelectedRequestId(id);
-			                setView('purchaseRequestDetail');
-		              }}
-                    onAddPurchaseRequest={() => {
-                      setSelectedRequestId(null);
-                      setView('newPurchaseRequest');
-                    }}
+				                setDetailBackView('purchasing');
+				                setSelectedRequestId(id);
+                        hideSidebarAfterViewChange();
+				                setView('purchaseRequestDetail');
+			              }}
+	                    onAddPurchaseRequest={() => {
+	                      setSelectedRequestId(null);
+                        hideSidebarAfterViewChange();
+	                      setView('newPurchaseRequest');
+	                    }}
 		            />
 		          ) : null}
 		          {view === 'purchaseRequestDetail' ? (
@@ -418,7 +438,7 @@ export default function App() {
               }}
             />
 		          ) : null}
-				          {view === 'operations' ? <OperationsView onViewPr={openPrDetail} initialTab={operationsTab} /> : null}
+				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 		          {view === 'stockMaster' ? (

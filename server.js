@@ -157,6 +157,86 @@ function getMysqlPool() {
   return mysqlPool;
 }
 
+function getSqlErrorMessage(error) {
+  if (!error) return '';
+  return String(error.sqlMessage || error.message || error);
+}
+
+function isForeignKeyInUseError(error) {
+  const message = getSqlErrorMessage(error);
+  return error?.errno === 1451 || error?.code === 'ER_ROW_IS_REFERENCED_2' || /foreign key constraint fails/i.test(message);
+}
+
+function formatReferencedTable(error) {
+  const message = getSqlErrorMessage(error);
+  const match = message.match(/FOREIGN KEY constraint fails \(`[^`]+`\.`([^`]+)`/i) || message.match(/\(`[^`]+`\.`([^`]+)`/);
+  const table = String(match?.[1] ?? '').trim();
+  if (!table) return '';
+  return table
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getReferencedRawTable(error) {
+  const message = getSqlErrorMessage(error);
+  const match = message.match(/FOREIGN KEY constraint fails \(`[^`]+`\.`([^`]+)`/i) || message.match(/\(`[^`]+`\.`([^`]+)`/);
+  return String(match?.[1] ?? '').trim();
+}
+
+function getReferencedColumn(error) {
+  const message = getSqlErrorMessage(error);
+  const match = message.match(/FOREIGN KEY \(`([^`]+)`\) REFERENCES/i);
+  return String(match?.[1] ?? '').trim();
+}
+
+const deleteUsageLookups = {
+  projects: { label: 'Projects', nameColumn: 'name' },
+  stores: { label: 'Stores', nameColumn: 'name' },
+  suppliers: { label: 'Suppliers', nameColumn: 'name' },
+  customers: { label: 'Customers', nameColumn: 'name' },
+  transporters: { label: 'Transporters', nameColumn: 'name' },
+  departments: { label: 'Departments', nameColumn: 'name' },
+  units: { label: 'Units', nameColumn: 'name' },
+  item_categories: { label: 'Item Categories', nameColumn: 'name' },
+  item_names: { label: 'Item Names', nameColumn: 'name' },
+  specifications: { label: 'Specifications', nameColumn: 'name' },
+  specification_values: { label: 'Specification Values', nameColumn: 'value' },
+  items: { label: 'Items', nameColumn: 'item_code' },
+  purchase_requisitions: { label: 'Purchase Requisitions', nameColumn: 'pr_number' },
+  purchase_orders: { label: 'Purchase Orders', nameColumn: 'po_number' },
+  grns: { label: 'GRN', nameColumn: 'grn_number' },
+  invoices: { label: 'Invoices', nameColumn: 'invoice_number' },
+  payments: { label: 'Payments', nameColumn: 'payment_status' },
+  item_issues: { label: 'Issue Master', nameColumn: 'transaction_no' },
+  item_returns: { label: 'Return Master', nameColumn: 'transaction_no' },
+  item_damages: { label: 'Damage Master', nameColumn: 'transaction_no' },
+  item_transfers: { label: 'Transfer Master', nameColumn: 'transaction_no' },
+};
+
+async function getDeleteUsageDetails(pool, error, parentId) {
+  const table = getReferencedRawTable(error);
+  const fkColumn = getReferencedColumn(error);
+  const lookup = deleteUsageLookups[table];
+  if (!lookup || !fkColumn || !/^[a-zA-Z0-9_]+$/.test(table) || !/^[a-zA-Z0-9_]+$/.test(fkColumn)) return [];
+  const [rows] = await pool.query(
+    `SELECT ${lookup.nameColumn} AS name FROM ${table} WHERE ${fkColumn} = ? LIMIT 10`,
+    [parentId]
+  );
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => String(row?.name ?? '').trim())
+    .filter(Boolean)
+    .map((name) => ({ usedIn: lookup.label, name }));
+}
+
+async function sendDeleteInUseError(res, pool, parentId, error, label) {
+  if (!isForeignKeyInUseError(error)) return false;
+  const usedIn = formatReferencedTable(error);
+  const suffix = usedIn ? ` It is already used in ${usedIn}.` : ' It is already used in another record.';
+  const usageDetails = await getDeleteUsageDetails(pool, error, parentId);
+  res.status(409).json({ error: `Cannot delete ${label}.${suffix}`, usageDetails });
+  return true;
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -282,7 +362,8 @@ async function fetchPrDetail(pool, id) {
       pri.pr_id AS prId,
       pri.item_id AS itemId,
       iname.name AS item,
-      pri.requested_qty AS quantity,
+	      pri.requested_qty AS quantity,
+	      COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
       pri.remarks AS specification
     FROM purchase_requisition_items pri
     LEFT JOIN items it ON it.id = pri.item_id
@@ -313,7 +394,8 @@ async function fetchPrDetail(pool, id) {
     prId: String(r.prId),
     itemId: String(r.itemId),
     item: String(r.item || ''),
-    quantity: Number(r.quantity ?? 0),
+	    quantity: Number(r.quantity ?? 0),
+	    approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
     specification: String(r.specification ?? ''),
   }));
 
@@ -524,6 +606,7 @@ app.delete('/api/masters/firms/:id', async (req, res) => {
     await pool.query('DELETE FROM firms WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'firm')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -706,7 +789,8 @@ app.get('/api/requests/:id', async (req, res) => {
         pri.pr_id AS prId,
         pri.item_id AS itemId,
         iname.name AS item,
-        pri.requested_qty AS quantity,
+	        pri.requested_qty AS quantity,
+	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
         pri.remarks AS specification
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
@@ -737,7 +821,8 @@ app.get('/api/requests/:id', async (req, res) => {
       prId: String(r.prId),
       itemId: String(r.itemId),
       item: String(r.item || ''),
-      quantity: Number(r.quantity ?? 0),
+	      quantity: Number(r.quantity ?? 0),
+	      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
       specification: String(r.specification ?? ''),
     }));
 
@@ -791,7 +876,8 @@ app.get('/api/workflow/:id', async (req, res) => {
         pri.pr_id AS prId,
         pri.item_id AS itemId,
         iname.name AS item,
-        pri.requested_qty AS quantity,
+	        pri.requested_qty AS quantity,
+	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
         pri.remarks AS specification
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
@@ -822,7 +908,8 @@ app.get('/api/workflow/:id', async (req, res) => {
       prId: String(r.prId),
       itemId: String(r.itemId),
       item: String(r.item || ''),
-      quantity: Number(r.quantity ?? 0),
+	      quantity: Number(r.quantity ?? 0),
+	      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
       specification: String(r.specification ?? ''),
     }));
 
@@ -4506,6 +4593,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const drawBox = (x, boxY, width, height) => {
       page.drawRectangle({ x, y: boxY, width, height, borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
     };
+    const drawLine = (x1, y1, x2, y2, thickness = 0.6) => {
+      page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, color: rgb(0, 0, 0) });
+    };
     const drawAt = (text, x, textY, opts = {}) => {
       page.drawText(String(text ?? ''), {
         x,
@@ -4556,6 +4646,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
     drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
     drawAt(String(poRow.supplierAddress ?? '').trim() || '-', margin + 8, topY - 54, { size: 8 });
+    drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, topY - 68, { bold: true, size: 8 });
 
     const firmX = margin + halfWidth + 10;
     drawAt('Firm / Delivery', firmX + 8, topY - 12, { bold: true, size: 9 });
@@ -4595,8 +4686,15 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
           sgst: 532,
           total: pageWidth - margin - 4,
         };
-    const headerY = y;
-    page.drawRectangle({ x: margin, y: headerY - 16, width: pageWidth - margin * 2, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
+    const tableLeft = margin;
+    const tableRight = pageWidth - margin;
+    const columnLines = isInterState
+      ? [col.qty - 34, col.rate - 34, col.disc - 34, col.gst - 34, col.taxable - 50, col.igst - 44, col.total - 44]
+      : [col.qty - 34, col.rate - 34, col.disc - 34, col.gst - 34, col.taxable - 50, col.cgst - 44, col.sgst - 38, col.total - 44];
+	    const headerY = y;
+    const headerBottom = headerY - 16;
+	    page.drawRectangle({ x: tableLeft, y: headerBottom, width: tableRight - tableLeft, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
+    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20);
     drawAt('Item', col.item + 4, headerY - 10, { bold: true });
     drawRight('Qty', col.qty, headerY - 10, { bold: true });
     drawRight('Rate', col.rate, headerY - 10, { bold: true });
@@ -4626,8 +4724,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
       const sgstAmount = isInterState ? 0 : taxAmount / 2;
-      const igstAmount = isInterState ? taxAmount : 0;
-      drawBox(margin, rowTop - rowHeight + 6, pageWidth - margin * 2, rowHeight);
+	      const igstAmount = isInterState ? taxAmount : 0;
+      const rowBottom = rowTop - rowHeight + 6;
+	      drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
+      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight);
       let labelY = rowTop - 6;
       for (const line of labelLines) {
         drawAt(line, col.item + 4, labelY, { size: 8 });
@@ -4654,25 +4754,24 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
-    addPageIfNeeded(110);
-    y -= 8;
-    drawText(`Taxable Amount: ${formatMoney(grandGoods)}`, { bold: true, size: 10, x: 360, wrap: false });
+	    addPageIfNeeded(130);
+	    y -= 8;
+	    drawText(`Taxable Amount: ${formatMoney(grandGoods)}`, { bold: true, size: 10, x: 360, wrap: false });
     if (isInterState) {
       drawText(`IGST Amount: ${formatMoney(grandIgst)}`, { bold: true, size: 10, x: 360, wrap: false });
     } else {
       drawText(`CGST Amount: ${formatMoney(grandCgst)}`, { bold: true, size: 10, x: 360, wrap: false });
       drawText(`SGST Amount: ${formatMoney(grandSgst)}`, { bold: true, size: 10, x: 360, wrap: false });
     }
-    drawText(`GST Amount: ${formatMoney(grandTax)}`, { bold: true, size: 10, x: 360, wrap: false });
-    drawText(`Total Amount: ${formatMoney(grandTotal)}`, { bold: true, size: 12, x: 360, wrap: false });
-    y -= 6;
-    drawText(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, { bold: true, size: 9 });
-    const terms = String(poRow.termsConditions ?? '').trim();
-    if (terms) {
-      y -= 4;
-      drawText('Terms & Conditions:', { bold: true, size: 9 });
-      drawText(terms, { size: 8, maxWidth: pageWidth - margin * 2 });
-    }
+	    drawText(`GST Amount: ${formatMoney(grandTax)}`, { bold: true, size: 10, x: 360, wrap: false });
+	    drawText(`Total Amount: ${formatMoney(grandTotal)}`, { bold: true, size: 12, x: 360, wrap: false });
+	    const terms = String(poRow.termsConditions ?? '').trim();
+	    if (terms) {
+      const termsTop = y + 66;
+      drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
+      drawText(terms, { size: 8, x: margin, maxWidth: 300 });
+      y = Math.min(y, termsTop - 70);
+	    }
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
@@ -5323,6 +5422,7 @@ app.delete('/api/masters/suppliers/:id', async (req, res) => {
     await pool.query('DELETE FROM suppliers WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'supplier')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5439,6 +5539,7 @@ app.delete('/api/masters/projects/:id', async (req, res) => {
     await pool.query('DELETE FROM projects WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'project')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5502,6 +5603,7 @@ app.delete('/api/masters/departments/:id', async (req, res) => {
     await pool.query('DELETE FROM departments WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'department')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5572,6 +5674,7 @@ app.delete('/api/masters/stores/:id', async (req, res) => {
     await pool.query('DELETE FROM stores WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'store')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5644,6 +5747,7 @@ app.delete('/api/masters/customers/:id', async (req, res) => {
     await pool.query('DELETE FROM customers WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'customer')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5712,6 +5816,7 @@ app.delete('/api/masters/transporters/:id', async (req, res) => {
     await pool.query('DELETE FROM transporters WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'transporter')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5864,6 +5969,7 @@ app.delete('/api/masters/units/:id', async (req, res) => {
     await pool.query('DELETE FROM units WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'unit')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -5925,6 +6031,7 @@ app.delete('/api/masters/item-categories/:id', async (req, res) => {
     await pool.query('DELETE FROM item_categories WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'item category')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -6045,6 +6152,7 @@ app.delete('/api/masters/item-names/:id', async (req, res) => {
     await pool.query('DELETE FROM item_names WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'item name')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -6106,6 +6214,7 @@ app.delete('/api/masters/specifications/:id', async (req, res) => {
     await pool.query('DELETE FROM specifications WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'specification')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -6383,6 +6492,7 @@ app.delete('/api/masters/items/:id', async (req, res) => {
     await pool.query('DELETE FROM items WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'item')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
@@ -7374,8 +7484,9 @@ app.get('/api/inventory/sheet', async (req, res) => {
         it.id AS itemId,
         it.item_code AS itemCode,
         iname.name AS itemName,
-        it.specifications_json AS specificationsJson,
-        it.unit AS unit
+	        it.specifications_json AS specificationsJson,
+	        it.unit AS unit,
+	        it.reorder_level AS reorderLevel
       FROM items it
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE it.is_active = 1
@@ -7388,7 +7499,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
           itemCode: String(r.itemCode ?? ''),
           itemName: String(r.itemName ?? ''),
           specificationsJson: r.specificationsJson,
-          unit: String(r.unit ?? ''),
+	          unit: String(r.unit ?? ''),
+	          reorderLevel: num(r.reorderLevel, 0),
         },
       ])
     );
@@ -7404,8 +7516,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
       SELECT
         base.storeId,
         base.itemId,
-        COALESCE(opening.opening, 0) AS opening,
-        COALESCE(opening.reorderLevel, 0) AS reorderLevel,
+	        COALESCE(opening.opening, 0) AS opening,
         COALESCE(purchase.purchase, 0) AS purchase,
         COALESCE(issue.issueQty, 0) AS issueQty,
         COALESCE(damage.damageQty, 0) AS damageQty,
@@ -7444,7 +7555,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         ) x
       ) base
       LEFT JOIN (
-        SELECT iob.store_id AS storeId, iob.item_id AS itemId, SUM(iob.quantity) AS opening, MAX(iob.reorder_level) AS reorderLevel
+        SELECT iob.store_id AS storeId, iob.item_id AS itemId, SUM(iob.quantity) AS opening
         FROM item_opening_balances iob
         INNER JOIN stores st ON st.id = iob.store_id
         WHERE st.firm_id = ? AND iob.year = ?
@@ -7529,10 +7640,9 @@ app.get('/api/inventory/sheet', async (req, res) => {
       const storeId = String(r.storeId ?? '');
       const itemId = String(r.itemId ?? '');
       if (!storeId || !itemId) continue;
-      aggMap.set(keyOf(storeId, itemId), {
-        opening: num(r.opening, 0),
-        reorderLevel: num(r.reorderLevel, 0),
-        purchase: num(r.purchase, 0),
+	      aggMap.set(keyOf(storeId, itemId), {
+	        opening: num(r.opening, 0),
+	        purchase: num(r.purchase, 0),
         issue: num(r.issueQty, 0),
         damage: num(r.damageQty, 0),
         transferIn: num(r.transferIn, 0),
@@ -7544,18 +7654,17 @@ app.get('/api/inventory/sheet', async (req, res) => {
     const itemIds = Array.from(itemById.keys());
 
     const makeRow = (storeId, itemId) => {
-      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '' };
-      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
-        opening: 0,
-        reorderLevel: 0,
-        purchase: 0,
+	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0 };
+	      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
+	        opening: 0,
+	        purchase: 0,
         issue: 0,
         damage: 0,
         transferIn: 0,
         transferOut: 0,
-      };
-      const opening = num(agg.opening, 0);
-      const reorderLevel = num(agg.reorderLevel, 0);
+	      };
+	      const opening = num(agg.opening, 0);
+	      const reorderLevel = num(meta.reorderLevel, 0);
       const purchase = num(agg.purchase, 0);
       const issue = num(agg.issue, 0);
       const damage = num(agg.damage, 0);

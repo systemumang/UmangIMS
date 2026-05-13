@@ -35,6 +35,16 @@ const TAB_LABEL: Record<OpsTab, string> = {
   payments: 'Payments',
 };
 
+const emptyOperationsFilters: OperationsFilters = {
+  q: '',
+  firmId: '',
+  projectId: '',
+  supplierId: '',
+  status: '',
+  from: '',
+  to: '',
+};
+
 function formatDateShort(s: string) {
   const t = String(s ?? '').trim();
   if (!t) return '-';
@@ -59,15 +69,7 @@ export default function OperationsView({
     setDetailOpen(false);
   }, [initialTab]);
 
-  const [filters, setFilters] = useState<OperationsFilters>({
-    q: '',
-    firmId: '',
-    projectId: '',
-    supplierId: '',
-    status: '',
-    from: '',
-    to: '',
-  });
+  const [filters, setFilters] = useState<OperationsFilters>(() => ({ ...emptyOperationsFilters }));
 
 	  const statusOptions = useMemo(() => {
 	    if (tab === 'prs') return ['', 'Pending Approval', 'Approved', 'Rejected'];
@@ -156,10 +158,21 @@ export default function OperationsView({
 
 	  const rowsCount = sortedRows.length;
 
-	  const pageSize = 20;
-	  const [page, setPage] = useState(1);
+		  const pageSize = 20;
+		  const [page, setPage] = useState(1);
 
-  useEffect(() => setPage(1), [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
+  useEffect(() => {
+    setFilters({ ...emptyOperationsFilters });
+    setPage(1);
+    setPrs([]);
+    setPos([]);
+    setGrns([]);
+    setInvoices([]);
+    setPayments([]);
+    setDetailOpen(false);
+  }, [tab]);
+
+	  useEffect(() => setPage(1), [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(rowsCount / pageSize));

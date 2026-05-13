@@ -84,7 +84,12 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
   const data = await readJsonSafe<T & { error?: string }>(res);
   if (!res.ok) {
     const serverMessage = (data as any)?.error;
-    throw new Error(serverMessage ? String(serverMessage) : `${fallbackMessage} (${res.status})`);
+    const error = new Error(serverMessage ? String(serverMessage) : `${fallbackMessage} (${res.status})`);
+    const usageDetails = (data as any)?.usageDetails;
+    if (Array.isArray(usageDetails)) {
+      (error as any).usageDetails = usageDetails;
+    }
+    throw error;
   }
   if (data === null) {
     // Common in dev when the frontend server returns index.html (200) for /api/* because the backend isn't reachable.

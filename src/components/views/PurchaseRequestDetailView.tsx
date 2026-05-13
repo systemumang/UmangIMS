@@ -143,6 +143,10 @@ function openDocument(url: string) {
   if (!url) return;
   const s = String(url).trim();
   if (s.startsWith('data:')) {
+    if (s.startsWith('data:application/pdf') && s.length >= 65000) {
+      window.alert('This sent proof PDF is incomplete/corrupted in saved data. Please clear it and upload the proof again.');
+      return;
+    }
     try {
       const parts = s.split(';base64,');
       if (parts.length === 2) {
@@ -1968,7 +1972,7 @@ export default function PurchaseRequestDetailView({
 	    const map: Record<string, number> = {};
 	    for (const it of prItems) {
 	      const id = String((it as any).itemId ?? '').trim();
-      const reqQty = Number((it as any).quantity ?? 0);
+	      const reqQty = Number((it as any).approvedQty ?? (it as any).quantity ?? 0);
       const ordered = Number(orderedQtyByItemId[id] ?? 0);
       map[id] = Math.max(0, reqQty - ordered);
     }
@@ -4504,7 +4508,7 @@ export default function PurchaseRequestDetailView({
 				                                <button
 				                                  type="button"
 				                                  className="underline font-bold text-on-surface hover:text-primary"
-				                                  onClick={() => openSentProof(activePoDetails.po.sentProof || '')}
+				                                  onClick={() => openDocument(activePoDetails.po.sentProof || '')}
 				                                >
 				                                  View
 				                                </button>

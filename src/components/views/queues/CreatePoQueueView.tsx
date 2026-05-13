@@ -116,8 +116,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
         const itemIds = pr.items.map((it) => it.itemId).filter(Boolean);
         const lastSupplier = itemIds.length ? await fetchLastSupplierByItemIds(itemIds, ac.signal) : {};
 
-        const nextLines: Line[] = pr.items.map((it) => {
-          const approvedQty = Number(it.quantity ?? 0);
+	        const nextLines: Line[] = pr.items.map((it) => {
+	          const approvedQty = Number((it as any).approvedQty ?? it.quantity ?? 0);
           const orderedQty = Number(orderedByItemId.get(it.itemId) ?? 0);
           const remainingQty = Math.max(0, approvedQty - orderedQty);
           const suggested = lastSupplier[it.itemId];

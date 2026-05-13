@@ -28,6 +28,7 @@ export type PurchaseRequestItem = {
   itemId: string;
   item: string;
   quantity: number;
+  approvedQty?: number;
   specification: string;
 };
 

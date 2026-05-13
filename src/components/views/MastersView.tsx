@@ -103,6 +103,10 @@ type ItemUploadIssue = {
   combination: string;
   message: string;
 };
+type DeleteUsageDetail = {
+  usedIn: string;
+  name: string;
+};
 function formatSpecsForDisplay(specificationsJson: string, specNameLookup?: Record<string, string>) {
   try {
     const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
@@ -132,10 +136,11 @@ export default function MastersView({
   onTabChange?: (tab: MastersTab) => void;
 }) {
 		  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
-	  const [addOpen, setAddOpen] = useState(false);
-	  const [editCtx, setEditCtx] = useState<{ tab: MastersTab; id: string } | null>(null);
-	  const [error, setError] = useState<string | null>(null);
-	  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+		  const [addOpen, setAddOpen] = useState(false);
+		  const [editCtx, setEditCtx] = useState<{ tab: MastersTab; id: string } | null>(null);
+		  const [error, setError] = useState<string | null>(null);
+      const [deleteUsageDetails, setDeleteUsageDetails] = useState<DeleteUsageDetail[]>([]);
+		  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 		  const [busy, setBusy] = useState(false);
       const [templateBusy, setTemplateBusy] = useState(false);
       const [templateError, setTemplateError] = useState<string | null>(null);
@@ -152,7 +157,20 @@ export default function MastersView({
 	      return next;
 	    });
 
-	  const setFieldError = (key: string, message: string) => setFieldErrors((m) => ({ ...m, [key]: message }));
+		  const setFieldError = (key: string, message: string) => setFieldErrors((m) => ({ ...m, [key]: message }));
+
+      const handleMasterError = (e: unknown) => {
+        const details = Array.isArray((e as any)?.usageDetails) ? (e as any).usageDetails : [];
+        setDeleteUsageDetails(
+          details
+            .map((row: any) => ({
+              usedIn: String(row?.usedIn ?? '').trim(),
+              name: String(row?.name ?? '').trim(),
+            }))
+            .filter((row: DeleteUsageDetail) => row.usedIn || row.name)
+        );
+        setError(e instanceof Error ? e.message : String(e));
+      };
 
   useEffect(() => {
     if (!addOpen) return;
@@ -1147,7 +1165,31 @@ export default function MastersView({
 
 	  return (
 	    <div className="space-y-4">
-		      {error ? <div className="text-xs text-error">{error}</div> : null}
+		      {error ? (
+            <div className="rounded-lg border border-error/40 bg-error/5 p-3 space-y-2">
+              <div className="text-xs font-semibold text-error">{error}</div>
+              {error.startsWith('Cannot delete') && deleteUsageDetails.length ? (
+                <div className="overflow-auto">
+                  <table className="min-w-[420px] text-xs border-collapse border border-error/40 bg-surface-container-lowest">
+                    <thead>
+                      <tr>
+                        <th className="text-left px-3 py-2 border border-error/40">Used In</th>
+                        <th className="text-left px-3 py-2 border border-error/40">Name / Number</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deleteUsageDetails.map((row, idx) => (
+                        <tr key={`${row.usedIn}-${row.name}-${idx}`}>
+                          <td className="px-3 py-2 border border-error/40">{row.usedIn || '-'}</td>
+                          <td className="px-3 py-2 border border-error/40">{row.name || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-bold text-on-surface">{activeTabLabel}</div>
@@ -1480,7 +1522,7 @@ export default function MastersView({
 			                            setNewFirmTermsConditions('');
 			                            closeModal();
 			                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 	                    >
@@ -1554,7 +1596,7 @@ export default function MastersView({
 		                            setNewStoreLocation('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -1657,7 +1699,7 @@ export default function MastersView({
 		                            setNewProjectName('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 		                    >
@@ -1705,7 +1747,7 @@ export default function MastersView({
 		                            setNewDepartmentName('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 		                    >
@@ -1837,7 +1879,7 @@ export default function MastersView({
 	                            setNewUserMobile('');
 	                            closeModal();
 	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -1979,7 +2021,7 @@ export default function MastersView({
 			                            setNewSupplierPaymentTerms('');
 			                            closeModal();
 			                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 	                    >
@@ -2065,7 +2107,7 @@ export default function MastersView({
 		                            setNewCustomerAddress('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 		                    >
@@ -2145,7 +2187,7 @@ export default function MastersView({
 	                            setNewTransporterPhone('');
 	                            closeModal();
 	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -2192,7 +2234,7 @@ export default function MastersView({
 		                            setNewUnitName('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 		                    >
@@ -2239,7 +2281,7 @@ export default function MastersView({
 		                            setNewItemCategoryName('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}
 		                    >
@@ -2337,7 +2379,7 @@ export default function MastersView({
 		                            setNewItemNameCategoryId('');
 		                            closeModal();
 		                          })
-		                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -2384,7 +2426,7 @@ export default function MastersView({
 	                            setNewSpecName('');
 	                            closeModal();
 	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -2475,7 +2517,7 @@ export default function MastersView({
 			                            setNewSpecValue('');
 			                            closeModal();
 	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -2860,7 +2902,7 @@ export default function MastersView({
 		                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
 	                            closeModal();
 	                          })
-	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
 	                    >
@@ -2948,7 +2990,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteFirm(f.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3008,7 +3050,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteDepartment(d.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3074,7 +3116,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteStore(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3146,7 +3188,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteProject(p.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3214,7 +3256,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteUser(u.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3284,7 +3326,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteSupplier(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3340,7 +3382,7 @@ export default function MastersView({
 			                            setError(null);
 			                            deleteCustomer(c.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-			                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+			                              .catch(handleMasterError)
 			                              .finally(() => setBusy(false));
 			                          }}
 			                        >
@@ -3398,7 +3440,7 @@ export default function MastersView({
 		                            setError(null);
 		                            deleteTransporter(t.id, { deletedBy: 'system' })
 		                              .then(() => loadAll())
-		                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+		                              .catch(handleMasterError)
 		                              .finally(() => setBusy(false));
 		                          }}
 		                        >
@@ -3450,7 +3492,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteUnit(u.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3502,7 +3544,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteItemCategory(c.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3566,7 +3608,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteItemName(n.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3626,7 +3668,7 @@ export default function MastersView({
 				                            setError(null);
 			                            deleteSpecification(s.id, { deletedBy: 'system' })
 			                              .then(() => loadAll())
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
@@ -3711,7 +3753,7 @@ export default function MastersView({
 				                                    setError(null);
 				                                    deleteSpecificationValue(v.id, { deletedBy: 'system' })
 				                                      .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
-				                                      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                                      .catch(handleMasterError)
 				                                      .finally(() => setBusy(false));
 				                                  }}
 				                                >
@@ -3796,7 +3838,7 @@ export default function MastersView({
 				                            setError(null);
 		                            deleteItem(it.id, { deletedBy: 'system' })
 		                              .then(() => fetchItems().then(setItems))
-				                              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
 				                        >
