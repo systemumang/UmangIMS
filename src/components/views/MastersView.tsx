@@ -243,6 +243,9 @@ export default function MastersView({
   const [newItemItemNameId, setNewItemItemNameId] = useState('');
   const [newItemUnit, setNewItemUnit] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemPhotos, setNewItemPhotos] = useState<string[]>(['', '', '', '', '']);
+  const [newItemLink, setNewItemLink] = useState('');
+  const [newItemVideoLink, setNewItemVideoLink] = useState('');
   const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string; useCustom?: boolean }>>([
     { specificationId: '', value: '', useCustom: false },
@@ -446,6 +449,9 @@ export default function MastersView({
     if (tab === 'items') {
       setNewItemUnit('');
       setNewItemDescription('');
+      setNewItemPhotos(['', '', '', '', '']);
+      setNewItemLink('');
+      setNewItemVideoLink('');
       setNewItemReorderLevel('');
       setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
     }
@@ -551,6 +557,15 @@ export default function MastersView({
 		        setNewItemItemNameId(row.itemNameId);
             setNewItemUnit(row.unit ?? '');
 		        setNewItemDescription(row.description ?? '');
+            setNewItemPhotos([
+              String((row as any).photo1 ?? ''),
+              String((row as any).photo2 ?? ''),
+              String((row as any).photo3 ?? ''),
+              String((row as any).photo4 ?? ''),
+              String((row as any).photo5 ?? ''),
+            ]);
+            setNewItemLink(String((row as any).itemLink ?? ''));
+            setNewItemVideoLink(String((row as any).videoLink ?? ''));
             setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
 		        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
@@ -2708,16 +2723,86 @@ export default function MastersView({
 	                        placeholder="Select item name first"
 	                      />
 	                    </label>
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
-	                      <input
-	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={newItemDescription}
-	                        onChange={(e) => setNewItemDescription(e.target.value)}
-	                        placeholder="High tensile"
-	                      />
-	                    </label>
-	                  </div>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newItemDescription}
+		                        onChange={(e) => setNewItemDescription(e.target.value)}
+		                        placeholder="High tensile"
+		                      />
+		                    </label>
+                        <div className="space-y-2">
+                          {newItemPhotos.map((value, idx) => {
+                            const canShow = idx === 0 || Boolean(String(newItemPhotos[idx - 1] ?? '').trim());
+                            if (!canShow) return null;
+                            return (
+                              <label key={`photo-${idx}`} className="space-y-1">
+                                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{`Photo ${idx + 1}`}</div>
+                                <div className="flex flex-col gap-2">
+                                  <input
+                                    type="file"
+                                    accept="image/png,image/jpeg"
+                                    className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const maxBytes = 2 * 1024 * 1024;
+                                      if (file.size > maxBytes) {
+                                        setError(`Photo ${idx + 1} is too large. Please upload under 2MB.`);
+                                        return;
+                                      }
+                                      if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+                                        setError(`Photo ${idx + 1} must be PNG or JPG.`);
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = () =>
+                                        setNewItemPhotos((prev) => {
+                                          const next = [...prev];
+                                          next[idx] = String(reader.result ?? '');
+                                          return next;
+                                        });
+                                      reader.onerror = () => setError(`Failed to read Photo ${idx + 1}.`);
+                                      reader.readAsDataURL(file);
+                                    }}
+                                  />
+                                  <input
+                                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                                    value={value}
+                                    onChange={(e) =>
+                                      setNewItemPhotos((prev) => {
+                                        const next = [...prev];
+                                        next[idx] = e.target.value;
+                                        return next;
+                                      })
+                                    }
+                                    placeholder={`Paste Photo ${idx + 1} URL or data:image/...`}
+                                  />
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <label className="space-y-1">
+                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Link (optional)</div>
+                          <input
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                            value={newItemLink}
+                            onChange={(e) => setNewItemLink(e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </label>
+                        <label className="space-y-1">
+                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Video Link (optional)</div>
+                          <input
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                            value={newItemVideoLink}
+                            onChange={(e) => setNewItemVideoLink(e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </label>
+		                  </div>
 	
 	                  <div className="space-y-2">
 	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
@@ -2856,10 +2941,13 @@ export default function MastersView({
 	                      className="btn btn-sm"
 	                      onClick={() => {
 		                        setNewItemUnit('');
-		                        setNewItemDescription('');
+			                        setNewItemDescription('');
+                            setNewItemPhotos(['', '', '', '', '']);
+                            setNewItemLink('');
+                            setNewItemVideoLink('');
                             setNewItemReorderLevel('');
-		                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-	                        closeModal();
+			                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+		                        closeModal();
 	                      }}
 	                    >
 	                      Cancel
@@ -2881,6 +2969,13 @@ export default function MastersView({
 	                              itemNameId: newItemItemNameId,
 		                              unit: newItemUnit,
 		                              description: newItemDescription,
+                              photo1: String(newItemPhotos[0] ?? '').trim() || null,
+                              photo2: String(newItemPhotos[1] ?? '').trim() || null,
+                              photo3: String(newItemPhotos[2] ?? '').trim() || null,
+                              photo4: String(newItemPhotos[3] ?? '').trim() || null,
+                              photo5: String(newItemPhotos[4] ?? '').trim() || null,
+                              itemLink: newItemLink.trim() || null,
+                              videoLink: newItemVideoLink.trim() || null,
                               reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
 		                              specs: newItemSpecs,
 	                              updatedBy: 'system',
@@ -2889,6 +2984,13 @@ export default function MastersView({
 	                              itemNameId: newItemItemNameId,
 		                              unit: newItemUnit,
 		                              description: newItemDescription,
+                              photo1: String(newItemPhotos[0] ?? '').trim() || null,
+                              photo2: String(newItemPhotos[1] ?? '').trim() || null,
+                              photo3: String(newItemPhotos[2] ?? '').trim() || null,
+                              photo4: String(newItemPhotos[3] ?? '').trim() || null,
+                              photo5: String(newItemPhotos[4] ?? '').trim() || null,
+                              itemLink: newItemLink.trim() || null,
+                              videoLink: newItemVideoLink.trim() || null,
                               reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
 		                              specs: newItemSpecs,
 	                              createdBy: 'system',
@@ -2896,11 +2998,14 @@ export default function MastersView({
 	                        fn
 	                          .then(() => fetchItems().then(setItems))
 	                          .then(() => {
-		                            setNewItemUnit('');
-		                            setNewItemDescription('');
+			                            setNewItemUnit('');
+			                            setNewItemDescription('');
+                                setNewItemPhotos(['', '', '', '', '']);
+                                setNewItemLink('');
+                                setNewItemVideoLink('');
                                 setNewItemReorderLevel('');
-		                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-	                            closeModal();
+			                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+		                            closeModal();
 	                          })
 	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));

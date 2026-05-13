@@ -6445,6 +6445,11 @@ app.get('/api/masters/items', async (_req, res) => {
         it.unique_key AS uniqueKey,
         it.description,
         it.unit,
+        it.photo_1 AS photo1,
+        it.photo_2 AS photo2,
+        it.photo_3 AS photo3,
+        it.photo_4 AS photo4,
+        it.photo_5 AS photo5,
         it.item_link AS itemLink,
         it.video_link AS videoLink,
         it.reorder_level AS reorderLevel
@@ -6467,6 +6472,13 @@ app.post('/api/masters/items', async (req, res) => {
     if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
     const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
     const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const photo1 = req.body?.photo1 != null ? String(req.body.photo1).trim() : null;
+    const photo2 = req.body?.photo2 != null ? String(req.body.photo2).trim() : null;
+    const photo3 = req.body?.photo3 != null ? String(req.body.photo3).trim() : null;
+    const photo4 = req.body?.photo4 != null ? String(req.body.photo4).trim() : null;
+    const photo5 = req.body?.photo5 != null ? String(req.body.photo5).trim() : null;
+    const itemLink = req.body?.itemLink != null ? String(req.body.itemLink).trim() : null;
+    const videoLink = req.body?.videoLink != null ? String(req.body.videoLink).trim() : null;
     const reorderLevelRaw = req.body?.reorderLevel;
     const reorderLevel =
       reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
@@ -6485,16 +6497,17 @@ app.post('/api/masters/items', async (req, res) => {
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
     await pool.query(
-      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, Number.isFinite(reorderLevel) ? reorderLevel : null, createdBy]
+      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, createdBy]
     );
 
     const [rows] = await pool.query(
       `
-	      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
-	             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
-	             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
-	      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
+                 it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
+		             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
     );
@@ -6516,6 +6529,13 @@ app.put('/api/masters/items/:id', async (req, res) => {
     if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
     const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
     const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const photo1 = req.body?.photo1 != null ? String(req.body.photo1).trim() : null;
+    const photo2 = req.body?.photo2 != null ? String(req.body.photo2).trim() : null;
+    const photo3 = req.body?.photo3 != null ? String(req.body.photo3).trim() : null;
+    const photo4 = req.body?.photo4 != null ? String(req.body.photo4).trim() : null;
+    const photo5 = req.body?.photo5 != null ? String(req.body.photo5).trim() : null;
+    const itemLink = req.body?.itemLink != null ? String(req.body.itemLink).trim() : null;
+    const videoLink = req.body?.videoLink != null ? String(req.body.videoLink).trim() : null;
     const reorderLevelRaw = req.body?.reorderLevel;
     const reorderLevel =
       reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
@@ -6529,15 +6549,16 @@ app.put('/api/masters/items/:id', async (req, res) => {
     const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
     await pool.query(
-      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, reorder_level=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [itemNameId, specificationsJson, uniqueKey, description, unit, Number.isFinite(reorderLevel) ? reorderLevel : null, updatedBy, id]
+      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, updatedBy, id]
     );
     const [rows] = await pool.query(
       `
-	      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
-	             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
-	             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
-	      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
+                 it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
+		             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
     );

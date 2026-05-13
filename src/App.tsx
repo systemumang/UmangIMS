@@ -32,6 +32,22 @@ import DirectPoView from './components/views/DirectPoView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 import {
+  fetchCustomers,
+  fetchDepartments,
+  fetchFirms,
+  fetchItemCategories,
+  fetchItemNames,
+  fetchItems,
+  fetchProjects,
+  fetchSpecificationValues,
+  fetchSpecifications,
+  fetchStores,
+  fetchSuppliers,
+  fetchTransporters,
+  fetchUnits,
+  fetchUsers,
+} from '@/src/lib/masters';
+import {
   fetchQueueApprovePr,
   fetchQueueCheckPo,
   fetchQueueCreateGrn,
@@ -69,6 +85,7 @@ export default function App() {
         const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
+      const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
 
 		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const inFlightRef = useRef(0);
@@ -141,6 +158,52 @@ export default function App() {
         const next: Partial<Record<PendingQueueKey, number>> = {};
         for (const [k, v] of pairs) next[k] = v;
         setPendingQueueCounts(next);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, [view]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    Promise.all([
+      fetchFirms(ac.signal).then((r) => ['firms', r.length] as const),
+      fetchStores(ac.signal).then((r) => ['stores', r.length] as const),
+      fetchDepartments(ac.signal).then((r) => ['departments', r.length] as const),
+      fetchUsers(ac.signal).then((r) => ['users', r.length] as const),
+      fetchSuppliers(ac.signal).then((r) => ['suppliers', r.length] as const),
+      fetchCustomers(ac.signal).then((r) => ['customers', r.length] as const),
+      fetchTransporters(ac.signal).then((r) => ['transporters', r.length] as const),
+      fetchProjects(ac.signal).then((r) => ['projects', r.length] as const),
+      fetchUnits(ac.signal).then((r) => ['units', r.length] as const),
+      fetchItemCategories(ac.signal).then((r) => ['itemCategories', r.length] as const),
+      fetchItemNames(ac.signal).then((r) => ['itemNames', r.length] as const),
+      fetchSpecifications(ac.signal).then((r) => ['specs', r] as const),
+      fetchItems(ac.signal).then((r) => ['items', r.length] as const),
+    ])
+      .then(async (pairs) => {
+        const next: Partial<Record<MastersTab, number>> = {};
+        let specs: Array<{ id: string }> = [];
+        for (const [k, v] of pairs as any) {
+          if (k === 'specs') {
+            specs = Array.isArray(v) ? v : [];
+            next.specs = specs.length;
+          } else {
+            (next as any)[k] = Number(v ?? 0);
+          }
+        }
+        if (specs.length) {
+          const valueCounts = await Promise.all(
+            specs.map((s) =>
+              fetchSpecificationValues(String(s.id ?? ''), ac.signal)
+                .then((rows) => rows.length)
+                .catch(() => 0)
+            )
+          );
+          next.specValues = valueCounts.reduce((a, b) => a + b, 0);
+        } else {
+          next.specValues = 0;
+        }
+        setMastersCounts(next);
       })
       .catch(() => {});
     return () => ac.abort();
@@ -225,6 +288,7 @@ export default function App() {
 				        activeView={sidebarActive}
 				        activePendingQueue={activePendingQueue}
                 pendingQueueCounts={pendingQueueCounts}
+                mastersCounts={mastersCounts}
 			        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
 			        mastersExpanded={mastersExpanded}
 			        pendingExpanded={pendingExpanded}
