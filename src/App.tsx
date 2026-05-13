@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import Sidebar, { type NavView, type PendingQueueKey, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
-import DashboardView from './components/views/DashboardView';
 import PowerBIDashboardView from './components/views/PowerBIDashboardView';
 import InventoryView from './components/views/InventoryView';
 import PurchasingView from './components/views/PurchasingView';
@@ -237,7 +236,6 @@ export default function App() {
 
 		  const topBar = useMemo(() => {
 		    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
-		    if (view === 'home') return { title: 'Home', showSearch: false };
 		    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
 		    if (view === 'operations') return { title: 'Operations', showSearch: false };
 		    if (view === 'stockMaster') {
@@ -466,47 +464,6 @@ export default function App() {
 	                        }}
 					            />
 					          ) : null}
-
-					          {view === 'home' ? (
-					            <DashboardView
-						              onNewPurchaseRequest={() => {
-						                setSelectedRequestId(null);
-                            hideSidebarAfterViewChange();
-						                setView('newPurchaseRequest');
-						              }}
-	                        onDirectPo={() => {
-	                          setSelectedRequestId(null);
-                            hideSidebarAfterViewChange();
-	                          setView('directPo');
-	                        }}
-					              onNavigateStockMasterTab={(tab) => {
-					                setStockMasterTab(tab);
-					                setSelectedRequestId(null);
-					                setStockMasterExpanded(true);
-					                setMastersExpanded(false);
-					                setPendingExpanded(false);
-                          hideSidebarAfterViewChange();
-					                setView('stockMaster');
-					              }}
-				              onNavigatePendingQueue={(key) => {
-				                setSelectedRequestId(null);
-				                setMastersExpanded(false);
-					                setStockMasterExpanded(false);
-					                setPendingExpanded(true);
-                          hideSidebarAfterViewChange();
-					                setView(key);
-					              }}
-				              onNavigateMastersTab={(tab) => {
-				                setMastersTab(tab);
-				                setSelectedRequestId(null);
-				                setMastersExpanded(true);
-					                setPendingExpanded(false);
-					                setStockMasterExpanded(false);
-                          hideSidebarAfterViewChange();
-					                setView('masters');
-					              }}
-				            />
-				          ) : null}
 
 				          {view === 'directPo' ? (
 				            <DirectPoView

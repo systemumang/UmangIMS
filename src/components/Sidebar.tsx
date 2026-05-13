@@ -9,7 +9,6 @@ import {
   CreditCard,
   Database,
   FileText,
-  Home,
   LayoutDashboard,
   Package,
   Receipt,
@@ -23,7 +22,6 @@ import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
 export type NavView =
   | 'dashboard'
-  | 'home'
   | 'purchasing'
   | 'operations'
   | 'inventory'
@@ -135,11 +133,6 @@ export default function Sidebar({
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
             <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
             <span className="flex-1">Dashboard</span>
-          </motion.button>
-
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('home')} className={cn(viewRowClass, activeView === 'home' ? activeRowClass : '')}>
-            <Home className={cn('mr-3', activeView === 'home' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
-            <span className="flex-1">Home</span>
           </motion.button>
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
