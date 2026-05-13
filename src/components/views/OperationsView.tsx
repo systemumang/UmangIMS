@@ -295,19 +295,19 @@ export default function OperationsView({
 		      onViewPr(entry.id);
 		      return;
 		    }
-		    // PO rows can optionally open the Purchase Request detail screen (so user sees Existing POs grid).
+		    // PO rows open full Purchase Request detail and auto-scroll to Existing POs.
 		    if (tab === 'pos' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
 		      if (prId) {
-		        onViewPr(prId, { scrollTo: 'existingPos', view: 'existingPosOnly' });
+		        onViewPr(prId, { scrollTo: 'existingPos', view: 'full' });
 		        return;
 		      }
 		    }
-		    // GRN rows can optionally open PR view focused on Recorded GRNs.
+		    // GRN rows open full Purchase Request detail.
 		    if (tab === 'grns' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
 		      if (prId) {
-		        onViewPr(prId, { view: 'recordedGrnsOnly' });
+		        onViewPr(prId, { view: 'full' });
 		        return;
 		      }
 		    }

@@ -4664,51 +4664,39 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
 
     const isInterState = String(poRow.supplierGstType ?? '').trim().toLowerCase() === 'inter-state';
-    const col = isInterState
-      ? {
-          item: margin,
-          qty: 282,
-          rate: 326,
-          disc: 372,
-          gst: 412,
-          taxable: 470,
-          igst: 522,
-          total: pageWidth - margin - 4,
-        }
-      : {
-          item: margin,
-          qty: 260,
-          rate: 304,
-          disc: 348,
-          gst: 388,
-          taxable: 444,
-          cgst: 492,
-          sgst: 532,
-          total: pageWidth - margin - 4,
-        };
     const tableLeft = margin;
     const tableRight = pageWidth - margin;
-    const columnLines = isInterState
-      ? [col.qty - 34, col.rate - 34, col.disc - 34, col.gst - 34, col.taxable - 50, col.igst - 44, col.total - 44]
-      : [col.qty - 34, col.rate - 34, col.disc - 34, col.gst - 34, col.taxable - 50, col.cgst - 44, col.sgst - 38, col.total - 44];
-	    const headerY = y;
+    const tableWidth = tableRight - tableLeft;
+    const col = {
+      serial: tableLeft + 18,
+      item: tableLeft + 30,
+      qty: tableLeft + 250,
+      rate: tableLeft + 322,
+      disc: tableLeft + 385,
+      gst: tableLeft + 436,
+      taxable: tableRight - 10,
+    };
+    const columnLines = [tableLeft + 18, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474];
+    const headerY = y;
     const headerBottom = headerY - 16;
-	    page.drawRectangle({ x: tableLeft, y: headerBottom, width: tableRight - tableLeft, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
-    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20);
-    drawAt('Item', col.item + 4, headerY - 10, { bold: true });
-    drawRight('Qty', col.qty, headerY - 10, { bold: true });
-    drawRight('Rate', col.rate, headerY - 10, { bold: true });
-    drawRight('Disc %', col.disc, headerY - 10, { bold: true });
-    drawRight('GST %', col.gst, headerY - 10, { bold: true });
-    drawRight('Taxable', col.taxable, headerY - 10, { bold: true });
-    if (isInterState) {
-      drawRight('IGST', col.igst, headerY - 10, { bold: true });
-    } else {
-      drawRight('CGST', col.cgst, headerY - 10, { bold: true });
-      drawRight('SGST', col.sgst, headerY - 10, { bold: true });
-    }
-    drawRight('Total', col.total, headerY - 10, { bold: true });
-    y -= 30;
+    page.drawRectangle({
+      x: tableLeft,
+      y: headerBottom,
+      width: tableWidth,
+      height: 20,
+      color: rgb(0.88, 0.9, 0.93),
+      borderColor: rgb(0.72, 0.74, 0.78),
+      borderWidth: 0.8,
+    });
+    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 0.5);
+    drawAt('#', tableLeft + 6, headerY - 10, { bold: true, size: 8 });
+    drawAt('Item Description', col.item + 2, headerY - 10, { bold: true, size: 8 });
+    drawRight('Qty', col.qty, headerY - 10, { bold: true, size: 8 });
+    drawRight('Rate', col.rate, headerY - 10, { bold: true, size: 8 });
+    drawRight('Disc %', col.disc, headerY - 10, { bold: true, size: 8 });
+    drawRight('GST %', col.gst, headerY - 10, { bold: true, size: 8 });
+    drawRight('Taxable Amt', col.taxable, headerY - 10, { bold: true, size: 8 });
+    y -= 20;
 
     let grandGoods = 0;
     let grandTax = 0;
@@ -4716,21 +4704,22 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     let grandSgst = 0;
     let grandIgst = 0;
     let grandTotal = 0;
-    for (const it of items) {
+    for (const [itemIndex, it] of items.entries()) {
       addPageIfNeeded(80);
       const rowTop = y;
-      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.qty - margin - 8);
+      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.qty - col.item - 8);
       const rowHeight = Math.max(18, labelLines.length * 11 + 8);
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
       const sgstAmount = isInterState ? 0 : taxAmount / 2;
-	      const igstAmount = isInterState ? taxAmount : 0;
+      const igstAmount = isInterState ? taxAmount : 0;
       const rowBottom = rowTop - rowHeight + 6;
-	      drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
-      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight);
+      drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
+      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 0.5);
+      drawRight(String(itemIndex + 1), tableLeft + 14, rowTop - 6, { size: 8 });
       let labelY = rowTop - 6;
       for (const line of labelLines) {
-        drawAt(line, col.item + 4, labelY, { size: 8 });
+        drawAt(line, col.item + 2, labelY, { size: 8, bold: labelY === rowTop - 6 });
         labelY -= 11;
       }
       drawRight(formatNumber(it.quantity), col.qty, rowTop - 6, { size: 8 });
@@ -4738,13 +4727,6 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       drawRight(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
       drawRight(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
       drawRight(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
-      if (isInterState) {
-        drawRight(formatMoney(igstAmount), col.igst, rowTop - 6, { size: 8 });
-      } else {
-        drawRight(formatMoney(cgstAmount), col.cgst, rowTop - 6, { size: 8 });
-        drawRight(formatMoney(sgstAmount), col.sgst, rowTop - 6, { size: 8 });
-      }
-      drawRight(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += taxAmount;
@@ -4754,24 +4736,74 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
-	    addPageIfNeeded(130);
-	    y -= 8;
-	    drawText(`Taxable Amount: ${formatMoney(grandGoods)}`, { bold: true, size: 10, x: 360, wrap: false });
-    if (isInterState) {
-      drawText(`IGST Amount: ${formatMoney(grandIgst)}`, { bold: true, size: 10, x: 360, wrap: false });
-    } else {
-      drawText(`CGST Amount: ${formatMoney(grandCgst)}`, { bold: true, size: 10, x: 360, wrap: false });
-      drawText(`SGST Amount: ${formatMoney(grandSgst)}`, { bold: true, size: 10, x: 360, wrap: false });
+    const minTableBodyHeight = 110;
+    const consumedBodyHeight = (headerBottom - 2) - y;
+    if (consumedBodyHeight < minTableBodyHeight) {
+      const fillerBottom = y - (minTableBodyHeight - consumedBodyHeight);
+      drawBox(tableLeft, fillerBottom, tableWidth, minTableBodyHeight - consumedBodyHeight);
+      for (const x of columnLines) drawLine(x, fillerBottom, x, y, 0.5);
+      y = fillerBottom;
     }
-	    drawText(`GST Amount: ${formatMoney(grandTax)}`, { bold: true, size: 10, x: 360, wrap: false });
-	    drawText(`Total Amount: ${formatMoney(grandTotal)}`, { bold: true, size: 12, x: 360, wrap: false });
-	    const terms = String(poRow.termsConditions ?? '').trim();
-	    if (terms) {
-      const termsTop = y + 66;
+
+    addPageIfNeeded(190);
+    y -= 18;
+    const summaryWidth = 200;
+    const summaryLeft = tableRight - summaryWidth;
+    const rowH = 26;
+    const summaryRows = isInterState
+      ? [
+          ['Taxable Subtotal', formatMoney(grandGoods)],
+          ['IGST (0%)', formatMoney(grandIgst)],
+          ['Grand Total', formatMoney(grandTotal)],
+        ]
+      : [
+          ['Taxable Subtotal', formatMoney(grandGoods)],
+          ['CGST (0%)', formatMoney(grandCgst)],
+          ['SGST (0%)', formatMoney(grandSgst)],
+          ['Grand Total', formatMoney(grandTotal)],
+        ];
+    const summaryTop = y;
+    const summaryHeight = summaryRows.length * rowH;
+    drawBox(summaryLeft, summaryTop - summaryHeight, summaryWidth, summaryHeight);
+    for (let i = 1; i < summaryRows.length; i += 1) {
+      drawLine(summaryLeft, summaryTop - i * rowH, summaryLeft + summaryWidth, summaryTop - i * rowH, 0.5);
+    }
+    page.drawRectangle({
+      x: summaryLeft,
+      y: summaryTop - summaryHeight,
+      width: summaryWidth,
+      height: rowH,
+      color: rgb(0.12, 0.18, 0.28),
+    });
+    for (let i = 0; i < summaryRows.length; i += 1) {
+      const [label, amount] = summaryRows[i];
+      const textY = summaryTop - (i + 1) * rowH + 9;
+      const isGrand = i === summaryRows.length - 1;
+      const color = isGrand ? rgb(1, 1, 1) : rgb(0.15, 0.2, 0.28);
+      page.drawText(label, {
+        x: summaryLeft + 10,
+        y: textY,
+        size: 8,
+        font: isGrand ? fontBold : font,
+        color,
+      });
+      const amt = `₹${amount}`;
+      const amtFont = isGrand ? fontBold : fontBold;
+      page.drawText(amt, {
+        x: summaryLeft + summaryWidth - 10 - amtFont.widthOfTextAtSize(amt, 9),
+        y: textY - 1,
+        size: 9,
+        font: amtFont,
+        color: isGrand ? rgb(1, 1, 1) : rgb(0, 0, 0),
+      });
+    }
+    y = summaryTop - summaryHeight - 14;
+
+    const terms = String(poRow.termsConditions ?? '').trim();
+    if (terms) {
       drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
-      drawText(terms, { size: 8, x: margin, maxWidth: 300 });
-      y = Math.min(y, termsTop - 70);
-	    }
+      drawText(terms, { size: 8, x: margin, maxWidth: 320 });
+    }
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');

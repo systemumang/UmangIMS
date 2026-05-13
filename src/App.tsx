@@ -397,14 +397,16 @@ export default function App() {
 				              }}
 				            />
 				          ) : null}
-			          {view === 'purchasing' ? (
-				            <PurchasingView
-				              onSelectRequest={(id) => {
-				                setDetailBackView('purchasing');
-				                setSelectedRequestId(id);
+	          {view === 'purchasing' ? (
+	            <PurchasingView
+	              onSelectRequest={(id) => {
+	                setDetailBackView('purchasing');
+	                setSelectedRequestId(id);
+                    setPrDetailScrollTarget('top');
+                    setPrDetailInitialView('full');
                         hideSidebarAfterViewChange();
-				                setView('purchaseRequestDetail');
-			              }}
+	                setView('purchaseRequestDetail');
+	              }}
 	                    onAddPurchaseRequest={() => {
 	                      setSelectedRequestId(null);
                         hideSidebarAfterViewChange();
