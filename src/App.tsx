@@ -48,6 +48,13 @@ import {
   fetchUsers,
 } from '@/src/lib/masters';
 import {
+  fetchOperationsGrns,
+  fetchOperationsInvoices,
+  fetchOperationsPayments,
+  fetchOperationsPos,
+  fetchOperationsPrs,
+} from '@/src/lib/operations';
+import {
   fetchQueueApprovePr,
   fetchQueueCheckPo,
   fetchQueueCreateGrn,
@@ -86,6 +93,7 @@ export default function App() {
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
+      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<'prs' | 'pos' | 'grns' | 'invoices' | 'payments', number>>>({});
 
 		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const inFlightRef = useRef(0);
@@ -158,6 +166,24 @@ export default function App() {
         const next: Partial<Record<PendingQueueKey, number>> = {};
         for (const [k, v] of pairs) next[k] = v;
         setPendingQueueCounts(next);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, [view]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    Promise.all([
+      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
+      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
+      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
+      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
+      fetchOperationsPayments(undefined, ac.signal).then((r) => ['payments', r.length] as const),
+    ])
+      .then((pairs) => {
+        const next: Partial<Record<'prs' | 'pos' | 'grns' | 'invoices' | 'payments', number>> = {};
+        for (const [k, v] of pairs) next[k] = v;
+        setPurchaseMastersCounts(next);
       })
       .catch(() => {});
     return () => ac.abort();
@@ -289,6 +315,7 @@ export default function App() {
 				        activePendingQueue={activePendingQueue}
                 pendingQueueCounts={pendingQueueCounts}
                 mastersCounts={mastersCounts}
+                purchaseMastersCounts={purchaseMastersCounts}
 			        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
 			        mastersExpanded={mastersExpanded}
 			        pendingExpanded={pendingExpanded}

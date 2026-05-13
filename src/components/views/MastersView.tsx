@@ -3322,7 +3322,7 @@ export default function MastersView({
 			            </button>
 			          </div>
 			          <div className="overflow-auto">
-			            <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
+			            <table className="min-w-[1100px] w-full text-sm border-collapse border border-blue-600">
 			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
 			                <tr>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
@@ -3893,11 +3893,12 @@ export default function MastersView({
 		          <div className="overflow-auto">
 		            <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
 		              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-			                <tr>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Item</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Item Link</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Video Link</th>
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Item</th>
+                          <th className="text-left px-3 py-2 border border-blue-600">Photo</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Item Link</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Video Link</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Re-Order Level</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
@@ -3906,12 +3907,36 @@ export default function MastersView({
 			                {items.map((it) => (
 			                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
-				                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
-				                    </td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[220px]">
-				                      {String((it as any).itemLink ?? '').trim() || '-'}
-				                    </td>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
+					                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
+					                    </td>
+                          <td className="px-3 py-2 text-on-surface border border-blue-600">
+                            {(() => {
+                              const photos = [
+                                String((it as any).photo1 ?? '').trim(),
+                                String((it as any).photo2 ?? '').trim(),
+                                String((it as any).photo3 ?? '').trim(),
+                                String((it as any).photo4 ?? '').trim(),
+                                String((it as any).photo5 ?? '').trim(),
+                              ].filter(Boolean);
+                              const src = photos[0] ?? '';
+                              if (!src) return '-';
+                              return (
+                                <img
+                                  src={src}
+                                  alt="Item"
+                                  className="w-10 h-10 object-cover rounded border border-outline-variant/30 bg-white"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              );
+                            })()}
+                          </td>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[220px]">
+					                      {String((it as any).itemLink ?? '').trim() || '-'}
+					                    </td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[220px]">
 				                      {String((it as any).videoLink ?? '').trim() || '-'}
 				                    </td>
