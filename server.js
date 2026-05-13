@@ -4738,14 +4738,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
-    const minTableBodyHeight = 28;
-    const consumedBodyHeight = (headerBottom - 2) - y;
-    if (consumedBodyHeight < minTableBodyHeight) {
-      const fillerBottom = y - (minTableBodyHeight - consumedBodyHeight);
-      drawBox(tableLeft, fillerBottom, tableWidth, minTableBodyHeight - consumedBodyHeight);
-      for (const x of columnLines) drawLine(x, fillerBottom, x, y, 0.8);
-      y = fillerBottom;
-    }
+    addPageIfNeeded(160);
 
     addPageIfNeeded(190);
     y -= 18;
