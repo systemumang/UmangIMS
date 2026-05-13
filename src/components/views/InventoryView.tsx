@@ -18,6 +18,7 @@ export default function InventoryView() {
   const [rows, setRows] = useState<InventorySheetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [pendingOrderOnly, setPendingOrderOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
@@ -171,7 +172,11 @@ export default function InventoryView() {
       fullLabel.includes(search.toLowerCase()) ||
       r.itemCode.toLowerCase().includes(search.toLowerCase());
 
-    if (!selectedStoreName) return bySearch;
+    const balance = Number((r as any).balance ?? 0);
+    const reorderLevel = Number((r as any).reorderLevel ?? 0);
+    const byPendingOrder = !pendingOrderOnly || balance <= reorderLevel;
+
+    if (!selectedStoreName) return bySearch && byPendingOrder;
     const rowStore = getStoreLabel(r).toLowerCase();
     const wanted = selectedStoreName.toLowerCase();
     const byStore = rowStore
@@ -179,7 +184,7 @@ export default function InventoryView() {
       .map((s) => s.trim())
       .filter(Boolean)
       .includes(wanted);
-    return bySearch && byStore;
+    return bySearch && byStore && byPendingOrder;
   });
   const sortedRows = [...filteredRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -218,7 +223,8 @@ export default function InventoryView() {
   const hasActiveFilters =
     Boolean(search.trim()) ||
     Boolean(selectedStoreFilterId) ||
-    selectedFirmId !== ALL_FIRMS_VALUE;
+    selectedFirmId !== ALL_FIRMS_VALUE ||
+    pendingOrderOnly;
 	  const onSort = (key: typeof sortBy) => {
 	    if (sortBy === key) {
 	      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -415,26 +421,39 @@ export default function InventoryView() {
 	          <div className="w-40">
 	            <label className={labelClass}>&nbsp;</label>
 	            <div className="flex items-center gap-2">
-	              <button
-	                type="button"
-	                onClick={() => {
-	                  setSelectedFirmId(ALL_FIRMS_VALUE);
-	                  setSearch('');
-	                  setSelectedStoreFilterId('');
-	                }}
-	                disabled={!hasActiveFilters}
+		              <button
+		                type="button"
+		                onClick={() => {
+		                  setSelectedFirmId(ALL_FIRMS_VALUE);
+		                  setSearch('');
+		                  setSelectedStoreFilterId('');
+                      setPendingOrderOnly(false);
+		                }}
+		                disabled={!hasActiveFilters}
 	                className="flex-1 h-[38px] px-3 rounded-lg border border-error bg-error text-on-primary text-sm font-semibold hover:bg-error/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 		              >
 		                Clear
 		              </button>
-		              <button type="button" className="btn btn-sm h-[38px] px-3" title="Download Excel" onClick={exportInventoryCsv}>
-		                Excel
-		              </button>
-		              <button type="button" className="btn btn-sm h-[38px] px-3" title="Download PDF" onClick={exportInventoryPdf}>
-		                Pdf
-		              </button>
-		            </div>
-		          </div>
+			              <button type="button" className="btn btn-sm h-[38px] px-3" title="Download Excel" onClick={exportInventoryCsv}>
+			                Excel
+			              </button>
+			              <button type="button" className="btn btn-sm h-[38px] px-3" title="Download PDF" onClick={exportInventoryPdf}>
+			                Pdf
+			              </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingOrderOnly((v) => !v)}
+                      className={cn(
+                        'h-[38px] px-3 rounded-lg border text-sm font-semibold transition-colors',
+                        pendingOrderOnly
+                          ? 'bg-error text-on-primary border-error hover:bg-error/90'
+                          : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-container-low'
+                      )}
+                    >
+                      Pending Order
+                    </button>
+			            </div>
+			          </div>
 		        </div>
         <button
           onClick={() => setShowOpeningModal(true)}
