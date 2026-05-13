@@ -284,6 +284,7 @@ CREATE TABLE items (
   photo_5 TEXT,
   item_link TEXT,
   video_link TEXT,
+  reorder_level DOUBLE,
   is_active INT NOT NULL DEFAULT 1,
   created_by VARCHAR(255),
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

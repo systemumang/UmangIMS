@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS items (
   photo_5 TEXT,
   item_link TEXT,
   video_link TEXT,
+  reorder_level REAL,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),

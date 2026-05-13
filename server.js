@@ -4319,9 +4319,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         po.shipping_address AS shippingAddress,
         po.terms_conditions AS termsConditions,
         f.name AS firmName,
+        f.address AS firmAddress,
+        f.gst_number AS firmGstNumber,
         st.name AS storeName,
         proj.name AS projectName,
-        s.name AS supplierName
+        s.name AS supplierName,
+        s.address AS supplierAddress,
+        s.gst_number AS supplierGstNumber
       FROM purchase_orders po
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN stores st ON st.id = po.store_id
@@ -4341,6 +4345,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         it.specifications_json AS specificationsJson,
         poi.quantity AS quantity,
         poi.rate AS rate,
+        poi.discount_percent AS discountPercent,
+        poi.tax_percent AS taxPercent,
+        poi.goods_amount AS goodsAmount,
+        poi.tax_amount AS taxAmount,
         poi.total_amount AS totalAmount
       FROM purchase_order_items poi
       LEFT JOIN items it ON it.id = poi.item_id
@@ -4386,16 +4394,22 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         label,
         quantity: Number(r.quantity ?? 0),
         rate: Number(r.rate ?? 0),
+        discountPercent: Number(r.discountPercent ?? 0),
+        taxPercent: Number(r.taxPercent ?? 0),
+        goodsAmount: Number(r.goodsAmount ?? 0),
+        taxAmount: Number(r.taxAmount ?? 0),
         totalAmount: Number(r.totalAmount ?? 0),
       };
     });
 
     const doc = await PDFDocument.create();
-    const page = doc.addPage([595.28, 841.89]); // A4
+    let page = doc.addPage([595.28, 841.89]); // A4
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
     const margin = 36;
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
     let y = 841.89 - margin;
 
     const wrapLines = (text, f, size, maxWidth) => {
@@ -4422,7 +4436,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const size = opts.size ?? 10;
       const f = opts.bold ? fontBold : font;
       const x = opts.x ?? margin;
-      const maxWidth = Math.max(10, opts.maxWidth ?? (595.28 - margin * 2));
+        const maxWidth = Math.max(10, opts.maxWidth ?? (pageWidth - margin * 2));
       const lineHeight = opts.lineHeight ?? size + 4;
       const color = opts.color ?? rgb(0, 0, 0);
 
@@ -4433,62 +4447,118 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       }
     };
 
+    const formatMoney = (value) => Number(value || 0).toFixed(2);
+    const formatNumber = (value) => {
+      const n = Number(value ?? 0);
+      return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
+    };
+    const formatDate = (value) => {
+      const iso = toIsoDate(value);
+      if (!iso) return '-';
+      const [year, month, day] = iso.split('-');
+      return `${day}/${month}/${year}`;
+    };
+    const drawBox = (x, boxY, width, height) => {
+      page.drawRectangle({ x, y: boxY, width, height, borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
+    };
+    const drawAt = (text, x, textY, opts = {}) => {
+      page.drawText(String(text ?? ''), {
+        x,
+        y: textY,
+        size: opts.size ?? 8,
+        font: opts.bold ? fontBold : font,
+        color: rgb(0, 0, 0),
+      });
+    };
+    const addPageIfNeeded = (requiredHeight = 80) => {
+      if (y >= margin + requiredHeight) return;
+      page = doc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
+    };
+
     const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
-    drawText(`Purchase Order (PO)`, { bold: true, size: 16 });
-    drawText(`PO No: ${poNumber || '-'}`, { bold: true, size: 12 });
-    drawText(`Date: ${poRow.orderDate ? String(poRow.orderDate) : '-'}`, { size: 10 });
+    drawText('PURCHASE ORDER', { bold: true, size: 16 });
+    drawText(`PO No: ${poNumber || '-'}`, { bold: true, size: 11 });
+    drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9 });
     y -= 4;
 
-    drawText(`Supplier: ${String(poRow.supplierName ?? '').trim() || '-'}`, { size: 10 });
-    drawText(`Firm: ${String(poRow.firmName ?? '').trim() || '-'}`, { size: 10 });
-    drawText(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, { size: 10 });
-    if (String(poRow.projectName ?? '').trim()) drawText(`Project: ${String(poRow.projectName).trim()}`, { size: 10 });
-    drawText(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, { size: 10 });
-    y -= 6;
+    const topY = y;
+    const halfWidth = (pageWidth - margin * 2 - 10) / 2;
+    drawBox(margin, topY - 78, halfWidth, 82);
+    drawBox(margin + halfWidth + 10, topY - 78, halfWidth, 82);
+    drawAt('Supplier', margin + 8, topY - 12, { bold: true, size: 9 });
+    drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
+    drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
+    drawAt(String(poRow.supplierAddress ?? '').trim() || '-', margin + 8, topY - 54, { size: 8 });
+
+    const firmX = margin + halfWidth + 10;
+    drawAt('Firm / Delivery', firmX + 8, topY - 12, { bold: true, size: 9 });
+    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
+    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
+    drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, topY - 54, { size: 8 });
+    if (String(poRow.projectName ?? '').trim()) drawAt(`Project: ${String(poRow.projectName).trim()}`, firmX + 8, topY - 68, { size: 8 });
+    y = topY - 92;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
     if (ship) {
-      drawText(`Shipping Address:`, { bold: true, size: 10 });
-      for (const line of ship.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)) drawText(line, { size: 10 });
+      drawText('Shipping Address:', { bold: true, size: 9 });
+      drawText(ship, { size: 8, maxWidth: pageWidth - margin * 2 });
       y -= 4;
     }
 
-    // Table header
-    const colX = { item: margin, qty: 420, rate: 470, total: 525 };
-    page.drawLine({ start: { x: margin, y: y + 2 }, end: { x: 595.28 - margin, y: y + 2 }, thickness: 1, color: rgb(0.2, 0.2, 0.2) });
-    drawText('Items', { bold: true, size: 11 });
-    const headerY = y + 14;
-    page.drawText('Qty', { x: colX.qty, y: headerY, size: 10, font: fontBold });
-    page.drawText('Rate', { x: colX.rate, y: headerY, size: 10, font: fontBold });
-    page.drawText('Amount', { x: colX.total, y: headerY, size: 10, font: fontBold });
-    y -= 6;
-    page.drawLine({ start: { x: margin, y }, end: { x: 595.28 - margin, y }, thickness: 1, color: rgb(0.2, 0.2, 0.2) });
-    y -= 14;
+    const col = { item: margin, qty: 260, rate: 305, disc: 355, gst: 400, taxable: 440, tax: 495, total: 540 };
+    const headerY = y;
+    page.drawRectangle({ x: margin, y: headerY - 16, width: pageWidth - margin * 2, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
+    drawAt('Item', col.item + 4, headerY - 10, { bold: true });
+    drawAt('Qty', col.qty, headerY - 10, { bold: true });
+    drawAt('Rate', col.rate, headerY - 10, { bold: true });
+    drawAt('Disc %', col.disc, headerY - 10, { bold: true });
+    drawAt('GST %', col.gst, headerY - 10, { bold: true });
+    drawAt('Taxable', col.taxable, headerY - 10, { bold: true });
+    drawAt('GST Amt', col.tax, headerY - 10, { bold: true });
+    drawAt('Total', col.total, headerY - 10, { bold: true });
+    y -= 30;
 
+    let grandGoods = 0;
+    let grandTax = 0;
     let grandTotal = 0;
     for (const it of items) {
-      if (y < margin + 80) break; // simple guard
-      const label = String(it.label ?? '').trim() || '-';
-      const rowY = y;
-
-      // Wrap item label to available width and keep numeric columns aligned to the first line.
-      y = rowY;
-      drawText(label, { x: colX.item, size: 9, maxWidth: colX.qty - margin - 8 });
-      const afterLabelY = y;
-
-      const firstLineY = rowY;
-      page.drawText(String(it.quantity ?? 0), { x: colX.qty, y: firstLineY, size: 9, font });
-      page.drawText(String(it.rate ?? 0), { x: colX.rate, y: firstLineY, size: 9, font });
-      page.drawText(String(it.totalAmount ?? 0), { x: colX.total, y: firstLineY, size: 9, font });
-
-      // Ensure we move past at least one row height even if label is short.
-      y = Math.min(afterLabelY, firstLineY - 14);
-
+      addPageIfNeeded(80);
+      const rowTop = y;
+      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.qty - margin - 8);
+      const rowHeight = Math.max(18, labelLines.length * 11 + 8);
+      drawBox(margin, rowTop - rowHeight + 6, pageWidth - margin * 2, rowHeight);
+      let labelY = rowTop - 6;
+      for (const line of labelLines) {
+        drawAt(line, col.item + 4, labelY, { size: 8 });
+        labelY -= 11;
+      }
+      drawAt(formatNumber(it.quantity), col.qty, rowTop - 6, { size: 8 });
+      drawAt(formatMoney(it.rate), col.rate, rowTop - 6, { size: 8 });
+      drawAt(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
+      drawAt(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
+      drawAt(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
+      drawAt(formatMoney(it.taxAmount), col.tax, rowTop - 6, { size: 8 });
+      drawAt(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
+      y -= rowHeight;
+      grandGoods += Number(it.goodsAmount ?? 0);
+      grandTax += Number(it.taxAmount ?? 0);
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
-    y -= 10;
-    drawText(`Total Amount: ${grandTotal.toFixed(2)}`, { bold: true, size: 12 });
+    addPageIfNeeded(110);
+    y -= 8;
+    drawText(`Taxable Amount: ${formatMoney(grandGoods)}`, { bold: true, size: 10, x: 360, wrap: false });
+    drawText(`GST Amount: ${formatMoney(grandTax)}`, { bold: true, size: 10, x: 360, wrap: false });
+    drawText(`Total Amount: ${formatMoney(grandTotal)}`, { bold: true, size: 12, x: 360, wrap: false });
+    y -= 6;
+    drawText(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, { bold: true, size: 9 });
+    const terms = String(poRow.termsConditions ?? '').trim();
+    if (terms) {
+      y -= 4;
+      drawText('Terms & Conditions:', { bold: true, size: 9 });
+      drawText(terms, { size: 8, maxWidth: pageWidth - margin * 2 });
+    }
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
@@ -6082,7 +6152,10 @@ app.get('/api/masters/items', async (_req, res) => {
         it.specifications_json AS specificationsJson,
         it.unique_key AS uniqueKey,
         it.description,
-        it.unit
+        it.unit,
+        it.item_link AS itemLink,
+        it.video_link AS videoLink,
+        it.reorder_level AS reorderLevel
       FROM items it
       JOIN item_names n ON n.id = it.item_name_id
       ORDER BY it.item_code
@@ -6118,9 +6191,10 @@ app.post('/api/masters/items', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
-             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit
-      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+	      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+	             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
+	             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+	      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
     );
@@ -6152,9 +6226,10 @@ app.put('/api/masters/items/:id', async (req, res) => {
     );
     const [rows] = await pool.query(
       `
-      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
-             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit
-      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
+	      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
+	             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
+	             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+	      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
     );

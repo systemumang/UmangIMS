@@ -67,6 +67,9 @@ export type Item = {
   uniqueKey: string;
   description?: string | null;
   unit?: string | null;
+  itemLink?: string | null;
+  videoLink?: string | null;
+  reorderLevel?: number | null;
 };
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
