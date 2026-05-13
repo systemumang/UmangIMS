@@ -4676,7 +4676,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       gst: tableLeft + 436,
       taxable: tableRight - 10,
     };
-    const columnLines = [tableLeft + 18, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474];
+    const columnLines = [tableLeft + 28, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474];
     const headerY = y;
     const headerBottom = headerY - 16;
     page.drawRectangle({
@@ -4686,10 +4686,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       height: 20,
       color: rgb(0.88, 0.9, 0.93),
       borderColor: rgb(0.72, 0.74, 0.78),
-      borderWidth: 0.8,
+      borderWidth: 0.9,
     });
-    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 0.5);
-    drawAt('#', tableLeft + 6, headerY - 10, { bold: true, size: 8 });
+    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 0.8);
+    drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
     drawAt('Item Description', col.item + 2, headerY - 10, { bold: true, size: 8 });
     drawRight('Qty', col.qty, headerY - 10, { bold: true, size: 8 });
     drawRight('Rate', col.rate, headerY - 10, { bold: true, size: 8 });
@@ -4715,8 +4715,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const igstAmount = isInterState ? taxAmount : 0;
       const rowBottom = rowTop - rowHeight + 6;
       drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
-      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 0.5);
-      drawRight(String(itemIndex + 1), tableLeft + 14, rowTop - 6, { size: 8 });
+      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 0.8);
+      drawRight(String(itemIndex + 1), tableLeft + 22, rowTop - 6, { size: 8 });
       let labelY = rowTop - 6;
       for (const line of labelLines) {
         drawAt(line, col.item + 2, labelY, { size: 8, bold: labelY === rowTop - 6 });
@@ -4736,12 +4736,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       grandTotal += Number(it.totalAmount ?? 0);
     }
 
-    const minTableBodyHeight = 110;
+    const minTableBodyHeight = 28;
     const consumedBodyHeight = (headerBottom - 2) - y;
     if (consumedBodyHeight < minTableBodyHeight) {
       const fillerBottom = y - (minTableBodyHeight - consumedBodyHeight);
       drawBox(tableLeft, fillerBottom, tableWidth, minTableBodyHeight - consumedBodyHeight);
-      for (const x of columnLines) drawLine(x, fillerBottom, x, y, 0.5);
+      for (const x of columnLines) drawLine(x, fillerBottom, x, y, 0.8);
       y = fillerBottom;
     }
 
