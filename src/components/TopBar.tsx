@@ -19,7 +19,12 @@ export default function TopBar({
       <div className="flex items-center gap-6">
         <button
           type="button"
-          className="text-on-surface-variant hover:text-on-surface transition-colors p-1.5 rounded-full hover:bg-surface-container-high"
+          className={[
+            'transition-colors p-1.5 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary/40',
+            sidebarOpen
+              ? 'bg-primary text-white border-white/70 hover:bg-primary-dim'
+              : 'bg-white text-primary border-primary hover:bg-blue-50',
+          ].join(' ')}
           aria-label={sidebarOpen ? 'Hide menu' : 'Show menu'}
           title={sidebarOpen ? 'Hide menu' : 'Show menu'}
           onClick={onToggleSidebar}
