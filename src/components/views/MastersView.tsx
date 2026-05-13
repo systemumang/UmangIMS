@@ -536,12 +536,12 @@ export default function MastersView({
             setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
 		        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
-	          const next = Object.entries(obj)
-	            .map(([k, v]) => ({
-	              specificationId: specIdByName[k] ?? '',
-	              value: String(v ?? ''),
-	              useCustom: false,
-	            }))
+		          const next = Object.entries(obj)
+		            .map(([k, v]) => ({
+		              specificationId: specNameLookup[k] ? k : specIdByName[k] ?? '',
+		              value: String(v ?? ''),
+		              useCustom: false,
+		            }))
 	            .filter((r) => r.value.trim());
 	          setNewItemSpecs(next.length ? next : [{ specificationId: '', value: '', useCustom: false }]);
 	          next.forEach((r) => {
