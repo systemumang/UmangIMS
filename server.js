@@ -4669,16 +4669,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const tableLeft = margin;
     const tableRight = pageWidth - margin;
     const tableWidth = tableRight - tableLeft;
+    const colBounds = [tableLeft, tableLeft + 36, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474, tableRight];
     const col = {
-      serial: tableLeft + 28,
-      item: tableLeft + 30,
-      qty: tableLeft + 250,
-      rate: tableLeft + 322,
-      disc: tableLeft + 385,
-      gst: tableLeft + 436,
-      taxable: tableRight - 10,
+      serialLeft: colBounds[0],
+      serialRight: colBounds[1],
+      itemLeft: colBounds[1],
+      itemRight: colBounds[2],
+      qtyRight: colBounds[3],
+      rateRight: colBounds[4],
+      discRight: colBounds[5],
+      gstRight: colBounds[6],
+      taxableRight: colBounds[7],
     };
-    const columnLines = [tableLeft + 28, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474];
     const headerY = y;
     const headerBottom = headerY - 16;
     page.drawRectangle({
@@ -4690,14 +4692,16 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       borderColor: rgb(0, 0, 0),
       borderWidth: 1,
     });
-    for (const x of columnLines) drawLine(x, headerBottom, x, headerBottom + 20, 1);
+    for (const x of colBounds) drawLine(x, headerBottom, x, headerBottom + 20, 1);
+    drawLine(tableLeft, headerBottom + 20, tableRight, headerBottom + 20, 1);
+    drawLine(tableLeft, headerBottom, tableRight, headerBottom, 1);
     drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
-    drawAt('Item Description', col.item + 2, headerY - 10, { bold: true, size: 8 });
-    drawRight('Qty', col.qty, headerY - 10, { bold: true, size: 8 });
-    drawRight('Rate', col.rate, headerY - 10, { bold: true, size: 8 });
-    drawRight('Disc %', col.disc, headerY - 10, { bold: true, size: 8 });
-    drawRight('GST %', col.gst, headerY - 10, { bold: true, size: 8 });
-    drawRight('Taxable Amt', col.taxable, headerY - 10, { bold: true, size: 8 });
+    drawAt('Item Description', col.itemLeft + 4, headerY - 10, { bold: true, size: 8 });
+    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
+    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
+    drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
+    drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
+    drawRight('Taxable Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
     let grandGoods = 0;
@@ -4710,7 +4714,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     for (const [itemIndex, it] of items.entries()) {
       addPageIfNeeded(80);
       const rowTop = y;
-      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.qty - col.item - 8);
+      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.itemRight - col.itemLeft - 8);
       const rowHeight = Math.max(18, labelLines.length * 11 + 8);
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
@@ -4718,18 +4722,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const igstAmount = isInterState ? taxAmount : 0;
       const rowBottom = rowTop - rowHeight + 6;
       drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
-      for (const x of columnLines) drawLine(x, rowBottom, x, rowBottom + rowHeight, 1);
-      drawRight(String(itemIndex + 1), tableLeft + 22, rowTop - 6, { size: 8 });
+      for (const x of colBounds) drawLine(x, rowBottom, x, rowBottom + rowHeight, 1);
+      drawRight(String(itemIndex + 1), col.serialRight - 4, rowTop - 6, { size: 8 });
       let labelY = rowTop - 6;
       for (const line of labelLines) {
-        drawAt(line, col.item + 2, labelY, { size: 8, bold: labelY === rowTop - 6 });
+        drawAt(line, col.itemLeft + 4, labelY, { size: 8, bold: labelY === rowTop - 6 });
         labelY -= 11;
       }
-      drawRight(formatNumber(it.quantity), col.qty, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(it.rate), col.rate, rowTop - 6, { size: 8 });
-      drawRight(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
-      drawRight(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.discountPercent), col.discRight - 4, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.taxPercent), col.gstRight - 4, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += taxAmount;
