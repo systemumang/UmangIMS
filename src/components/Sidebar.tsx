@@ -104,9 +104,9 @@ export default function Sidebar({
 	}) {
   const borderClass = 'border-2 border-[#1f2937]';
   const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
-  const sectionRowClass = cn(baseRowClass, 'bg-surface-container-high text-on-surface hover:border-[#111827]');
-  const viewRowClass = cn(baseRowClass, 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:border-[#111827]');
-  const activeRowClass = 'bg-primary/15 text-on-surface font-semibold border-[#111827] shadow-[inset_0_0_0_1px_#111827]';
+  const sectionRowClass = cn(baseRowClass, 'bg-[#1d4ed8] text-white hover:bg-[#1e40af] border-[#1f2937]');
+  const viewRowClass = cn(baseRowClass, 'bg-[#1d4ed8] text-white hover:bg-[#1e40af] border-[#1f2937]');
+  const activeRowClass = 'bg-[#dc2626] text-white font-semibold border-[#7f1d1d] shadow-[inset_0_0_0_1px_#7f1d1d]';
 
 	  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
   const subActiveClass = 'bg-primary/10 text-on-surface border-[#111827]';
@@ -131,14 +131,14 @@ export default function Sidebar({
 
 	      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
-            <LayoutDashboard className={cn('mr-3', activeView === 'dashboard' ? 'text-on-surface' : 'text-on-surface-variant')} size={18} />
+            <LayoutDashboard className="mr-3 text-white" size={18} />
             <span className="flex-1">Dashboard</span>
           </motion.button>
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
-            <Database className={cn('mr-3', activeView === 'masters' ? 'text-on-surface' : 'text-on-surface')} size={18} />
+            <Database className="mr-3 text-white" size={18} />
             <span className="flex-1">Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', mastersExpanded ? 'rotate-180' : 'rotate-0', activeView === 'masters' ? 'text-on-surface' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', mastersExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
           {mastersExpanded ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -156,9 +156,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('pendingTasks')} className={cn(sectionRowClass, pendingExpanded ? activeRowClass : '')}>
-            <ClipboardList className={cn('mr-3', pendingExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
+            <ClipboardList className="mr-3 text-white" size={18} />
             <span className="flex-1">Pending Tasks</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', pendingExpanded ? 'rotate-180' : 'rotate-0', pendingExpanded ? 'text-on-surface' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', pendingExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
           {pendingExpanded && onNavigatePendingQueue ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -192,9 +192,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('stockMaster')} className={cn(sectionRowClass, stockMasterExpanded ? activeRowClass : '')}>
-            <Package className={cn('mr-3', stockMasterExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
+            <Package className="mr-3 text-white" size={18} />
             <span className="flex-1">Stock</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', stockMasterExpanded ? 'rotate-180' : 'rotate-0', stockMasterExpanded ? 'text-on-surface' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', stockMasterExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
           {stockMasterExpanded && onNavigateStockView ? (
             <div className="ml-7 mr-1 space-y-1">
@@ -232,9 +232,9 @@ export default function Sidebar({
           ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
-            <ShoppingCart className={cn('mr-3', purchaseMastersExpanded ? 'text-on-surface' : 'text-on-surface')} size={18} />
+            <ShoppingCart className="mr-3 text-white" size={18} />
             <span className="flex-1">Purchase Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0', purchaseMastersExpanded ? 'text-on-surface' : 'text-on-surface')} />
+            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
 	          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
 	            <div className="ml-7 mr-1 space-y-1">
