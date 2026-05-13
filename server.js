@@ -4409,6 +4409,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         po.terms_conditions AS termsConditions,
         f.name AS firmName,
         f.address AS firmAddress,
+        f.terms_conditions AS firmTermsConditions,
         f.gst_number AS firmGstNumber,
         f.logo_url AS firmLogoUrl,
         st.name AS storeName,
@@ -4701,7 +4702,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
     drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
     drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('Taxable Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
     let grandGoods = 0;
@@ -4812,7 +4813,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
     y = summaryTop - summaryHeight - 12;
 
-    const terms = String(poRow.termsConditions ?? '').trim();
+    const terms = String(poRow.termsConditions ?? poRow.firmTermsConditions ?? '').trim();
     if (terms) {
       drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
       drawText(terms, { size: 8, x: margin, maxWidth: 320 });
