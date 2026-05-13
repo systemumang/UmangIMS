@@ -628,6 +628,7 @@ export async function createItem(input: {
   itemNameId: string;
   unit?: string;
   description?: string;
+  reorderLevel?: number | null;
   specs: Array<{ specificationId: string; value: string }>;
   createdBy?: string;
 }) {
@@ -641,7 +642,14 @@ export async function createItem(input: {
 
 export async function updateItem(
   id: string,
-  input: { itemNameId: string; unit?: string; description?: string; specs: Array<{ specificationId: string; value: string }>; updatedBy?: string }
+  input: {
+    itemNameId: string;
+    unit?: string;
+    description?: string;
+    reorderLevel?: number | null;
+    specs: Array<{ specificationId: string; value: string }>;
+    updatedBy?: string;
+  }
 ) {
   const res = await fetch(`/api/masters/items/${encodeURIComponent(id)}`, {
     method: 'PUT',

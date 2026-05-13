@@ -740,8 +740,7 @@ function OpeningStockModal({
                   <thead className="bg-surface-container-high text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                     <tr>
                       <th className="p-3 border-b border-black border-r border-black">Item Details</th>
-                      <th className="p-3 border-b border-black border-r border-black text-right w-40">Opening Quantity</th>
-                      <th className="p-3 border-b border-black text-right w-40">Re-Order Level</th>
+                      <th className="p-3 border-b border-black text-right w-40">Opening Quantity</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black">
@@ -755,22 +754,12 @@ function OpeningStockModal({
                             {getFullItemLabel(item, specNameById)}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-black">
+                        <td className="p-2">
                           <input
                             type="number"
                             min="0"
                             value={balances[item.id] ?? ''}
                             onChange={(e) => setBalances(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 }))}
-                            className={cn(inputClass, 'text-right')}
-                            placeholder="0.00"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={reorderLevels[item.id] ?? ''}
-                            onChange={(e) => setReorderLevels(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 }))}
                             className={cn(inputClass, 'text-right')}
                             placeholder="0.00"
                           />

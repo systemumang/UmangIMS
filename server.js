@@ -4470,6 +4470,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         color: rgb(0, 0, 0),
       });
     };
+    const drawRight = (text, rightX, textY, opts = {}) => {
+      const size = opts.size ?? 8;
+      const f = opts.bold ? fontBold : font;
+      const value = String(text ?? '');
+      page.drawText(value, {
+        x: rightX - f.widthOfTextAtSize(value, size),
+        y: textY,
+        size,
+        font: f,
+        color: rgb(0, 0, 0),
+      });
+    };
     const addPageIfNeeded = (requiredHeight = 80) => {
       if (y >= margin + requiredHeight) return;
       page = doc.addPage([pageWidth, pageHeight]);
@@ -4506,17 +4518,26 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       y -= 4;
     }
 
-    const col = { item: margin, qty: 260, rate: 305, disc: 355, gst: 400, taxable: 440, tax: 495, total: 540 };
+    const col = {
+      item: margin,
+      qty: 285,
+      rate: 330,
+      disc: 375,
+      gst: 415,
+      taxable: 470,
+      tax: 520,
+      total: pageWidth - margin - 4,
+    };
     const headerY = y;
     page.drawRectangle({ x: margin, y: headerY - 16, width: pageWidth - margin * 2, height: 20, color: rgb(0.9, 0.94, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.8 });
     drawAt('Item', col.item + 4, headerY - 10, { bold: true });
-    drawAt('Qty', col.qty, headerY - 10, { bold: true });
-    drawAt('Rate', col.rate, headerY - 10, { bold: true });
-    drawAt('Disc %', col.disc, headerY - 10, { bold: true });
-    drawAt('GST %', col.gst, headerY - 10, { bold: true });
-    drawAt('Taxable', col.taxable, headerY - 10, { bold: true });
-    drawAt('GST Amt', col.tax, headerY - 10, { bold: true });
-    drawAt('Total', col.total, headerY - 10, { bold: true });
+    drawRight('Qty', col.qty, headerY - 10, { bold: true });
+    drawRight('Rate', col.rate, headerY - 10, { bold: true });
+    drawRight('Disc %', col.disc, headerY - 10, { bold: true });
+    drawRight('GST %', col.gst, headerY - 10, { bold: true });
+    drawRight('Taxable', col.taxable, headerY - 10, { bold: true });
+    drawRight('GST Amt', col.tax, headerY - 10, { bold: true });
+    drawRight('Total', col.total, headerY - 10, { bold: true });
     y -= 30;
 
     let grandGoods = 0;
@@ -4533,13 +4554,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         drawAt(line, col.item + 4, labelY, { size: 8 });
         labelY -= 11;
       }
-      drawAt(formatNumber(it.quantity), col.qty, rowTop - 6, { size: 8 });
-      drawAt(formatMoney(it.rate), col.rate, rowTop - 6, { size: 8 });
-      drawAt(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
-      drawAt(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
-      drawAt(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
-      drawAt(formatMoney(it.taxAmount), col.tax, rowTop - 6, { size: 8 });
-      drawAt(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.quantity), col.qty, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.rate), col.rate, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.discountPercent), col.disc, rowTop - 6, { size: 8 });
+      drawRight(formatNumber(it.taxPercent), col.gst, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.goodsAmount), col.taxable, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.taxAmount), col.tax, rowTop - 6, { size: 8 });
+      drawRight(formatMoney(it.totalAmount), col.total, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += Number(it.taxAmount ?? 0);
@@ -6175,6 +6196,14 @@ app.post('/api/masters/items', async (req, res) => {
     if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
     const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
     const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const reorderLevelRaw = req.body?.reorderLevel;
+    const reorderLevel =
+      reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
+        ? null
+        : Math.max(0, Number(reorderLevelRaw));
+    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
+      return res.status(400).json({ error: 'reorderLevel must be a number' });
+    }
     const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
 
@@ -6185,8 +6214,8 @@ app.post('/api/masters/items', async (req, res) => {
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
     await pool.query(
-      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, createdBy]
+      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, Number.isFinite(reorderLevel) ? reorderLevel : null, createdBy]
     );
 
     const [rows] = await pool.query(
@@ -6216,13 +6245,21 @@ app.put('/api/masters/items/:id', async (req, res) => {
     if (!itemNameId) return res.status(400).json({ error: 'itemNameId is required' });
     const unit = req.body?.unit != null ? String(req.body.unit).trim() : null;
     const description = req.body?.description != null ? String(req.body.description).trim() : null;
+    const reorderLevelRaw = req.body?.reorderLevel;
+    const reorderLevel =
+      reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
+        ? null
+        : Math.max(0, Number(reorderLevelRaw));
+    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
+      return res.status(400).json({ error: 'reorderLevel must be a number' });
+    }
     const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
     await pool.query(
-      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [itemNameId, specificationsJson, uniqueKey, description, unit, updatedBy, id]
+      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, reorder_level=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [itemNameId, specificationsJson, uniqueKey, description, unit, Number.isFinite(reorderLevel) ? reorderLevel : null, updatedBy, id]
     );
     const [rows] = await pool.query(
       `
@@ -6837,7 +6874,7 @@ app.post('/api/masters/specification-values/import', async (req, res) => {
 
 // Items
 app.get('/api/masters/items/template', async (_req, res) => {
-  csvTemplateResponse(res, 'items-template.csv', 'itemName,unit,description,specs');
+  csvTemplateResponse(res, 'items-template.csv', 'itemName,unit,description,specs,Re-Order Level');
 });
 app.post('/api/masters/items/import', async (req, res) => {
   try {
@@ -6858,6 +6895,8 @@ app.post('/api/masters/items/import', async (req, res) => {
         const itemName = String(r.itemName ?? '').trim();
         const unit = r.unit != null ? String(r.unit).trim() : '';
         const description = r.description != null ? String(r.description).trim() : '';
+        const reorderRaw = r['Re-Order Level'] ?? r.reorderLevel ?? r.reorder_level ?? '';
+        const reorderLevel = String(reorderRaw ?? '').trim();
         const specsRaw = String(r.specs ?? '').trim();
         const specs = [];
         if (specsRaw) {
@@ -6873,7 +6912,7 @@ app.post('/api/masters/items/import', async (req, res) => {
         }
         const itemNameId = itemNameIdByName.get(normalizeKey(itemName)) || null;
         if (itemName && !itemNameId) unknownItemNames.add(itemName);
-        return { itemName, itemNameId, unit, description, specs };
+        return { itemName, itemNameId, unit, description, reorderLevel, specs };
       })
       .filter((r) => r.itemName);
 
@@ -6907,9 +6946,19 @@ app.post('/api/masters/items/import', async (req, res) => {
       const specsObj = Object.fromEntries((r.specs || []).filter((s) => s.specId).map((s) => [String(s.specId), String(s.value)]));
       const specificationsJson = JSON.stringify(specsObj);
       const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+      const parsedReorderLevel = r.reorderLevel ? Number(r.reorderLevel) : null;
       await pool.query(
-        'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-        [id, itemNameId, itemCode, specificationsJson, uniqueKey, r.description || null, r.unit || null]
+        'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        [
+          id,
+          itemNameId,
+          itemCode,
+          specificationsJson,
+          uniqueKey,
+          r.description || null,
+          r.unit || null,
+          Number.isFinite(parsedReorderLevel) ? Math.max(0, parsedReorderLevel) : null,
+        ]
       );
     }
 

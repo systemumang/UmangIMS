@@ -95,10 +95,11 @@ type PendingItemUploadRow = {
   description: string;
   unitName: string;
   itemCategoryName: string;
+  reorderLevel: string;
   specs: Array<{ specificationId: string; value: string }>;
 };
 type ItemUploadIssue = {
-  type: 'duplicate_in_file' | 'already_exists' | 'unit_mismatch' | 'item_name_missing' | 'create_failed';
+  type: 'duplicate_in_file' | 'already_exists' | 'unit_mismatch' | 'item_name_missing' | 'invalid_reorder_level' | 'create_failed';
   combination: string;
   message: string;
 };
@@ -224,6 +225,7 @@ export default function MastersView({
   const [newItemItemNameId, setNewItemItemNameId] = useState('');
   const [newItemUnit, setNewItemUnit] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string; useCustom?: boolean }>>([
     { specificationId: '', value: '', useCustom: false },
   ]);
@@ -423,11 +425,12 @@ export default function MastersView({
 			      setNewSpecValue('');
 		      setNewSpecValueSpecId(specIdForValues || '');
 		    }
-	    if (tab === 'items') {
-	      setNewItemUnit('');
-	      setNewItemDescription('');
-	      setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-	    }
+    if (tab === 'items') {
+      setNewItemUnit('');
+      setNewItemDescription('');
+      setNewItemReorderLevel('');
+      setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+    }
 	    setAddOpen(true);
 	  };
 
@@ -526,10 +529,12 @@ export default function MastersView({
 	    }
 	    if (tab === 'items') {
 	      const row = items.find((it) => it.id === id);
-	      if (row) {
-	        setNewItemItemNameId(row.itemNameId);
-	        setNewItemDescription(row.description ?? '');
-	        try {
+		      if (row) {
+		        setNewItemItemNameId(row.itemNameId);
+            setNewItemUnit(row.unit ?? '');
+		        setNewItemDescription(row.description ?? '');
+            setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
+		        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
 	          const next = Object.entries(obj)
 	            .map(([k, v]) => ({
@@ -744,22 +749,28 @@ export default function MastersView({
               })
               .filter(Boolean)
           );
-          const inFileSignatures = new Set<string>();
-          const duplicateInFileRows: string[] = [];
-          const duplicateExistingRows: string[] = [];
-          for (const row of rows) {
-            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
-            if (!itemNameId) continue;
-            const sig = makeSignature(itemNameId, row.specs);
-            const comboLabel = formatCombo(row.itemName, row.specs);
-            if (inFileSignatures.has(sig)) duplicateInFileRows.push(comboLabel);
-            inFileSignatures.add(sig);
-            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
-          }
-          if (duplicateInFileRows.length || duplicateExistingRows.length) {
-            const dupInFile = Array.from(new Set(duplicateInFileRows));
-            const dupExisting = Array.from(new Set(duplicateExistingRows));
-            const issues: ItemUploadIssue[] = [
+	          const inFileSignatures = new Set<string>();
+	          const duplicateInFileRows: string[] = [];
+	          const duplicateExistingRows: string[] = [];
+          const invalidReorderRows: string[] = [];
+	          for (const row of rows) {
+	            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
+	            if (!itemNameId) continue;
+	            const sig = makeSignature(itemNameId, row.specs);
+	            const comboLabel = formatCombo(row.itemName, row.specs);
+            if (row.reorderLevel.trim()) {
+              const reorderLevelNumber = Number(row.reorderLevel);
+              if (!Number.isFinite(reorderLevelNumber) || reorderLevelNumber < 0) invalidReorderRows.push(comboLabel);
+            }
+	            if (inFileSignatures.has(sig)) duplicateInFileRows.push(comboLabel);
+	            inFileSignatures.add(sig);
+	            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
+	          }
+	          if (duplicateInFileRows.length || duplicateExistingRows.length || invalidReorderRows.length) {
+	            const dupInFile = Array.from(new Set(duplicateInFileRows));
+	            const dupExisting = Array.from(new Set(duplicateExistingRows));
+            const invalidReorder = Array.from(new Set(invalidReorderRows));
+	            const issues: ItemUploadIssue[] = [
               ...dupInFile.map((combination) => ({
                 type: 'duplicate_in_file' as const,
                 combination,
@@ -767,10 +778,15 @@ export default function MastersView({
               })),
               ...dupExisting.map((combination) => ({
                 type: 'already_exists' as const,
+	                combination,
+	                message: 'This item combination already exists in system.',
+	              })),
+              ...invalidReorder.map((combination) => ({
+                type: 'invalid_reorder_level' as const,
                 combination,
-                message: 'This item combination already exists in system.',
+                message: 'Re-Order Level must be blank or a non-negative number.',
               })),
-            ];
+	            ];
             setItemUploadIssues(issues);
             setTemplateError('Validation failed. Please correct the template and upload again.');
             setTemplateInfo(null);
@@ -827,6 +843,7 @@ export default function MastersView({
                 itemNameId,
                 unit: row.unitName || undefined,
                 description: row.description || undefined,
+                reorderLevel: row.reorderLevel.trim() ? Number(row.reorderLevel) : null,
                 specs: row.specs,
                 createdBy: 'system',
               });
@@ -888,14 +905,15 @@ export default function MastersView({
             setTemplateInfo(null);
             setItemUploadIssues([]);
             if (tab === 'items') {
-              const specColumns = specs.map((s) => s.name);
-              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns];
-              const sampleRow: Record<string, string> = {
-                item_name: '',
-                description: '',
-                unit: '',
-                item_category: '',
-              };
+	              const specColumns = specs.map((s) => s.name);
+	              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Re-Order Level'];
+	              const sampleRow: Record<string, string> = {
+	                item_name: '',
+	                description: '',
+	                unit: '',
+	                item_category: '',
+                  'Re-Order Level': '',
+	              };
               for (const col of specColumns) sampleRow[col] = '';
               downloadTextFile('items-template.csv', toCsv(header, [sampleRow]), 'text/csv; charset=utf-8');
               setTemplateInfo('Template downloaded.');
@@ -930,8 +948,14 @@ export default function MastersView({
               const itemNameColumn = headerMap.get('item_name') ?? headerMap.get('itemname') ?? headerMap.get('item name');
               if (!itemNameColumn) throw new Error('Missing required column: item_name');
               const descriptionColumn = headerMap.get('description') ?? '';
-              const unitColumn = headerMap.get('unit') ?? '';
-              const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
+	              const unitColumn = headerMap.get('unit') ?? '';
+	              const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
+              const reorderColumn =
+                headerMap.get('re-order level') ??
+                headerMap.get('reorder level') ??
+                headerMap.get('reorder_level') ??
+                headerMap.get('reorderlevel') ??
+                '';
               const specIdByColumn = new Map<string, string>();
               for (const s of specs) {
                 const col = headerMap.get(normalizeKey(s.name));
@@ -941,12 +965,13 @@ export default function MastersView({
                 .map((r) => {
                   const itemName = String(r[itemNameColumn] ?? '').trim();
                   const description = descriptionColumn ? String(r[descriptionColumn] ?? '').trim() : '';
-                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
-                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
-                  const rowSpecs = Array.from(specIdByColumn.entries())
+	                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
+	                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
+                  const reorderLevel = reorderColumn ? String(r[reorderColumn] ?? '').trim() : '';
+	                  const rowSpecs = Array.from(specIdByColumn.entries())
                     .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
                     .filter((x) => x.value);
-                  return { itemName, description, unitName, itemCategoryName, specs: rowSpecs };
+	                  return { itemName, description, unitName, itemCategoryName, reorderLevel, specs: rowSpecs };
                 })
                 .filter((r) => r.itemName);
               if (!rows.length) throw new Error('No valid item rows found in file.');
@@ -1094,7 +1119,7 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'items') {
-            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name)];
+	            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Re-Order Level'];
             const rows = items.map((it) => {
               const specObj = (() => {
                 try {
@@ -1111,9 +1136,10 @@ export default function MastersView({
                 item_name: it.itemName,
                 description: it.description ?? '',
                 unit: it.unit ?? '',
-                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
-                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
-              };
+	                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
+	                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
+                  'Re-Order Level': it.reorderLevel ?? '',
+	              };
             });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
@@ -2761,23 +2787,36 @@ export default function MastersView({
 	                      </div>
 	                    ))}
 
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
-                    >
-                      + Add Spec Row
-                    </button>
-                  </div>
+	                    <button
+	                      type="button"
+	                      className="btn btn-sm"
+	                      onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
+	                    >
+	                      + Add Spec Row
+	                    </button>
+	                  </div>
 
-	                  <div className="flex justify-end gap-2">
+                    <label className="space-y-1">
+                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                        value={newItemReorderLevel}
+                        onChange={(e) => setNewItemReorderLevel(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </label>
+
+		                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
 	                      onClick={() => {
-	                        setNewItemUnit('');
-	                        setNewItemDescription('');
-	                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+		                        setNewItemUnit('');
+		                        setNewItemDescription('');
+                            setNewItemReorderLevel('');
+		                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
 	                        closeModal();
 	                      }}
 	                    >
@@ -2798,24 +2837,27 @@ export default function MastersView({
 	                        const fn = isEditing
 	                          ? updateItem(editCtx?.id ?? '', {
 	                              itemNameId: newItemItemNameId,
-	                              unit: newItemUnit,
-	                              description: newItemDescription,
-	                              specs: newItemSpecs,
+		                              unit: newItemUnit,
+		                              description: newItemDescription,
+                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+		                              specs: newItemSpecs,
 	                              updatedBy: 'system',
 	                            })
 	                          : createItem({
 	                              itemNameId: newItemItemNameId,
-	                              unit: newItemUnit,
-	                              description: newItemDescription,
-	                              specs: newItemSpecs,
+		                              unit: newItemUnit,
+		                              description: newItemDescription,
+                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+		                              specs: newItemSpecs,
 	                              createdBy: 'system',
 	                            });
 	                        fn
 	                          .then(() => fetchItems().then(setItems))
 	                          .then(() => {
-	                            setNewItemUnit('');
-	                            setNewItemDescription('');
-	                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+		                            setNewItemUnit('');
+		                            setNewItemDescription('');
+                                setNewItemReorderLevel('');
+		                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
 	                            closeModal();
 	                          })
 	                          .catch((e) => setError(e instanceof Error ? e.message : String(e)))
