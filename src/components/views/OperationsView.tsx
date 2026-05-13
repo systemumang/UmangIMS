@@ -94,7 +94,11 @@ export default function OperationsView({
 	  const [pos, setPos] = useState<OperationsPoListRow[]>([]);
 	  const [grns, setGrns] = useState<OperationsGrnListRow[]>([]);
 	  const [invoices, setInvoices] = useState<OperationsInvoiceListRow[]>([]);
-	  const [payments, setPayments] = useState<OperationsPaymentListRow[]>([]);
+  const [payments, setPayments] = useState<OperationsPaymentListRow[]>([]);
+  const [expandedPoIds, setExpandedPoIds] = useState<string[]>([]);
+  const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
+  const [inlinePoLoadingById, setInlinePoLoadingById] = useState<Record<string, boolean>>({});
+  const [inlinePoErrorById, setInlinePoErrorById] = useState<Record<string, string>>({});
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {
@@ -169,6 +173,10 @@ export default function OperationsView({
     setGrns([]);
     setInvoices([]);
     setPayments([]);
+    setExpandedPoIds([]);
+    setInlinePoDetailById({});
+    setInlinePoLoadingById({});
+    setInlinePoErrorById({});
     setDetailOpen(false);
   }, [tab]);
 
@@ -288,21 +296,37 @@ export default function OperationsView({
 	      });
 	  }
 
-		  function openDetailForRow(row: any) {
+  function openDetailForRow(row: any) {
 		    const entry = entryFromRow(row);
 		    // PR rows can optionally open the full Purchase Request detail screen.
 		    if (entry.tab === 'prs' && typeof onViewPr === 'function') {
 		      onViewPr(entry.id);
 		      return;
 		    }
-		    // PO rows open full Purchase Request detail and auto-scroll to Existing POs.
-		    if (tab === 'pos' && typeof onViewPr === 'function') {
-		      const prId = String(row?.prId ?? '').trim();
-		      if (prId) {
-		        onViewPr(prId, { scrollTo: 'existingPos', view: 'full' });
-		        return;
-		      }
-		    }
+    // PO rows expand inline in table with item details.
+    if (tab === 'pos') {
+      const poId = String(row?.poId ?? '').trim();
+      if (!poId) return;
+      setExpandedPoIds((prev) => (prev.includes(poId) ? prev.filter((x) => x !== poId) : [...prev, poId]));
+      if (!inlinePoDetailById[poId] && !inlinePoLoadingById[poId]) {
+        setInlinePoLoadingById((prev) => ({ ...prev, [poId]: true }));
+        setInlinePoErrorById((prev) => {
+          const next = { ...prev };
+          delete next[poId];
+          return next;
+        });
+        fetchOperationsPoDetail(poId)
+          .then((d) => setInlinePoDetailById((prev) => ({ ...prev, [poId]: d })))
+          .catch((e) =>
+            setInlinePoErrorById((prev) => ({
+              ...prev,
+              [poId]: e instanceof Error ? e.message : String(e),
+            }))
+          )
+          .finally(() => setInlinePoLoadingById((prev) => ({ ...prev, [poId]: false })));
+      }
+      return;
+    }
 		    // GRN rows open full Purchase Request detail.
 		    if (tab === 'grns' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
@@ -541,24 +565,26 @@ export default function OperationsView({
                   </td>
                 </tr>
 	              ) : (
-	                (paged as any[]).map((r) => (
-	                  <tr
-	                    key={
-	                      tab === 'prs'
-	                        ? String(r.prId)
-	                        : tab === 'pos'
-	                          ? String(r.poId)
-	                          : tab === 'grns'
-	                            ? String(r.grnId)
-	                            : tab === 'invoices'
-	                              ? String(r.invoiceId)
-	                              : String(r.paymentId)
-	                    }
-	                    className="hover:bg-surface-container-high/40 cursor-pointer"
-	                    onClick={() => openDetailForRow(r)}
-	                  >
-	                    {tab === 'prs' ? (
-	                      <>
+                (paged as any[]).map((r) => {
+                  const rowId =
+                    tab === 'prs'
+                      ? String(r.prId)
+                      : tab === 'pos'
+                        ? String(r.poId)
+                        : tab === 'grns'
+                          ? String(r.grnId)
+                          : tab === 'invoices'
+                            ? String(r.invoiceId)
+                            : String(r.paymentId);
+                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
+                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
+                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
+                  return (
+                    <React.Fragment key={rowId}>
+                      <tr className="hover:bg-surface-container-high/40 cursor-pointer" onClick={() => openDetailForRow(r)}>
+                    {tab === 'prs' ? (
+                      <>
             <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.department}</td>
@@ -618,11 +644,69 @@ export default function OperationsView({
 		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
-		                      </>
-		                    )}
-                  </tr>
-                ))
+                        <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
+                      </>
+                    )}
+                      </tr>
+                      {tab === 'pos' && isExpanded ? (
+                        <tr>
+                          <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
+                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
+                            {!detailLoading && !detailError ? (
+                              <div className="space-y-2">
+                                <div className="text-xs text-on-surface-variant">
+                                  Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Terms: {detail?.po?.po?.paymentTerms ?? '-'}
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full min-w-[880px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                    <thead>
+                                      <tr className="bg-primary text-on-primary">
+                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                        <th className="px-3 py-2 border border-outline-variant">PO Qty</th>
+                                        <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
+                                        <th className="px-3 py-2 border border-outline-variant">Disc %</th>
+                                        <th className="px-3 py-2 border border-outline-variant">GST %</th>
+                                        <th className="px-3 py-2 border border-outline-variant">Line Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(detail?.po?.items ?? []).length ? (
+                                        (detail?.po?.items ?? []).map((it: any, idx: number) => {
+                                          const qty = Number(it?.quantity ?? 0);
+                                          const rate = Number(it?.rate ?? 0);
+                                          const disc = Number(it?.discountPercent ?? 0);
+                                          const base = qty * rate;
+                                          const total = base - base * (disc / 100);
+                                          return (
+                                            <tr key={`${String(r.poId ?? '')}-it-${idx}`}>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(total).toFixed(2)}</td>
+                                            </tr>
+                                          );
+                                        })
+                                      ) : (
+                                        <tr>
+                                          <td colSpan={6} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                            No PO items found.
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
