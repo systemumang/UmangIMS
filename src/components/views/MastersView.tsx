@@ -2732,76 +2732,6 @@ export default function MastersView({
 		                        placeholder="High tensile"
 		                      />
 		                    </label>
-                        <div className="space-y-2">
-                          {newItemPhotos.map((value, idx) => {
-                            const canShow = idx === 0 || Boolean(String(newItemPhotos[idx - 1] ?? '').trim());
-                            if (!canShow) return null;
-                            return (
-                              <label key={`photo-${idx}`} className="space-y-1">
-                                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{`Photo ${idx + 1}`}</div>
-                                <div className="flex flex-col gap-2">
-                                  <input
-                                    type="file"
-                                    accept="image/png,image/jpeg"
-                                    className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      const maxBytes = 2 * 1024 * 1024;
-                                      if (file.size > maxBytes) {
-                                        setError(`Photo ${idx + 1} is too large. Please upload under 2MB.`);
-                                        return;
-                                      }
-                                      if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
-                                        setError(`Photo ${idx + 1} must be PNG or JPG.`);
-                                        return;
-                                      }
-                                      const reader = new FileReader();
-                                      reader.onload = () =>
-                                        setNewItemPhotos((prev) => {
-                                          const next = [...prev];
-                                          next[idx] = String(reader.result ?? '');
-                                          return next;
-                                        });
-                                      reader.onerror = () => setError(`Failed to read Photo ${idx + 1}.`);
-                                      reader.readAsDataURL(file);
-                                    }}
-                                  />
-                                  <input
-                                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                                    value={value}
-                                    onChange={(e) =>
-                                      setNewItemPhotos((prev) => {
-                                        const next = [...prev];
-                                        next[idx] = e.target.value;
-                                        return next;
-                                      })
-                                    }
-                                    placeholder={`Paste Photo ${idx + 1} URL or data:image/...`}
-                                  />
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                        <label className="space-y-1">
-                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Link (optional)</div>
-                          <input
-                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                            value={newItemLink}
-                            onChange={(e) => setNewItemLink(e.target.value)}
-                            placeholder="https://..."
-                          />
-                        </label>
-                        <label className="space-y-1">
-                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Video Link (optional)</div>
-                          <input
-                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                            value={newItemVideoLink}
-                            onChange={(e) => setNewItemVideoLink(e.target.value)}
-                            placeholder="https://..."
-                          />
-                        </label>
 		                  </div>
 	
 	                  <div className="space-y-2">
@@ -2923,17 +2853,96 @@ export default function MastersView({
 	                    </button>
 	                  </div>
 
-                    <label className="space-y-1">
-                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
-                      <input
-                        type="number"
-                        min="0"
+	                    <label className="space-y-1">
+	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
+	                      <input
+	                        type="number"
+	                        min="0"
                         className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
                         value={newItemReorderLevel}
                         onChange={(e) => setNewItemReorderLevel(e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </label>
+	                        placeholder="0.00"
+	                      />
+	                    </label>
+                      <label className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={newItemDescription}
+                          onChange={(e) => setNewItemDescription(e.target.value)}
+                          placeholder="High tensile"
+                        />
+                      </label>
+                      <div className="space-y-2">
+                        {newItemPhotos.map((value, idx) => {
+                          const canShow = idx === 0 || Boolean(String(newItemPhotos[idx - 1] ?? '').trim());
+                          if (!canShow) return null;
+                          return (
+                            <label key={`photo-${idx}`} className="space-y-1">
+                              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{`Photo ${idx + 1}`}</div>
+                              <div className="flex flex-col gap-2">
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg"
+                                  className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const maxBytes = 2 * 1024 * 1024;
+                                    if (file.size > maxBytes) {
+                                      setError(`Photo ${idx + 1} is too large. Please upload under 2MB.`);
+                                      return;
+                                    }
+                                    if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+                                      setError(`Photo ${idx + 1} must be PNG or JPG.`);
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onload = () =>
+                                      setNewItemPhotos((prev) => {
+                                        const next = [...prev];
+                                        next[idx] = String(reader.result ?? '');
+                                        return next;
+                                      });
+                                    reader.onerror = () => setError(`Failed to read Photo ${idx + 1}.`);
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                                <input
+                                  className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                                  value={value}
+                                  onChange={(e) =>
+                                    setNewItemPhotos((prev) => {
+                                      const next = [...prev];
+                                      next[idx] = e.target.value;
+                                      return next;
+                                    })
+                                  }
+                                  placeholder={`Paste Photo ${idx + 1} URL or data:image/...`}
+                                />
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <label className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Link (optional)</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={newItemLink}
+                          onChange={(e) => setNewItemLink(e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Video Link (optional)</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={newItemVideoLink}
+                          onChange={(e) => setNewItemVideoLink(e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </label>
 
 		                  <div className="flex justify-end gap-2">
 	                    <button

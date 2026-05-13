@@ -1536,26 +1536,29 @@ app.get('/api/queues/create-grn', async (req, res) => {
         po.supplier_id AS supplierId,
         s.name AS supplierName,
         po.created_at AS createdAt,
-        COALESCE(SUM(poi.quantity), 0) AS poQty,
-        COALESCE(SUM(gi.received_qty), 0) AS grnQty
+        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
       FROM purchase_orders po
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
-      LEFT JOIN grns g ON g.po_id = po.id
-      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
+      LEFT JOIN (
+        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
+        FROM grns g
+        INNER JOIN grn_items gi ON gi.grn_id = g.id
+        GROUP BY g.po_id, gi.item_id
+      ) grnq ON grnq.poId = poi.po_id AND grnq.itemId = poi.item_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
       GROUP BY po.id
-      HAVING (poQty - grnQty) > 1e-9
+      HAVING pendingQty > 1e-9
       ORDER BY po.created_at DESC
       `,
       params
     );
 
     let out = (Array.isArray(rows) ? rows : []).map((r) => {
-      const pendingQty = Math.max(0, Number(r.poQty ?? 0) - Number(r.grnQty ?? 0));
+      const pendingQty = Math.max(0, Number(r.pendingQty ?? 0));
       return {
         poId: String(r.poId ?? ''),
         poNumber: String(r.poNumber ?? r.poId ?? ''),
