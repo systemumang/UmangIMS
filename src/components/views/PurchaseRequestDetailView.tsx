@@ -2660,7 +2660,9 @@ export default function PurchaseRequestDetailView({
 		                <div className="overflow-x-auto">
 		                  <table className="w-full min-w-[1760px] table-fixed text-left border-collapse border border-outline-variant">
 		                    <colgroup>
-		                      <col className="w-[130px]" />
+									                        <col className="w-[130px]" />
+									                        <col className="w-[130px]" />
+									                        <col className="w-[130px]" />
 		                      <col className="w-[170px]" />
 		                      <col className="w-[90px]" />
 		                      <col className="w-[420px]" />
@@ -2728,9 +2730,12 @@ export default function PurchaseRequestDetailView({
 	                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
 	                          Sent Proof
 	                        </th>
-		                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
-		                          Sent Date
-		                        </th>
+			                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+			                          Sent Date
+			                        </th>
+			                        <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">
+			                          PO PDF
+			                        </th>
 		                      </tr>
 		                    </thead>
 		                    <tbody>
@@ -2809,9 +2814,18 @@ export default function PurchaseRequestDetailView({
 	                                    '-'
 	                                  )}
 	                                </td>
-		                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
-		                                  {String((p as any)?.po?.sentDate ?? '') || '-'}
-		                                </td>
+			                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+			                                  {String((p as any)?.po?.sentDate ?? '') || '-'}
+			                                </td>
+			                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
+			                                  <button
+			                                    type="button"
+			                                    className="btn btn-sm"
+			                                    onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(String((p as any)?.po?.id ?? ''))}.pdf`)}
+			                                  >
+			                                    PO PDF
+			                                  </button>
+			                                </td>
 		                              </>
 		                            ) : null}
 		                          </tr>
@@ -3596,8 +3610,9 @@ export default function PurchaseRequestDetailView({
 									                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Check Date</th>
 									                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Sent By</th>
 									                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Sent Proof</th>
-									                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Sent Date</th>
-									                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Actions</th>
+										                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Sent Date</th>
+										                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">PO PDF</th>
+										                          <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant whitespace-normal break-words leading-tight">Actions</th>
 								                        </tr>
 								                      </thead>
 					                      <tbody>
@@ -3877,22 +3892,22 @@ export default function PurchaseRequestDetailView({
 					                                  </>
 					                                ) : null}
 
-					                                {idx === 0 ? (
-						                                  <td rowSpan={rowSpan} className="px-2 py-2 border border-outline-variant align-top">
-						                                    <div className="flex items-center gap-2">
-				                                      <button
-				                                        type="button"
-				                                        title="Download PO PDF"
-				                                        aria-label="Download PO PDF"
-				                                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-surface-container-high text-on-surface-variant shadow-sm hover:bg-surface-container-highest transition-colors"
-				                                        onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(p.po.id)}.pdf`)}
-				                                      >
-				                                        <FileText size={16} className="text-error" />
-				                                      </button>
-
-				                                      <button
-				                                        type="button"
-				                                        title={poHasInvoice ? 'Cannot edit after invoice/GRN' : 'Edit PO'}
+						                                {idx === 0 ? (
+							                                  <>
+							                                    <td rowSpan={rowSpan} className="px-2 py-2 border border-outline-variant align-top">
+							                                      <button
+							                                        type="button"
+							                                        className="btn btn-sm"
+							                                        onClick={() => (window.location.href = `/api/pos/${encodeURIComponent(p.po.id)}.pdf`)}
+							                                      >
+							                                        PO PDF
+							                                      </button>
+							                                    </td>
+							                                    <td rowSpan={rowSpan} className="px-2 py-2 border border-outline-variant align-top">
+							                                      <div className="flex items-center gap-2">
+					                                      <button
+					                                        type="button"
+					                                        title={poHasInvoice ? 'Cannot edit after invoice/GRN' : 'Edit PO'}
 				                                        aria-label="Edit PO"
 				                                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
 				                                        disabled={busy || poHasInvoice || loadingSuppliers}
@@ -3901,7 +3916,7 @@ export default function PurchaseRequestDetailView({
 				                                        <Pencil size={16} />
 				                                      </button>
 
-					                                      <button
+						                                      <button
 					                                        type="button"
 					                                        title={poHasInvoice ? 'Cannot delete after invoice/GRN' : 'Delete PO'}
 					                                        aria-label="Delete PO"
@@ -3915,9 +3930,10 @@ export default function PurchaseRequestDetailView({
 				                                      >
 				                                        <Trash2 size={16} />
 				                                      </button>
-				                                    </div>
-				                                  </td>
-				                                ) : null}
+					                                      </div>
+					                                    </td>
+					                                  </>
+					                                ) : null}
 				                              </tr>
 				                            );
 				                          });

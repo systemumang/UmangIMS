@@ -378,15 +378,15 @@ export default function OperationsView({
           </button>
         ))}
         <div className="flex-1" />
-	        <button
-	          type="button"
-	          className="btn btn-sm"
-	          onClick={exportCsv}
-	          disabled={loading}
-	          title="Export"
-	        >
-	          Export
-	        </button>
+		        <button
+		          type="button"
+		          className="btn btn-sm"
+		          onClick={exportCsv}
+		          disabled={loading}
+		          title={tab === 'pos' ? 'Download Excel' : 'Export'}
+		        >
+		          {tab === 'pos' ? 'Download Excel' : 'Export'}
+		        </button>
 	      </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
@@ -477,7 +477,8 @@ export default function OperationsView({
 	                    <SortTh label="Supplier" colKey="supplierName" />
 	                    <SortTh label="Order Date" colKey="orderDate" />
 	                    <SortTh label="Status" colKey="status" />
-	                    <SortTh label="Amount" colKey="totalAmount" />
+		                    <SortTh label="Amount" colKey="totalAmount" />
+		                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
 	                  </>
 	                ) : tab === 'grns' ? (
 	                  <>
@@ -513,18 +514,18 @@ export default function OperationsView({
 	              </tr>
 	            </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-                    Loading...
-                  </td>
-                </tr>
-              ) : !paged.length ? (
-                <tr>
-                  <td colSpan={7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-                    No records.
-                  </td>
-                </tr>
+	              {loading ? (
+	                <tr>
+	                  <td colSpan={tab === 'pos' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+	                    Loading...
+	                  </td>
+	                </tr>
+	              ) : !paged.length ? (
+	                <tr>
+	                  <td colSpan={tab === 'pos' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+	                    No records.
+	                  </td>
+	                </tr>
 	              ) : (
 	                (paged as any[]).map((r) => (
 	                  <tr
@@ -559,9 +560,21 @@ export default function OperationsView({
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-	                      </>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">
+		                          <button
+		                            type="button"
+		                            className="btn btn-sm"
+		                            onClick={(e) => {
+		                              e.stopPropagation();
+		                              window.location.href = `/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf`;
+		                            }}
+		                          >
+		                            PO PDF
+		                          </button>
+		                        </td>
+		                      </>
 	                    ) : tab === 'grns' ? (
                       <>
                         <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.grnNumber}</td>
