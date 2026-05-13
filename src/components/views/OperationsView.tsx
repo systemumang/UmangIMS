@@ -656,7 +656,7 @@ export default function OperationsView({
                             {!detailLoading && !detailError ? (
                               <div className="space-y-2">
                                 <div className="text-xs text-on-surface-variant">
-                                  Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Terms: {detail?.po?.po?.paymentTerms ?? '-'}
+                                  Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="w-full min-w-[880px] table-fixed text-left border-collapse border border-outline-variant text-sm">
@@ -667,7 +667,7 @@ export default function OperationsView({
                                         <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
                                         <th className="px-3 py-2 border border-outline-variant">Disc %</th>
                                         <th className="px-3 py-2 border border-outline-variant">GST %</th>
-                                        <th className="px-3 py-2 border border-outline-variant">Line Total</th>
+                                        <th className="px-3 py-2 border border-outline-variant">Total</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -680,7 +680,7 @@ export default function OperationsView({
                                           const total = base - base * (disc / 100);
                                           return (
                                             <tr key={`${String(r.poId ?? '')}-it-${idx}`}>
-                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
                                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
                                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate}</td>
                                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>

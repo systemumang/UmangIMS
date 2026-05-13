@@ -2296,6 +2296,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       po.firm_id AS firmId,
       po.po_number AS poNumber,
       po.order_date AS orderDate,
+      po.payment_terms AS paymentTerms,
       po.status AS status,
       po.created_by AS createdBy,
       po.created_at AS createdAt,
@@ -2317,6 +2318,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.po_id AS poId,
       poi.item_id AS itemId,
       iname.name AS item,
+      it.specifications_json AS specificationsJson,
       poi.quantity AS quantity,
       poi.rate AS rate,
       poi.discount_percent AS discountPercent,
@@ -2339,6 +2341,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     prId: String(poRow.prId ?? ''),
     firmId: String(poRow.firmId ?? ''),
     orderDate: toIsoDate(poRow.orderDate) || '',
+    paymentTerms: poRow.paymentTerms != null ? String(poRow.paymentTerms) : undefined,
     createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
     supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
     supplier: String(poRow.supplier ?? ''),
@@ -2346,11 +2349,36 @@ async function fetchPoHeaderAndItems(pool, poId) {
     createdAt: toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
   };
 
+  const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
+  const specNameById = new Map((Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()]));
+  const formatSpecParts = (specificationsJson) => {
+    const raw = String(specificationsJson ?? '').trim();
+    if (!raw) return [];
+    try {
+      const obj = JSON.parse(raw);
+      if (!obj || typeof obj !== 'object') return [];
+      const out = [];
+      for (const [k, v] of Object.entries(obj)) {
+        const val = String(v ?? '').trim();
+        if (!val) continue;
+        const name = specNameById.get(String(k ?? '').trim()) || '';
+        out.push(name ? `${name}: ${val}` : val);
+      }
+      return out;
+    } catch {
+      return raw
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+  };
+
   const items = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
     id: String(r.id ?? ''),
     poId: String(r.poId ?? ''),
     itemId: String(r.itemId ?? ''),
     item: String(r.item ?? ''),
+    itemLabel: [String(r.item ?? '').trim(), ...formatSpecParts(r.specificationsJson)].filter(Boolean).join(' - ') || String(r.item ?? ''),
     quantity: Number(r.quantity ?? 0),
     rate: Number(r.rate ?? 0),
     discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
