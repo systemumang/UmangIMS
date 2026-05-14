@@ -972,7 +972,7 @@ export default function NewPurchaseRequestView({
 
 			              {createItemNameInlineOpen
 			                ? createPortal(
-			                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+			                    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
 			                      <button
 			                        type="button"
 			                        className="absolute inset-0 bg-black/40"
@@ -1095,7 +1095,7 @@ export default function NewPurchaseRequestView({
 
 			              {createSpecInlineIndex != null
 			                ? createPortal(
-			                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+			                    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
 			                      <button
 			                        type="button"
 			                        className="absolute inset-0 bg-black/40"
@@ -1152,7 +1152,7 @@ export default function NewPurchaseRequestView({
 
 				              {createValueInlineIndex != null
 				                ? createPortal(
-			                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+			                    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
 			                      <button
 			                        type="button"
 			                        className="absolute inset-0 bg-black/40"
@@ -1209,7 +1209,7 @@ export default function NewPurchaseRequestView({
 
 				              {reqCreateValueRowIndex != null
 				                ? createPortal(
-				                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+				                    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
 				                      <button
 				                        type="button"
 				                        className="absolute inset-0 bg-black/40"
