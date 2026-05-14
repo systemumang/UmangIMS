@@ -22,6 +22,15 @@ app.use(express.json({ limit: '25mb' }));
 
 app.use('/uploads', express.static(uploadsDir, { index: false }));
 
+// Lightweight process-level health check (no DB dependency).
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'ims-umang',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 let mysqlPool = null;
 function getMysqlPool() {
   if (mysqlPool) return mysqlPool;
@@ -181,6 +190,33 @@ function getMysqlPool() {
 
   return mysqlPool;
 }
+
+// Readiness check (includes DB connectivity when configured).
+app.get('/ready', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) {
+      return res.status(503).json({
+        ok: false,
+        ready: false,
+        reason: 'database_not_configured',
+      });
+    }
+    await pool.query('SELECT 1');
+    return res.status(200).json({
+      ok: true,
+      ready: true,
+      db: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    return res.status(503).json({
+      ok: false,
+      ready: false,
+      reason: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
 
 function getSqlErrorMessage(error) {
   if (!error) return '';
