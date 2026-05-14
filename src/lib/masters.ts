@@ -40,11 +40,14 @@ export type ItemName = {
   unitName?: string | null;
   itemCategoryId?: string | null;
   itemCategoryName?: string | null;
+  specificationIds?: string[];
 };
 export type Specification = { id: string; name: string };
 export type SpecificationValue = {
   id: string;
   specificationId: string;
+  itemNameId?: string | null;
+  itemName?: string | null;
   value: string;
   isActive: boolean;
   usageCount?: number;
@@ -561,7 +564,13 @@ export async function deleteItemCategory(id: string, input?: { deletedBy?: strin
   return requireOk<{ ok: boolean }>(res, 'Failed to delete item category');
 }
 
-export async function createItemName(input: { name: string; unitId?: string | null; itemCategoryId?: string | null; createdBy?: string }) {
+export async function createItemName(input: {
+  name: string;
+  unitId?: string | null;
+  itemCategoryId?: string | null;
+  specificationIds?: string[];
+  createdBy?: string;
+}) {
   const res = await fetch('/api/masters/item-names', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -570,7 +579,10 @@ export async function createItemName(input: { name: string; unitId?: string | nu
   return requireOk<{ itemName?: ItemName }>(res, 'Failed to create item name');
 }
 
-export async function updateItemName(id: string, input: { name: string; unitId?: string | null; itemCategoryId?: string | null; updatedBy?: string }) {
+export async function updateItemName(
+  id: string,
+  input: { name: string; unitId?: string | null; itemCategoryId?: string | null; specificationIds?: string[]; updatedBy?: string }
+) {
   const res = await fetch(`/api/masters/item-names/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -622,13 +634,20 @@ export async function deleteSpecification(id: string, input?: { deletedBy?: stri
   return requireOk<{ ok: boolean }>(res, 'Failed to delete specification');
 }
 
-export async function fetchSpecificationValues(specificationId: string, signal?: AbortSignal): Promise<SpecificationValue[]> {
-  const res = await fetch(`/api/masters/specification-values?specificationId=${encodeURIComponent(specificationId)}`, { signal });
+export async function fetchSpecificationValues(
+  specificationId: string,
+  arg?: AbortSignal | { signal?: AbortSignal; itemNameId?: string }
+): Promise<SpecificationValue[]> {
+  const signal = (arg as any)?.aborted !== undefined ? (arg as AbortSignal) : (arg as any)?.signal;
+  const itemNameId = (arg as any)?.itemNameId ? String((arg as any).itemNameId) : '';
+  const qs = new URLSearchParams({ specificationId: String(specificationId) });
+  if (itemNameId) qs.set('itemNameId', itemNameId);
+  const res = await fetch(`/api/masters/specification-values?${qs.toString()}`, { signal });
   const data = await requireOk<{ specificationValues?: SpecificationValue[] }>(res, 'Failed to load specification values');
   return Array.isArray(data.specificationValues) ? data.specificationValues : [];
 }
 
-export async function createSpecificationValue(input: { specificationId: string; value: string; createdBy?: string }) {
+export async function createSpecificationValue(input: { specificationId: string; itemNameId?: string | null; value: string; createdBy?: string }) {
   const res = await fetch('/api/masters/specification-values', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -639,7 +658,7 @@ export async function createSpecificationValue(input: { specificationId: string;
 
 export async function updateSpecificationValue(
   id: string,
-  input: { specificationId: string; value: string; updatedBy?: string }
+  input: { specificationId: string; itemNameId?: string | null; value: string; updatedBy?: string }
 ) {
   const res = await fetch(`/api/masters/specification-values/${encodeURIComponent(id)}`, {
     method: 'PUT',

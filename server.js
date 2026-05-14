@@ -186,6 +186,19 @@ function getMysqlPool() {
 
       await ensureColumn('users', 'login_id', 'VARCHAR(255) NULL');
       await ensureColumn('users', 'menu_access', 'TEXT NULL');
+
+      // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
+      await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
+
+      // Mapping: which specifications apply to an Item Name.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS item_name_specifications (
+          item_name_id VARCHAR(255) NOT NULL,
+          specification_id VARCHAR(255) NOT NULL,
+          created_at DATETIME NULL,
+          PRIMARY KEY (item_name_id, specification_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
     } catch (err) {
       console.error('Failed to ensure PO/Invoice enhancement columns:', err);
     }
@@ -6479,14 +6492,27 @@ app.get('/api/masters/item-names', async (_req, res) => {
         n.unit_id AS unitId,
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName
+        c.name AS itemCategoryName,
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
+      LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
+      GROUP BY n.id
       ORDER BY n.name
       `
     );
-    res.json({ itemNames: rows });
+    const itemNames = (Array.isArray(rows) ? rows : []).map((r) => {
+      const csv = r.specificationIdsCsv != null ? String(r.specificationIdsCsv) : '';
+      const specificationIds = csv
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const out = { ...r };
+      delete out.specificationIdsCsv;
+      return { ...out, specificationIds };
+    });
+    res.json({ itemNames });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -6501,6 +6527,9 @@ app.post('/api/masters/item-names', async (req, res) => {
     const id = crypto.randomUUID();
     const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
     const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+    const specificationIds = Array.isArray(req.body?.specificationIds)
+      ? req.body.specificationIds.map((x) => String(x).trim()).filter(Boolean)
+      : [];
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
@@ -6508,6 +6537,14 @@ app.post('/api/masters/item-names', async (req, res) => {
       'INSERT INTO item_names (id, name, unit_id, item_category_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
       [id, name, unitId, itemCategoryId, createdBy]
     );
+    if (specificationIds.length) {
+      for (const specId of specificationIds) {
+        await pool.query('INSERT IGNORE INTO item_name_specifications (item_name_id, specification_id, created_at) VALUES (?, ?, NOW())', [
+          id,
+          specId,
+        ]);
+      }
+    }
     const [rows] = await pool.query(
       `
       SELECT
@@ -6516,16 +6553,27 @@ app.post('/api/masters/item-names', async (req, res) => {
         n.unit_id AS unitId,
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName
+        c.name AS itemCategoryName,
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
+      LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
       WHERE n.id = ?
+      GROUP BY n.id
       `,
       [id]
     );
     const row = Array.isArray(rows) ? rows[0] : null;
-    res.status(201).json({ itemName: row ?? { id, name, unitId, itemCategoryId } });
+    const csv = row?.specificationIdsCsv != null ? String(row.specificationIdsCsv) : '';
+    const outSpecIds = csv
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (row) delete row.specificationIdsCsv;
+    res.status(201).json({
+      itemName: row ? { ...row, specificationIds: outSpecIds } : { id, name, unitId, itemCategoryId, specificationIds },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Item name already exists' });
@@ -6543,6 +6591,9 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
     if (!name) return res.status(400).json({ error: 'name is required' });
     const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
     const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+    const specificationIds = Array.isArray(req.body?.specificationIds)
+      ? req.body.specificationIds.map((x) => String(x).trim()).filter(Boolean)
+      : [];
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
@@ -6550,6 +6601,15 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
       'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, updated_by=?, updated_at=NOW() WHERE id=?',
       [name, unitId, itemCategoryId, updatedBy, id]
     );
+    await pool.query('DELETE FROM item_name_specifications WHERE item_name_id=?', [id]);
+    if (specificationIds.length) {
+      for (const specId of specificationIds) {
+        await pool.query('INSERT IGNORE INTO item_name_specifications (item_name_id, specification_id, created_at) VALUES (?, ?, NOW())', [
+          id,
+          specId,
+        ]);
+      }
+    }
     const [rows] = await pool.query(
       `
       SELECT
@@ -6558,16 +6618,25 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
         n.unit_id AS unitId,
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName
+        c.name AS itemCategoryName,
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
+      LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
       WHERE n.id = ?
+      GROUP BY n.id
       `,
       [id]
     );
     const row = Array.isArray(rows) ? rows[0] : null;
-    res.json({ itemName: row ?? { id, name, unitId, itemCategoryId } });
+    const csv = row?.specificationIdsCsv != null ? String(row.specificationIdsCsv) : '';
+    const outSpecIds = csv
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (row) delete row.specificationIdsCsv;
+    res.json({ itemName: row ? { ...row, specificationIds: outSpecIds } : { id, name, unitId, itemCategoryId, specificationIds } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -6581,6 +6650,7 @@ app.delete('/api/masters/item-names/:id', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM item_name_specifications WHERE item_name_id=?', [id]);
     await pool.query('DELETE FROM item_names WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
@@ -6660,11 +6730,14 @@ app.get('/api/masters/specification-values', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const specificationId = String(req.query.specificationId ?? '').trim();
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
+    const itemNameId = String(req.query.itemNameId ?? '').trim();
     const [rows] = await pool.query(
       `
       SELECT
         sv.id,
         sv.specification_id AS specificationId,
+        sv.item_name_id AS itemNameId,
+        iname.name AS itemName,
         sv.value,
         sv.is_active AS isActive,
         (
@@ -6674,10 +6747,12 @@ app.get('/api/masters/specification-values', async (req, res) => {
             AND JSON_UNQUOTE(JSON_EXTRACT(it.specifications_json, CONCAT('$.', sv.specification_id))) = sv.value
         ) AS usageCount
       FROM specification_values sv
+      LEFT JOIN item_names iname ON iname.id = sv.item_name_id
       WHERE sv.specification_id=?
+        ${itemNameId ? 'AND (sv.item_name_id = ? OR sv.item_name_id IS NULL)' : ''}
       ORDER BY sv.value
       `,
-      [specificationId]
+      itemNameId ? [specificationId, itemNameId] : [specificationId]
     );
     const specificationValues = (rows || []).map((r) => ({
       ...r,
@@ -6696,16 +6771,17 @@ app.post('/api/masters/specification-values', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const specificationId = String(req.body?.specificationId ?? '').trim();
+    const itemNameId = req.body?.itemNameId != null ? String(req.body.itemNameId).trim() : '';
     const value = String(req.body?.value ?? '').trim();
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     if (!value) return res.status(400).json({ error: 'value is required' });
     const id = crypto.randomUUID();
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
     await pool.query(
-      'INSERT INTO specification_values (id, specification_id, value, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, 1, ?, NOW(), NOW())',
-      [id, specificationId, value, createdBy]
+      'INSERT INTO specification_values (id, specification_id, item_name_id, value, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, NOW(), NOW())',
+      [id, specificationId, itemNameId || null, value, createdBy]
     );
-    res.status(201).json({ specificationValue: { id, specificationId, value, isActive: true } });
+    res.status(201).json({ specificationValue: { id, specificationId, itemNameId: itemNameId || null, value, isActive: true } });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Value already exists' });
@@ -6719,18 +6795,20 @@ app.put('/api/masters/specification-values/:id', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const id = String(req.params.id ?? '').trim();
     const specificationId = String(req.body?.specificationId ?? '').trim();
+    const itemNameId = req.body?.itemNameId != null ? String(req.body.itemNameId).trim() : '';
     const value = String(req.body?.value ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     if (!value) return res.status(400).json({ error: 'value is required' });
     const [[currentRow]] = await pool.query(
-      'SELECT id, specification_id AS specificationId, value FROM specification_values WHERE id=? LIMIT 1',
+      'SELECT id, specification_id AS specificationId, item_name_id AS itemNameId, value FROM specification_values WHERE id=? LIMIT 1',
       [id]
     );
     if (!currentRow) return res.status(404).json({ error: 'Specification value not found' });
     const currentSpecificationId = String(currentRow.specificationId ?? '').trim();
+    const currentItemNameId = String(currentRow.itemNameId ?? '').trim();
     const currentValue = String(currentRow.value ?? '').trim();
-    const changingKey = currentSpecificationId !== specificationId || currentValue !== value;
+    const changingKey = currentSpecificationId !== specificationId || currentItemNameId !== itemNameId || currentValue !== value;
     if (changingKey) {
       const [[usageRow]] = await pool.query(
         `
@@ -6750,10 +6828,10 @@ app.put('/api/masters/specification-values/:id', async (req, res) => {
     }
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     await pool.query(
-      'UPDATE specification_values SET specification_id=?, value=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [specificationId, value, updatedBy, id]
+      'UPDATE specification_values SET specification_id=?, item_name_id=?, value=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [specificationId, itemNameId || null, value, updatedBy, id]
     );
-    res.json({ specificationValue: { id, specificationId, value, isActive: true } });
+    res.json({ specificationValue: { id, specificationId, itemNameId: itemNameId || null, value, isActive: true } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -6767,7 +6845,7 @@ app.delete('/api/masters/specification-values/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
 
     const [[specValueRow]] = await pool.query(
-      'SELECT id, specification_id AS specificationId, value FROM specification_values WHERE id=? LIMIT 1',
+      'SELECT id, specification_id AS specificationId, item_name_id AS itemNameId, value FROM specification_values WHERE id=? LIMIT 1',
       [id]
     );
     if (!specValueRow) return res.status(404).json({ error: 'Specification value not found' });

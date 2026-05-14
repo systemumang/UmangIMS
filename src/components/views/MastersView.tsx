@@ -193,9 +193,10 @@ export default function MastersView({
 			  const [units, setUnits] = useState<Unit[]>([]);
 			  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
 			  const [itemNames, setItemNames] = useState<ItemName[]>([]);
-		  const [specs, setSpecs] = useState<Specification[]>([]);
-		  const [specValues, setSpecValues] = useState<SpecificationValue[]>([]);
-			  const [items, setItems] = useState<Item[]>([]);
+			  const [specs, setSpecs] = useState<Specification[]>([]);
+			  const [specValues, setSpecValues] = useState<SpecificationValue[]>([]);
+				  const [items, setItems] = useState<Item[]>([]);
+				  const [specValueItemNameId, setSpecValueItemNameId] = useState('');
 
 			  const [newFirmName, setNewFirmName] = useState('');
 			  const [newFirmSortName, setNewFirmSortName] = useState('');
@@ -237,11 +238,13 @@ export default function MastersView({
 					  const [newTransporterPhone, setNewTransporterPhone] = useState('');
 				  const [newUnitName, setNewUnitName] = useState('');
 				  const [newItemCategoryName, setNewItemCategoryName] = useState('');
-				  const [newItemName, setNewItemName] = useState('');
-				  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
-				  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
+					  const [newItemName, setNewItemName] = useState('');
+					  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
+					  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
+					  const [newItemNameSpecIds, setNewItemNameSpecIds] = useState<string[]>([]);
 			  const [newSpecName, setNewSpecName] = useState('');
-	  const [specIdForValues, setSpecIdForValues] = useState('');
+		  const [specIdForValues, setSpecIdForValues] = useState('');
+		  const [specValuesFilterItemNameId, setSpecValuesFilterItemNameId] = useState('');
 	  const [newSpecValue, setNewSpecValue] = useState('');
 	  const [newSpecValueSpecId, setNewSpecValueSpecId] = useState('');
 
@@ -496,16 +499,18 @@ export default function MastersView({
 					    }
 				    if (tab === 'units') setNewUnitName('');
 				    if (tab === 'itemCategories') setNewItemCategoryName('');
-				    if (tab === 'itemNames') {
-				      setNewItemName('');
-				      setNewItemNameUnitId('');
-				      setNewItemNameCategoryId('');
-				    }
+					    if (tab === 'itemNames') {
+					      setNewItemName('');
+					      setNewItemNameUnitId('');
+					      setNewItemNameCategoryId('');
+					      setNewItemNameSpecIds([]);
+					    }
 				    if (tab === 'specs') setNewSpecName('');
-			    if (tab === 'specValues') {
-			      setNewSpecValue('');
-		      setNewSpecValueSpecId(specIdForValues || '');
-		    }
+				    if (tab === 'specValues') {
+				      setNewSpecValue('');
+			      setNewSpecValueSpecId(specIdForValues || '');
+			      setSpecValueItemNameId('');
+			    }
     if (tab === 'items') {
       setNewItemUnit('');
       setNewItemDescription('');
@@ -597,23 +602,25 @@ export default function MastersView({
 			      const row = itemCategories.find((c) => c.id === id);
 			      setNewItemCategoryName(row?.name ?? '');
 			    }
-			    if (tab === 'itemNames') {
-			      const row = itemNames.find((n) => n.id === id);
-		      setNewItemName(row?.name ?? '');
-			      setNewItemNameUnitId(row?.unitId ?? '');
-			      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
-		    }
+				    if (tab === 'itemNames') {
+				      const row = itemNames.find((n) => n.id === id);
+			      setNewItemName(row?.name ?? '');
+				      setNewItemNameUnitId(row?.unitId ?? '');
+				      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
+				      setNewItemNameSpecIds(Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : []);
+			    }
 	    if (tab === 'specs') {
 	      const row = specs.find((s) => s.id === id);
 	      setNewSpecName(row?.name ?? '');
 	    }
-	    if (tab === 'specValues') {
-	      const row = specValues.find((v) => v.id === id);
-	      if (row) {
-	        setNewSpecValueSpecId(row.specificationId);
-	        setNewSpecValue(row.value);
-	      }
-	    }
+		    if (tab === 'specValues') {
+		      const row = specValues.find((v) => v.id === id);
+		      if (row) {
+		        setNewSpecValueSpecId(row.specificationId);
+		        setSpecValueItemNameId(String((row as any).itemNameId ?? ''));
+		        setNewSpecValue(row.value);
+		      }
+		    }
 	    if (tab === 'items') {
 	      const row = items.find((it) => it.id === id);
 		      if (row) {
@@ -742,16 +749,18 @@ export default function MastersView({
 	      return () => ac.abort();
 	    }
 	
-	    const run = async () => {
-	      if (specIdForValues) {
-	        const rows = await fetchSpecificationValues(specIdForValues, ac.signal);
-	        setSpecValues(rows);
-	        return;
-	      }
-	
-	      const all = await Promise.all(specs.map((s) => fetchSpecificationValues(s.id, ac.signal)));
-	      const flat = all
-	        .flat()
+		    const run = async () => {
+		      if (specIdForValues) {
+		        const rows = await fetchSpecificationValues(specIdForValues, { signal: ac.signal, itemNameId: specValuesFilterItemNameId || undefined });
+		        setSpecValues(rows);
+		        return;
+		      }
+		
+		      const all = await Promise.all(
+		        specs.map((s) => fetchSpecificationValues(s.id, { signal: ac.signal, itemNameId: specValuesFilterItemNameId || undefined }))
+		      );
+		      const flat = all
+		        .flat()
 	        .sort((a, b) => {
           const an = specNameLookup[a.specificationId] ?? '';
           const bn = specNameLookup[b.specificationId] ?? '';
@@ -765,8 +774,8 @@ export default function MastersView({
 	      if (ac.signal.aborted) return;
 	      setError(e instanceof Error ? e.message : String(e));
 	    });
-	    return () => ac.abort();
-	  }, [specIdForValues, specs, specNameLookup]);
+		    return () => ac.abort();
+		  }, [specIdForValues, specValuesFilterItemNameId, specs, specNameLookup]);
 	
 			  useEffect(() => {
 			    if (!addOpen) return;
@@ -795,11 +804,14 @@ export default function MastersView({
           if (t === 'itemCategories') return fetchItemCategories().then(setItemCategories);
           if (t === 'itemNames') return fetchItemNames().then(setItemNames);
           if (t === 'specs') return fetchSpecifications().then(setSpecs);
-          if (t === 'specValues') {
-            if (specIdForValues) return fetchSpecificationValues(specIdForValues).then(setSpecValues);
-            const all = await Promise.all(specs.map((s) => fetchSpecificationValues(s.id)));
-            const flat = all
-              .flat()
+	          if (t === 'specValues') {
+	            if (specIdForValues)
+	              return fetchSpecificationValues(specIdForValues, { itemNameId: specValuesFilterItemNameId || undefined }).then(setSpecValues);
+	            const all = await Promise.all(
+	              specs.map((s) => fetchSpecificationValues(s.id, { itemNameId: specValuesFilterItemNameId || undefined }))
+	            );
+	            const flat = all
+	              .flat()
               .sort((a, b) => {
                 const an = specNameLookup[a.specificationId] ?? '';
                 const bn = specNameLookup[b.specificationId] ?? '';
@@ -2540,10 +2552,10 @@ export default function MastersView({
 			                    />
 			                    {fieldErrors.itemNameUnitId ? <div className="text-xs text-error">{fieldErrors.itemNameUnitId}</div> : null}
 			                  </label>
-			                  <label className="space-y-1">
-			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
-			                    <SearchableSelect
-			                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+				                  <label className="space-y-1">
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+				                    <SearchableSelect
+				                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
 			                      value={newItemNameCategoryId}
 			                      onChange={(v) => {
 			                        clearFieldError('itemNameCategoryId');
@@ -2551,8 +2563,59 @@ export default function MastersView({
 			                      }}
 			                      placeholder="Select category"
 			                    />
-			                    {fieldErrors.itemNameCategoryId ? <div className="text-xs text-error">{fieldErrors.itemNameCategoryId}</div> : null}
-			                  </label>
+				                    {fieldErrors.itemNameCategoryId ? <div className="text-xs text-error">{fieldErrors.itemNameCategoryId}</div> : null}
+				                  </label>
+
+				                  <div className="space-y-1">
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
+				                    <div className="space-y-2">
+				                      {newItemNameSpecIds.map((specId, idx) => (
+				                        <div key={`iname-spec-${idx}`} className="flex items-center gap-2">
+				                          <div className="flex-1">
+				                            <SearchableSelect
+				                              value={specId}
+				                              options={specs.map((s) => ({ value: s.id, label: s.name }))}
+				                              onChange={(v) =>
+				                                setNewItemNameSpecIds((prev) => prev.map((p, i) => (i === idx ? v : p)).filter(Boolean))
+				                              }
+				                              placeholder="Select specification"
+				                              showCreateWhenEmpty
+				                              allowEmptyCreate
+				                              closeOnCreate
+				                              createLabel={(q) => (q ? `+ Create Specification \"${q}\"` : '+ Create Specification')}
+				                              onCreate={async (label) => {
+				                                const name = String(label ?? '').trim();
+				                                if (!name) return null;
+				                                const created = await createSpecification({ name, createdBy: 'system' });
+				                                const spec = created.specification;
+				                                if (!spec?.id) return null;
+				                                setSpecs((prev) => {
+				                                  if (prev.some((s) => s.id === spec.id)) return prev;
+				                                  return [...prev, spec].sort((a, b) => a.name.localeCompare(b.name));
+				                                });
+				                                setNewItemNameSpecIds((prev) => prev.map((p, i) => (i === idx ? spec.id : p)));
+				                                return null;
+				                              }}
+				                            />
+				                          </div>
+				                          <button
+				                            type="button"
+				                            className="btn btn-sm"
+				                            onClick={() => setNewItemNameSpecIds((prev) => prev.filter((_, i) => i !== idx))}
+				                          >
+				                            Remove
+				                          </button>
+				                        </div>
+				                      ))}
+				                      <button
+				                        type="button"
+				                        className="btn btn-sm"
+				                        onClick={() => setNewItemNameSpecIds((prev) => [...prev, ''])}
+				                      >
+				                        + Add Specification
+				                      </button>
+				                    </div>
+				                  </div>
 			                  <div className="flex justify-end gap-2">
 			                    <button
 			                      type="button"
@@ -2585,25 +2648,28 @@ export default function MastersView({
 				                          return;
 				                        }
 				                        const fn = isEditing
-			                          ? updateItemName(editCtx?.id ?? '', {
-			                              name: newItemName.trim(),
-			                              unitId: newItemNameUnitId || null,
-		                              itemCategoryId: newItemNameCategoryId || null,
-		                              updatedBy: 'system',
-		                            })
-		                          : createItemName({
-		                              name: newItemName.trim(),
-		                              unitId: newItemNameUnitId || null,
-		                              itemCategoryId: newItemNameCategoryId || null,
-		                              createdBy: 'system',
-		                            });
+				                          ? updateItemName(editCtx?.id ?? '', {
+				                              name: newItemName.trim(),
+				                              unitId: newItemNameUnitId || null,
+			                              itemCategoryId: newItemNameCategoryId || null,
+			                              specificationIds: newItemNameSpecIds.filter(Boolean),
+				                              updatedBy: 'system',
+				                            })
+				                          : createItemName({
+				                              name: newItemName.trim(),
+				                              unitId: newItemNameUnitId || null,
+				                              itemCategoryId: newItemNameCategoryId || null,
+				                              specificationIds: newItemNameSpecIds.filter(Boolean),
+				                              createdBy: 'system',
+				                            });
 		                        fn.then(() => loadAll())
-		                          .then(() => {
-		                            setNewItemName('');
-		                            setNewItemNameUnitId('');
-		                            setNewItemNameCategoryId('');
-		                            closeModal();
-		                          })
+			                          .then(() => {
+			                            setNewItemName('');
+			                            setNewItemNameUnitId('');
+			                            setNewItemNameCategoryId('');
+			                            setNewItemNameSpecIds([]);
+			                            closeModal();
+			                          })
 		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 	                      }}
@@ -2661,12 +2727,21 @@ export default function MastersView({
                 </div>
               ) : null}
 
-		              {tab === 'specValues' ? (
-		                <div className="space-y-2">
+			              {tab === 'specValues' ? (
+			                <div className="space-y-2">
 			                  <label className="space-y-1">
-			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
 			                    <SearchableSelect
-			                      value={newSpecValueSpecId}
+			                      value={specValueItemNameId}
+			                      options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+			                      onChange={setSpecValueItemNameId}
+			                      placeholder="Select item name..."
+			                    />
+			                  </label>
+				                  <label className="space-y-1">
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
+				                    <SearchableSelect
+				                      value={newSpecValueSpecId}
 			                      options={specs.map((s) => ({ value: s.id, label: s.name }))}
 			                      onChange={setNewSpecValueSpecId}
 			                      placeholder="Search specification..."
@@ -2681,7 +2756,7 @@ export default function MastersView({
 			                        return { value: next.id, label: next.name };
 			                      }}
 			                    />
-			                  </label>
+				                  </label>
 		                  <label className="space-y-1">
 		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Value</div>
 		                    <input
@@ -2702,36 +2777,44 @@ export default function MastersView({
 	                    >
 	                      Cancel
 			                    </button>
-			                    <button
-			                      type="button"
-			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-			                      disabled={!newSpecValueSpecId || !newSpecValue.trim() || busy}
-			                      onClick={() => {
-			                        setBusy(true);
-			                        setError(null);
-			                        const fn = isEditing
-			                          ? updateSpecificationValue(editCtx?.id ?? '', {
-			                              specificationId: newSpecValueSpecId,
-			                              value: newSpecValue.trim(),
-			                              updatedBy: 'system',
-			                            })
-			                          : createSpecificationValue({ specificationId: newSpecValueSpecId, value: newSpecValue.trim(), createdBy: 'system' });
-			                        fn
-			                          .then(() => fetchSpecificationValues(newSpecValueSpecId))
-			                          .then((vals) => {
-			                            setSpecValueOptions((m) => ({ ...m, [newSpecValueSpecId]: vals }));
-			                          })
-		                          .then(async () => {
-		                            if (specIdForValues) {
-		                              const rows = await fetchSpecificationValues(specIdForValues);
-		                              setSpecValues(rows);
-		                              return;
-		                            }
-		                            const all = await Promise.all(specs.map((s) => fetchSpecificationValues(s.id)));
-		                            const flat = all
-		                              .flat()
-		                              .sort((a, b) => {
-		                                const an = specNameLookup[a.specificationId] ?? '';
+				                    <button
+				                      type="button"
+				                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+				                      disabled={!specValueItemNameId || !newSpecValueSpecId || !newSpecValue.trim() || busy}
+				                      onClick={() => {
+				                        setBusy(true);
+				                        setError(null);
+				                        const fn = isEditing
+				                          ? updateSpecificationValue(editCtx?.id ?? '', {
+				                              specificationId: newSpecValueSpecId,
+				                              itemNameId: specValueItemNameId,
+				                              value: newSpecValue.trim(),
+				                              updatedBy: 'system',
+				                            })
+				                          : createSpecificationValue({
+				                              specificationId: newSpecValueSpecId,
+				                              itemNameId: specValueItemNameId,
+				                              value: newSpecValue.trim(),
+				                              createdBy: 'system',
+				                            });
+				                        fn
+				                          .then(() => fetchSpecificationValues(newSpecValueSpecId, { itemNameId: specValueItemNameId }))
+				                          .then((vals) => {
+				                            setSpecValueOptions((m) => ({ ...m, [newSpecValueSpecId]: vals }));
+				                          })
+			                          .then(async () => {
+			                            if (specIdForValues) {
+			                              const rows = await fetchSpecificationValues(specIdForValues, { itemNameId: specValueItemNameId || undefined });
+			                              setSpecValues(rows);
+			                              return;
+			                            }
+			                            const all = await Promise.all(
+			                              specs.map((s) => fetchSpecificationValues(s.id, { itemNameId: specValueItemNameId || undefined }))
+			                            );
+			                            const flat = all
+			                              .flat()
+			                              .sort((a, b) => {
+			                                const an = specNameLookup[a.specificationId] ?? '';
 		                                const bn = specNameLookup[b.specificationId] ?? '';
 		                                if (an !== bn) return an.localeCompare(bn);
 		                                return a.value.localeCompare(b.value);
@@ -4014,12 +4097,21 @@ export default function MastersView({
 	        </div>
 	      ) : null}
 
-	      {tab === 'specValues' ? (
-	        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+		      {tab === 'specValues' ? (
+		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 		          <label className="space-y-1">
-		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
+		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
 		            <SearchableSelect
-		              value={specIdForValues}
+		              value={specValuesFilterItemNameId}
+		              options={[{ value: '', label: 'All' }, ...itemNames.map((n) => ({ value: n.id, label: n.name }))]}
+		              onChange={setSpecValuesFilterItemNameId}
+		              placeholder="Filter by item name..."
+		            />
+		          </label>
+			          <label className="space-y-1">
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
+			            <SearchableSelect
+			              value={specIdForValues}
 		              options={[{ value: '', label: 'All' }, ...specs.map((s) => ({ value: s.id, label: s.name }))]}
 		              onChange={setSpecIdForValues}
 		              placeholder="Search specification..."
@@ -4034,74 +4126,71 @@ export default function MastersView({
 		                return { value: next.id, label: next.name };
 		              }}
 		            />
-		          </label>
-	
-	          <div className="flex items-center justify-between gap-2">
-	            <div className="text-sm text-on-surface-variant">Total: {groupedSpecValues.length}</div>
-	            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
-	            >
-	              Add
-	            </button>
-	          </div>
-	          <div className="overflow-auto">
-		            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
-		              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-		                <tr>
-		                  <th className="text-left px-3 py-2 border border-blue-600">Specification</th>
-		                  <th className="text-left px-3 py-2 border border-blue-600">Values</th>
-		                </tr>
-		              </thead>
-		              <tbody>
-		                {groupedSpecValues.map((r) => (
-		                  <tr key={r.specId} className="align-top">
-		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{r.specName}</td>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
-			                      <div className="flex flex-wrap gap-2">
-				                        {r.values.map((v) => (
-				                          <span key={v.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-600 bg-surface-container-low text-xs">
-				                            <span className="whitespace-nowrap">{v.value}</span>
-				                            {v.isUsed ? null : (
-				                              <>
-				                                <button
-				                                  type="button"
-				                                  className="btn-primary btn-sm"
-				                                  onClick={() => openEditModal(v.id)}
-				                                >
-				                                  Edit
-				                                </button>
-				                                <button
-				                                  type="button"
-				                                  title="Delete"
-				                                  aria-label="Delete"
-				                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-				                                  onClick={() => {
-				                                    if (!window.confirm(`Delete value "${v.value}"?`)) return;
-				                                    setBusy(true);
-				                                    setError(null);
-				                                    deleteSpecificationValue(v.id, { deletedBy: 'system' })
-				                                      .then(() => setSpecValues((prev) => prev.filter((p) => p.id !== v.id)))
-				                                      .catch(handleMasterError)
-				                                      .finally(() => setBusy(false));
-				                                  }}
-				                                >
-				                                  <Trash2 size={14} />
-				                                </button>
-				                              </>
-				                            )}
-				                          </span>
-				                        ))}
+			          </label>
+		
+		          <div className="flex items-center justify-between gap-2">
+		            <div className="text-sm text-on-surface-variant">Total: {specValues.length}</div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
+		            >
+		              Add
+		            </button>
+		          </div>
+		          <div className="overflow-auto">
+			            <table className="min-w-[1100px] w-full text-sm border-collapse border border-blue-600">
+			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+			                <tr>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Specification</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Value</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Used</th>
+			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+			                </tr>
+			              </thead>
+			              <tbody>
+			                {specValues.map((v) => (
+			                  <tr key={v.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((v as any).itemName ?? '')}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+			                      {specNameLookup[v.specificationId] ?? v.specificationId}
+			                    </td>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{v.value}</td>
+			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(v as any).isUsed ? 'Yes' : 'No'}</td>
+			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+			                      <div className="flex items-center gap-2">
+			                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(v.id)}>
+			                          Edit
+			                        </button>
+			                        <button
+			                          type="button"
+			                          title="Delete"
+			                          aria-label="Delete"
+			                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+			                          disabled={(v as any).isUsed}
+			                          onClick={() => {
+			                            if ((v as any).isUsed) return;
+			                            if (!window.confirm(`Delete value \"${v.value}\"?`)) return;
+			                            setBusy(true);
+			                            setError(null);
+			                            deleteSpecificationValue(v.id, { deletedBy: 'system' })
+			                              .then(() => refreshCurrentTab('specValues'))
+			                              .catch(handleMasterError)
+			                              .finally(() => setBusy(false));
+			                          }}
+			                        >
+			                          <Trash2 size={16} />
+			                        </button>
 			                      </div>
 			                    </td>
-		                  </tr>
-		                ))}
-		              </tbody>
-		            </table>
-	          </div>
-	        </div>
-	      ) : null}
+			                  </tr>
+			                ))}
+			              </tbody>
+			            </table>
+		          </div>
+		        </div>
+		      ) : null}
 
 	      {tab === 'items' ? (
 	        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
