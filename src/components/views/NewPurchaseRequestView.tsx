@@ -1218,18 +1218,37 @@ export default function NewPurchaseRequestView({
 				                      />
 				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
 				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
-				                          <div className="text-sm font-bold text-on-surface">Add new Value</div>
+				                          <div className="text-sm font-bold text-on-surface">Add Specification Value</div>
 				                          <button type="button" className="btn btn-sm" onClick={closeReqCreateValue}>
 				                            Close
 				                          </button>
 				                        </div>
 				                        <div className="p-5 space-y-3">
 				                          {reqCreateValueError ? <div className="text-xs text-error">{reqCreateValueError}</div> : null}
+				                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				                            <div className="space-y-1">
+				                              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
+				                              <div className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface">
+				                                {(() => {
+				                                  const idx = reqCreateValueRowIndex;
+				                                  const itemNameId = idx != null ? String(items[idx]?.itemNameId ?? '') : '';
+				                                  const label = itemNames.find((n) => n.id === itemNameId)?.name ?? '';
+				                                  return label || itemNameId || '-';
+				                                })()}
+				                              </div>
+				                            </div>
+				                            <div className="space-y-1">
+				                              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
+				                              <div className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface">
+				                                {(specNameById?.[reqCreateValueSpecId] ?? reqCreateValueSpecId) || '-'}
+				                              </div>
+				                            </div>
+				                          </div>
 				                          <input
 				                            className={inputClass}
 				                            autoFocus
 				                            value={reqCreateValueValue}
-				                            placeholder="Enter new value"
+				                            placeholder="Enter new value for this item/specification"
 				                            onChange={(e) => setReqCreateValueValue(e.target.value)}
 				                            onKeyDown={(e) => {
 				                              if (e.key === 'Escape') closeReqCreateValue();
