@@ -117,12 +117,13 @@ export default function NewPurchaseRequestView({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [createItemNameInlineOpen, setCreateItemNameInlineOpen] = useState(false);
-  const [createItemNameInlineValue, setCreateItemNameInlineValue] = useState('');
-  const [createItemNameInlineUnitId, setCreateItemNameInlineUnitId] = useState('');
-  const [createItemNameInlineCategoryId, setCreateItemNameInlineCategoryId] = useState('');
-  const [createItemNameInlineBusy, setCreateItemNameInlineBusy] = useState(false);
-  const [createItemNameInlineError, setCreateItemNameInlineError] = useState<string | null>(null);
+	  const [createItemNameInlineOpen, setCreateItemNameInlineOpen] = useState(false);
+	  const [createItemNameTargetRowIndex, setCreateItemNameTargetRowIndex] = useState<number | null>(null);
+	  const [createItemNameInlineValue, setCreateItemNameInlineValue] = useState('');
+	  const [createItemNameInlineUnitId, setCreateItemNameInlineUnitId] = useState('');
+	  const [createItemNameInlineCategoryId, setCreateItemNameInlineCategoryId] = useState('');
+	  const [createItemNameInlineBusy, setCreateItemNameInlineBusy] = useState(false);
+	  const [createItemNameInlineError, setCreateItemNameInlineError] = useState<string | null>(null);
 
   const [createUnitInlineOpen, setCreateUnitInlineOpen] = useState(false);
   const [createUnitInlineName, setCreateUnitInlineName] = useState('');
@@ -404,13 +405,14 @@ export default function NewPurchaseRequestView({
 			    return list.map((s) => ({ value: s.id, label: s.name }));
 			  }, [firmId, stores]);
 
-		  const closeCreateItemName = () => {
-		    setCreateItemNameInlineOpen(false);
-		    setCreateItemNameInlineValue('');
-        setCreateItemNameInlineUnitId('');
-        setCreateItemNameInlineCategoryId('');
-		    setCreateItemNameInlineError(null);
-		  };
+			  const closeCreateItemName = () => {
+			    setCreateItemNameInlineOpen(false);
+			    setCreateItemNameTargetRowIndex(null);
+			    setCreateItemNameInlineValue('');
+	        setCreateItemNameInlineUnitId('');
+	        setCreateItemNameInlineCategoryId('');
+			    setCreateItemNameInlineError(null);
+			  };
 
 		  const submitCreateItemName = () => {
 		    const v = createItemNameInlineValue.trim();
@@ -429,17 +431,21 @@ export default function NewPurchaseRequestView({
 		    if (createItemNameInlineBusy) return;
 		    setCreateItemNameInlineBusy(true);
 		    setCreateItemNameInlineError(null);
-		    createItemName({ name: v, unitId: createItemNameInlineUnitId, itemCategoryId: createItemNameInlineCategoryId, createdBy: 'system' })
-		      .then((created) => {
-		        const next = created.itemName;
-		        if (!next?.id) return;
-		        setItemNames((prev) => {
-		          if (prev.some((p) => p.id === next.id)) return prev;
-		          return [...prev, next].sort((a, b) => a.name.localeCompare(b.name));
-		        });
-		        setNewItemItemNameId(next.id);
-		        closeCreateItemName();
-		      })
+			    createItemName({ name: v, unitId: createItemNameInlineUnitId, itemCategoryId: createItemNameInlineCategoryId, createdBy: 'system' })
+			      .then((created) => {
+			        const next = created.itemName;
+			        if (!next?.id) return;
+			        setItemNames((prev) => {
+			          if (prev.some((p) => p.id === next.id)) return prev;
+			          return [...prev, next].sort((a, b) => a.name.localeCompare(b.name));
+			        });
+			        setItems((prev) => {
+			          const idx = createItemNameTargetRowIndex;
+			          if (idx == null) return prev;
+			          return prev.map((p, i) => (i === idx ? { ...p, itemNameId: next.id, specs: {} } : p));
+			        });
+			        closeCreateItemName();
+			      })
 		      .catch((e) => setCreateItemNameInlineError(e instanceof Error ? e.message : String(e)))
 		      .finally(() => setCreateItemNameInlineBusy(false));
 		  };
@@ -747,6 +753,7 @@ export default function NewPurchaseRequestView({
 						                    onCreate={async (label) => {
 						                      const name = String(label ?? '').trim();
 						                      if (!name) return null;
+						                      setCreateItemNameTargetRowIndex(idx);
 						                      setCreateItemNameInlineError(null);
 						                      setCreateItemNameInlineValue(name);
 						                      setCreateItemNameInlineUnitId('');
