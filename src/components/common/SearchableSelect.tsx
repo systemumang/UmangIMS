@@ -317,21 +317,28 @@ export default function SearchableSelect({
               </div>
 
               <div className="flex-1 min-h-0 overflow-auto">
-                {filtered.slice(0, 100).map((o) => (
-                  <button
-                    key={o.value}
-                    type="button"
-                    className={cn(
-                      'w-full text-left px-3 py-2 text-base text-on-surface-variant hover:bg-primary/10 transition-colors',
-                      o.value === value ? 'bg-primary/15' : ''
-                    )}
-                    onClick={() => {
-                      onChange(o.value);
-                      setOpen(false);
-                      setQuery('');
-                      controlRef.current?.focus();
-                    }}
-                  >
+	                {filtered.slice(0, 100).map((o) => (
+	                  <button
+	                    key={o.value}
+	                    type="button"
+	                    className={cn(
+	                      'w-full text-left px-3 py-2 text-base text-on-surface-variant hover:bg-primary/10 transition-colors',
+	                      o.value === value ? 'bg-primary/15' : ''
+	                    )}
+	                    onMouseDown={(e) => {
+	                      // Avoid unintended parent handlers (modals/overlays) from reacting to menu clicks.
+	                      e.preventDefault();
+	                      e.stopPropagation();
+	                    }}
+	                    onClick={(e) => {
+	                      e.preventDefault();
+	                      e.stopPropagation();
+	                      onChange(o.value);
+	                      setOpen(false);
+	                      setQuery('');
+	                      controlRef.current?.focus();
+	                    }}
+	                  >
                     {o.label}
                   </button>
                 ))}
@@ -339,18 +346,26 @@ export default function SearchableSelect({
                 {!filtered.length ? <div className="px-3 py-2 text-sm text-on-surface-variant">No matches</div> : null}
               </div>
 
-						              {showCreate ? (
-						                <button
-						                  type="button"
-						                  disabled={creating}
-					                  className="w-full text-left px-3 py-2 text-base font-bold text-on-primary bg-primary border-t border-outline-variant hover:bg-primary-dim transition-colors disabled:opacity-60"
-					                  onClick={() => {
-			                    if (!onCreate) return;
-			                    const label = query.trim();
-				                    if (!label && !allowEmptyCreate) {
-		                      searchRef.current?.focus();
-		                      return;
-		                    }
+			              {showCreate ? (
+			                <button
+			                  type="button"
+			                  disabled={creating}
+			                  onMouseDown={(e) => {
+			                    // Prevent parent click/blur handlers from interfering with create flows.
+			                    // This is especially important when the caller opens a modal in `onCreate`.
+			                    e.preventDefault();
+			                    e.stopPropagation();
+			                  }}
+						                  className="w-full text-left px-3 py-2 text-base font-bold text-on-primary bg-primary border-t border-outline-variant hover:bg-primary-dim transition-colors disabled:opacity-60"
+						                  onClick={(e) => {
+				                    e.preventDefault();
+				                    e.stopPropagation();
+				                    if (!onCreate) return;
+				                    const label = query.trim();
+					                    if (!label && !allowEmptyCreate) {
+			                      searchRef.current?.focus();
+			                      return;
+			                    }
 		                    if (closeOnCreate) {
 		                      setOpen(false);
 		                      setQuery('');

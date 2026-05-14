@@ -794,10 +794,14 @@ export default function NewPurchaseRequestView({
 						                              }}
 							                              onCreate={async (label) => {
 							                                const v = String(label ?? '').trim();
-							                                setReqCreateValueError(null);
-							                                setReqCreateValueRowIndex(idx);
-							                                setReqCreateValueSpecId(specId);
-							                                setReqCreateValueValue(v);
+							                                // Defer opening the modal to the next tick; otherwise the same click that
+							                                // triggers "+ Add New" can immediately dismiss overlays in some browsers.
+							                                setTimeout(() => {
+							                                  setReqCreateValueError(null);
+							                                  setReqCreateValueRowIndex(idx);
+							                                  setReqCreateValueSpecId(specId);
+							                                  setReqCreateValueValue(v);
+							                                }, 0);
 							                                return null;
 							                              }}
 						                            />
