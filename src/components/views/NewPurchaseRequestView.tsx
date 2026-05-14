@@ -792,19 +792,58 @@ export default function NewPurchaseRequestView({
 						                                  )
 						                                );
 						                              }}
-							                              onCreate={async (label) => {
-							                                const v = String(label ?? '').trim();
-							                                // Defer opening the modal to the next tick; otherwise the same click that
-							                                // triggers "+ Add New" can immediately dismiss overlays in some browsers.
-							                                setTimeout(() => {
-							                                  setReqCreateValueError(null);
-							                                  setReqCreateValueRowIndex(idx);
-							                                  setReqCreateValueSpecId(specId);
-							                                  setReqCreateValueValue(v);
-							                                }, 0);
-							                                return null;
-							                              }}
-						                            />
+								                              onCreate={async (label) => {
+								                                const v = String(label ?? '').trim();
+								                                // If the user typed a value, create it immediately and auto-select it.
+								                                // This is more reliable than opening a modal from inside a dropdown click.
+								                                if (v) {
+								                                  const itemNameId = String(items[idx]?.itemNameId ?? '').trim();
+								                                  if (!itemNameId) return null;
+								                                  try {
+								                                    const created = await createSpecificationValue({
+								                                      specificationId: specId,
+								                                      itemNameId,
+								                                      value: v,
+								                                      createdBy: 'system',
+								                                    });
+								                                    const next = created?.specificationValue;
+								                                    const finalValue = String(next?.value ?? v);
+								                                    const key = specValueKey(itemNameId, specId);
+								                                    setSpecValueOptions((m) => {
+								                                      const prev = m[key] ?? [];
+								                                      if (prev.some((p) => p.value === finalValue)) return m;
+								                                      if (next) return { ...m, [key]: [...prev, next] };
+								                                      return {
+								                                        ...m,
+								                                        [key]: [
+								                                          ...prev,
+								                                          {
+								                                            id: `NEW-${Date.now()}-${Math.random()}`,
+								                                            specificationId: specId,
+								                                            itemNameId,
+								                                            value: finalValue,
+								                                            isActive: true,
+								                                          },
+								                                        ],
+								                                      };
+								                                    });
+								                                    // Return created option so SearchableSelect selects it.
+								                                    return { value: finalValue, label: finalValue };
+								                                  } catch {
+								                                    // Fallback: open modal to show error/details.
+								                                  }
+								                                }
+
+								                                // Fallback: open modal (e.g., empty create or error path).
+								                                setTimeout(() => {
+								                                  setReqCreateValueError(null);
+								                                  setReqCreateValueRowIndex(idx);
+								                                  setReqCreateValueSpecId(specId);
+								                                  setReqCreateValueValue(v);
+								                                }, 0);
+								                                return null;
+								                              }}
+							                            />
 						                          </label>
 						                        );
 						                      })}
