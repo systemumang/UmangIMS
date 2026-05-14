@@ -330,10 +330,7 @@ export default function App() {
 		        <div className="pointer-events-none absolute -bottom-24 -right-10 w-72 h-72 rounded-full bg-cyan-300/30 blur-3xl" />
 		        <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl border border-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.18)] overflow-hidden">
 		          <div className="px-6 sm:px-7 pt-7 pb-5 border-b border-slate-200/80 bg-gradient-to-r from-white via-blue-50/70 to-cyan-50/70">
-		            <div className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-blue-100 text-blue-700 border border-blue-200">
-		              Inventory Management
-		            </div>
-		            <div className="text-2xl font-extrabold text-slate-900 mt-3 tracking-tight">Welcome Back</div>
+		            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">Welcome Back</div>
 		            <div className="text-sm text-slate-600 mt-1">Sign in with your Login ID and Password</div>
 		          </div>
 		          <div className="p-6 sm:p-7 space-y-5">
