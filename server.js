@@ -1656,7 +1656,7 @@ app.get('/api/queues/check-quality', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ["COALESCE(inv.payment_mode, 'Credit') <> 'Cash'", 'inv.tally_entry_date IS NOT NULL'];
+    const where = ['1=1'];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
