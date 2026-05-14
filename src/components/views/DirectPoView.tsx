@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { createDirectPo } from '@/src/lib/purchaseRequests';
+import { fetchInventorySheet } from '@/src/lib/inventory';
 import {
   fetchFirms,
   fetchItems,
@@ -38,7 +39,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [projectId, setProjectId] = useState<string>('');
   const [supplierId, setSupplierId] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
+  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const [lines, setLines] = useState<Line[]>([{ itemId: '', quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
   const [saving, setSaving] = useState(false);
@@ -82,6 +85,26 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     const next = String(s?.paymentTerms ?? '').trim();
     if (next) setPaymentTerms(next);
   }, [supplierId, suppliers]);
+
+  useEffect(() => {
+    if (!firmId) {
+      setAvailableStockByItemId({});
+      return;
+    }
+    const ac = new AbortController();
+    fetchInventorySheet(firmId, undefined, ac.signal, { includeEmpty: true })
+      .then((rows) => {
+        const byItem: Record<string, number> = {};
+        for (const r of rows ?? []) {
+          const itemId = String(r.itemId ?? '').trim();
+          if (!itemId) continue;
+          byItem[itemId] = (byItem[itemId] ?? 0) + Number(r.balance ?? 0);
+        }
+        setAvailableStockByItemId(byItem);
+      })
+      .catch(() => setAvailableStockByItemId({}));
+    return () => ac.abort();
+  }, [firmId]);
 
   const firmOptions = useMemo(
     () =>
@@ -186,7 +209,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
         storeId: storeId ? storeId : null,
         projectId: projectId ? projectId : null,
         supplierId,
-        paymentTerms: paymentTerms.trim(),
+          paymentTerms: paymentTerms.trim(),
+          advanceAmount: String(advanceAmount ?? '').trim() ? Number(advanceAmount) : 0,
         shippingAddress: shippingAddress.trim() || undefined,
         termsConditions: firmTermsConditions || undefined,
         items: picked,
@@ -231,6 +255,15 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                   setStoreId('');
                 }}
                 placeholder="Select firm..."
+              />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance</div>
+              <input
+                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
+                value={advanceAmount}
+                onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
+                placeholder="0"
               />
             </label>
 
@@ -312,6 +345,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
               <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                 <tr>
                   <th className="px-3 py-2 border border-outline-variant">Item</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">Available</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Disc %</th>
@@ -324,6 +358,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                   <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
                     <td className="p-2 border border-outline-variant min-w-[360px]">
                       <SearchableSelect value={l.itemId} options={itemOptions} onChange={(v) => updateLine(idx, { itemId: v })} placeholder="Select item..." />
+                    </td>
+                    <td className="p-2 border border-outline-variant text-right w-28">
+                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
                     </td>
                     <td className="p-2 border border-outline-variant text-right w-28">
                       <input

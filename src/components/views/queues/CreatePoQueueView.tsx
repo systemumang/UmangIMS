@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { createPo, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
+import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
@@ -84,6 +85,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const supplierOptions = useMemo(
     () => masters.suppliers.map((s) => ({ value: s.id, label: s.name })),
@@ -97,6 +100,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     setModalError(null);
     setSaving(false);
     setModalLoading(false);
+    setAdvanceAmount('');
+    setAvailableStockByItemId({});
   }
 
   useEffect(() => {
@@ -106,6 +111,21 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     setModalLoading(true);
     Promise.all([fetchRequest(activePrId, ac.signal), fetchPos(activePrId, ac.signal)])
       .then(async ([pr, pos]) => {
+        const activeRow = rows.find((r) => r.prId === activePrId);
+        if (activeRow?.firmId) {
+          try {
+            const invRows = await fetchInventorySheet(activeRow.firmId, undefined, ac.signal, { includeEmpty: true });
+            const byItem: Record<string, number> = {};
+            for (const r of invRows ?? []) {
+              const itemId = String(r.itemId ?? '').trim();
+              if (!itemId) continue;
+              byItem[itemId] = (byItem[itemId] ?? 0) + Number(r.balance ?? 0);
+            }
+            setAvailableStockByItemId(byItem);
+          } catch {
+            setAvailableStockByItemId({});
+          }
+        }
         const orderedByItemId = new Map<string, number>();
         for (const p of pos ?? []) {
           for (const it of p.items ?? []) {
@@ -153,7 +173,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
       })
       .finally(() => setModalLoading(false));
     return () => ac.abort();
-  }, [activePrId, modalOpen]);
+  }, [activePrId, modalOpen, rows]);
 
   return (
     <div className="space-y-6">
@@ -327,7 +347,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                Promise.resolve()
 	                  .then(async () => {
 	                    for (const [, g] of groups.entries()) {
-	                      await createPo(activePrId, { supplier: g.supplierName, paymentTerms: g.paymentTerms, items: g.items });
+		                      await createPo(activePrId, { supplier: g.supplierName, paymentTerms: g.paymentTerms, advanceAmount: String(advanceAmount ?? '').trim() ? Number(advanceAmount) : 0, items: g.items });
 	                    }
 	                  })
 	                  .then(() => fetchQueueCreatePo(filters).then(setRows))
@@ -346,12 +366,24 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
         {modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading PR items...</div>
         ) : (
+          <div className="space-y-3">
+            <div className="max-w-xs">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance</label>
+              <input
+                className={cn(inputClass, 'py-1.5')}
+                value={advanceAmount}
+                onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
+                placeholder="0"
+                inputMode="decimal"
+              />
+            </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>
                 <col className="w-[320px]" />
                 <col className="w-[90px]" />
-                <col className="w-[120px]" />
+	                <col className="w-[120px]" />
+                  <col className="w-[120px]" />
                 <col className="w-[110px]" />
                 <col className="w-[90px]" />
                 <col className="w-[90px]" />
@@ -366,8 +398,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
@@ -386,8 +419,11 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         {formatItemWithSpecification(l.item, l.specification)}
                       </td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
+                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                          {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                        </td>
 	                      <td className="px-3 py-2 border border-outline-variant">
 	                        <input
 	                          className={cn(inputClass, 'py-1.5')}
@@ -502,15 +538,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                      </td>
                     </tr>
                   ))
-                ) : (
-                  <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
-                      No remaining items to order.
-                    </td>
-                  </tr>
-                )}
+	                ) : (
+	                  <tr>
+	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
+	                      No remaining items to order.
+	                    </td>
+	                  </tr>
+	                )}
               </tbody>
             </table>
+          </div>
           </div>
         )}
       </Modal>

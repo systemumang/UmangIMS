@@ -258,6 +258,8 @@ export type PaymentQueueRow = {
   supplierId?: string | null;
   supplierName: string;
   invoiceAmount: number;
+  paymentMode?: 'Cash' | 'Credit' | string;
+  tallyEntryDate?: string;
   paidAmount: number;
   remainingAmount: number;
   pendingReason: string;

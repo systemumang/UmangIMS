@@ -371,9 +371,10 @@ export default function PurchaseRequestDetailView({
 							  const [poDetailsSentDate, setPoDetailsSentDate] = useState('');
 							  const [editPoSupplierId, setEditPoSupplierId] = useState('');
 							  const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
-						  const [editPoLines, setEditPoLines] = useState<
-						    Array<{ itemId: string; label: string; quantity: string; rate: string; discountPercent: string; taxPercent: string }>
-						  >([]);
+                const [editPoAdvanceAmount, setEditPoAdvanceAmount] = useState('');
+							  const [editPoLines, setEditPoLines] = useState<
+							    Array<{ itemId: string; label: string; quantity: string; rate: string; discountPercent: string; taxPercent: string; cancelledQty: string; cancelReason: string }>
+							  >([]);
 						  const [editPoShippingSameAsFirm, setEditPoShippingSameAsFirm] = useState(true);
 						  const [editPoShippingAddress, setEditPoShippingAddress] = useState('');
 						  const [editPoTermsConditions, setEditPoTermsConditions] = useState('');
@@ -2423,8 +2424,9 @@ export default function PurchaseRequestDetailView({
 				    const initialSupplierId =
 				      String(p.po.supplierId ?? '').trim() ||
 				      (suppliers.find((s) => s.name.trim().toLowerCase() === String(p.po.supplier ?? '').trim().toLowerCase())?.id ?? '');
-				    setEditPoSupplierId(initialSupplierId);
-				    setEditPoPaymentTerms(String(p.po.paymentTerms ?? '').trim());
+					    setEditPoSupplierId(initialSupplierId);
+					    setEditPoPaymentTerms(String(p.po.paymentTerms ?? '').trim());
+              setEditPoAdvanceAmount(Number(p.po.advanceAmount ?? 0) ? String(p.po.advanceAmount) : '');
 
 				    const firmRow = pr ? firms.find((f) => f.id === pr.firmId) : undefined;
 				    const firmAddress = String(firmRow?.address ?? '').trim();
@@ -2451,14 +2453,16 @@ export default function PurchaseRequestDetailView({
 					                            const label = [prRow?.item || it.item, specInline || poSpecsInline || null].filter(Boolean).join(' - ');
 					        const discPct = Number((it as any)?.discountPercent ?? 0);
 					        const taxPct = Number((it as any)?.taxPercent ?? 0);
-					        return {
-					          itemId: it.itemId,
-					          label,
-					          quantity: String(it.quantity ?? ''),
-					          rate: String(it.rate ?? ''),
-					          discountPercent: Number.isFinite(discPct) && discPct !== 0 ? String(discPct) : '',
-					          taxPercent: Number.isFinite(taxPct) && taxPct !== 0 ? String(taxPct) : '',
-					        };
+						        return {
+						          itemId: it.itemId,
+						          label,
+						          quantity: String(it.quantity ?? ''),
+						          rate: String(it.rate ?? ''),
+						          discountPercent: Number.isFinite(discPct) && discPct !== 0 ? String(discPct) : '',
+						          taxPercent: Number.isFinite(taxPct) && taxPct !== 0 ? String(taxPct) : '',
+                      cancelledQty: Number((it as any)?.cancelledQty ?? 0) ? String((it as any)?.cancelledQty) : '',
+                      cancelReason: String((it as any)?.cancelReason ?? ''),
+						        };
 					      })
 					    );
 
@@ -3926,11 +3930,13 @@ export default function PurchaseRequestDetailView({
 					                                        aria-label="Delete PO"
 					                                        className="btn-icon-danger"
 					                                        disabled={busy || poHasInvoice}
-					                                        onClick={() => {
-					                                          if (!window.confirm(`Delete PO ${p.po.id}?`)) return;
-					                                          if (selectedPoId === p.po.id) setSelectedPoId('');
-				                                          run(() => deletePo(p.po.id, { deletedBy: 'Purchase Team' }).then(() => undefined));
-				                                        }}
+						                                        onClick={() => {
+						                                          const reason = window.prompt('Reason to cancel PO:', 'Cancelled by purchase team') || '';
+                                          if (!reason.trim()) return;
+                                          if (!window.confirm(`Cancel PO ${p.po.id}?`)) return;
+						                                          if (selectedPoId === p.po.id) setSelectedPoId('');
+					                                          run(() => deletePo(p.po.id, { deletedBy: 'Purchase Team', cancelReason: reason.trim() }).then(() => undefined));
+					                                        }}
 				                                      >
 				                                        <Trash2 size={16} />
 				                                      </button>
@@ -4429,16 +4435,25 @@ export default function PurchaseRequestDetailView({
 				                          placeholder="Select supplier..."
 				                        />
 				                      </Field>
-				                      <Field label="Payment Terms">
-				                        <input
+					                      <Field label="Payment Terms">
+					                        <input
 				                          className={inputClass}
 				                          value={editPoPaymentTerms}
 				                          onChange={(e) => setEditPoPaymentTerms(e.target.value)}
 				                          disabled={busy}
 				                          placeholder="15 / 30 days"
-				                        />
-				                      </Field>
-				                    </div>
+					                        />
+					                      </Field>
+                              <Field label="Advance">
+                                <input
+                                  className={inputClass}
+                                  value={editPoAdvanceAmount}
+                                  onChange={(e) => setEditPoAdvanceAmount(sanitizeDecimalInput(e.target.value))}
+                                  disabled={busy}
+                                  placeholder="0"
+                                />
+                              </Field>
+					                    </div>
 
 				                    {(() => {
 				                      const firmRow = pr ? firms.find((f) => f.id === pr.firmId) : undefined;
@@ -4576,9 +4591,15 @@ export default function PurchaseRequestDetailView({
 					                              <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[120px]">
 					                                GST %
 					                              </th>
-				                              <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[90px]">
-				                                Delete
-				                              </th>
+					                              <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[90px]">
+					                                Delete
+					                              </th>
+                                <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[120px]">
+                                  Cancel Qty
+                                </th>
+                                <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[220px]">
+                                  Cancel Reason
+                                </th>
 				                            </tr>
 				                          </thead>
 			                          <tbody>
@@ -4587,7 +4608,7 @@ export default function PurchaseRequestDetailView({
 				                                <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
 				                                  {renderInlineWithBoldSpecNames(ln.label)}
 				                                </td>
-			                                <td className="px-3 py-2 border border-outline-variant">
+					                                <td className="px-3 py-2 border border-outline-variant">
 			                                  <input
 			                                    className={compactTableInputClass}
 			                                    type="number"
@@ -4735,14 +4756,22 @@ export default function PurchaseRequestDetailView({
 				                        }
 
 				                        run(async () => {
-				                          await updatePo(activePoDetails.po.id, {
-				                            supplierId: supplier.id,
-				                            paymentTerms: terms,
-				                            shippingAddress: shippingTrimmed || undefined,
-				                            // Terms & Conditions always taken from Firm Master on backend
-				                            items: lines,
-				                            updatedBy: 'Purchase Team',
-				                          });
+					                          await updatePo(activePoDetails.po.id, {
+					                            supplierId: supplier.id,
+					                            paymentTerms: terms,
+                                  advanceAmount: String(editPoAdvanceAmount ?? '').trim() ? Number(editPoAdvanceAmount) : 0,
+					                            shippingAddress: shippingTrimmed || undefined,
+					                            // Terms & Conditions always taken from Firm Master on backend
+					                            items: lines,
+                                  lineCancels: editPoLines
+                                    .map((l) => ({
+                                      itemId: String(l.itemId ?? '').trim(),
+                                      cancelledQty: String(l.cancelledQty ?? '').trim() ? Number(l.cancelledQty) : 0,
+                                      cancelReason: String(l.cancelReason ?? '').trim() || undefined,
+                                    }))
+                                    .filter((x) => x.itemId && x.cancelledQty > 0),
+					                            updatedBy: 'Purchase Team',
+					                          });
 				                          closePoDetails();
 				                        });
 				                      }}
@@ -4913,6 +4942,32 @@ export default function PurchaseRequestDetailView({
 				                                    placeholder="30 days"
 				                                  />
 				                                </td>
+                                    <td className="px-3 py-2 border border-outline-variant">
+                                      <input
+                                        className={compactTableInputClass}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={ln.cancelledQty}
+                                        onChange={(e) =>
+                                          setEditPoLines((prev) =>
+                                            prev.map((x, i) => (i === idx ? { ...x, cancelledQty: sanitizeDecimalInput(e.target.value) } : x))
+                                          )
+                                        }
+                                        disabled={busy}
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 border border-outline-variant">
+                                      <input
+                                        className={compactTableInputClass}
+                                        value={ln.cancelReason}
+                                        onChange={(e) =>
+                                          setEditPoLines((prev) =>
+                                            prev.map((x, i) => (i === idx ? { ...x, cancelReason: e.target.value } : x))
+                                          )
+                                        }
+                                        disabled={busy}
+                                      />
+                                    </td>
 				                              </tr>
 				                            );
 				                          });

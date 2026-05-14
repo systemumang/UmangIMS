@@ -154,6 +154,31 @@ function getMysqlPool() {
     }
   })();
 
+  (async () => {
+    try {
+      const pool = mysqlPool;
+      const ensureColumn = async (table, name, def) => {
+        const [rows] = await pool.query(`SHOW COLUMNS FROM ${table} LIKE ?`, [name]);
+        if (!Array.isArray(rows) || !rows.length) {
+          await pool.query(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
+        }
+      };
+
+      await ensureColumn('purchase_orders', 'advance_amount', 'DOUBLE NOT NULL DEFAULT 0');
+      await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
+      await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
+      await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
+
+      await ensureColumn('purchase_order_items', 'cancelled_qty', 'DOUBLE NOT NULL DEFAULT 0');
+      await ensureColumn('purchase_order_items', 'cancel_reason', 'TEXT NULL');
+
+      await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
+      await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
+    } catch (err) {
+      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
+    }
+  })();
+
   return mysqlPool;
 }
 
@@ -1403,7 +1428,7 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ["po.check_po = 1"];
+    const where = ["po.check_po = 1", "po.cancel_reason IS NULL"];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -1494,7 +1519,7 @@ app.get('/api/queues/create-grn', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ["po.check_po = 1"];
+    const where = ["po.check_po = 1", "po.cancel_reason IS NULL"];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -1590,7 +1615,7 @@ app.get('/api/queues/check-quality', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ['1=1'];
+    const where = ["COALESCE(inv.payment_mode, 'Credit') <> 'Cash'", 'inv.tally_entry_date IS NOT NULL'];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -1825,6 +1850,8 @@ app.get('/api/queues/payment', async (req, res) => {
         inv.total_amount AS invoiceAmount,
         inv.payment_status AS paymentStatus,
         inv.payment_date AS paymentDate,
+        inv.payment_mode AS paymentMode,
+        inv.tally_entry_date AS tallyEntryDate,
         po.id AS poId,
         po.po_number AS poNumber,
         pr.id AS prId,
@@ -1861,6 +1888,8 @@ app.get('/api/queues/payment', async (req, res) => {
           invoiceDate: toIsoDate(r.invoiceDate) || '',
           paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
           paymentDate: toIsoDate(r.paymentDate) || undefined,
+          paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
+          tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
           poId: String(r.poId ?? ''),
           poNumber: String(r.poNumber ?? r.poId ?? ''),
           prId: String(r.prId ?? ''),
@@ -2297,6 +2326,12 @@ async function fetchPoHeaderAndItems(pool, poId) {
       po.po_number AS poNumber,
       po.order_date AS orderDate,
       po.payment_terms AS paymentTerms,
+      po.shipping_address AS shippingAddress,
+      po.terms_conditions AS termsConditions,
+      po.advance_amount AS advanceAmount,
+      po.cancel_reason AS cancelReason,
+      po.cancelled_by AS cancelledBy,
+      po.cancelled_at AS cancelledAt,
       po.status AS status,
       po.created_by AS createdBy,
       po.created_at AS createdAt,
@@ -2323,6 +2358,8 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.rate AS rate,
       poi.discount_percent AS discountPercent,
       poi.tax_percent AS taxPercent,
+      poi.cancelled_qty AS cancelledQty,
+      poi.cancel_reason AS cancelReason,
       poi.goods_amount AS goodsAmount,
       poi.tax_amount AS taxAmount,
       poi.total_amount AS totalAmount
@@ -2342,6 +2379,12 @@ async function fetchPoHeaderAndItems(pool, poId) {
     firmId: String(poRow.firmId ?? ''),
     orderDate: toIsoDate(poRow.orderDate) || '',
     paymentTerms: poRow.paymentTerms != null ? String(poRow.paymentTerms) : undefined,
+    shippingAddress: poRow.shippingAddress != null ? String(poRow.shippingAddress) : undefined,
+    termsConditions: poRow.termsConditions != null ? String(poRow.termsConditions) : undefined,
+    advanceAmount: Number(poRow.advanceAmount ?? 0),
+    cancelReason: poRow.cancelReason != null ? String(poRow.cancelReason) : null,
+    cancelledBy: poRow.cancelledBy != null ? String(poRow.cancelledBy) : null,
+    cancelledAt: toIsoDateTime(poRow.cancelledAt) || null,
     createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
     supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
     supplier: String(poRow.supplier ?? ''),
@@ -2473,6 +2516,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       inv.charges_gst_amount AS chargesGstAmount,
       inv.payment_status AS paymentStatus,
       inv.payment_date AS paymentDate,
+      inv.payment_mode AS paymentMode,
+      inv.tally_entry_date AS tallyEntryDate,
       inv.status AS status,
       inv.created_by AS createdBy,
       inv.created_at AS createdAt,
@@ -2520,6 +2565,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     status: mapInvoiceStatus(invRow),
     paymentStatus: invRow.paymentStatus != null ? String(invRow.paymentStatus) : undefined,
     paymentDate: toIsoDate(invRow.paymentDate) || undefined,
+    paymentMode: invRow.paymentMode != null ? String(invRow.paymentMode) : 'Credit',
+    tallyEntryDate: toIsoDate(invRow.tallyEntryDate) || undefined,
     createdBy: invRow.createdBy != null ? String(invRow.createdBy) : undefined,
     createdAt: toIsoDateTime(invRow.createdAt) || new Date().toISOString(),
     updatedBy: invRow.updatedBy != null ? String(invRow.updatedBy) : undefined,
@@ -3206,6 +3253,8 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
         inv.charges_gst_amount AS chargesGstAmount,
         inv.payment_status AS paymentStatus,
         inv.payment_date AS paymentDate,
+        inv.payment_mode AS paymentMode,
+        inv.tally_entry_date AS tallyEntryDate,
         inv.status AS status,
         inv.document_url AS documentUrl,
         inv.cn_copy_url AS cnCopyUrl,
@@ -3282,6 +3331,8 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
           status: mapInvoiceStatus(r),
           paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
           paymentDate: toIsoDate(r.paymentDate) || undefined,
+          paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
+          tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
           documentUrl: r.documentUrl != null ? String(r.documentUrl) : undefined,
           cnCopyUrl: r.cnCopyUrl != null ? String(r.cnCopyUrl) : undefined,
           ewayBillNumber: r.ewayBillNumber != null ? String(r.ewayBillNumber) : undefined,
@@ -3331,6 +3382,10 @@ app.get('/api/requests/:id/pos', async (req, res) => {
         po.sent_by AS sentBy,
         po.sent_date AS sentDate,
         po.sent_proof AS sentProof,
+        po.advance_amount AS advanceAmount,
+        po.cancel_reason AS cancelReason,
+        po.cancelled_by AS cancelledBy,
+        po.cancelled_at AS cancelledAt,
         po.created_by AS createdBy,
         po.created_at AS createdAt
       FROM purchase_orders po
@@ -3356,6 +3411,8 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           poi.rate AS rate,
           poi.discount_percent AS discountPercent,
           poi.tax_percent AS taxPercent,
+          poi.cancelled_qty AS cancelledQty,
+          poi.cancel_reason AS cancelReason,
           poi.goods_amount AS goodsAmount,
           poi.tax_amount AS taxAmount,
           poi.total_amount AS totalAmount
@@ -3382,6 +3439,8 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           rate: Number(r.rate ?? 0),
           discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
           taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+          cancelledQty: Number(r.cancelledQty ?? 0),
+          cancelReason: r.cancelReason != null ? String(r.cancelReason) : null,
           goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
           taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
           totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
@@ -3409,10 +3468,14 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           checkPo: Boolean(r.checkPo),
           checkPoUserId: r.checkPoUserId != null ? String(r.checkPoUserId) : null,
           checkDate: toIsoDate(r.checkDate) || null,
-          sentBy: r.sentBy != null ? String(r.sentBy) : null,
-          sentDate: toIsoDate(r.sentDate) || null,
-          sentProof: r.sentProof != null ? String(r.sentProof) : null,
-        },
+	          sentBy: r.sentBy != null ? String(r.sentBy) : null,
+	          sentDate: toIsoDate(r.sentDate) || null,
+	          sentProof: r.sentProof != null ? String(r.sentProof) : null,
+            advanceAmount: Number(r.advanceAmount ?? 0),
+            cancelReason: r.cancelReason != null ? String(r.cancelReason) : null,
+            cancelledBy: r.cancelledBy != null ? String(r.cancelledBy) : null,
+            cancelledAt: toIsoDateTime(r.cancelledAt) || null,
+	        },
         items: itemsByPoId.get(poId) ?? [],
       };
     });
@@ -4006,6 +4069,8 @@ app.post('/api/requests/:id/po', async (req, res) => {
 
 	    const supplierName = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+      const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
+      const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
 	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
 	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
 	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -4030,9 +4095,9 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    await pool.query(
 	      `
 	      INSERT INTO purchase_orders
-	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
 	      VALUES
-	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
 	      `,
 	      [
 	        poId,
@@ -4041,9 +4106,10 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	        String(prRow.storeId),
 	        prRow.projectId ? String(prRow.projectId) : null,
 	        supplierId,
-	        prId,
-	        paymentTerms,
-	        'system',
+		        prId,
+		        paymentTerms,
+            advanceAmount,
+		        'system',
 	        shippingAddress,
 	        termsConditions,
 	      ]
@@ -4104,7 +4170,8 @@ app.post('/api/requests/:id/po', async (req, res) => {
 		          createdBy: 'system',
 		          supplierId,
 	          supplier: supplierName,
-	          paymentTerms,
+		          paymentTerms,
+              advanceAmount,
 	          shippingAddress: shippingAddress || undefined,
 	          termsConditions: termsConditions || undefined,
 	          status: 'Open',
@@ -4294,10 +4361,10 @@ app.post('/api/pos', async (req, res) => {
 
     await pool.query(
       `
-      INSERT INTO purchase_orders
-        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-      VALUES
-        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, NULL, ?, NOW(), NOW(), ?, ?)
+	      INSERT INTO purchase_orders
+	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+	      VALUES
+	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
       `,
       [
         poId,
@@ -4306,9 +4373,10 @@ app.post('/api/pos', async (req, res) => {
         effectiveStoreId,
         projectId ? projectId : null,
         supplierId,
-        directPrId,
-        paymentTerms,
-        'system',
+	        directPrId,
+	        paymentTerms,
+          advanceAmount,
+	        'system',
         shippingAddress,
         termsConditions,
       ]
@@ -4410,7 +4478,8 @@ app.post('/api/pos', async (req, res) => {
           createdBy: 'system',
           supplierId,
           supplier: supplierName,
-          paymentTerms,
+	          paymentTerms,
+            advanceAmount,
           shippingAddress: shippingAddress || undefined,
           termsConditions: termsConditions || undefined,
           status: 'Open',
@@ -4419,6 +4488,138 @@ app.post('/api/pos', async (req, res) => {
         items: outItems,
       },
     });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/pos/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [[poRow]] = await pool.query('SELECT id, status, advance_amount AS advanceAmount FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+
+    const supplierId = req.body?.supplierId != null ? String(req.body.supplierId).trim() : '';
+    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || 'system';
+    const statusInput = String(req.body?.status ?? '').trim().toLowerCase();
+    const cancelReason = req.body?.cancelReason != null ? String(req.body.cancelReason).trim() : '';
+    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, Number(poRow.advanceAmount ?? 0)));
+    const lineCancels = Array.isArray(req.body?.lineCancels) ? req.body.lineCancels : [];
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    const mappedStatus = statusInput === 'closed' ? 'closed' : statusInput === 'partial' ? 'partial' : 'issued';
+    const finalStatus = cancelReason ? 'closed' : mappedStatus;
+
+    if (supplierId) {
+      const [[s]] = await pool.query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+      if (!s) return res.status(400).json({ error: 'Supplier not found' });
+    }
+
+    await pool.query(
+      `
+      UPDATE purchase_orders
+      SET supplier_id = COALESCE(NULLIF(?, ''), supplier_id),
+          payment_terms = ?,
+          shipping_address = ?,
+          terms_conditions = ?,
+          status = ?,
+          advance_amount = ?,
+          cancel_reason = ?,
+          cancelled_by = ?,
+          cancelled_at = ?,
+          updated_by = ?,
+          updated_at = NOW()
+      WHERE id = ?
+      `,
+      [
+        supplierId,
+        paymentTerms,
+        shippingAddress,
+        termsConditions,
+        finalStatus,
+        advanceAmount,
+        cancelReason || null,
+        cancelReason ? updatedBy : null,
+        cancelReason ? new Date() : null,
+        updatedBy,
+        poId,
+      ]
+    );
+
+    const cancelByItemId = new Map();
+    for (const lc of lineCancels) {
+      const itemId = String(lc?.itemId ?? '').trim();
+      const cancelledQty = Math.max(0, num(lc?.cancelledQty, 0));
+      const reason = String(lc?.cancelReason ?? '').trim();
+      if (itemId && cancelledQty > 0) cancelByItemId.set(itemId, { cancelledQty, reason });
+    }
+
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const quantity = num(row?.quantity, NaN);
+      const rate = num(row?.rate, NaN);
+      const discountPercent = Math.max(0, num(row?.discountPercent, 0));
+      const taxPercent = Math.max(0, num(row?.taxPercent, 0));
+      if (!itemId || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(rate) || rate < 0) continue;
+
+      const lineCancel = cancelByItemId.get(itemId) || { cancelledQty: 0, reason: '' };
+      const cancelledQty = Math.max(0, Math.min(quantity, num(lineCancel.cancelledQty, 0)));
+      const effectiveQty = Math.max(0, quantity - cancelledQty);
+      const goodsAmount = effectiveQty * rate * (1 - discountPercent / 100);
+      const taxAmount = goodsAmount * (taxPercent / 100);
+      const totalAmount = goodsAmount + taxAmount;
+
+      await pool.query(
+        `
+        UPDATE purchase_order_items
+        SET quantity = ?,
+            rate = ?,
+            discount_percent = ?,
+            tax_percent = ?,
+            cancelled_qty = ?,
+            cancel_reason = ?,
+            goods_amount = ?,
+            tax_amount = ?,
+            total_amount = ?,
+            updated_by = ?,
+            updated_at = NOW()
+        WHERE po_id = ? AND item_id = ?
+        `,
+        [quantity, rate, discountPercent || null, taxPercent || null, cancelledQty, lineCancel.reason || null, goodsAmount, taxAmount, totalAmount, updatedBy, poId, itemId]
+      );
+    }
+
+    const detail = await fetchPoHeaderAndItems(pool, poId);
+    if (!detail) return res.status(404).json({ error: 'PO not found' });
+    res.json({ po: detail });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/pos/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+    const cancelledBy = String(req.body?.deletedBy ?? '').trim() || 'system';
+    const cancelReason = String(req.body?.cancelReason ?? '').trim() || 'Cancelled by user';
+    await pool.query(
+      `UPDATE purchase_orders SET status='closed', cancel_reason=?, cancelled_by=?, cancelled_at=NOW(), updated_by=?, updated_at=NOW() WHERE id=?`,
+      [cancelReason, cancelledBy, cancelledBy, poId]
+    );
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -5001,6 +5202,8 @@ app.put('/api/pos/:id/check-sent', async (req, res) => {
       rate: Number(r.rate ?? 0),
       discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
       taxPercent: r.taxPercent != null ? Number(r.taxPercent) : undefined,
+      cancelledQty: Number(r.cancelledQty ?? 0),
+      cancelReason: r.cancelReason != null ? String(r.cancelReason) : null,
       goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
       taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
       totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
@@ -7610,7 +7813,13 @@ app.get('/api/inventory/sheet', async (req, res) => {
         iname.name AS itemName,
 	        it.specifications_json AS specificationsJson,
 	        it.unit AS unit,
-	        it.reorder_level AS reorderLevel
+	        it.reorder_level AS reorderLevel,
+          it.photo_1 AS photo1,
+          it.photo_2 AS photo2,
+          it.photo_3 AS photo3,
+          it.photo_4 AS photo4,
+          it.photo_5 AS photo5,
+          it.item_link AS brochureLink
       FROM items it
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE it.is_active = 1
@@ -7621,11 +7830,17 @@ app.get('/api/inventory/sheet', async (req, res) => {
         String(r.itemId ?? ''),
         {
           itemCode: String(r.itemCode ?? ''),
-          itemName: String(r.itemName ?? ''),
-          specificationsJson: r.specificationsJson,
-	          unit: String(r.unit ?? ''),
-	          reorderLevel: num(r.reorderLevel, 0),
-        },
+	          itemName: String(r.itemName ?? ''),
+	          specificationsJson: r.specificationsJson,
+		          unit: String(r.unit ?? ''),
+		          reorderLevel: num(r.reorderLevel, 0),
+              photo1: r.photo1 != null ? String(r.photo1) : '',
+              photo2: r.photo2 != null ? String(r.photo2) : '',
+              photo3: r.photo3 != null ? String(r.photo3) : '',
+              photo4: r.photo4 != null ? String(r.photo4) : '',
+              photo5: r.photo5 != null ? String(r.photo5) : '',
+              brochureLink: r.brochureLink != null ? String(r.brochureLink) : '',
+	        },
       ])
     );
 
@@ -7778,7 +7993,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
     const itemIds = Array.from(itemById.keys());
 
     const makeRow = (storeId, itemId) => {
-	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0 };
+		      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', brochureLink: '' };
 	      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
 	        opening: 0,
 	        purchase: 0,
@@ -7814,8 +8029,14 @@ app.get('/api/inventory/sheet', async (req, res) => {
         })(),
         unit: meta.unit,
         opening,
-        reorderLevel,
-        purchase,
+	        reorderLevel,
+          photo1: meta.photo1,
+          photo2: meta.photo2,
+          photo3: meta.photo3,
+          photo4: meta.photo4,
+          photo5: meta.photo5,
+          brochureLink: meta.brochureLink,
+	        purchase,
         issue,
         damage,
         returns,
@@ -7864,12 +8085,18 @@ async function handleCreateInvoice(req, res) {
     const labourCharge = Math.max(0, num(req.body?.labourCharge, 0));
     const otherCharge = Math.max(0, num(req.body?.otherCharge, 0));
     const chargesGstAmount = Math.max(0, num(req.body?.chargesGstAmount, 0));
+    const paymentModeRaw = String(req.body?.paymentMode ?? '').trim().toLowerCase();
+    const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : paymentModeRaw === 'credit' ? 'Credit' : null;
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : null;
     const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : null;
     const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : null;
     const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : null;
     const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : null;
     const transporterName = req.body?.transporterName != null ? String(req.body.transporterName).trim() : null;
+    const paymentModeRaw = String(req.body?.paymentMode ?? 'Credit').trim().toLowerCase();
+    const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : 'Credit';
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
 
     const normalizedItems = items
       .map((it) => ({
@@ -7897,7 +8124,7 @@ async function handleCreateInvoice(req, res) {
         invoice_number, invoice_date,
         goods_amount, tax_amount, total_amount,
         courier_charge, packing_charge, labour_charge, other_charge, charges_gst_amount,
-        payment_status, payment_date,
+        payment_status, payment_date, payment_mode, tally_entry_date,
         status,
         document_url, cn_copy_url,
         eway_bill_number, cn_number, courier_number, transporter_name,
@@ -7907,7 +8134,7 @@ async function handleCreateInvoice(req, res) {
         ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?, ?,
-        NULL, NULL,
+        ?, ?, ?, ?,
         'pending',
         ?, ?,
         ?, ?, ?, ?,
@@ -7928,6 +8155,10 @@ async function handleCreateInvoice(req, res) {
         labourCharge,
         otherCharge,
         chargesGstAmount,
+        paymentMode === 'Cash' ? 'Full Paid' : null,
+        paymentMode === 'Cash' ? invoiceDate : null,
+        paymentMode,
+        tallyEntryDate || null,
         documentUrl,
         cnCopyUrl,
         ewayBillNumber,
@@ -7973,6 +8204,10 @@ async function handleCreateInvoice(req, res) {
           otherCharge,
           chargesGstAmount,
           status: 'Recorded',
+          paymentStatus: paymentMode === 'Cash' ? 'Full Paid' : undefined,
+          paymentDate: paymentMode === 'Cash' ? invoiceDate : undefined,
+          paymentMode,
+          tallyEntryDate: tallyEntryDate || undefined,
           documentUrl: documentUrl || undefined,
           cnCopyUrl: cnCopyUrl || undefined,
           ewayBillNumber: ewayBillNumber || undefined,
@@ -8048,6 +8283,7 @@ app.put('/api/invoices/:id', async (req, res) => {
       UPDATE invoices
       SET invoice_number=?, invoice_date=?, goods_amount=?, tax_amount=?, total_amount=?,
           courier_charge=?, packing_charge=?, labour_charge=?, other_charge=?, charges_gst_amount=?,
+          payment_mode=COALESCE(?, payment_mode), tally_entry_date=?,
           updated_by=?, updated_at=NOW()
       WHERE id=?
       `,
@@ -8062,6 +8298,8 @@ app.put('/api/invoices/:id', async (req, res) => {
         labourCharge,
         otherCharge,
         chargesGstAmount,
+        paymentMode,
+        tallyEntryDate || null,
         updatedBy,
         invoiceId,
       ]
@@ -8114,12 +8352,13 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
     const paymentStatus = String(req.body?.paymentStatus ?? '').trim();
     const paymentDate = String(req.body?.paymentDate ?? '').trim();
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
     if (!paymentStatus) return res.status(400).json({ error: 'paymentStatus is required' });
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
     await pool.query(
-      `UPDATE invoices SET payment_status=?, payment_date=?, updated_by=?, updated_at=NOW() WHERE id=?`,
-      [paymentStatus, paymentDate, updatedBy, invoiceId]
+      `UPDATE invoices SET payment_status=?, payment_date=?, tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW() WHERE id=?`,
+      [paymentStatus, paymentDate, tallyEntryDate || null, updatedBy, invoiceId]
     );
     res.json({ ok: true });
   } catch (e) {

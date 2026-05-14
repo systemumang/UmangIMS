@@ -13,6 +13,12 @@ export type InventorySheetRow = {
   unit: string;
   opening: number;
   reorderLevel?: number;
+  photo1?: string;
+  photo2?: string;
+  photo3?: string;
+  photo4?: string;
+  photo5?: string;
+  brochureLink?: string;
   purchase: number;
   issue: number;
   damage: number;

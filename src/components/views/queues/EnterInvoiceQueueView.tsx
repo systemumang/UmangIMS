@@ -89,6 +89,8 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const [otherCharge, setOtherCharge] = useState('');
   const [chargesGstAmount, setChargesGstAmount] = useState('');
   const [updatedBy, setUpdatedBy] = useState('');
+  const [paymentMode, setPaymentMode] = useState<'Cash' | 'Credit'>('Credit');
+  const [tallyEntryDate, setTallyEntryDate] = useState('');
   const [transporterId, setTransporterId] = useState('');
   const [cnOrCourierNo, setCnOrCourierNo] = useState('');
   const [ewayBillNumber, setEwayBillNumber] = useState('');
@@ -111,11 +113,13 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		    setOtherCharge('');
 		    setChargesGstAmount('');
 		    setUpdatedBy('');
-	    setTransporterId('');
+		    setTransporterId('');
 	    setCnOrCourierNo('');
 	    setEwayBillNumber('');
 	    setInvPdfFile(null);
-	    setCnCopyFile(null);
+		    setCnCopyFile(null);
+        setPaymentMode('Credit');
+        setTallyEntryDate('');
 		    setLines([]);
 	    setModalLoading(false);
 	    setSaving(false);
@@ -410,8 +414,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                      ewayBillNumber: ewayBillNumber.trim() ? ewayBillNumber.trim() : undefined,
 	                      documentUrl,
 	                      cnCopyUrl,
-	                      updatedBy: updatedBy.trim(),
-	                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: it.taxPercent })),
+		                      updatedBy: updatedBy.trim(),
+                          paymentMode,
+                          tallyEntryDate: tallyEntryDate || undefined,
+		                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: it.taxPercent })),
 	                    });
 	                    await fetchQueueEnterInvoice(filters).then(setRows);
 	                    closeModal();
@@ -455,9 +461,9 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                  <input className={cn(inputClass, 'py-2')} type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
 		                  {attemptedSubmit && validation.errors.invoiceDate ? <div className="text-xs text-error">{validation.errors.invoiceDate}</div> : null}
 		                </label>
-		                <label className="space-y-1">
-		                  <div className={cn(labelClass, 'text-blue-800')}>
-		                    Updated By <span className="text-error">*</span>
+			                <label className="space-y-1">
+			                  <div className={cn(labelClass, 'text-blue-800')}>
+			                    Updated By <span className="text-error">*</span>
 		                  </div>
 		                  <select className={cn(inputClass, 'py-2')} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)}>
 		                    <option value="">Select user</option>
@@ -467,8 +473,19 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                      </option>
 		                    ))}
 		                  </select>
-		                  {attemptedSubmit && validation.errors.updatedBy ? <div className="text-xs text-error">{validation.errors.updatedBy}</div> : null}
-		                </label>
+			                  {attemptedSubmit && validation.errors.updatedBy ? <div className="text-xs text-error">{validation.errors.updatedBy}</div> : null}
+			                </label>
+                      <label className="space-y-1">
+                        <div className={cn(labelClass, 'text-blue-800')}>Payment Mode</div>
+                        <select className={cn(inputClass, 'py-2')} value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as 'Cash' | 'Credit')}>
+                          <option value="Credit">Credit</option>
+                          <option value="Cash">Cash</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <div className={cn(labelClass, 'text-blue-800')}>Tally Entry Date</div>
+                        <input className={cn(inputClass, 'py-2')} type="date" value={tallyEntryDate} onChange={(e) => setTallyEntryDate(e.target.value)} />
+                      </label>
 			                <div className="rounded-lg border border-outline-variant/30 bg-primary-container/25 p-3">
 			                  <div className="text-[11px] font-bold uppercase tracking-widest text-blue-800">Invoice Amount</div>
 			                  <div className="text-lg font-extrabold tabular-nums text-on-surface">{computedTotalAmount.toFixed(2)}</div>

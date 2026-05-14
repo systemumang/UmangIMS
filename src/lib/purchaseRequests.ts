@@ -58,6 +58,10 @@ export type Po = {
   sentBy?: string | null;
   sentDate?: string | null;
   sentProof?: string | null;
+  advanceAmount?: number;
+  cancelReason?: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
 };
 
 export type PoItem = {
@@ -72,6 +76,8 @@ export type PoItem = {
   goodsAmount?: number;
   taxAmount?: number;
   totalAmount?: number;
+  cancelledQty?: number;
+  cancelReason?: string | null;
 };
 
 	export type Invoice = {
@@ -86,9 +92,11 @@ export type PoItem = {
 			  otherCharge?: number;
 			  chargesGstAmount?: number;
 			  status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
-			  paymentStatus?: string;
-			  paymentDate?: string;
-			  holdReason?: string;
+		  paymentStatus?: string;
+		  paymentDate?: string;
+      paymentMode?: 'Cash' | 'Credit' | string;
+      tallyEntryDate?: string;
+		  holdReason?: string;
 		  documentUrl?: string;
 		  cnCopyUrl?: string;
 		  ewayBillNumber?: string;
@@ -296,6 +304,7 @@ export async function createPo(
   input: {
     supplier: string;
     paymentTerms: string;
+    advanceAmount?: number;
     shippingAddress?: string;
     termsConditions?: string;
     items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
@@ -315,6 +324,7 @@ export async function createDirectPo(input: {
   projectId?: string | null;
   supplierId: string;
   paymentTerms: string;
+  advanceAmount?: number;
   shippingAddress?: string;
   termsConditions?: string;
   items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
@@ -342,8 +352,10 @@ export async function createInvoice(poId: string, input: {
 				  ewayBillNumber?: string;
 			  cnNumber?: string;
 			  courierNumber?: string;
-			  transporterName?: string;
-			  items: Array<{ itemId: string; item?: string; quantity: number; rate: number; taxPercent?: number }> 
+				  transporterName?: string;
+          paymentMode?: 'Cash' | 'Credit';
+          tallyEntryDate?: string;
+				  items: Array<{ itemId: string; item?: string; quantity: number; rate: number; taxPercent?: number }> 
 			}) {
 			  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/invoice`, {
 			    method: 'POST',
@@ -381,6 +393,7 @@ export async function updateInvoicePayment(
   input: {
     paymentStatus: 'Partly Paid' | 'Full Paid';
     paymentDate: string;
+    tallyEntryDate?: string;
     updatedBy?: string;
   }
 ) {
@@ -616,7 +629,11 @@ export async function updatePo(
     paymentTerms: string;
     shippingAddress?: string;
     termsConditions?: string;
+    status?: 'Open' | 'Partial' | 'Closed';
+    advanceAmount?: number;
+    cancelReason?: string;
     items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
+    lineCancels?: Array<{ itemId: string; cancelledQty: number; cancelReason?: string }>;
     updatedBy?: string;
   }
 ) {
@@ -648,7 +665,7 @@ export async function updatePoCheckAndSent(
   return requireOk<{ po?: { po: Po; items: PoItem[] } }>(res, 'Failed to update PO check/sent');
 }
 
-export async function deletePo(poId: string, input?: { deletedBy?: string }) {
+export async function deletePo(poId: string, input?: { deletedBy?: string; cancelReason?: string }) {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },

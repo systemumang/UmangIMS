@@ -536,17 +536,19 @@ export default function InventoryView() {
                       <span>Re-Order Level</span><ArrowUpDown size={12} />
                     </button>
                   </th>
-                  <th className="p-0 border-b border-black text-center">
-                    <button type="button" onClick={() => onSort('unit')} className="w-full px-3 py-3 flex items-center justify-center gap-1">
-                      <span>Unit</span><ArrowUpDown size={12} />
-                    </button>
-                  </th>
-                </tr>
+	                  <th className="p-0 border-b border-black text-center">
+	                    <button type="button" onClick={() => onSort('unit')} className="w-full px-3 py-3 flex items-center justify-center gap-1">
+	                      <span>Unit</span><ArrowUpDown size={12} />
+	                    </button>
+	                  </th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photos</th>
+                    <th className="px-3 py-2 border-b border-black text-center">Brochure</th>
+	                </tr>
 	              </thead>
 	              <tbody className="divide-y divide-outline-variant">
 	                {filteredRows.length === 0 ? (
 	                  <tr>
-		                    <td colSpan={13} className="p-8 text-center text-on-surface-variant italic">No items found</td>
+			                    <td colSpan={15} className="p-8 text-center text-on-surface-variant italic">No items found</td>
 		                  </tr>
 		                ) : (
 			                  sortedRows.map((r, idx) => (
@@ -579,8 +581,32 @@ export default function InventoryView() {
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).transferOut ?? 0)}</td>
 		                      <td className="p-3 border-r border-black text-on-surface font-bold text-right text-primary">{r.balance}</td>
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).reorderLevel ?? 0)}</td>
-		                      <td className="p-3 text-on-surface-variant text-center">{r.unit || '-'}</td>
-	                    </tr>
+			                      <td className="p-3 border-r border-black text-on-surface-variant text-center">{r.unit || '-'}</td>
+                            <td className="p-3 border-r border-black text-center">
+                              {(() => {
+                                const urls = [r.photo1, r.photo2, r.photo3, r.photo4, r.photo5].map((x) => String(x ?? '').trim()).filter(Boolean);
+                                if (!urls.length) return <span className="text-on-surface-variant">-</span>;
+                                return (
+                                  <div className="flex items-center gap-1 justify-center flex-wrap">
+                                    {urls.map((u, i) => (
+                                      <a key={`${u}-${i}`} href={u} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
+                                        P{i + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </td>
+                            <td className="p-3 text-center">
+                              {String(r.brochureLink ?? '').trim() ? (
+                                <a href={String(r.brochureLink)} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
+                                  Open
+                                </a>
+                              ) : (
+                                <span className="text-on-surface-variant">-</span>
+                              )}
+                            </td>
+		                    </tr>
 	                  );
 			                })()
 			              ))
