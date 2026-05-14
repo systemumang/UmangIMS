@@ -103,8 +103,11 @@ export default function Sidebar({
   onNavigatePurchaseMasters,
   onNewPurchaseRequest,
   onDirectPo,
+  currentUserName,
+  menuAccessKeys,
+  onLogout,
   open = true,
-		}: {
+			}: {
 		  activeView: NavView;
 		  activePendingQueue?: PendingQueueKey;
       pendingQueueCounts?: Partial<Record<PendingQueueKey, number>>;
