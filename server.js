@@ -186,6 +186,9 @@ function getMysqlPool() {
 
       await ensureColumn('users', 'login_id', 'VARCHAR(255) NULL');
       await ensureColumn('users', 'menu_access', 'TEXT NULL');
+      await ensureColumn('users', 'is_deleted', 'TINYINT NOT NULL DEFAULT 0');
+      await ensureColumn('users', 'deleted_at', 'DATETIME NULL');
+      await ensureColumn('users', 'deleted_by', 'VARCHAR(255) NULL');
 
       // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
       await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
@@ -347,6 +350,7 @@ app.post('/api/auth/login', async (req, res) => {
         login_id AS loginId,
         menu_access AS menuAccess,
         is_active AS isActive,
+        is_deleted AS isDeleted,
         password_hash AS passwordHash
       FROM users
       WHERE LOWER(TRIM(login_id))=LOWER(TRIM(?))
@@ -356,6 +360,7 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     if (!row?.id) return res.status(401).json({ error: 'Invalid Login ID or Password.' });
+    if (row?.isDeleted) return res.status(403).json({ error: 'User is Deleted. Please contact Admin.' });
     if (!row?.isActive) return res.status(403).json({ error: 'User is Inactive. Please contact Admin.' });
 
     const stored = String(row?.passwordHash ?? '').trim();
@@ -6327,7 +6332,8 @@ app.get('/api/masters/users', async (req, res) => {
         phone AS mobile,
         CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword
       FROM users
-      ${includeInactive ? '' : 'WHERE is_active=1'}
+      WHERE is_deleted=0
+      ${includeInactive ? '' : 'AND is_active=1'}
       ORDER BY name
       `
     );
@@ -6464,7 +6470,11 @@ app.delete('/api/masters/users/:id', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
-    await pool.query('UPDATE users SET is_active=0 WHERE id=?', [id]);
+    const deletedBy = req.body?.deletedBy != null ? String(req.body.deletedBy).trim() : null;
+
+    // "Delete" means hide from the system (soft delete) so it disappears from the Users list.
+    // Also make inactive to prevent login.
+    await pool.query('UPDATE users SET is_active=0, is_deleted=1, deleted_at=NOW(), deleted_by=? WHERE id=?', [deletedBy, id]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
