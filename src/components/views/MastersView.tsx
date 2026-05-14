@@ -373,6 +373,40 @@ export default function MastersView({
 	  const sidebarPermissionItems = useMemo(() => getSidebarPermissionItems(), []);
 	  const sidebarPermissionKeys = useMemo(() => sidebarPermissionItems.map((x) => x.key), [sidebarPermissionItems]);
 
+	  const menuAccessCategories = useMemo(() => {
+	    type Cat = { id: string; title: string; items: Array<{ key: string; label: string }> };
+	    const buckets: Record<string, Cat> = {
+	      main: { id: 'main', title: 'Main Menu', items: [] },
+	      masters: { id: 'masters', title: 'Masters', items: [] },
+	      pending: { id: 'pending', title: 'Pending Tasks', items: [] },
+	      stock: { id: 'stock', title: 'Stock', items: [] },
+	      purchase: { id: 'purchase', title: 'Purchase Masters', items: [] },
+	      other: { id: 'other', title: 'Other', items: [] },
+	    };
+
+	    for (const it of sidebarPermissionItems) {
+	      const k = String(it.key ?? '');
+	      if (k.startsWith('masters:')) buckets.masters.items.push(it);
+	      else if (k.startsWith('pending:')) buckets.pending.items.push(it);
+	      else if (k.startsWith('stock:')) buckets.stock.items.push(it);
+	      else if (k.startsWith('purchase:')) buckets.purchase.items.push(it);
+	      else if (!k.includes(':')) buckets.main.items.push(it);
+	      else buckets.other.items.push(it);
+	    }
+
+	    const cats = Object.values(buckets)
+	      .filter((c) => c.items.length)
+	      .map((c) => ({
+	        ...c,
+	        items: c.items.slice().sort((a, b) => a.label.localeCompare(b.label)),
+	      }));
+
+	    // Stable ordering.
+	    const order = ['main', 'masters', 'pending', 'stock', 'purchase', 'other'];
+	    cats.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+	    return cats;
+	  }, [sidebarPermissionItems]);
+
 	  const userRoleOptions = useMemo(() => {
 	    const set = new Set<string>();
 	    for (const u of users) {
@@ -1918,23 +1952,59 @@ export default function MastersView({
 		                        </button>
 		                      </div>
 		                    </div>
-		                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-		                      {sidebarPermissionItems.map((item) => {
-		                        const checked = newUserMenuAccess.includes(item.key);
+		                    <div className="space-y-4">
+		                      {menuAccessCategories.map((cat) => {
+		                        const catKeys = cat.items.map((x) => x.key);
 		                        return (
-		                          <label key={item.key} className="flex items-center gap-2 text-sm text-on-surface">
-		                            <input
-		                              type="checkbox"
-		                              checked={checked}
-		                              onChange={() => {
-		                                setNewUserMenuAccess((prev) => {
-		                                  if (prev.includes(item.key)) return prev.filter((k) => k !== item.key);
-		                                  return [...prev, item.key];
-		                                });
-		                              }}
-		                            />
-		                            <span>{item.label}</span>
-		                          </label>
+		                          <div key={cat.id} className="rounded-lg border border-outline-variant/10 p-3 bg-surface-container-low">
+		                            <div className="flex items-center justify-between gap-2 mb-2">
+		                              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+		                                {cat.title}
+		                              </div>
+		                              <div className="flex items-center gap-2">
+		                                <button
+		                                  type="button"
+		                                  className="btn btn-sm"
+		                                  onClick={() =>
+		                                    setNewUserMenuAccess((prev) => {
+		                                      const set = new Set(prev);
+		                                      catKeys.forEach((k) => set.add(k));
+		                                      return Array.from(set);
+		                                    })
+		                                  }
+		                                >
+		                                  Select
+		                                </button>
+		                                <button
+		                                  type="button"
+		                                  className="btn btn-sm"
+		                                  onClick={() => setNewUserMenuAccess((prev) => prev.filter((k) => !catKeys.includes(k)))}
+		                                >
+		                                  Clear
+		                                </button>
+		                              </div>
+		                            </div>
+		                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+		                              {cat.items.map((item) => {
+		                                const checked = newUserMenuAccess.includes(item.key);
+		                                return (
+		                                  <label key={item.key} className="flex items-center gap-2 text-sm text-on-surface">
+		                                    <input
+		                                      type="checkbox"
+		                                      checked={checked}
+		                                      onChange={() => {
+		                                        setNewUserMenuAccess((prev) => {
+		                                          if (prev.includes(item.key)) return prev.filter((k) => k !== item.key);
+		                                          return [...prev, item.key];
+		                                        });
+		                                      }}
+		                                    />
+		                                    <span>{item.label}</span>
+		                                  </label>
+		                                );
+		                              })}
+		                            </div>
+		                          </div>
 		                        );
 		                      })}
 		                    </div>
