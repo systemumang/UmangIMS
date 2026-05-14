@@ -250,6 +250,11 @@ function getReferencedColumn(error) {
   return String(match?.[1] ?? '').trim();
 }
 
+async function columnExists(pool, tableName, columnName) {
+  const [rows] = await pool.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 const deleteUsageLookups = {
   projects: { label: 'Projects', nameColumn: 'name' },
   stores: { label: 'Stores', nameColumn: 'name' },
@@ -1849,8 +1854,12 @@ app.get('/api/queues/payment', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
+    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
+    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
 
     const where = ['1=1'];
+    if (hasPaymentMode) where.push("COALESCE(inv.payment_mode, 'Credit') <> 'Cash'");
+    if (hasTallyEntryDate) where.push('inv.tally_entry_date IS NOT NULL');
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -1886,8 +1895,8 @@ app.get('/api/queues/payment', async (req, res) => {
         inv.total_amount AS invoiceAmount,
         inv.payment_status AS paymentStatus,
         inv.payment_date AS paymentDate,
-        inv.payment_mode AS paymentMode,
-        inv.tally_entry_date AS tallyEntryDate,
+        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
+        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
         po.id AS poId,
         po.po_number AS poNumber,
         pr.id AS prId,
