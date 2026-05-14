@@ -325,28 +325,35 @@ export default function App() {
 
 		  if (!currentUser) {
 		    return (
-		      <div className="min-h-screen bg-surface-container-lowest flex items-center justify-center p-4">
-		        <div className="w-full max-w-md bg-white rounded-2xl border border-outline-variant/30 shadow-xl overflow-hidden">
-		          <div className="px-6 py-5 border-b border-outline-variant/30">
-		            <div className="text-lg font-bold text-on-surface">Login</div>
-		            <div className="text-xs text-on-surface-variant mt-1">Enter Login ID and Password</div>
+		      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-100 via-blue-50 to-cyan-100 flex items-center justify-center p-4 sm:p-6">
+		        <div className="pointer-events-none absolute -top-24 -left-16 w-64 h-64 rounded-full bg-blue-300/30 blur-3xl" />
+		        <div className="pointer-events-none absolute -bottom-24 -right-10 w-72 h-72 rounded-full bg-cyan-300/30 blur-3xl" />
+		        <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl border border-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.18)] overflow-hidden">
+		          <div className="px-6 sm:px-7 pt-7 pb-5 border-b border-slate-200/80 bg-gradient-to-r from-white via-blue-50/70 to-cyan-50/70">
+		            <div className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-blue-100 text-blue-700 border border-blue-200">
+		              Inventory Management
+		            </div>
+		            <div className="text-2xl font-extrabold text-slate-900 mt-3 tracking-tight">Welcome Back</div>
+		            <div className="text-sm text-slate-600 mt-1">Sign in with your Login ID and Password</div>
 		          </div>
-		          <div className="p-6 space-y-4">
-		            {loginError ? <div className="text-sm text-error">{loginError}</div> : null}
-		            <label className="space-y-1 block">
-		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Login ID</div>
+		          <div className="p-6 sm:p-7 space-y-5">
+		            {loginError ? (
+		              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{loginError}</div>
+		            ) : null}
+		            <label className="space-y-1.5 block">
+		              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Login ID</div>
 		              <input
-		                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                className="w-full h-11 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
 		                value={loginId}
 		                onChange={(e) => setLoginId(e.target.value)}
 		                placeholder="amit"
 		                autoFocus
 		              />
 		            </label>
-		            <label className="space-y-1 block">
-		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Password</div>
+		            <label className="space-y-1.5 block">
+		              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Password</div>
 		              <input
-		                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                className="w-full h-11 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
 		                value={loginPassword}
 		                onChange={(e) => setLoginPassword(e.target.value)}
 		                type="password"
@@ -373,7 +380,7 @@ export default function App() {
 		            </label>
 		            <button
 		              type="button"
-		              className="btn-primary w-full justify-center"
+		              className="w-full h-11 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.99] transition-all shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
 		              disabled={loginBusy || !loginId.trim() || !loginPassword}
 		              onClick={() => {
 		                if (loginBusy) return;
@@ -395,6 +402,9 @@ export default function App() {
 		            >
 		              {loginBusy ? 'Logging in...' : 'Login'}
 		            </button>
+		            <div className="text-[12px] text-slate-500 text-center">
+		              Only active users can sign in.
+		            </div>
 		          </div>
 		        </div>
 		      </div>
