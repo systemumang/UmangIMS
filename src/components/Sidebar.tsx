@@ -55,6 +55,30 @@ export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> =
   { key: 'queuePayment', label: 'Pending Payment' },
 ];
 
+export const stockMenuItems: Array<{ key: NavView; label: string }> = [
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'issueMaster', label: 'Issue Master' },
+  { key: 'returnMaster', label: 'Return Master' },
+  { key: 'damageMaster', label: 'Damage Master' },
+  { key: 'transferMaster', label: 'Transfer Master' },
+];
+
+export const purchaseMastersMenuItems: Array<{ key: 'prs' | 'pos' | 'grns' | 'invoices' | 'payments'; label: string }> = [
+  { key: 'prs', label: 'Requisitions' },
+  { key: 'pos', label: 'Purchase Orders' },
+  { key: 'grns', label: 'GRN' },
+  { key: 'invoices', label: 'Invoices' },
+  { key: 'payments', label: 'Payments' },
+];
+
+export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'masters', label: 'Masters' },
+  { key: 'pendingTasks', label: 'Pending Tasks' },
+  { key: 'stockMaster', label: 'Stock' },
+  { key: 'operations', label: 'Purchase Masters' },
+];
+
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
 type PurchaseMastersTab = 'prs' | 'pos' | 'grns' | 'invoices' | 'payments';
@@ -196,105 +220,70 @@ export default function Sidebar({
             <span className="flex-1">Stock</span>
             <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', stockMasterExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
-          {stockMasterExpanded && onNavigateStockView ? (
-            <div className="ml-7 mr-1 space-y-1">
-              <button type="button" onClick={() => onNavigateStockView('inventory')} className={cn(subRowClass, activeView === 'inventory' ? subActiveClass : subInactiveClass)}>
-                <span className="inline-flex items-center gap-2">
-                  <Package size={14} />
-                  Inventory
-                </span>
-              </button>
-              <button type="button" onClick={() => onNavigateStockView('issueMaster')} className={cn(subRowClass, activeView === 'issueMaster' ? subActiveClass : subInactiveClass)}>
-                <span className="inline-flex items-center gap-2">
-                  <ArrowUpRight size={14} />
-                  Issue Master
-                </span>
-              </button>
-              <button type="button" onClick={() => onNavigateStockView('returnMaster')} className={cn(subRowClass, activeView === 'returnMaster' ? subActiveClass : subInactiveClass)}>
-                <span className="inline-flex items-center gap-2">
-                  <ArrowDownLeft size={14} />
-                  Return Master
-                </span>
-              </button>
-              <button type="button" onClick={() => onNavigateStockView('damageMaster')} className={cn(subRowClass, activeView === 'damageMaster' ? subActiveClass : subInactiveClass)}>
-                <span className="inline-flex items-center gap-2">
-                  <AlertTriangle size={14} />
-                  Damage Master
-                </span>
-              </button>
-              <button type="button" onClick={() => onNavigateStockView('transferMaster')} className={cn(subRowClass, activeView === 'transferMaster' ? subActiveClass : subInactiveClass)}>
-                <span className="inline-flex items-center gap-2">
-                  <Boxes size={14} />
-                  Transfer Master
-                </span>
-              </button>
-            </div>
-          ) : null}
+	          {stockMasterExpanded && onNavigateStockView ? (
+	            <div className="ml-7 mr-1 space-y-1">
+                {stockMenuItems.map((it) => (
+                  <button
+                    key={it.key}
+                    type="button"
+                    onClick={() => onNavigateStockView(it.key)}
+                    className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {it.key === 'inventory' ? (
+                        <Package size={14} />
+                      ) : it.key === 'issueMaster' ? (
+                        <ArrowUpRight size={14} />
+                      ) : it.key === 'returnMaster' ? (
+                        <ArrowDownLeft size={14} />
+                      ) : it.key === 'damageMaster' ? (
+                        <AlertTriangle size={14} />
+                      ) : (
+                        <Boxes size={14} />
+                      )}
+                      {it.label}
+                    </span>
+                  </button>
+                ))}
+	            </div>
+	          ) : null}
 
           <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
             <ShoppingCart className="mr-3 text-white" size={18} />
             <span className="flex-1">Purchase Masters</span>
             <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
           </motion.button>
-	          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
-	            <div className="ml-7 mr-1 space-y-1">
-	              <button type="button" onClick={() => onNavigatePurchaseMasters('prs')} className={cn(subRowClass, activeView === 'purchasing' ? subActiveClass : subInactiveClass)}>
-	                <span className="inline-flex items-center justify-between gap-2 w-full">
-                    <span className="inline-flex items-center gap-2">
-	                    <FileText size={14} />
-	                    Requisitions
-                    </span>
-                    <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                      {Number(purchaseMastersCounts?.prs ?? 0)}
-                    </span>
-	                </span>
-	              </button>
-	              <button type="button" onClick={() => onNavigatePurchaseMasters('pos')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'pos' ? subActiveClass : subInactiveClass)}>
-	                <span className="inline-flex items-center justify-between gap-2 w-full">
-                    <span className="inline-flex items-center gap-2">
-	                  <Receipt size={14} />
-	                  Purchase Orders
-                    </span>
-                    <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                      {Number(purchaseMastersCounts?.pos ?? 0)}
-                    </span>
-	                </span>
-	              </button>
-	              <button type="button" onClick={() => onNavigatePurchaseMasters('grns')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'grns' ? subActiveClass : subInactiveClass)}>
-	                <span className="inline-flex items-center justify-between gap-2 w-full">
-                    <span className="inline-flex items-center gap-2">
-	                  <Truck size={14} />
-	                  GRN
-                    </span>
-                    <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                      {Number(purchaseMastersCounts?.grns ?? 0)}
-                    </span>
-	                </span>
-	              </button>
-	              <button type="button" onClick={() => onNavigatePurchaseMasters('invoices')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'invoices' ? subActiveClass : subInactiveClass)}>
-	                <span className="inline-flex items-center justify-between gap-2 w-full">
-                    <span className="inline-flex items-center gap-2">
-	                  <FileText size={14} />
-	                  Invoices
-                    </span>
-                    <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                      {Number(purchaseMastersCounts?.invoices ?? 0)}
-                    </span>
-	                </span>
-	              </button>
-	              <button type="button" onClick={() => onNavigatePurchaseMasters('payments')} className={cn(subRowClass, activeView === 'operations' && activeOperationsTab === 'payments' ? subActiveClass : subInactiveClass)}>
-	                <span className="inline-flex items-center justify-between gap-2 w-full">
-                    <span className="inline-flex items-center gap-2">
-	                  <CreditCard size={14} />
-	                  Payments
-                    </span>
-                    <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                      {Number(purchaseMastersCounts?.payments ?? 0)}
-                    </span>
-	                </span>
-	              </button>
-	            </div>
-	          ) : null}
+		          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
+		            <div className="ml-7 mr-1 space-y-1">
+                  {purchaseMastersMenuItems.map((it) => (
+                    <button
+                      key={it.key}
+                      type="button"
+                      onClick={() => onNavigatePurchaseMasters(it.key)}
+                      className={cn(
+                        subRowClass,
+                        it.key === 'prs'
+                          ? activeView === 'purchasing'
+                            ? subActiveClass
+                            : subInactiveClass
+                          : activeView === 'operations' && activeOperationsTab === it.key
+                            ? subActiveClass
+                            : subInactiveClass
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-between gap-2 w-full">
+                        <span className="inline-flex items-center gap-2">
+                          {it.key === 'pos' ? <Receipt size={14} /> : it.key === 'grns' ? <Truck size={14} /> : it.key === 'payments' ? <CreditCard size={14} /> : <FileText size={14} />}
+                          {it.label}
+                        </span>
+                        <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+                          {Number((purchaseMastersCounts as any)?.[it.key] ?? 0)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+		            </div>
+		          ) : null}
         </nav>
 
 		      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 bg-surface-container-lowest">

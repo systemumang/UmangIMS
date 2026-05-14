@@ -183,6 +183,9 @@ function getMysqlPool() {
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
+
+      await ensureColumn('users', 'login_id', 'VARCHAR(255) NULL');
+      await ensureColumn('users', 'menu_access', 'TEXT NULL');
     } catch (err) {
       console.error('Failed to ensure PO/Invoice enhancement columns:', err);
     }
@@ -1858,8 +1861,8 @@ app.get('/api/queues/payment', async (req, res) => {
     const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
 
     const where = ['1=1'];
-    if (hasPaymentMode) where.push("COALESCE(inv.payment_mode, 'Credit') <> 'Cash'");
-    if (hasTallyEntryDate) where.push('inv.tally_entry_date IS NOT NULL');
+    // IMPORTANT: do not reference optional columns in SQL WHERE.
+    // Some environments may not have these columns yet; filtering is done in JS below.
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -1924,7 +1927,13 @@ app.get('/api/queues/payment', async (req, res) => {
       .map((r) => {
         const invoiceAmount = Number(r.invoiceAmount ?? 0);
         const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
-        const isFull = paymentStatus.includes('full');
+        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+        const paymentModeLower = paymentMode.trim().toLowerCase();
+        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+
+        // Cash invoices are treated as fully paid and should not show in pending payment.
+        const isCash = paymentModeLower === 'cash';
+        const isFull = paymentStatus.includes('full') || isCash;
         const paidAmount = isFull ? invoiceAmount : 0;
         const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
         return {
@@ -1933,8 +1942,8 @@ app.get('/api/queues/payment', async (req, res) => {
           invoiceDate: toIsoDate(r.invoiceDate) || '',
           paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
           paymentDate: toIsoDate(r.paymentDate) || undefined,
-          paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
-          tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
+          paymentMode,
+          tallyEntryDate,
           poId: String(r.poId ?? ''),
           poNumber: String(r.poNumber ?? r.poId ?? ''),
           prId: String(r.prId ?? ''),
@@ -1952,7 +1961,10 @@ app.get('/api/queues/payment', async (req, res) => {
           pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
         };
       })
-      .filter((x) => x.remainingAmount > 1e-9);
+      .filter((x) => x.remainingAmount > 1e-9)
+      // Only "accounted" invoices become due for payment.
+      // If tally_entry_date column exists, require it to be set.
+      .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -6162,26 +6174,49 @@ app.delete('/api/masters/transporters/:id', async (req, res) => {
 });
 
 // --- Masters: Users ---
-app.get('/api/masters/users', async (_req, res) => {
+app.get('/api/masters/users', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const includeInactive = String(req.query?.includeInactive ?? '').trim().toLowerCase() === '1';
     const [rows] = await pool.query(
       `
       SELECT
         id,
         name,
         email,
+        role,
         role AS designation,
+        login_id AS loginId,
+        menu_access AS menuAccess,
+        is_active AS isActive,
         phone AS mobile,
         CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword
       FROM users
-      WHERE is_active=1
+      ${includeInactive ? '' : 'WHERE is_active=1'}
       ORDER BY name
       `
     );
     // Ensure boolean
-    const users = (rows || []).map((r) => ({ ...r, hasPassword: Boolean(r.hasPassword) }));
+    const users = (rows || []).map((r) => {
+      let menuAccess = [];
+      try {
+        const raw = r?.menuAccess;
+        if (raw != null && String(raw).trim()) {
+          const parsed = JSON.parse(String(raw));
+          if (Array.isArray(parsed)) menuAccess = parsed.map((x) => String(x));
+        }
+      } catch {}
+      return {
+        ...r,
+        role: r?.role != null ? String(r.role) : '',
+        designation: r?.designation != null ? String(r.designation) : '',
+        loginId: r?.loginId != null ? String(r.loginId) : '',
+        menuAccess,
+        isActive: Boolean(r?.isActive),
+        hasPassword: Boolean(r?.hasPassword),
+      };
+    });
     res.json({ users });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -6194,19 +6229,37 @@ app.post('/api/masters/users', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const name = String(req.body?.name ?? '').trim();
     const email = String(req.body?.email ?? '').trim();
-    const designation = String(req.body?.designation ?? '').trim();
+    const loginId = String(req.body?.loginId ?? '').trim();
+    const role = String(req.body?.role ?? req.body?.designation ?? '').trim();
     const password = String(req.body?.password ?? '').trim();
     const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
+    const isActive = req.body?.isActive === false ? 0 : 1;
+    const menuAccessRaw = req.body?.menuAccess;
+    const menuAccess = Array.isArray(menuAccessRaw) ? menuAccessRaw.map((x) => String(x)) : [];
     if (!name) return res.status(400).json({ error: 'name is required' });
-    if (!designation) return res.status(400).json({ error: 'designation is required' });
+    if (!loginId) return res.status(400).json({ error: 'loginId is required' });
+    if (!role) return res.status(400).json({ error: 'role is required' });
     if (!password) return res.status(400).json({ error: 'password is required' });
     const id = crypto.randomUUID();
     const passwordHash = sha256(password);
     await pool.query(
-      'INSERT INTO users (id, name, role, phone, email, is_active, created_at, password_hash) VALUES (?, ?, ?, ?, ?, 1, NOW(), ?)',
-      [id, name, designation, mobile, email || null, passwordHash]
+      'INSERT INTO users (id, name, role, login_id, menu_access, phone, email, is_active, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+      [id, name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, passwordHash]
     );
-    res.status(201).json({ user: { id, name, email: email || null, designation, mobile, hasPassword: true } });
+    res.status(201).json({
+      user: {
+        id,
+        name,
+        email: email || null,
+        role,
+        designation: role,
+        loginId,
+        menuAccess,
+        isActive: Boolean(isActive),
+        mobile,
+        hasPassword: true,
+      },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
@@ -6223,16 +6276,49 @@ app.put('/api/masters/users/:id', async (req, res) => {
     const id = String(req.params.id ?? '').trim();
     const name = String(req.body?.name ?? '').trim();
     const email = String(req.body?.email ?? '').trim();
-    const designation = String(req.body?.designation ?? '').trim();
+    const loginId = String(req.body?.loginId ?? '').trim();
+    const role = String(req.body?.role ?? req.body?.designation ?? '').trim();
     const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
+    const password = req.body?.password != null ? String(req.body.password).trim() : '';
+    const isActive = req.body?.isActive === false ? 0 : 1;
+    const menuAccessRaw = req.body?.menuAccess;
+    const menuAccess = Array.isArray(menuAccessRaw) ? menuAccessRaw.map((x) => String(x)) : [];
     if (!id) return res.status(400).json({ error: 'id is required' });
     if (!name) return res.status(400).json({ error: 'name is required' });
-    if (!designation) return res.status(400).json({ error: 'designation is required' });
-    await pool.query(
-      'UPDATE users SET name=?, role=?, phone=?, email=? WHERE id=?',
-      [name, designation, mobile, email || null, id]
+    if (!loginId) return res.status(400).json({ error: 'loginId is required' });
+    if (!role) return res.status(400).json({ error: 'role is required' });
+
+    if (password) {
+      const passwordHash = sha256(password);
+      await pool.query(
+        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, password_hash=? WHERE id=?',
+        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, passwordHash, id]
+      );
+    } else {
+      await pool.query(
+        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=? WHERE id=?',
+        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, id]
+      );
+    }
+
+    const [[meta]] = await pool.query(
+      "SELECT CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword FROM users WHERE id=? LIMIT 1",
+      [id]
     );
-    res.json({ user: { id, name, email: email || null, designation, mobile, hasPassword: true } });
+    res.json({
+      user: {
+        id,
+        name,
+        email: email || null,
+        role,
+        designation: role,
+        loginId,
+        menuAccess,
+        isActive: Boolean(isActive),
+        mobile,
+        hasPassword: Boolean(meta?.hasPassword),
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

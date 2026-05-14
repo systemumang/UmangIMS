@@ -54,7 +54,12 @@ export type User = {
   id: string;
   name: string;
   email?: string | null;
+  // Backwards compatible field (historically used as "role")
   designation: string;
+  loginId?: string;
+  role?: string;
+  isActive?: boolean;
+  menuAccess?: string[];
   mobile?: string | null;
   hasPassword: boolean;
 };
@@ -181,8 +186,13 @@ export async function fetchStores(signal?: AbortSignal): Promise<Store[]> {
   return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function fetchUsers(signal?: AbortSignal): Promise<User[]> {
-  const res = await fetch('/api/masters/users', { signal });
+export async function fetchUsers(
+  arg?: AbortSignal | { signal?: AbortSignal; includeInactive?: boolean }
+): Promise<User[]> {
+  const signal = (arg as any)?.aborted !== undefined ? (arg as AbortSignal) : (arg as any)?.signal;
+  const includeInactive = (arg as any)?.includeInactive === true;
+  const url = includeInactive ? '/api/masters/users?includeInactive=1' : '/api/masters/users';
+  const res = await fetch(url, { signal });
   const data = await requireOk<{ users?: User[] }>(res, 'Failed to load users');
   const rows = Array.isArray(data.users) ? data.users : [];
   return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -275,7 +285,17 @@ export async function deleteDepartment(id: string, input?: { deletedBy?: string 
   return requireOk<{ ok: boolean }>(res, 'Failed to delete department');
 }
 
-export async function createUser(input: { name: string; email: string; designation: string; password: string; mobile?: string; createdBy?: string }) {
+export async function createUser(input: {
+  name: string;
+  email: string;
+  loginId: string;
+  role: string;
+  menuAccess?: string[];
+  isActive?: boolean;
+  password: string;
+  mobile?: string;
+  createdBy?: string;
+}) {
   const res = await fetch('/api/masters/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -286,7 +306,17 @@ export async function createUser(input: { name: string; email: string; designati
 
 export async function updateUser(
   id: string,
-  input: { name: string; email: string; designation: string; password?: string; mobile?: string; updatedBy?: string }
+  input: {
+    name: string;
+    email: string;
+    loginId: string;
+    role: string;
+    menuAccess?: string[];
+    isActive?: boolean;
+    password?: string;
+    mobile?: string;
+    updatedBy?: string;
+  }
 ) {
   const res = await fetch(`/api/masters/users/${encodeURIComponent(id)}`, {
     method: 'PUT',

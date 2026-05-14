@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
-import { Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
+import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
   createDepartment,
   createFirm,
@@ -213,12 +214,16 @@ export default function MastersView({
 			  const [newProjectClientName, setNewProjectClientName] = useState('');
 			  const [newProjectStartDate, setNewProjectStartDate] = useState('');
 		  const [newProjectEndDate, setNewProjectEndDate] = useState('');
-		  const [newProjectStatus, setNewProjectStatus] = useState('');
-		  const [newUserName, setNewUserName] = useState('');
-		  const [newUserEmail, setNewUserEmail] = useState('');
-		  const [newUserDesignation, setNewUserDesignation] = useState('');
-		  const [newUserPassword, setNewUserPassword] = useState('');
-		  const [newUserMobile, setNewUserMobile] = useState('');
+			  const [newProjectStatus, setNewProjectStatus] = useState('');
+			  const [newUserName, setNewUserName] = useState('');
+			  const [newUserEmail, setNewUserEmail] = useState('');
+			  const [newUserLoginId, setNewUserLoginId] = useState('');
+			  const [newUserRole, setNewUserRole] = useState('');
+			  const [extraUserRoles, setExtraUserRoles] = useState<string[]>([]);
+			  const [newUserMenuAccess, setNewUserMenuAccess] = useState<string[]>([]);
+			  const [newUserIsActive, setNewUserIsActive] = useState(true);
+			  const [newUserPassword, setNewUserPassword] = useState('');
+			  const [newUserMobile, setNewUserMobile] = useState('');
 				  const [newSupplierName, setNewSupplierName] = useState('');
 				  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
 				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
@@ -347,11 +352,11 @@ export default function MastersView({
   useEffect(() => {
     setNewItemUnit(selectedItemUnitName);
   }, [selectedItemUnitName]);
-  const groupedSpecValues = useMemo(() => {
-    const map = new Map<
-      string,
-      { specId: string; specName: string; values: Array<{ id: string; value: string; isUsed: boolean; usageCount: number }> }
-    >();
+	  const groupedSpecValues = useMemo(() => {
+	    const map = new Map<
+	      string,
+	      { specId: string; specName: string; values: Array<{ id: string; value: string; isUsed: boolean; usageCount: number }> }
+	    >();
     for (const row of specValues) {
       const specId = row.specificationId;
       const specName = specNameLookup[specId] ?? specId;
@@ -361,9 +366,27 @@ export default function MastersView({
     }
     const list = Array.from(map.values());
     list.forEach((r) => r.values.sort((a, b) => a.value.localeCompare(b.value)));
-    list.sort((a, b) => a.specName.localeCompare(b.specName));
-    return list;
-  }, [specNameLookup, specValues]);
+	    list.sort((a, b) => a.specName.localeCompare(b.specName));
+	    return list;
+	  }, [specNameLookup, specValues]);
+
+	  const sidebarPermissionItems = useMemo(() => getSidebarPermissionItems(), []);
+	  const sidebarPermissionKeys = useMemo(() => sidebarPermissionItems.map((x) => x.key), [sidebarPermissionItems]);
+
+	  const userRoleOptions = useMemo(() => {
+	    const set = new Set<string>();
+	    for (const u of users) {
+	      const r = String((u as any).role ?? u.designation ?? '').trim();
+	      if (r) set.add(r);
+	    }
+	    for (const r of extraUserRoles) {
+	      const t = String(r ?? '').trim();
+	      if (t) set.add(t);
+	    }
+	    const cur = newUserRole.trim();
+	    if (cur) set.add(cur);
+	    return Array.from(set).sort((a, b) => a.localeCompare(b));
+	  }, [users, extraUserRoles, newUserRole]);
 
   useEffect(() => {
     if (!externalTab) return;
@@ -413,10 +436,13 @@ export default function MastersView({
 				    if (tab === 'users') {
 				      setNewUserName('');
 			      setNewUserEmail('');
-			      setNewUserDesignation('');
-		      setNewUserPassword('');
-		      setNewUserMobile('');
-		    }
+			      setNewUserLoginId('');
+			      setNewUserRole('');
+			      setNewUserMenuAccess([]);
+			      setNewUserIsActive(true);
+			      setNewUserPassword('');
+			      setNewUserMobile('');
+			    }
 						    if (tab === 'suppliers') {
 						      setNewSupplierName('');
 						      setNewSupplierGstNumber('');
@@ -496,16 +522,19 @@ export default function MastersView({
 			        setNewProjectStatus(row.status ?? '');
 			      }
 			    }
-			    if (tab === 'users') {
-			      const row = users.find((u) => u.id === id);
-			      if (row) {
-			        setNewUserName(row.name ?? '');
-		        setNewUserEmail(row.email ?? '');
-		        setNewUserDesignation(row.designation ?? '');
-		        setNewUserPassword('');
-		        setNewUserMobile(row.mobile ?? '');
-		      }
-		    }
+				    if (tab === 'users') {
+				      const row = users.find((u) => u.id === id);
+				      if (row) {
+				        setNewUserName(row.name ?? '');
+			        setNewUserEmail(row.email ?? '');
+			        setNewUserLoginId(String((row as any).loginId ?? ''));
+			        setNewUserRole(String((row as any).role ?? row.designation ?? ''));
+			        setNewUserMenuAccess(Array.isArray((row as any).menuAccess) ? ((row as any).menuAccess as any[]).map((x) => String(x)) : []);
+			        setNewUserIsActive((row as any).isActive === false ? false : true);
+			        setNewUserPassword('');
+			        setNewUserMobile(row.mobile ?? '');
+			      }
+			    }
 				    if (tab === 'suppliers') {
 				      const row = suppliers.find((s) => s.id === id);
 				      setNewSupplierName(row?.name ?? '');
@@ -629,18 +658,18 @@ export default function MastersView({
 
 	  const isEditing = editCtx?.tab === tab && Boolean(editCtx?.id);
 
-					  function loadAll(signal?: AbortSignal) {
-					    setError(null);
-							    return Promise.all([
-							      fetchDepartments(signal),
-							      fetchFirms(signal),
-							      fetchProjects(signal),
-							      fetchStores(signal),
-							      fetchUsers(signal),
-						      fetchSuppliers(signal),
-						      fetchCustomers(signal),
-						      fetchTransporters(signal),
-						      fetchUnits(signal),
+						  function loadAll(signal?: AbortSignal) {
+						    setError(null);
+								    return Promise.all([
+								      fetchDepartments(signal),
+								      fetchFirms(signal),
+								      fetchProjects(signal),
+								      fetchStores(signal),
+								      fetchUsers({ signal, includeInactive: tab === 'users' }),
+							      fetchSuppliers(signal),
+							      fetchCustomers(signal),
+							      fetchTransporters(signal),
+							      fetchUnits(signal),
 						      fetchItemCategories(signal),
 						      fetchItemNames(signal),
 						      fetchSpecifications(signal),
@@ -723,7 +752,7 @@ export default function MastersView({
           if (t === 'firms') return fetchFirms().then(setFirms);
           if (t === 'stores') return fetchStores().then(setStores);
           if (t === 'departments') return fetchDepartments().then(setDepartments);
-          if (t === 'users') return fetchUsers().then(setUsers);
+	          if (t === 'users') return fetchUsers({ includeInactive: true }).then(setUsers);
           if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
           if (t === 'customers') return fetchCustomers().then(setCustomers);
           if (t === 'transporters') return fetchTransporters().then(setTransporters);
@@ -1090,11 +1119,19 @@ export default function MastersView({
             const header = ['name'];
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, departments.map((d) => ({ name: d.name }))), 'text/csv; charset=utf-8');
           }
-          if (tab === 'users') {
-            const header = ['name', 'designation', 'email', 'mobile'];
-            const rows = users.map((u) => ({ name: u.name, designation: u.designation ?? '', email: u.email ?? '', mobile: u.mobile ?? '' }));
-            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
-          }
+	          if (tab === 'users') {
+	            const header = ['name', 'loginId', 'role', 'status', 'email', 'mobile', 'menuAccess'];
+	            const rows = users.map((u) => ({
+	              name: u.name,
+	              loginId: String((u as any).loginId ?? ''),
+	              role: String((u as any).role ?? u.designation ?? ''),
+	              status: (u as any).isActive === false ? 'Inactive' : 'Active',
+	              email: u.email ?? '',
+	              mobile: u.mobile ?? '',
+	              menuAccess: JSON.stringify(Array.isArray((u as any).menuAccess) ? (u as any).menuAccess : []),
+	            }));
+	            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+	          }
           if (tab === 'suppliers') {
             const header = ['name', 'gstNumber', 'gstType', 'address', 'phone', 'paymentTerms'];
             const rows = suppliers.map((s) => ({
@@ -1785,28 +1822,61 @@ export default function MastersView({
 	                        placeholder="Marcus Chen"
 	                      />
 	                    </label>
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email</div>
-	                      <input
-	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={newUserEmail}
-	                        onChange={(e) => setNewUserEmail(e.target.value)}
-	                        placeholder="marcus@example.com"
-	                      />
-	                    </label>
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Designation</div>
-	                      <input
-	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={newUserDesignation}
-	                        onChange={(e) => setNewUserDesignation(e.target.value)}
-	                        placeholder="Procurement Manager"
-	                      />
-	                    </label>
 		                    <label className="space-y-1">
-		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email</div>
 		                      <input
-		                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.userMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newUserEmail}
+		                        onChange={(e) => setNewUserEmail(e.target.value)}
+		                        placeholder="marcus@example.com"
+		                      />
+		                    </label>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Login ID</div>
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newUserLoginId}
+		                        onChange={(e) => setNewUserLoginId(e.target.value)}
+		                        placeholder="amit"
+		                      />
+		                    </label>
+
+		                    <div className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Role</div>
+		                      <div className="flex items-center gap-2">
+		                        <select
+		                          className="flex-1 w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                          value={newUserRole}
+		                          onChange={(e) => setNewUserRole(e.target.value)}
+		                        >
+		                          <option value="">Select role</option>
+		                          {userRoleOptions.map((r) => (
+		                            <option key={r} value={r}>
+		                              {r}
+		                            </option>
+		                          ))}
+		                        </select>
+		                        <button
+		                          type="button"
+		                          title="Add role"
+		                          aria-label="Add role"
+		                          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-on-primary shadow-sm hover:bg-primary/90 transition-colors"
+		                          onClick={() => {
+		                            const v = window.prompt('Enter role name');
+		                            const role = String(v ?? '').trim();
+		                            if (!role) return;
+		                            setExtraUserRoles((prev) => (prev.includes(role) ? prev : [...prev, role]));
+		                            setNewUserRole(role);
+		                          }}
+		                        >
+		                          <Plus size={16} />
+		                        </button>
+		                      </div>
+		                    </div>
+			                    <label className="space-y-1">
+			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
+			                      <input
+			                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.userMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
 		                        value={newUserMobile}
 		                        onChange={(e) => {
 		                          clearFieldError('userMobile');
@@ -1821,43 +1891,104 @@ export default function MastersView({
 		                    </label>
 	                  </div>
 
-	                  <label className="space-y-1">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Password</div>
-	                    <input
-	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newUserPassword}
-	                      onChange={(e) => setNewUserPassword(e.target.value)}
-	                      type="password"
-	                      placeholder={isEditing ? 'Leave blank to keep unchanged' : 'Set password'}
-	                    />
-	                  </label>
+		                  <label className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Password</div>
+		                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newUserPassword}
+		                      onChange={(e) => setNewUserPassword(e.target.value)}
+		                      type="password"
+		                      placeholder={isEditing ? 'Leave blank to keep unchanged' : 'Set password'}
+		                    />
+		                  </label>
+
+		                  <div className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 space-y-3">
+		                    <div className="flex items-center justify-between gap-2">
+		                      <div className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Menu Access</div>
+		                      <div className="flex items-center gap-2">
+		                        <button
+		                          type="button"
+		                          className="btn btn-sm"
+		                          onClick={() => setNewUserMenuAccess(sidebarPermissionKeys)}
+		                        >
+		                          Select All
+		                        </button>
+		                        <button type="button" className="btn btn-sm" onClick={() => setNewUserMenuAccess([])}>
+		                          Clear
+		                        </button>
+		                      </div>
+		                    </div>
+		                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+		                      {sidebarPermissionItems.map((item) => {
+		                        const checked = newUserMenuAccess.includes(item.key);
+		                        return (
+		                          <label key={item.key} className="flex items-center gap-2 text-sm text-on-surface">
+		                            <input
+		                              type="checkbox"
+		                              checked={checked}
+		                              onChange={() => {
+		                                setNewUserMenuAccess((prev) => {
+		                                  if (prev.includes(item.key)) return prev.filter((k) => k !== item.key);
+		                                  return [...prev, item.key];
+		                                });
+		                              }}
+		                            />
+		                            <span>{item.label}</span>
+		                          </label>
+		                        );
+		                      })}
+		                    </div>
+		                  </div>
+
+		                  <div className="space-y-1">
+		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">User Status</div>
+		                    <div className="flex items-center gap-6">
+		                      <label className="flex items-center gap-2 text-sm">
+		                        <input type="radio" name="userStatus" checked={newUserIsActive} onChange={() => setNewUserIsActive(true)} />
+		                        <span>Active</span>
+		                      </label>
+		                      <label className="flex items-center gap-2 text-sm">
+		                        <input
+		                          type="radio"
+		                          name="userStatus"
+		                          checked={!newUserIsActive}
+		                          onChange={() => setNewUserIsActive(false)}
+		                        />
+		                        <span>Inactive</span>
+		                      </label>
+		                    </div>
+		                  </div>
 
 	                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
-	                      onClick={() => {
-	                        setNewUserName('');
-	                        setNewUserEmail('');
-	                        setNewUserDesignation('');
-	                        setNewUserPassword('');
-	                        setNewUserMobile('');
-	                        closeModal();
-	                      }}
-	                    >
+		                      onClick={() => {
+		                        setNewUserName('');
+		                        setNewUserEmail('');
+		                        setNewUserLoginId('');
+		                        setNewUserRole('');
+		                        setNewUserMenuAccess([]);
+		                        setNewUserIsActive(true);
+		                        setNewUserPassword('');
+		                        setNewUserMobile('');
+		                        closeModal();
+		                      }}
+		                    >
 	                      Cancel
 	                    </button>
 	                    <button
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-	                      disabled={
-	                        busy ||
-	                        !newUserName.trim() ||
-	                        !newUserEmail.trim() ||
-	                        !newUserDesignation.trim() ||
-	                        (!isEditing && !newUserPassword.trim())
-	                      }
-			                      onClick={() => {
+		                      disabled={
+		                        busy ||
+		                        !newUserName.trim() ||
+		                        !newUserEmail.trim() ||
+		                        !newUserLoginId.trim() ||
+		                        !newUserRole.trim() ||
+		                        (!isEditing && !newUserPassword.trim())
+		                      }
+				                      onClick={() => {
 			                        setBusy(true);
 			                        setError(null);
 			                        setFieldErrors({});
@@ -1868,32 +1999,41 @@ export default function MastersView({
 			                          return;
 			                        }
 			                        const password = newUserPassword.trim();
-		                        const fn = isEditing
-		                          ? updateUser(editCtx?.id ?? '', {
-		                              name: newUserName.trim(),
-		                              email: newUserEmail.trim(),
-		                              designation: newUserDesignation.trim(),
-		                              mobile: mobile || undefined,
-		                              password: password || undefined,
-		                              updatedBy: 'system',
-		                            })
-		                          : createUser({
-		                              name: newUserName.trim(),
-		                              email: newUserEmail.trim(),
-		                              designation: newUserDesignation.trim(),
-		                              mobile: mobile || undefined,
-		                              password,
-		                              createdBy: 'system',
-		                            });
-	                        fn.then(() => loadAll())
-	                          .then(() => {
-	                            setNewUserName('');
-	                            setNewUserEmail('');
-	                            setNewUserDesignation('');
-	                            setNewUserPassword('');
-	                            setNewUserMobile('');
-	                            closeModal();
-	                          })
+			                        const fn = isEditing
+			                          ? updateUser(editCtx?.id ?? '', {
+			                              name: newUserName.trim(),
+			                              email: newUserEmail.trim(),
+			                              loginId: newUserLoginId.trim(),
+			                              role: newUserRole.trim(),
+			                              menuAccess: newUserMenuAccess.slice(),
+			                              isActive: newUserIsActive,
+			                              mobile: mobile || undefined,
+			                              password: password || undefined,
+			                              updatedBy: 'system',
+			                            })
+			                          : createUser({
+			                              name: newUserName.trim(),
+			                              email: newUserEmail.trim(),
+			                              loginId: newUserLoginId.trim(),
+			                              role: newUserRole.trim(),
+			                              menuAccess: newUserMenuAccess.slice(),
+			                              isActive: newUserIsActive,
+			                              mobile: mobile || undefined,
+			                              password,
+			                              createdBy: 'system',
+			                            });
+		                        fn.then(() => loadAll())
+		                          .then(() => {
+		                            setNewUserName('');
+		                            setNewUserEmail('');
+		                            setNewUserLoginId('');
+		                            setNewUserRole('');
+		                            setNewUserMenuAccess([]);
+		                            setNewUserIsActive(true);
+		                            setNewUserPassword('');
+		                            setNewUserMobile('');
+		                            closeModal();
+		                          })
 	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
 	                      }}
@@ -3330,27 +3470,33 @@ export default function MastersView({
 			              Add
 			            </button>
 			          </div>
-			          <div className="overflow-auto">
-			            <table className="min-w-[1100px] w-full text-sm border-collapse border border-blue-600">
-			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-			                <tr>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Email</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Designation</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Password</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Mobile</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-			                </tr>
-			              </thead>
-			              <tbody>
-			                {users.map((u) => (
-			                  <tr key={u.id}>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.email ?? ''}</td>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.designation}</td>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.hasPassword ? '********' : ''}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.mobile ?? ''}</td>
-			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+				          <div className="overflow-auto">
+				            <table className="min-w-[1400px] w-full text-sm border-collapse border border-blue-600">
+				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Login ID</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Role</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Status</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Email</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Password</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Mobile</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+				                </tr>
+				              </thead>
+				              <tbody>
+				                {users.map((u) => (
+				                  <tr key={u.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).loginId ?? '')}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).role ?? u.designation ?? '')}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+				                      {(u as any).isActive === false ? 'Inactive' : 'Active'}
+				                    </td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.email ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.hasPassword ? '********' : ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.mobile ?? ''}</td>
+				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
 				                        <button
 				                          type="button"
