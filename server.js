@@ -6493,11 +6493,13 @@ app.get('/api/masters/item-names', async (_req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
-        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
+        GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
       LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
+      LEFT JOIN specifications sp ON sp.id = ins.specification_id
       GROUP BY n.id
       ORDER BY n.name
       `
@@ -6508,9 +6510,21 @@ app.get('/api/masters/item-names', async (_req, res) => {
         .split(',')
         .map((x) => x.trim())
         .filter(Boolean);
+      const specCsv = r.specificationsCsv != null ? String(r.specificationsCsv) : '';
+      const specifications = specCsv
+        .split('||')
+        .map((pair) => {
+          const [id, name] = String(pair ?? '').split(':');
+          const sid = String(id ?? '').trim();
+          const sname = String(name ?? '').trim();
+          if (!sid) return null;
+          return { id: sid, name: sname || sid };
+        })
+        .filter(Boolean);
       const out = { ...r };
       delete out.specificationIdsCsv;
-      return { ...out, specificationIds };
+      delete out.specificationsCsv;
+      return { ...out, specificationIds, specifications };
     });
     res.json({ itemNames });
   } catch (e) {
@@ -6554,11 +6568,13 @@ app.post('/api/masters/item-names', async (req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
-        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
+        GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
       LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
+      LEFT JOIN specifications sp ON sp.id = ins.specification_id
       WHERE n.id = ?
       GROUP BY n.id
       `,
@@ -6570,9 +6586,23 @@ app.post('/api/masters/item-names', async (req, res) => {
       .split(',')
       .map((x) => x.trim())
       .filter(Boolean);
+    const specCsv = row?.specificationsCsv != null ? String(row.specificationsCsv) : '';
+    const specifications = specCsv
+      .split('||')
+      .map((pair) => {
+        const [id2, name2] = String(pair ?? '').split(':');
+        const sid = String(id2 ?? '').trim();
+        const sname = String(name2 ?? '').trim();
+        if (!sid) return null;
+        return { id: sid, name: sname || sid };
+      })
+      .filter(Boolean);
     if (row) delete row.specificationIdsCsv;
+    if (row) delete row.specificationsCsv;
     res.status(201).json({
-      itemName: row ? { ...row, specificationIds: outSpecIds } : { id, name, unitId, itemCategoryId, specificationIds },
+      itemName: row
+        ? { ...row, specificationIds: outSpecIds, specifications }
+        : { id, name, unitId, itemCategoryId, specificationIds, specifications },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -6619,11 +6649,13 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
-        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv
+        GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
+        GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n
       LEFT JOIN units u ON u.id = n.unit_id
       LEFT JOIN item_categories c ON c.id = n.item_category_id
       LEFT JOIN item_name_specifications ins ON ins.item_name_id = n.id
+      LEFT JOIN specifications sp ON sp.id = ins.specification_id
       WHERE n.id = ?
       GROUP BY n.id
       `,
@@ -6635,8 +6667,24 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
       .split(',')
       .map((x) => x.trim())
       .filter(Boolean);
+    const specCsv = row?.specificationsCsv != null ? String(row.specificationsCsv) : '';
+    const specifications = specCsv
+      .split('||')
+      .map((pair) => {
+        const [id2, name2] = String(pair ?? '').split(':');
+        const sid = String(id2 ?? '').trim();
+        const sname = String(name2 ?? '').trim();
+        if (!sid) return null;
+        return { id: sid, name: sname || sid };
+      })
+      .filter(Boolean);
     if (row) delete row.specificationIdsCsv;
-    res.json({ itemName: row ? { ...row, specificationIds: outSpecIds } : { id, name, unitId, itemCategoryId, specificationIds } });
+    if (row) delete row.specificationsCsv;
+    res.json({
+      itemName: row
+        ? { ...row, specificationIds: outSpecIds, specifications }
+        : { id, name, unitId, itemCategoryId, specificationIds, specifications },
+    });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

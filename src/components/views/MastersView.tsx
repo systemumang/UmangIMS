@@ -1220,11 +1220,18 @@ export default function MastersView({
             const header = ['name'];
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, itemCategories.map((c) => ({ name: c.name }))), 'text/csv; charset=utf-8');
           }
-          if (tab === 'itemNames') {
-            const header = ['name', 'unitName', 'itemCategoryName'];
-            const rows = itemNames.map((n) => ({ name: n.name, unitName: n.unitName ?? '', itemCategoryName: n.itemCategoryName ?? '' }));
-            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
-          }
+	          if (tab === 'itemNames') {
+	            const header = ['name', 'unitName', 'itemCategoryName', 'specifications'];
+	            const rows = itemNames.map((n) => {
+	              const ids = Array.isArray((n as any).specificationIds) ? ((n as any).specificationIds as any[]).map((x) => String(x)) : [];
+	              const specsText = ids
+	                .map((id) => specNameLookup[id] ?? id)
+	                .filter(Boolean)
+	                .join(', ');
+	              return { name: n.name, unitName: n.unitName ?? '', itemCategoryName: n.itemCategoryName ?? '', specifications: specsText };
+	            });
+	            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
+	          }
           if (tab === 'specs') {
             const header = ['name'];
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, specs.map((s) => ({ name: s.name }))), 'text/csv; charset=utf-8');
@@ -3985,26 +3992,39 @@ export default function MastersView({
 	              Add
 	            </button>
 			          </div>
-			          <div className="overflow-auto">
-				            <table className="min-w-[920px] w-full text-sm border-collapse border border-blue-600">
-				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-				                <tr>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-				                </tr>
-				              </thead>
-				              <tbody>
-				                {itemNames.map((n) => (
-				                  <tr key={n.id}>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
-				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
-				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
-				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-				                      <div className="flex items-center gap-2">
-					                        <button
-				                          type="button"
+				          <div className="overflow-auto">
+					            <table className="min-w-[1200px] w-full text-sm border-collapse border border-blue-600">
+					              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+					                <tr>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Specifications</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+					                </tr>
+					              </thead>
+					              <tbody>
+					                {itemNames.map((n) => (
+					                  <tr key={n.id}>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+					                      {(() => {
+					                        const ids = Array.isArray((n as any).specificationIds)
+					                          ? ((n as any).specificationIds as any[]).map((x) => String(x))
+					                          : [];
+					                        if (!ids.length) return '';
+					                        return ids
+					                          .map((id) => specNameLookup[id] ?? id)
+					                          .filter(Boolean)
+					                          .join(', ');
+					                      })()}
+					                    </td>
+					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+					                      <div className="flex items-center gap-2">
+						                        <button
+					                          type="button"
 				                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(n.id)}
 				                        >
