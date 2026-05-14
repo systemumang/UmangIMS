@@ -4106,7 +4106,6 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    const supplierName = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
       const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
-      const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
 	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
 	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
 	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -8130,10 +8129,6 @@ async function handleCreateInvoice(req, res) {
     const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : null;
     const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : null;
     const transporterName = req.body?.transporterName != null ? String(req.body.transporterName).trim() : null;
-    const paymentModeRaw = String(req.body?.paymentMode ?? 'Credit').trim().toLowerCase();
-    const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : 'Credit';
-    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
-
     const normalizedItems = items
       .map((it) => ({
         itemId: String(it?.itemId ?? '').trim(),
