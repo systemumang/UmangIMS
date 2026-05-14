@@ -323,6 +323,69 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// --- Auth ---
+// Simple login using the existing `users` table (login_id + password_hash).
+// Only active users can login.
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const loginId = String(req.body?.loginId ?? '').trim();
+    const password = String(req.body?.password ?? '').trim();
+    if (!loginId) return res.status(400).json({ error: 'loginId is required' });
+    if (!password) return res.status(400).json({ error: 'password is required' });
+
+    const passwordHash = sha256(password);
+    const [[row]] = await pool.query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        role,
+        login_id AS loginId,
+        menu_access AS menuAccess,
+        is_active AS isActive,
+        password_hash AS passwordHash
+      FROM users
+      WHERE LOWER(TRIM(login_id))=LOWER(TRIM(?))
+      LIMIT 1
+      `,
+      [loginId]
+    );
+
+    if (!row?.id) return res.status(401).json({ error: 'Invalid Login ID or Password.' });
+    if (!row?.isActive) return res.status(403).json({ error: 'User is Inactive. Please contact Admin.' });
+
+    const stored = String(row?.passwordHash ?? '').trim();
+    if (!stored || stored !== passwordHash) return res.status(401).json({ error: 'Invalid Login ID or Password.' });
+
+    let menuAccess = [];
+    try {
+      const raw = row?.menuAccess;
+      if (raw != null && String(raw).trim()) {
+        const parsed = JSON.parse(String(raw));
+        if (Array.isArray(parsed)) menuAccess = parsed.map((x) => String(x));
+      }
+    } catch {}
+
+    res.json({
+      user: {
+        id: String(row.id),
+        name: String(row.name ?? ''),
+        email: row.email != null ? String(row.email) : null,
+        role: row.role != null ? String(row.role) : '',
+        loginId: row.loginId != null ? String(row.loginId) : '',
+        isActive: true,
+        menuAccess,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.post('/api/uploads', async (req, res) => {
   try {
     const fileName = String(req.body?.fileName ?? '').trim() || 'file';

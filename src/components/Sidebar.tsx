@@ -123,21 +123,33 @@ export default function Sidebar({
 	  onNavigateStockView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
 	  onNewPurchaseRequest: () => void;
-	  onDirectPo?: () => void;
-	  open?: boolean;
-	}) {
-  const borderClass = 'border-2 border-[#1f2937]';
-  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
-  const sectionRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
-  const viewRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
-  const activeRowClass = 'bg-[#dc2626] hover:bg-[#dc2626] text-white font-semibold border-[#7f1d1d] shadow-[inset_0_0_0_1px_#7f1d1d]';
+  onDirectPo?: () => void;
+  currentUserName?: string;
+  menuAccessKeys?: string[];
+  onLogout?: () => void;
+  open?: boolean;
+		}) {
+	  const allowed = useMemo(() => new Set((menuAccessKeys ?? []).map((x) => String(x))), [menuAccessKeys]);
+	  const hasAny = allowed.size > 0;
+	  const isAllowed = (key: string) => (!hasAny ? true : allowed.has(String(key)));
+	  const hasPrefix = (prefix: string) => {
+	    if (!hasAny) return true;
+	    for (const k of allowed) if (k.startsWith(prefix)) return true;
+	    return false;
+	  };
+
+	  const borderClass = 'border-2 border-[#1f2937]';
+	  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
+	  const sectionRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
+	  const viewRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
+	  const activeRowClass = 'bg-[#dc2626] hover:bg-[#dc2626] text-white font-semibold border-[#7f1d1d] shadow-[inset_0_0_0_1px_#7f1d1d]';
 
 	  const subRowClass = `w-full text-left px-3 py-2 rounded-md text-xs font-semibold transition-colors ${borderClass} bg-surface-container-lowest hover:border-[#111827]`;
   const subActiveClass = 'bg-primary/10 text-on-surface border-[#111827]';
   const subInactiveClass = 'text-on-surface-variant hover:bg-surface-container-high';
 
-  return (
-		    <aside
+	  return (
+			    <aside
 	      className={cn(
 	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r-2 border-[#1f2937] shadow-lg',
 	        open ? 'translate-x-0' : '-translate-x-full'
@@ -153,42 +165,48 @@ export default function Sidebar({
 		        </div>
 	      </div>
 
-	      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
-            <LayoutDashboard className="mr-3 text-white" size={18} />
-            <span className="flex-1">Dashboard</span>
-          </motion.button>
+		      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
+	          {isAllowed('dashboard') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('dashboard')} className={cn(viewRowClass, activeView === 'dashboard' ? activeRowClass : '')}>
+	              <LayoutDashboard className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Dashboard</span>
+	            </motion.button>
+	          ) : null}
 
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
-            <Database className="mr-3 text-white" size={18} />
-            <span className="flex-1">Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', mastersExpanded ? 'rotate-180' : 'rotate-0')} />
-          </motion.button>
-          {mastersExpanded ? (
-            <div className="ml-7 mr-1 space-y-1">
-	              {MASTERS_TABS.map((t) => (
-	                <button key={t.key} type="button" onClick={() => onNavigateMastersTab?.(t.key)} className={cn(subRowClass, activeMastersTab === t.key ? subActiveClass : subInactiveClass)}>
-                    <span className="flex items-center justify-between gap-2 w-full">
-	                     <span>{t.label}</span>
-                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                        {Number(mastersCounts?.[t.key] ?? 0)}
-                      </span>
-                    </span>
-	                </button>
-	              ))}
-            </div>
-          ) : null}
+	          {isAllowed('masters') || hasPrefix('masters:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
+	              <Database className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Masters</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', mastersExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
+	          {mastersExpanded ? (
+	            <div className="ml-7 mr-1 space-y-1">
+		              {MASTERS_TABS.filter((t) => isAllowed(`masters:${t.key}`)).map((t) => (
+		                <button key={t.key} type="button" onClick={() => onNavigateMastersTab?.(t.key)} className={cn(subRowClass, activeMastersTab === t.key ? subActiveClass : subInactiveClass)}>
+	                    <span className="flex items-center justify-between gap-2 w-full">
+		                     <span>{t.label}</span>
+	                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+	                        {Number(mastersCounts?.[t.key] ?? 0)}
+	                      </span>
+	                    </span>
+		                </button>
+		              ))}
+	            </div>
+	          ) : null}
 
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('pendingTasks')} className={cn(sectionRowClass, pendingExpanded ? activeRowClass : '')}>
-            <ClipboardList className="mr-3 text-white" size={18} />
-            <span className="flex-1">Pending Tasks</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', pendingExpanded ? 'rotate-180' : 'rotate-0')} />
-          </motion.button>
-          {pendingExpanded && onNavigatePendingQueue ? (
-            <div className="ml-7 mr-1 space-y-1">
-	              {pendingQueueItems.map((q) => (
-	                <motion.button
-                  key={q.key}
+	          {isAllowed('pendingTasks') || hasPrefix('pending:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('pendingTasks')} className={cn(sectionRowClass, pendingExpanded ? activeRowClass : '')}>
+	              <ClipboardList className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Pending Tasks</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', pendingExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
+	          {pendingExpanded && onNavigatePendingQueue ? (
+	            <div className="ml-7 mr-1 space-y-1">
+		              {pendingQueueItems.filter((q) => isAllowed(`pending:${q.key}`)).map((q) => (
+		                <motion.button
+	                  key={q.key}
                   whileHover={{ x: 4 }}
                   type="button"
                   onClick={() => onNavigatePendingQueue(q.key)}
@@ -212,18 +230,20 @@ export default function Sidebar({
                     })()}
 	                </motion.button>
 	              ))}
-            </div>
-          ) : null}
+	            </div>
+	          ) : null}
 
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('stockMaster')} className={cn(sectionRowClass, stockMasterExpanded ? activeRowClass : '')}>
-            <Package className="mr-3 text-white" size={18} />
-            <span className="flex-1">Stock</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', stockMasterExpanded ? 'rotate-180' : 'rotate-0')} />
-          </motion.button>
-	          {stockMasterExpanded && onNavigateStockView ? (
-	            <div className="ml-7 mr-1 space-y-1">
-                {stockMenuItems.map((it) => (
-                  <button
+	          {isAllowed('stockMaster') || hasPrefix('stock:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('stockMaster')} className={cn(sectionRowClass, stockMasterExpanded ? activeRowClass : '')}>
+	              <Package className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Stock</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', stockMasterExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
+		          {stockMasterExpanded && onNavigateStockView ? (
+		            <div className="ml-7 mr-1 space-y-1">
+                {stockMenuItems.filter((it) => isAllowed(`stock:${it.key}`)).map((it) => (
+	                  <button
                     key={it.key}
                     type="button"
                     onClick={() => onNavigateStockView(it.key)}
@@ -244,19 +264,21 @@ export default function Sidebar({
                       {it.label}
                     </span>
                   </button>
-                ))}
-	            </div>
-	          ) : null}
+	                ))}
+		            </div>
+		          ) : null}
 
-          <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
-            <ShoppingCart className="mr-3 text-white" size={18} />
-            <span className="flex-1">Purchase Masters</span>
-            <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
-          </motion.button>
-		          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
-		            <div className="ml-7 mr-1 space-y-1">
-                  {purchaseMastersMenuItems.map((it) => (
-                    <button
+	          {isAllowed('operations') || hasPrefix('purchase:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
+	              <ShoppingCart className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Purchase Masters</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
+			          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
+			            <div className="ml-7 mr-1 space-y-1">
+                  {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (
+	                    <button
                       key={it.key}
                       type="button"
                       onClick={() => onNavigatePurchaseMasters(it.key)}
@@ -283,19 +305,24 @@ export default function Sidebar({
                     </button>
                   ))}
 		            </div>
-		          ) : null}
-        </nav>
+			          ) : null}
+	        </nav>
 
-		      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 bg-surface-container-lowest">
-		        <button
-		          type="button"
-		          className="flex items-center px-4 py-2 bg-surface-container-high text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/20"
-		          onClick={() => {}}
-		        >
-		          <LogOut className="mr-3" size={18} />
-		          Logout
-		        </button>
-		      </div>
+			      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 bg-surface-container-lowest space-y-2">
+			        {currentUserName ? (
+			          <div className="text-xs text-on-surface-variant">
+			            Logged in as: <span className="font-semibold text-on-surface">{currentUserName}</span>
+			          </div>
+			        ) : null}
+			        <button
+			          type="button"
+			          className="flex items-center px-4 py-2 bg-surface-container-high text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/20"
+			          onClick={() => onLogout?.()}
+			        >
+			          <LogOut className="mr-3" size={18} />
+			          Logout
+			        </button>
+			      </div>
 		    </aside>
 		  );
 		}

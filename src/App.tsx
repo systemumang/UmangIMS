@@ -30,6 +30,7 @@ import TransferMasterView from './components/views/TransferMasterView';
 import DirectPoView from './components/views/DirectPoView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
+import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
 import {
   fetchCustomers,
   fetchDepartments,
@@ -78,9 +79,22 @@ export default function App() {
 		    | 'returnMaster'
 		    | 'damageMaster'
 		    | 'transferMaster';
-		  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
-		  const [view, setView] = useState<View>('dashboard');
-		  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+			  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
+			  const [view, setView] = useState<View>('dashboard');
+			  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+			    try {
+			      const raw = sessionStorage.getItem('ims.currentUser');
+			      if (!raw) return null;
+			      return JSON.parse(raw) as AuthUser;
+			    } catch {
+			      return null;
+			    }
+			  });
+			  const [loginId, setLoginId] = useState('');
+			  const [loginPassword, setLoginPassword] = useState('');
+			  const [loginBusy, setLoginBusy] = useState(false);
+			  const [loginError, setLoginError] = useState<string | null>(null);
+			  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 		  const [detailBackView, setDetailBackView] = useState<View>('dashboard');
 			  const [mastersTab, setMastersTab] = useState<MastersTab>('firms');
 			  const [mastersExpanded, setMastersExpanded] = useState(false);
@@ -148,10 +162,11 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    Promise.all([
-      fetchQueueApprovePr(undefined, ac.signal).then((r) => ['queueApprovePr', r.length] as const),
+	  useEffect(() => {
+	    if (!currentUser) return;
+	    const ac = new AbortController();
+	    Promise.all([
+	      fetchQueueApprovePr(undefined, ac.signal).then((r) => ['queueApprovePr', r.length] as const),
       fetchQueueCreatePo(undefined, ac.signal).then((r) => ['queueCreatePo', r.length] as const),
       fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
       fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
@@ -168,12 +183,13 @@ export default function App() {
       })
       .catch(() => {});
     return () => ac.abort();
-  }, [view]);
+	  }, [currentUser, view]);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    Promise.all([
-      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
+	  useEffect(() => {
+	    if (!currentUser) return;
+	    const ac = new AbortController();
+	    Promise.all([
+	      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
       fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
       fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
       fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
@@ -186,12 +202,13 @@ export default function App() {
       })
       .catch(() => {});
     return () => ac.abort();
-  }, [view]);
+	  }, [currentUser, view]);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    Promise.all([
-      fetchFirms(ac.signal).then((r) => ['firms', r.length] as const),
+	  useEffect(() => {
+	    if (!currentUser) return;
+	    const ac = new AbortController();
+	    Promise.all([
+	      fetchFirms(ac.signal).then((r) => ['firms', r.length] as const),
       fetchStores(ac.signal).then((r) => ['stores', r.length] as const),
       fetchDepartments(ac.signal).then((r) => ['departments', r.length] as const),
       fetchUsers(ac.signal).then((r) => ['users', r.length] as const),
@@ -274,7 +291,7 @@ export default function App() {
 	    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
 	    if (isPendingQueueView(view)) return 'pendingTasks';
 	    return view as NavView;
-	  }, [view]);
+	  }, [currentUser, view]);
 
 	  const activePendingQueue = isPendingQueueView(view) ? view : undefined;
 
@@ -303,14 +320,92 @@ export default function App() {
 		    setView('purchaseRequestDetail');
 		  };
 
-			  const showBusyOverlay = inFlightCount > 0;
-        const hideSidebarAfterViewChange = () => setSidebarOpen(false);
-	
-	  return (
-    <div className="flex min-h-screen bg-surface">
-				      <Sidebar
-				        activeView={sidebarActive}
-				        activePendingQueue={activePendingQueue}
+				  const showBusyOverlay = inFlightCount > 0;
+	        const hideSidebarAfterViewChange = () => setSidebarOpen(false);
+
+		  if (!currentUser) {
+		    return (
+		      <div className="min-h-screen bg-surface-container-lowest flex items-center justify-center p-4">
+		        <div className="w-full max-w-md bg-white rounded-2xl border border-outline-variant/30 shadow-xl overflow-hidden">
+		          <div className="px-6 py-5 border-b border-outline-variant/30">
+		            <div className="text-lg font-bold text-on-surface">Login</div>
+		            <div className="text-xs text-on-surface-variant mt-1">Enter Login ID and Password</div>
+		          </div>
+		          <div className="p-6 space-y-4">
+		            {loginError ? <div className="text-sm text-error">{loginError}</div> : null}
+		            <label className="space-y-1 block">
+		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Login ID</div>
+		              <input
+		                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                value={loginId}
+		                onChange={(e) => setLoginId(e.target.value)}
+		                placeholder="amit"
+		                autoFocus
+		              />
+		            </label>
+		            <label className="space-y-1 block">
+		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Password</div>
+		              <input
+		                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                value={loginPassword}
+		                onChange={(e) => setLoginPassword(e.target.value)}
+		                type="password"
+		                placeholder="Password"
+		                onKeyDown={(e) => {
+		                  if (e.key !== 'Enter') return;
+		                  if (loginBusy) return;
+		                  const lid = loginId.trim();
+		                  const pw = loginPassword;
+		                  if (!lid || !pw) return;
+		                  setLoginBusy(true);
+		                  setLoginError(null);
+		                  loginWithLoginId(lid, pw)
+		                    .then((u) => {
+		                      sessionStorage.setItem('ims.currentUser', JSON.stringify(u));
+		                      setCurrentUser(u);
+		                      setLoginId('');
+		                      setLoginPassword('');
+		                    })
+		                    .catch((err) => setLoginError(err instanceof Error ? err.message : String(err)))
+		                    .finally(() => setLoginBusy(false));
+		                }}
+		              />
+		            </label>
+		            <button
+		              type="button"
+		              className="btn-primary w-full justify-center"
+		              disabled={loginBusy || !loginId.trim() || !loginPassword}
+		              onClick={() => {
+		                if (loginBusy) return;
+		                const lid = loginId.trim();
+		                const pw = loginPassword;
+		                if (!lid || !pw) return;
+		                setLoginBusy(true);
+		                setLoginError(null);
+		                loginWithLoginId(lid, pw)
+		                  .then((u) => {
+		                    sessionStorage.setItem('ims.currentUser', JSON.stringify(u));
+		                    setCurrentUser(u);
+		                    setLoginId('');
+		                    setLoginPassword('');
+		                  })
+		                  .catch((err) => setLoginError(err instanceof Error ? err.message : String(err)))
+		                  .finally(() => setLoginBusy(false));
+		              }}
+		            >
+		              {loginBusy ? 'Logging in...' : 'Login'}
+		            </button>
+		          </div>
+		        </div>
+		      </div>
+		    );
+		  }
+		
+		  return (
+	    <div className="flex min-h-screen bg-surface">
+					      <Sidebar
+					        activeView={sidebarActive}
+					        activePendingQueue={activePendingQueue}
                 pendingQueueCounts={pendingQueueCounts}
                 mastersCounts={mastersCounts}
                 purchaseMastersCounts={purchaseMastersCounts}
@@ -320,9 +415,17 @@ export default function App() {
 			        stockMasterExpanded={stockMasterExpanded}
               purchaseMastersExpanded={purchaseMastersExpanded}
               activeOperationsTab={operationsTab}
-			        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
-			        open={sidebarOpen}
-				        onNavigate={(next) => {
+				        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
+                currentUserName={currentUser?.name || currentUser?.loginId || ''}
+                menuAccessKeys={currentUser?.menuAccess ?? []}
+                onLogout={() => {
+                  sessionStorage.removeItem('ims.currentUser');
+                  setCurrentUser(null);
+                  setLoginError(null);
+                  setLoginBusy(false);
+                }}
+				        open={sidebarOpen}
+					        onNavigate={(next) => {
 					          if (next === 'masters') {
 					            setSelectedRequestId(null);
 					            setPendingExpanded(false);
