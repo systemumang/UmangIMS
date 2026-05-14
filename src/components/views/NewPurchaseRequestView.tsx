@@ -1211,73 +1211,80 @@ export default function NewPurchaseRequestView({
 				                  )
 				                : null}
 
-				              {reqCreateValueRowIndex != null
-				                ? createPortal(
-				                    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
-				                      <button
-				                        type="button"
-				                        className="absolute inset-0 bg-black/40"
-				                        aria-label="Close"
-				                        onClick={closeReqCreateValue}
-				                      />
-				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
-				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
-				                          <div className="text-sm font-bold text-on-surface">Add Specification Value</div>
-				                          <button type="button" className="btn btn-sm" onClick={closeReqCreateValue}>
-				                            Close
-				                          </button>
-				                        </div>
-				                        <div className="p-5 space-y-3">
-				                          {reqCreateValueError ? <div className="text-xs text-error">{reqCreateValueError}</div> : null}
-				                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-				                            <div className="space-y-1">
-				                              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
-				                              <div className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface">
-				                                {(() => {
-				                                  const idx = reqCreateValueRowIndex;
-				                                  const itemNameId = idx != null ? String(items[idx]?.itemNameId ?? '') : '';
-				                                  const label = itemNames.find((n) => n.id === itemNameId)?.name ?? '';
-				                                  return label || itemNameId || '-';
-				                                })()}
-				                              </div>
-				                            </div>
-				                            <div className="space-y-1">
-				                              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
-				                              <div className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface">
-				                                {(specNameById?.[reqCreateValueSpecId] ?? reqCreateValueSpecId) || '-'}
-				                              </div>
-				                            </div>
-				                          </div>
-				                          <input
-				                            className={inputClass}
-				                            autoFocus
-				                            value={reqCreateValueValue}
-				                            placeholder="Enter new value for this item/specification"
-				                            onChange={(e) => setReqCreateValueValue(e.target.value)}
-				                            onKeyDown={(e) => {
-				                              if (e.key === 'Escape') closeReqCreateValue();
-				                              if (e.key === 'Enter') submitReqCreateValue();
-				                            }}
-				                          />
-				                          <div className="flex justify-end gap-2">
-				                            <button type="button" className="btn btn-sm" onClick={closeReqCreateValue}>
-				                              Cancel
-				                            </button>
-				                            <button
-				                              type="button"
-				                              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-				                              disabled={reqCreateValueBusy || !reqCreateValueValue.trim()}
-				                              onClick={submitReqCreateValue}
-				                            >
-				                              {reqCreateValueBusy ? 'Creating...' : 'Create'}
-				                            </button>
-				                          </div>
-				                        </div>
-				                      </div>
-				                    </div>,
-				                    document.body
-				                  )
-				                : null}
+					              {reqCreateValueRowIndex != null
+					                ? createPortal(
+					                    <div className="fixed inset-0 z-[40000] flex items-center justify-center p-4">
+					                      <button
+					                        type="button"
+					                        className="absolute inset-0 bg-black/40"
+					                        aria-label="Close"
+					                        onClick={closeReqCreateValue}
+					                      />
+					                      <div className="relative w-full max-w-4xl bg-white rounded-lg border border-black shadow-xl">
+					                        <div className="flex items-center justify-between px-6 py-4 border-b border-black">
+					                          <div className="text-sm font-bold text-black">Add Spec Value</div>
+					                          <button type="button" className="btn-primary" onClick={closeReqCreateValue}>
+					                            Close
+					                          </button>
+					                        </div>
+					                        <div className="p-6 space-y-3">
+					                          {reqCreateValueError ? <div className="text-xs text-red-600">{reqCreateValueError}</div> : null}
+					                          <label className="space-y-1 block">
+					                            <div className="text-[10px] font-bold text-black uppercase tracking-wider">Item Name</div>
+					                            <SearchableSelect
+					                              value={(() => {
+					                                const idx = reqCreateValueRowIndex;
+					                                return idx != null ? String(items[idx]?.itemNameId ?? '') : '';
+					                              })()}
+					                              options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+					                              onChange={() => {}}
+					                              placeholder="Select item name..."
+					                              disabled
+					                            />
+					                          </label>
+					                          <label className="space-y-1 block">
+					                            <div className="text-[10px] font-bold text-black uppercase tracking-wider">Specification</div>
+					                            <SearchableSelect
+					                              value={reqCreateValueSpecId}
+					                              options={specs.map((s) => ({ value: s.id, label: s.name }))}
+					                              onChange={() => {}}
+					                              placeholder="Search specification..."
+					                              disabled
+					                            />
+					                          </label>
+					                          <label className="space-y-1 block">
+					                            <div className="text-[10px] font-bold text-black uppercase tracking-wider">Value</div>
+					                            <input
+					                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                              autoFocus
+					                              value={reqCreateValueValue}
+					                              placeholder="M12"
+					                              onChange={(e) => setReqCreateValueValue(e.target.value)}
+					                              onKeyDown={(e) => {
+					                                if (e.key === 'Escape') closeReqCreateValue();
+					                                if (e.key === 'Enter') submitReqCreateValue();
+					                              }}
+					                            />
+					                          </label>
+					                          <div className="flex justify-end gap-2 pt-1">
+					                            <button type="button" className="btn-primary" onClick={closeReqCreateValue}>
+					                              Cancel
+					                            </button>
+					                            <button
+					                              type="button"
+					                              className="btn-primary"
+					                              disabled={reqCreateValueBusy || !reqCreateValueValue.trim()}
+					                              onClick={submitReqCreateValue}
+					                            >
+					                              {reqCreateValueBusy ? 'Adding...' : 'Add'}
+					                            </button>
+					                          </div>
+					                        </div>
+					                      </div>
+					                    </div>,
+					                    document.body
+					                  )
+					                : null}
 			              <label className="space-y-1">
 			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
 			                <SearchableSelect
