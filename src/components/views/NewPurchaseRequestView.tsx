@@ -792,15 +792,14 @@ export default function NewPurchaseRequestView({
 						                                  )
 						                                );
 						                              }}
-						                              onCreate={async (label) => {
-						                                const v = String(label ?? '').trim();
-						                                if (!v) return null;
-						                                setReqCreateValueError(null);
-						                                setReqCreateValueRowIndex(idx);
-						                                setReqCreateValueSpecId(specId);
-						                                setReqCreateValueValue(v);
-						                                return null;
-						                              }}
+							                              onCreate={async (label) => {
+							                                const v = String(label ?? '').trim();
+							                                setReqCreateValueError(null);
+							                                setReqCreateValueRowIndex(idx);
+							                                setReqCreateValueSpecId(specId);
+							                                setReqCreateValueValue(v);
+							                                return null;
+							                              }}
 						                            />
 						                          </label>
 						                        );
