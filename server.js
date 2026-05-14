@@ -3878,23 +3878,81 @@ app.post('/api/requests', async (req, res) => {
     const prNumber = await allocateDocNumber(pool, 'PR', new Date());
     const remarks = JSON.stringify({ department });
 
-    await pool.query(
-      `
-      INSERT INTO purchase_requisitions
-        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
+	    await pool.query(
+	      `
+	      INSERT INTO purchase_requisitions
+	        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
       VALUES
         (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW(), ?)
       `,
-      [prId, prNumber, firmId, storeId, projectId || null, requestedBy, remarks, 'system', requestType]
-    );
+	      [prId, prNumber, firmId, storeId, projectId || null, requestedBy, remarks, 'system', requestType]
+	    );
 
-    for (const row of items) {
-      const itemId = String(row?.itemId ?? '').trim();
-      const quantity = Number(row?.quantity ?? 0);
-      const specification = String(row?.specification ?? '').trim();
-      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires a valid quantity' });
-      if (!specification) return res.status(400).json({ error: 'Each item requires specification' });
+	    const normalizeSpecsObject = (raw) => {
+	      if (!raw || typeof raw !== 'object') return {};
+	      const out = {};
+	      for (const [k, v] of Object.entries(raw)) {
+	        const sid = String(k ?? '').trim();
+	        const sval = String(v ?? '').trim();
+	        if (!sid || !sval) continue;
+	        out[sid] = sval;
+	      }
+	      return out;
+	    };
+
+	    const stableJsonStringify = (obj) => {
+	      const entries = Object.entries(obj || {}).sort(([a], [b]) => String(a).localeCompare(String(b)));
+	      return JSON.stringify(Object.fromEntries(entries));
+	    };
+
+	    for (const row of items) {
+	      let itemId = String(row?.itemId ?? '').trim();
+	      const itemNameId = String(row?.itemNameId ?? '').trim();
+	      const quantity = Number(row?.quantity ?? 0);
+	      let specification = String(row?.specification ?? '').trim();
+
+	      // New format: Item Name + spec selections (server resolves/creates the item id).
+	      if (!itemId && itemNameId) {
+	        const specsObj = normalizeSpecsObject(row?.specs);
+	        const specIds = Object.keys(specsObj);
+	        if (!specIds.length) return res.status(400).json({ error: 'Each item requires specs for selected item name' });
+	        const specificationsJson = stableJsonStringify(specsObj);
+	        const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+
+	        const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
+	        if (found?.id) {
+	          itemId = String(found.id);
+	        } else {
+	          const newId = crypto.randomUUID();
+	          const itemCode = `IT-${newId.slice(0, 8).toUpperCase()}`;
+	          const [[meta]] = await pool.query(
+	            `
+	            SELECT u.name AS unitName
+	            FROM item_names n
+	            LEFT JOIN units u ON u.id = n.unit_id
+	            WHERE n.id = ?
+	            LIMIT 1
+	            `,
+	            [itemNameId]
+	          );
+	          const unitName = meta?.unitName != null ? String(meta.unitName) : null;
+	          await pool.query(
+	            `
+	            INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
+	            VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, NOW(), NOW())
+	            `,
+	            [newId, itemNameId, itemCode, specificationsJson, uniqueKey, unitName, 'system']
+	          );
+	          itemId = newId;
+	        }
+
+	        // Store specs JSON in remarks for traceability.
+	        specification = JSON.stringify(specsObj);
+	      }
+
+	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires a valid quantity' });
+	      if (!specification) return res.status(400).json({ error: 'Each item requires specification' });
 
       const prItemId = crypto.randomUUID();
       await pool.query(

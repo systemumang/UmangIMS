@@ -43,7 +43,7 @@ export default function NewPurchaseRequestView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
-  type ItemDraft = { itemId: string; item: string; quantity: string; specification: string };
+  type ItemDraft = { itemNameId: string; quantity: string; specs: Record<string, string> };
 
   function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
     try {
@@ -60,9 +60,14 @@ export default function NewPurchaseRequestView({
     }
   }
 
-  function formatItemInline(itemName: string, specificationsJson: string, specNameById?: Record<string, string>) {
-    const specs = formatSpecsLines(specificationsJson, specNameById);
-    return [itemName, ...specs].join(' - ');
+  function specValueKey(itemNameId: string, specificationId: string) {
+    return `${itemNameId}::${specificationId}`;
+  }
+
+  function getItemNameSpecIds(itemNameId: string): string[] {
+    const row = itemNames.find((n) => n.id === itemNameId);
+    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+    return ids.filter(Boolean);
   }
 
 		  const [firms, setFirms] = useState<Firm[]>([]);
@@ -82,8 +87,13 @@ export default function NewPurchaseRequestView({
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
-		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '' }]);
-	  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
+			  const [items, setItems] = useState<ItemDraft[]>([{ itemNameId: '', quantity: '', specs: {} }]);
+		  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
+		  const [reqCreateValueRowIndex, setReqCreateValueRowIndex] = useState<number | null>(null);
+		  const [reqCreateValueSpecId, setReqCreateValueSpecId] = useState<string>('');
+		  const [reqCreateValueValue, setReqCreateValueValue] = useState('');
+		  const [reqCreateValueBusy, setReqCreateValueBusy] = useState(false);
+		  const [reqCreateValueError, setReqCreateValueError] = useState<string | null>(null);
 	  const [itemNames, setItemNames] = useState<ItemName[]>([]);
 	  const [loadingItemNames, setLoadingItemNames] = useState(true);
 	  const [units, setUnits] = useState<Unit[]>([]);
@@ -130,6 +140,7 @@ export default function NewPurchaseRequestView({
 	  const [createSpecInlineError, setCreateSpecInlineError] = useState<string | null>(null);
 
 	  const [createValueInlineIndex, setCreateValueInlineIndex] = useState<number | null>(null);
+	  const [createValueInlineSpecId, setCreateValueInlineSpecId] = useState<string | null>(null);
 	  const [createValueInlineValue, setCreateValueInlineValue] = useState('');
 	  const [createValueInlineBusy, setCreateValueInlineBusy] = useState(false);
 	  const [createValueInlineError, setCreateValueInlineError] = useState<string | null>(null);
@@ -376,18 +387,17 @@ export default function NewPurchaseRequestView({
       .finally(() => setCreateCategoryInlineBusy(false));
   };
 
-					  const canSubmit = useMemo(() => {
-					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-					    if (requestType === 'Project' && !projectId.trim()) return false;
-					    const normalized = items
-					      .map((it) => ({
-					        item: it.item.trim(),
-					        quantity: Number(it.quantity),
-			        specification: it.specification.trim(),
-						    }))
-						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
-					    return normalized.length > 0;
-					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
+						  const canSubmit = useMemo(() => {
+						    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+						    if (requestType === 'Project' && !projectId.trim()) return false;
+						    const normalized = items
+						      .map((it) => ({
+						        itemNameId: String(it.itemNameId ?? '').trim(),
+						        quantity: Number(it.quantity),
+						      }))
+						      .filter((it) => it.itemNameId && Number.isFinite(it.quantity) && it.quantity > 0);
+						    return normalized.length > 0;
+						  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
 
 			  const storeOptions = useMemo(() => {
 			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
@@ -469,11 +479,65 @@ export default function NewPurchaseRequestView({
 		      .finally(() => setCreateSpecInlineBusy(false));
 		  };
 
-		  const closeCreateValue = () => {
-		    setCreateValueInlineIndex(null);
-		    setCreateValueInlineValue('');
-		    setCreateValueInlineError(null);
-		  };
+			  const closeCreateValue = () => {
+			    setCreateValueInlineIndex(null);
+			    setCreateValueInlineValue('');
+			    setCreateValueInlineError(null);
+			  };
+
+			  const closeReqCreateValue = () => {
+			    setReqCreateValueRowIndex(null);
+			    setReqCreateValueSpecId('');
+			    setReqCreateValueValue('');
+			    setReqCreateValueError(null);
+			  };
+
+			  const submitReqCreateValue = () => {
+			    const rowIdx = reqCreateValueRowIndex;
+			    if (rowIdx == null) return;
+			    const specId = String(reqCreateValueSpecId ?? '').trim();
+			    const v = String(reqCreateValueValue ?? '').trim();
+			    const itemNameId = String(items[rowIdx]?.itemNameId ?? '').trim();
+			    if (!itemNameId) {
+			      setReqCreateValueError('Select Item Name first.');
+			      return;
+			    }
+			    if (!specId) {
+			      setReqCreateValueError('Select Specification first.');
+			      return;
+			    }
+			    if (!v) {
+			      setReqCreateValueError('Please enter Value.');
+			      return;
+			    }
+			    if (reqCreateValueBusy) return;
+			    setReqCreateValueBusy(true);
+			    setReqCreateValueError(null);
+			    createSpecificationValue({ specificationId: specId, itemNameId, value: v, createdBy: 'system' })
+			      .then((created) => {
+			        const next = created.specificationValue;
+			        const finalValue = String(next?.value ?? v);
+			        const key = specValueKey(itemNameId, specId);
+			        setSpecValueOptions((m) => {
+			          const prev = m[key] ?? [];
+			          if (prev.some((p) => p.value === finalValue)) return m;
+			          if (next) return { ...m, [key]: [...prev, next] };
+			          return {
+			            ...m,
+			            [key]: [...prev, { id: `NEW-${Date.now()}-${Math.random()}`, specificationId: specId, itemNameId, value: finalValue, isActive: true }],
+			          };
+			        });
+			        setItems((prev) =>
+			          prev.map((p, i) => {
+			            if (i !== rowIdx) return p;
+			            return { ...p, specs: { ...(p.specs ?? {}), [specId]: finalValue } };
+			          })
+			        );
+			        closeReqCreateValue();
+			      })
+			      .catch((e) => setReqCreateValueError(e instanceof Error ? e.message : String(e)))
+			      .finally(() => setReqCreateValueBusy(false));
+			  };
 
 			  const submitCreateValue = () => {
 		    const idx = createValueInlineIndex;
@@ -636,130 +700,150 @@ export default function NewPurchaseRequestView({
 				          </div>
 				        </div>
 
-							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
-							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-							            <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
-							            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
-							            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
-							          </div>
+								        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
+								          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
+								            <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
+								            <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
+								            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+								            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
+								          </div>
+	
+						          {items.map((row, idx) => {
+						            const specIds = row.itemNameId ? getItemNameSpecIds(row.itemNameId) : [];
+						            return (
+						              <div
+						                key={idx}
+						                className={[
+						                  'grid grid-cols-1 md:grid-cols-12 gap-0 bg-surface-container-lowest',
+						                  idx === 0 ? '' : 'border-t border-outline-variant',
+						                ].join(' ')}
+						              >
+						                <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
+						                  <SearchableSelect
+						                    value={row.itemNameId}
+						                    options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+						                    onChange={(id) => {
+						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+						                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, itemNameId: id, specs: {} } : p)));
 
-					          {items.map((row, idx) => (
-					            <div
-					              key={idx}
-							              className={[
-							                'grid grid-cols-1 md:grid-cols-12 gap-0 bg-surface-container-lowest',
-							                idx === 0 ? '' : 'border-t border-outline-variant',
-							              ].join(' ')}
-							            >
-						              <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
-						                <SearchableSelect
-				                  value={row.itemId}
-				                  options={masterItems
-					                    .filter((it) => {
-					                      if (it.id === row.itemId) return true;
-					                      return !items.some((r, j) => j !== idx && r.itemId && r.itemId === it.id);
-					                    })
-					                    .map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson, specNameById) }))}
-					                  onChange={(id) => {
-				                    const found = masterItems.find((it) => it.id === id);
-				                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-				                    setItems((prev) =>
-			                      prev.map((p, i) => {
-			                        if (i !== idx) return p;
-			                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
-					                        return {
-					                          ...p,
-					                          itemId: id,
-					                          item: found.itemName,
-					                          specification: formatSpecsLines(found.specificationsJson, specNameById).join('\n').trim(),
-					                        };
-					                      })
-					                    );
-					                  }}
-				                  disabled={loadingMasterItems}
-				                  placeholder="Search item..."
-				                  allowClear
-				                  createLabel={() => `+ Create New Item`}
-				                  showCreateWhenEmpty
-				                  alwaysShowCreate
-				                  allowEmptyCreate
-				                  closeOnCreate
-			                  onCreate={async (label) => {
-			            const name = label.trim();
-			            setCreateItemRowIndex(idx);
-			                    setNewItemUnit('');
-				                    setNewItemDescription('');
-				                    setNewItemSpecs([{ specificationId: '', value: '' }]);
-			                    setEditingMasterItemId(null);
-			                    if (!name) {
-			                      setNewItemItemNameId('');
-			                      setCreateItemOpen(true);
-			                      return null;
-			                    }
-
-			            try {
-			                      const created = await createItemName({ name, createdBy: 'system' });
-			                      const next = created.itemName;
-			                      if (next?.id) {
-			                        setItemNames((prev) => {
-			                          if (prev.some((p) => p.id === next.id)) return prev;
-			                          return [...prev, next].sort((a, b) => a.name.localeCompare(b.name));
-			                        });
-			                        setNewItemItemNameId(next.id);
-			                      }
-			            } catch (e) {
-			                      setError(e instanceof Error ? e.message : String(e));
-			            }
-
-			            setNewItemUnit('');
-			            setNewItemDescription('');
-			            setCreateItemOpen(true);
-			            return null;
-			                  }}
-		                />
-			              </div>
-						              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
-						                <input
-						                  className={inputClass}
-				                  placeholder="Qty"
-				                  type="number"
-				                  inputMode="numeric"
-				                  min={0}
-				                  step={1}
-				                  value={row.quantity}
-				                  onChange={(e) => {
-				                    const v = String(e.target.value ?? '');
-				                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-				                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: v } : p)));
-				                  }}
-				                />
-				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
-				              </div>
-							              <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
-							                <div className="flex items-center gap-2">
+						                      // Preload spec values for this Item Name + its linked specifications.
+						                      const specIdsToLoad = id ? getItemNameSpecIds(id) : [];
+						                      for (const specId of specIdsToLoad) {
+						                        const key = specValueKey(id, specId);
+						                        if ((specValueOptions[key] ?? []).length) continue;
+						                        fetchSpecificationValues(specId, { itemNameId: id })
+						                          .then((vals) => setSpecValueOptions((m) => ({ ...m, [key]: vals })))
+						                          .catch(() => {});
+						                      }
+						                    }}
+						                    disabled={loadingItemNames}
+						                    placeholder="Search item name..."
+						                    allowClear
+						                    showCreateWhenEmpty
+						                    alwaysShowCreate
+						                    allowEmptyCreate
+						                    closeOnCreate
+						                    createLabel={(q) => (q ? `+ Create Item Name \"${q}\"` : '+ Create Item Name')}
+						                    onCreate={async (label) => {
+						                      const name = String(label ?? '').trim();
+						                      if (!name) return null;
+						                      setCreateItemNameInlineError(null);
+						                      setCreateItemNameInlineValue(name);
+						                      setCreateItemNameInlineUnitId('');
+						                      setCreateItemNameInlineCategoryId('');
+						                      setCreateItemNameInlineOpen(true);
+						                      return null;
+						                    }}
+						                  />
+						                </div>
+						                <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant">
+						                  {row.itemNameId ? (
+						                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+						                      {specIds.map((specId) => {
+						                        const specName = specNameById?.[specId] ?? specId;
+						                        const value = String(row.specs?.[specId] ?? '');
+						                        const key = specValueKey(row.itemNameId, specId);
+						                        const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+						                        if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value });
+						                        return (
+						                          <label key={`${idx}-${specId}`} className="space-y-1">
+						                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
+						                            <SearchableSelect
+						                              value={value}
+						                              options={options}
+						                              placeholder="Select value..."
+						                              showCreateWhenEmpty
+						                              alwaysShowCreate
+						                              allowEmptyCreate
+						                              closeOnCreate
+						                              createLabel={(q) => (q ? `+ Add New \"${q}\"` : '+ Add New')}
+						                              onChange={(v) => {
+						                                setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+						                                setItems((prev) =>
+						                                  prev.map((p, i) =>
+						                                    i === idx ? { ...p, specs: { ...(p.specs ?? {}), [specId]: v } } : p
+						                                  )
+						                                );
+						                              }}
+						                              onCreate={async (label) => {
+						                                const v = String(label ?? '').trim();
+						                                if (!v) return null;
+						                                setReqCreateValueError(null);
+						                                setReqCreateValueRowIndex(idx);
+						                                setReqCreateValueSpecId(specId);
+						                                setReqCreateValueValue(v);
+						                                return null;
+						                              }}
+						                            />
+						                          </label>
+						                        );
+						                      })}
+						                    </div>
+						                  ) : (
+						                    <div className="text-xs text-on-surface-variant opacity-80">Select Item Name to load specifications.</div>
+						                  )}
+						                </div>
+						                <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+						                  <input
+						                    className={inputClass}
+						                    placeholder="Qty"
+						                    type="number"
+						                    inputMode="numeric"
+						                    min={0}
+						                    step={1}
+						                    value={row.quantity}
+						                    onChange={(e) => {
+						                      const v = String(e.target.value ?? '');
+						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+						                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: v } : p)));
+						                    }}
+						                  />
+						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
+						                </div>
+						                <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
 						                  <button
 						                    type="button"
 						                    className="btn-icon-danger"
 						                    onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-					                    disabled={items.length === 1}
-					                    title={items.length === 1 ? 'At least one item required' : 'Remove item'}
-					                  >
-				                    <Trash2 size={16} />
-				                  </button>
-					                </div>
-					          </div>
-					            </div>
-						          ))}
-								          <div className="border-t border-outline-variant bg-surface-container-lowest px-2 py-2 flex items-center justify-between gap-3">
-								            <div className="flex items-center gap-3">
-									              <button
-								                type="button"
-								                className="btn-primary"
-								                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '' }])}
-							              >
-						                + Add Item
-						              </button>
-					            </div>
+						                    disabled={items.length === 1}
+						                    title={items.length === 1 ? 'At least one item required' : 'Remove item'}
+						                  >
+						                    <Trash2 size={16} />
+						                  </button>
+						                </div>
+						              </div>
+						            );
+						          })}
+									          <div className="border-t border-outline-variant bg-surface-container-lowest px-2 py-2 flex items-center justify-between gap-3">
+									            <div className="flex items-center gap-3">
+										              <button
+									                type="button"
+									                className="btn-primary"
+									                onClick={() => setItems((prev) => [...prev, { itemNameId: '', quantity: '', specs: {} }])}
+								              >
+							                + Add Item
+							              </button>
+						            </div>
 
 						            <div className="flex items-center gap-2">
 								              <button
@@ -771,26 +855,36 @@ export default function NewPurchaseRequestView({
 						              </button>
 				              <button
 				                type="button"
-				                onClick={() => {
-				                  if (saving) return;
-					                  setError(null);
-					                  const rowMessages: string[] = [];
-					                  const usedItemIds = new Set<string>();
+					                onClick={() => {
+					                  if (saving) return;
+						                  setError(null);
+						                  const rowMessages: string[] = [];
+						                  const usedKeys = new Set<string>();
 						                  const normalizedItems = items
 						                    .map((it, i) => {
-						                      const itemName = it.item.trim();
-						                      const itemId = String(it.itemId ?? '').trim();
+						                      const itemNameId = String(it.itemNameId ?? '').trim();
 						                      const quantityNumber = Number(it.quantity);
-						                      const specification = it.specification.trim();
-						                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
-						                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
+						                      const specIds = itemNameId ? getItemNameSpecIds(itemNameId) : [];
+						                      const specsObj: Record<string, string> = {};
+						                      for (const specId of specIds) {
+						                        const v = String(it.specs?.[specId] ?? '').trim();
+						                        if (v) specsObj[specId] = v;
+						                      }
+
+						                      if (!itemNameId) rowMessages[i] = 'Select Item Name.';
 						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
-						                      else if (!specification) rowMessages[i] = 'Missing specification.';
-						                      if (itemId) usedItemIds.add(itemId);
-						                      return { itemId, item: itemName, quantity: quantityNumber, specification };
+						                      else {
+						                        const missing = specIds.find((sid) => !String(specsObj[sid] ?? '').trim());
+						                        if (missing) rowMessages[i] = `Select ${specNameById?.[missing] ?? 'specification'} value.`;
+						                      }
+
+						                      const dedupeKey = itemNameId ? `${itemNameId}:${JSON.stringify(specsObj)}` : '';
+						                      if (itemNameId && usedKeys.has(dedupeKey)) rowMessages[i] = 'Duplicate item specification row.';
+						                      if (dedupeKey) usedKeys.add(dedupeKey);
+						                      return { itemNameId, quantity: quantityNumber, specs: specsObj };
 						                    })
 						                    .filter((_, i) => !rowMessages[i]);
-					                  setItemRowErrors(rowMessages);
+						                  setItemRowErrors(rowMessages);
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
@@ -1050,8 +1144,8 @@ export default function NewPurchaseRequestView({
 			                  )
 			                : null}
 
-			              {createValueInlineIndex != null
-			                ? createPortal(
+				              {createValueInlineIndex != null
+				                ? createPortal(
 			                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
 			                      <button
 			                        type="button"
@@ -1104,8 +1198,57 @@ export default function NewPurchaseRequestView({
 			                      </div>
 			                    </div>,
 			                    document.body
-			                  )
-			                : null}
+				                  )
+				                : null}
+
+				              {reqCreateValueRowIndex != null
+				                ? createPortal(
+				                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+				                      <button
+				                        type="button"
+				                        className="absolute inset-0 bg-black/40"
+				                        aria-label="Close"
+				                        onClick={closeReqCreateValue}
+				                      />
+				                      <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
+				                        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
+				                          <div className="text-sm font-bold text-on-surface">Add new Value</div>
+				                          <button type="button" className="btn btn-sm" onClick={closeReqCreateValue}>
+				                            Close
+				                          </button>
+				                        </div>
+				                        <div className="p-5 space-y-3">
+				                          {reqCreateValueError ? <div className="text-xs text-error">{reqCreateValueError}</div> : null}
+				                          <input
+				                            className={inputClass}
+				                            autoFocus
+				                            value={reqCreateValueValue}
+				                            placeholder="Enter new value"
+				                            onChange={(e) => setReqCreateValueValue(e.target.value)}
+				                            onKeyDown={(e) => {
+				                              if (e.key === 'Escape') closeReqCreateValue();
+				                              if (e.key === 'Enter') submitReqCreateValue();
+				                            }}
+				                          />
+				                          <div className="flex justify-end gap-2">
+				                            <button type="button" className="btn btn-sm" onClick={closeReqCreateValue}>
+				                              Cancel
+				                            </button>
+				                            <button
+				                              type="button"
+				                              className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+				                              disabled={reqCreateValueBusy || !reqCreateValueValue.trim()}
+				                              onClick={submitReqCreateValue}
+				                            >
+				                              {reqCreateValueBusy ? 'Creating...' : 'Create'}
+				                            </button>
+				                          </div>
+				                        </div>
+				                      </div>
+				                    </div>,
+				                    document.body
+				                  )
+				                : null}
 			              <label className="space-y-1">
 			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
 			                <SearchableSelect
@@ -1278,22 +1421,28 @@ export default function NewPurchaseRequestView({
 		                        setMasterItems(rows);
 		                        const rowIdx = createItemRowIndex;
 		                        if (rowIdx == null) return;
-		                        const updatedOrCreated = editingMasterItemId
-		                          ? rows.find((r) => r.id === editingMasterItemId) ?? null
-		                          : rows[0] ?? null;
-		                        if (!updatedOrCreated) return;
-		                        setItems((prev) =>
-		                          prev.map((p, i) =>
-		                            i === rowIdx
-		                              ? {
-		                                  ...p,
-		                                  itemId: updatedOrCreated.id,
-		                                  item: updatedOrCreated.itemName,
-		                                  specification: formatSpecsLines(updatedOrCreated.specificationsJson, specNameById).join('\n').trim(),
-		                                }
-		                              : p
-		                          )
-		                        );
+			                        const updatedOrCreated = editingMasterItemId
+			                          ? rows.find((r) => r.id === editingMasterItemId) ?? null
+			                          : rows[0] ?? null;
+			                        if (!updatedOrCreated) return;
+			                        setItems((prev) =>
+			                          prev.map((p, i) =>
+			                            i === rowIdx
+			                              ? {
+			                                  ...p,
+			                                  itemNameId: String(updatedOrCreated.itemNameId ?? ''),
+			                                  specs: (() => {
+			                                    try {
+			                                      const obj = JSON.parse(String(updatedOrCreated.specificationsJson ?? '{}'));
+			                                      return obj && typeof obj === 'object' ? (obj as Record<string, string>) : {};
+			                                    } catch {
+			                                      return {};
+			                                    }
+			                                  })(),
+			                                }
+			                              : p
+			                          )
+			                        );
 		                      })
 		                      .then(() => {
 		                        setCreateItemOpen(false);
