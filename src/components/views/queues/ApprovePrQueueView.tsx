@@ -6,19 +6,57 @@ import { formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 
-function formatItemWithSpecification(item: string, specification: string) {
-  const base = String(item ?? '').trim();
-  const specs = String(specification ?? '')
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value ?? '').trim());
+}
+
+function formatSpecsLinesFromMaybeJson(spec: string, specNameById?: Record<string, string>) {
+  const s = String(spec ?? '').trim();
+  if (!s) return [];
+
+  // Newer PR flow stores specs as JSON: {"<specId>":"<value>"}
+  const looksJson = s.startsWith('{') && s.endsWith('}');
+  if (looksJson) {
+    try {
+      const obj = JSON.parse(s) as Record<string, unknown>;
+      return Object.entries(obj)
+        .map(([k, v]) => {
+          const rawKey = String(k ?? '').trim();
+          const rawVal = typeof v === 'string' ? String(v ?? '').trim() : String(v ?? '').trim();
+          const keyName = specNameById?.[rawKey] ?? (isUuidLike(rawKey) ? '' : rawKey);
+          const valueText = isUuidLike(rawVal) ? '' : rawVal;
+          if (!keyName && !valueText) return '';
+          if (!keyName) return valueText;
+          if (!valueText) return keyName;
+          return `${keyName}: ${valueText}`;
+        })
+        .map((x) => x.trim())
+        .filter(Boolean);
+    } catch {
+      // fallthrough to plain text
+    }
+  }
+
+  // Legacy text lines
+  return s
     .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => !isUuidLike(x));
+}
+
+function formatItemWithSpecification(item: string, specification: string, specNameById?: Record<string, string>) {
+  const base = String(item ?? '').trim();
+  const specs = formatSpecsLinesFromMaybeJson(specification, specNameById);
   if (!specs.length) return base || '-';
   return [base, ...specs].filter(Boolean).join(' - ');
 }
 
 export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeUsers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', from: '', to: '' });
   const [rows, setRows] = useState<ApprovePrQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +73,16 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal)
+      .then(setSpecs)
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -318,14 +366,16 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
 	                    </tr>
                   </thead>
-                  <tbody>
-                    {activeDetail.items.map((it) => (
-                      <tr key={it.id}>
-	                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">{formatItemWithSpecification(it.item, it.specification)}</td>
-                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
-                        <td className="px-3 py-2 border border-outline-variant">
-                          <input
-                            className={cn(inputClass, 'py-1.5')}
+	                  <tbody>
+	                    {activeDetail.items.map((it) => (
+	                      <tr key={it.id}>
+		                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+		                          {formatItemWithSpecification(it.item, it.specification, specNameById)}
+		                        </td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+	                        <td className="px-3 py-2 border border-outline-variant">
+	                          <input
+	                            className={cn(inputClass, 'py-1.5')}
                             value={qtyByItemId[it.id] ?? ''}
                             onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.id]: e.target.value }))}
                             inputMode="decimal"

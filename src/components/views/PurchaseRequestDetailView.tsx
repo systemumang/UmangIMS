@@ -185,9 +185,18 @@ function formatItemInline(
   return cleaned.join(' - ');
 }
 
-function formatItemWithSpecText(itemName: string, specification: string) {
+function formatItemWithSpecText(itemName: string, specification: string, specNameById?: Record<string, string>) {
   const base = String(itemName ?? '').trim();
-  const specs = String(specification ?? '')
+  const specText = String(specification ?? '').trim();
+
+  // Newer PR flow stores specification as JSON: {"<specId>":"<value>"}
+  if (specText.startsWith('{') && specText.endsWith('}')) {
+    const specs = formatSpecsLines(specText, specNameById);
+    const cleaned = [base, ...specs].map((s) => String(s ?? '').trim()).filter(Boolean);
+    return cleaned.join(' - ') || base || '-';
+  }
+
+  const specs = specText
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -3256,12 +3265,14 @@ export default function PurchaseRequestDetailView({
 						                                  />
 						                                  {String(it.item ?? '').trim() ? (
 						                                    <div className="text-xs text-on-surface-variant whitespace-normal break-words">
-						                                      {formatItemWithSpecText(String(it.item ?? ''), String(it.specification ?? ''))}
+						                                      {formatItemWithSpecText(String(it.item ?? ''), String(it.specification ?? ''), specNameById)}
 						                                    </div>
 						                                  ) : null}
 						                                </div>
 						                              ) : (
-						                                <span className="whitespace-normal break-words">{formatItemWithSpecText(String(it.item ?? ''), String(it.specification ?? ''))}</span>
+						                                <span className="whitespace-normal break-words">
+						                                  {formatItemWithSpecText(String(it.item ?? ''), String(it.specification ?? ''), specNameById)}
+						                                </span>
 						                              )}
 						                            </td>
 						                            <td className="px-3 py-2 text-base text-on-surface-variant border border-black align-top">
