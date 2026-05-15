@@ -3,7 +3,7 @@ import { Search, Eye, Edit2, Trash2, ArrowUpDown } from 'lucide-react';
 import { listReturns, deleteReturn, updateReturn, type StockTransaction } from '@/src/lib/stockMaster';
 import { fetchDepartments, fetchFirms, fetchItems, fetchStores, type Department, type Firm, type Item, type Store } from '@/src/lib/masters';
 
-export default function ReturnMasterView() {
+export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {}) {
   const [returns, setReturns] = useState<StockTransaction[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -234,7 +234,7 @@ export default function ReturnMasterView() {
 	            </div>
 	          </div>
 	        </div>
-	        <div className="overflow-x-auto">
+		        <div className="overflow-x-auto">
 	          <table className="w-full text-left border-collapse text-sm">
 	            <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
 	              <tr>
@@ -321,9 +321,14 @@ export default function ReturnMasterView() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+		          </table>
+		        </div>
+		        <div className="p-3 border-t border-outline-variant flex justify-end">
+		          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
+		            Add
+		          </button>
+		        </div>
+	      </div>
 	      {viewItem ? (
 	        <div className="fixed inset-0 z-50 flex items-stretch justify-center p-0 bg-black/50">
 	          <div className="bg-surface-container-lowest rounded-none shadow-xl w-full max-w-none flex flex-col h-full">

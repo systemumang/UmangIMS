@@ -62,6 +62,7 @@ import {
   fetchQueueEnterInvoice,
   fetchQueueLinkInvoiceGrn,
   fetchQueuePayment,
+  fetchQueueTallyEntry,
   fetchQueueQc,
   fetchQueueSendPo,
 } from '@/src/lib/queues';
@@ -173,7 +174,7 @@ export default function App() {
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
 	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
 	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
-	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
+	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
 	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
       fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
     ])
@@ -665,10 +666,10 @@ export default function App() {
 		              {stockMasterTab === 'transfer' ? <StockTransferView onCreated={() => setView('transferMaster')} onCancel={() => setView('transferMaster')} /> : null}
 		            </>
 		          ) : null}
-              {view === 'issueMaster' ? <IssueMasterView /> : null}
-              {view === 'returnMaster' ? <ReturnMasterView /> : null}
+              {view === 'issueMaster' ? <IssueMasterView onAdd={() => { setStockMasterTab('itemIssue'); setView('stockMaster'); }} /> : null}
+              {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
               {view === 'damageMaster' ? <DamageMasterView /> : null}
-              {view === 'transferMaster' ? <TransferMasterView /> : null}
+              {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
 	          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
@@ -676,7 +677,7 @@ export default function App() {
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Pending Tasks / Tally Entry" exportPrefix="queue-tally-entry" /> : null}
+			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Pending Tasks / Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
 			          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
 		        </div>

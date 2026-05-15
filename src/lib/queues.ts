@@ -270,3 +270,21 @@ export async function fetchQueuePayment(filters?: QueueFilters, signal?: AbortSi
   const data = await requireOk<{ rows?: PaymentQueueRow[] }>(res, 'Failed to load Payment queue');
   return Array.isArray(data.rows) ? data.rows : [];
 }
+
+export async function fetchQueueTallyEntry(filters?: QueueFilters, signal?: AbortSignal): Promise<PaymentQueueRow[]> {
+  const res = await fetch(`/api/queues/tally-entry${buildQueueQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: PaymentQueueRow[] }>(res, 'Failed to load Tally Entry queue');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function updateQueueTallyEntry(
+  invoiceId: string,
+  input: { tallyEntryDate: string; updatedBy?: string }
+): Promise<{ ok?: boolean }> {
+  const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/tally-entry`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ ok?: boolean }>(res, 'Failed to update tally entry');
+}

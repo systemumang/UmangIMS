@@ -3,7 +3,7 @@ import { Search, Eye, Edit2, Trash2, ArrowUpDown } from 'lucide-react';
 import { deleteTransfer, listTransfers, updateTransfer, type StockTransaction } from '@/src/lib/stockMaster';
 import { fetchDepartments, fetchFirms, fetchItems, fetchStores, type Department, type Firm, type Item, type Store } from '@/src/lib/masters';
 
-export default function TransferMasterView() {
+export default function TransferMasterView({ onAdd }: { onAdd?: () => void } = {}) {
   const [rows, setRows] = useState<StockTransaction[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -249,7 +249,7 @@ export default function TransferMasterView() {
 	            </div>
 	          </div>
 	        </div>
-        <div className="overflow-x-auto">
+	        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
 	            <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
 	              <tr>
@@ -354,9 +354,14 @@ export default function TransferMasterView() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+	          </table>
+	        </div>
+	        <div className="p-3 border-t border-outline-variant flex justify-end">
+	          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
+	            Add
+	          </button>
+	        </div>
+	      </div>
 
       {viewItem ? (
         <div className="fixed inset-0 z-50 flex items-stretch justify-center p-0 bg-black/50">

@@ -1968,6 +1968,123 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
 });
 app.get('/api/queues/approve-invoice', async (_req, res) => res.json({ rows: [] }));
 
+// Invoices pending tally entry
+app.get('/api/queues/tally-entry', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
+    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(inv.invoice_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(inv.invoice_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(inv.invoice_number LIKE ? OR inv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
+        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const invoiceAmount = Number(r.invoiceAmount ?? 0);
+        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+        const paymentModeLower = paymentMode.trim().toLowerCase();
+        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+        const isCash = paymentModeLower === 'cash';
+        const isFull = paymentStatus.includes('full') || isCash;
+        const paidAmount = isFull ? invoiceAmount : 0;
+        const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+        return {
+          invoiceId: String(r.invoiceId ?? ''),
+          invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+          invoiceDate: toIsoDate(r.invoiceDate) || '',
+          paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+          paymentDate: toIsoDate(r.paymentDate) || undefined,
+          paymentMode,
+          tallyEntryDate,
+          poId: String(r.poId ?? ''),
+          poNumber: String(r.poNumber ?? r.poId ?? ''),
+          prId: String(r.prId ?? ''),
+          prNumber: String(r.prNumber ?? r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          firmName: String(r.firmName ?? ''),
+          department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+          projectId: r.projectId ? String(r.projectId) : null,
+          projectName: r.projectName ? String(r.projectName) : null,
+          supplierId: r.supplierId ? String(r.supplierId) : null,
+          supplierName: String(r.supplierName ?? ''),
+          invoiceAmount,
+          paidAmount,
+          remainingAmount,
+          pendingReason: 'Pending tally entry',
+        };
+      })
+      .filter((x) => x.remainingAmount > 1e-9)
+      .filter((x) => String(x.paymentMode ?? '').trim().toLowerCase() !== 'cash')
+      .filter((x) => !x.tallyEntryDate);
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // Invoices pending payment
 app.get('/api/queues/payment', async (req, res) => {
   try {
@@ -8989,6 +9106,25 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     await pool.query(
       `UPDATE invoices SET payment_status=?, payment_date=?, tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW() WHERE id=?`,
       [paymentStatus, paymentDate, tallyEntryDate || null, updatedBy, invoiceId]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/invoices/:id/tally-entry', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+    const tallyEntryDate = String(req.body?.tallyEntryDate ?? '').trim();
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    if (!tallyEntryDate) return res.status(400).json({ error: 'tallyEntryDate is required' });
+    await pool.query(
+      `UPDATE invoices SET tally_entry_date=?, updated_by=?, updated_at=NOW() WHERE id=?`,
+      [tallyEntryDate, updatedBy, invoiceId]
     );
     res.json({ ok: true });
   } catch (e) {

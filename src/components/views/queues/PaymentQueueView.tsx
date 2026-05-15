@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchGrnInvoiceLinkSummary, updateInvoicePayment, type GrnInvoiceLinkSummaryRow } from '@/src/lib/purchaseRequests';
-import { fetchQueuePayment, type PaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { fetchQueuePayment, updateQueueTallyEntry, type PaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
@@ -18,11 +18,15 @@ export default function PaymentQueueView({
   queueLabel = 'Pending Payment',
   queuePathLabel = 'Pending Tasks / Pending Payment',
   exportPrefix = 'queue-payment',
+  fetchRows = fetchQueuePayment,
+  mode = 'payment',
 }: {
   onViewPr: (prId: string) => void;
   queueLabel?: string;
   queuePathLabel?: string;
   exportPrefix?: string;
+  fetchRows?: (filters?: QueueFilters, signal?: AbortSignal) => Promise<PaymentQueueRow[]>;
+  mode?: 'payment' | 'tally';
 }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
@@ -50,7 +54,7 @@ export default function PaymentQueueView({
     const ac = new AbortController();
     setLoading(true);
     setError(null);
-    fetchQueuePayment(filters, ac.signal)
+    fetchRows(filters, ac.signal)
       .then(setRows)
       .catch((e) => {
         if (ac.signal.aborted) return;
@@ -58,7 +62,7 @@ export default function PaymentQueueView({
       })
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, [filters]);
+  }, [fetchRows, filters]);
 
   useEffect(() => {
     setPage(1);
@@ -83,6 +87,7 @@ export default function PaymentQueueView({
   const [modalLoading, setModalLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [tallyDateInput, setTallyDateInput] = useState('');
 
   function closeModal() {
     setModalOpen(false);
@@ -90,6 +95,7 @@ export default function PaymentQueueView({
     setPaymentDate(todayIsoDate());
     setPaymentStatus('');
     setTallyEntryDate('');
+    setTallyDateInput('');
     setLines([]);
     setModalLoading(false);
     setSaving(false);
@@ -101,6 +107,7 @@ export default function PaymentQueueView({
     setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
     setPaymentStatus((active.paymentStatus as any) || '');
     setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
+    setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
     const ac = new AbortController();
     setModalLoading(true);
     fetchGrnInvoiceLinkSummary(active.invoiceId, ac.signal)
@@ -178,7 +185,7 @@ export default function PaymentQueueView({
                             View PR
                           </button>
                           <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
-                            Payment
+                            {mode === 'tally' ? 'Update Tally' : 'Payment'}
                           </button>
                         </div>
                       </td>
@@ -202,7 +209,7 @@ export default function PaymentQueueView({
 
       <Modal
         open={modalOpen}
-        title={`Invoice Due for Payment (1)`}
+        title={mode === 'tally' ? `Tally Entry Update` : `Invoice Due for Payment (1)`}
         titleCentered
         onClose={() => (saving ? null : closeModal())}
         fullScreen
@@ -215,13 +222,17 @@ export default function PaymentQueueView({
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={saving || modalLoading || !active || !paymentStatus || !paymentDate}
+              disabled={saving || modalLoading || !active || (mode === 'payment' ? (!paymentStatus || !paymentDate) : !tallyDateInput)}
               onClick={() => {
                 if (!active) return;
                 setSaving(true);
                 setModalError(null);
-                  updateInvoicePayment(active.invoiceId, { paymentStatus, paymentDate, updatedBy: 'Accounts Team', tallyEntryDate: tallyEntryDate || undefined })
-                  .then(() => fetchQueuePayment(filters).then(setRows))
+                const savePromise =
+                  mode === 'tally'
+                    ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
+                    : updateInvoicePayment(active.invoiceId, { paymentStatus, paymentDate, updatedBy: 'Accounts Team', tallyEntryDate: tallyEntryDate || undefined });
+                savePromise
+                  .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())
                   .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
                   .finally(() => setSaving(false));
@@ -234,7 +245,16 @@ export default function PaymentQueueView({
       >
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
-        {modalLoading ? (
+        {mode === 'tally' ? (
+          <div className="max-w-md space-y-2">
+            <div className="text-sm text-on-surface-variant">Invoice: {active?.invoiceNo ?? '-'}</div>
+            <div className="text-sm text-on-surface-variant">PO: {formatPoNumber(active?.poNumber ?? active?.poId) || '-'}</div>
+            <label className="space-y-1 block">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Tally Entry Date</div>
+              <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyDateInput} onChange={(e) => setTallyDateInput(e.target.value)} />
+            </label>
+          </div>
+        ) : modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
         ) : (
 	          <div className="overflow-x-auto">
