@@ -205,6 +205,7 @@ function getMysqlPool() {
       await ensureColumn('users', 'is_deleted', 'TINYINT NOT NULL DEFAULT 0');
       await ensureColumn('users', 'deleted_at', 'DATETIME NULL');
       await ensureColumn('users', 'deleted_by', 'VARCHAR(255) NULL');
+      await ensureColumn('purchase_requisition_items', 'priority_id', 'VARCHAR(255) NULL');
 
       // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
       await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
@@ -216,6 +217,16 @@ function getMysqlPool() {
           specification_id VARCHAR(255) NOT NULL,
           created_at DATETIME NULL,
           PRIMARY KEY (item_name_id, specification_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS priorities (
+          id VARCHAR(255) PRIMARY KEY,
+          name VARCHAR(255) UNIQUE,
+          created_by VARCHAR(255),
+          created_at DATETIME,
+          updated_by VARCHAR(255),
+          updated_at DATETIME
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
     } catch (err) {
@@ -550,12 +561,15 @@ async function fetchPrDetail(pool, id) {
       pri.pr_id AS prId,
       pri.item_id AS itemId,
       iname.name AS item,
-	      pri.requested_qty AS quantity,
-	      COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
+      pri.requested_qty AS quantity,
+      COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
+      pri.priority_id AS priorityId,
+      p.name AS priority,
       pri.remarks AS specification
     FROM purchase_requisition_items pri
     LEFT JOIN items it ON it.id = pri.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN priorities p ON p.id = pri.priority_id
     WHERE pri.pr_id = ?
     ORDER BY pri.created_at ASC
     `,
@@ -582,8 +596,10 @@ async function fetchPrDetail(pool, id) {
     prId: String(r.prId),
     itemId: String(r.itemId),
     item: String(r.item || ''),
-	    quantity: Number(r.quantity ?? 0),
-	    approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
+    quantity: Number(r.quantity ?? 0),
+    approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
+    priorityId: r.priorityId ? String(r.priorityId) : null,
+    priority: r.priority ? String(r.priority) : null,
     specification: String(r.specification ?? ''),
   }));
 
@@ -981,10 +997,13 @@ app.get('/api/requests/:id', async (req, res) => {
         iname.name AS item,
 	        pri.requested_qty AS quantity,
 	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
+          pri.priority_id AS priorityId,
+          p.name AS priority,
         pri.remarks AS specification
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN priorities p ON p.id = pri.priority_id
       WHERE pri.pr_id = ?
       ORDER BY pri.created_at ASC
       `,
@@ -1006,15 +1025,17 @@ app.get('/api/requests/:id', async (req, res) => {
       status: mapPrStatus(prRow.status),
     };
 
-    const items = (itemRows || []).map((r) => ({
-      id: String(r.id),
-      prId: String(r.prId),
-      itemId: String(r.itemId),
-      item: String(r.item || ''),
-	      quantity: Number(r.quantity ?? 0),
-	      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
-      specification: String(r.specification ?? ''),
-    }));
+	    const items = (itemRows || []).map((r) => ({
+	      id: String(r.id),
+	      prId: String(r.prId),
+	      itemId: String(r.itemId),
+	      item: String(r.item || ''),
+		      quantity: Number(r.quantity ?? 0),
+		      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
+          priorityId: r.priorityId ? String(r.priorityId) : null,
+          priority: r.priority ? String(r.priority) : null,
+	      specification: String(r.specification ?? ''),
+	    }));
 
     res.json({ request: { pr, items } });
   } catch (e) {
@@ -1068,10 +1089,13 @@ app.get('/api/workflow/:id', async (req, res) => {
         iname.name AS item,
 	        pri.requested_qty AS quantity,
 	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
+          pri.priority_id AS priorityId,
+          p.name AS priority,
         pri.remarks AS specification
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN priorities p ON p.id = pri.priority_id
       WHERE pri.pr_id = ?
       ORDER BY pri.created_at ASC
       `,
@@ -1093,15 +1117,17 @@ app.get('/api/workflow/:id', async (req, res) => {
       status: mapPrStatus(prRow.status),
     };
 
-    const items = (itemRows || []).map((r) => ({
-      id: String(r.id),
-      prId: String(r.prId),
-      itemId: String(r.itemId),
-      item: String(r.item || ''),
-	      quantity: Number(r.quantity ?? 0),
-	      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
-      specification: String(r.specification ?? ''),
-    }));
+	    const items = (itemRows || []).map((r) => ({
+	      id: String(r.id),
+	      prId: String(r.prId),
+	      itemId: String(r.itemId),
+	      item: String(r.item || ''),
+		      quantity: Number(r.quantity ?? 0),
+		      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
+          priorityId: r.priorityId ? String(r.priorityId) : null,
+          priority: r.priority ? String(r.priority) : null,
+	      specification: String(r.specification ?? ''),
+	    }));
 
     const [firmRows] = await pool.query('SELECT id, name, address, terms_conditions AS termsConditions FROM firms WHERE id = ? LIMIT 1', [
       pr.firmId,
@@ -2670,10 +2696,13 @@ async function fetchPrHeaderAndItems(pool, prId) {
       pri.item_id AS itemId,
       iname.name AS item,
       pri.requested_qty AS quantity,
+      pri.priority_id AS priorityId,
+      p.name AS priority,
       pri.remarks AS specification
     FROM purchase_requisition_items pri
     LEFT JOIN items it ON it.id = pri.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN priorities p ON p.id = pri.priority_id
     WHERE pri.pr_id = ?
     ORDER BY pri.created_at ASC
     `,
@@ -2702,6 +2731,8 @@ async function fetchPrHeaderAndItems(pool, prId) {
     itemId: String(r.itemId),
     item: String(r.item || ''),
     quantity: Number(r.quantity ?? 0),
+    priorityId: r.priorityId ? String(r.priorityId) : null,
+    priority: r.priority ? String(r.priority) : null,
     specification: String(r.specification ?? ''),
   }));
 
@@ -3531,6 +3562,8 @@ app.get('/api/operations/invoices', async (req, res) => {
         inv.total_amount AS invoiceAmount,
         inv.payment_status AS paymentStatus,
         inv.payment_date AS paymentDate,
+        inv.approved_by AS approvedBy,
+        inv.tally_entry_date AS tallyEntryDate,
         inv.status AS status,
         inv.created_at AS createdAt,
         po.id AS poId,
@@ -3565,6 +3598,8 @@ app.get('/api/operations/invoices', async (req, res) => {
       firmName: String(r.firmName ?? ''),
       supplierId: String(r.supplierId ?? ''),
       supplierName: String(r.supplierName ?? ''),
+      approvedBy: r.approvedBy != null ? String(r.approvedBy) : undefined,
+      tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
       status: mapInvoiceStatus(r),
       paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
       paymentDate: toIsoDate(r.paymentDate) || undefined,
@@ -4281,6 +4316,7 @@ app.post('/api/requests', async (req, res) => {
 	      let itemId = String(row?.itemId ?? '').trim();
 	      const itemNameId = String(row?.itemNameId ?? '').trim();
 	      const quantity = Number(row?.quantity ?? 0);
+        const priorityId = row?.priorityId != null ? String(row.priorityId).trim() : '';
 	      let specification = String(row?.specification ?? '').trim();
 
 	      // New format: Item Name + spec selections (server resolves/creates the item id).
@@ -4328,30 +4364,33 @@ app.post('/api/requests', async (req, res) => {
 
       const prItemId = crypto.randomUUID();
       await pool.query(
-        `
-        INSERT INTO purchase_requisition_items
-          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
-        VALUES
-          (?, ?, ?, ?, NULL, ?, ?, 'pending', ?, NOW(), NOW())
-        `,
-        [prItemId, prId, itemId, quantity, requiredDate, specification, 'system']
-      );
-    }
+	        `
+	        INSERT INTO purchase_requisition_items
+	          (id, pr_id, item_id, requested_qty, approved_qty, required_date, priority_id, remarks, status, created_by, created_at, updated_at)
+	        VALUES
+	          (?, ?, ?, ?, NULL, ?, ?, ?, 'pending', ?, NOW(), NOW())
+	        `,
+	        [prItemId, prId, itemId, quantity, requiredDate, priorityId || null, specification, 'system']
+	      );
+	    }
 
     // Return detail
     const [itemsRows] = await pool.query(
       `
-      SELECT
-        pri.id,
-        pri.pr_id AS prId,
-        pri.item_id AS itemId,
-        iname.name AS item,
-        pri.requested_qty AS quantity,
-        pri.remarks AS specification
-      FROM purchase_requisition_items pri
-      LEFT JOIN items it ON it.id = pri.item_id
-      LEFT JOIN item_names iname ON iname.id = it.item_name_id
-      WHERE pri.pr_id = ?
+	      SELECT
+	        pri.id,
+	        pri.pr_id AS prId,
+	        pri.item_id AS itemId,
+	        iname.name AS item,
+	        pri.requested_qty AS quantity,
+          pri.priority_id AS priorityId,
+          p.name AS priority,
+	        pri.remarks AS specification
+	      FROM purchase_requisition_items pri
+	      LEFT JOIN items it ON it.id = pri.item_id
+	      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+          LEFT JOIN priorities p ON p.id = pri.priority_id
+	      WHERE pri.pr_id = ?
       ORDER BY pri.created_at ASC
       `,
       [prId]
@@ -4370,14 +4409,16 @@ app.post('/api/requests', async (req, res) => {
       requestType,
       status: 'Pending Approval',
     };
-    const outItems = (itemsRows || []).map((r) => ({
-      id: String(r.id),
-      prId: String(r.prId),
-      itemId: String(r.itemId),
-      item: String(r.item || ''),
-      quantity: Number(r.quantity ?? 0),
-      specification: String(r.specification ?? ''),
-    }));
+	    const outItems = (itemsRows || []).map((r) => ({
+	      id: String(r.id),
+	      prId: String(r.prId),
+	      itemId: String(r.itemId),
+	      item: String(r.item || ''),
+	      quantity: Number(r.quantity ?? 0),
+          priorityId: r.priorityId ? String(r.priorityId) : null,
+          priority: r.priority ? String(r.priority) : null,
+	      specification: String(r.specification ?? ''),
+	    }));
 
     res.status(201).json({ request: { pr, items: outItems } });
   } catch (e) {
@@ -7019,6 +7060,68 @@ app.delete('/api/masters/units/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     if (await sendDeleteInUseError(res, pool, id, e, 'unit')) return;
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Masters: Priorities ---
+app.get('/api/masters/priorities', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, name FROM priorities ORDER BY name');
+    res.json({ priorities: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/priorities', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    await pool.query('INSERT INTO priorities (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [
+      id,
+      name,
+      createdBy,
+    ]);
+    res.status(201).json({ priority: { id, name } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'Priority already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/priorities/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const name = String(req.body?.name ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    await pool.query('UPDATE priorities SET name=?, updated_by=?, updated_at=NOW() WHERE id=?', [name, updatedBy, id]);
+    res.json({ priority: { id, name } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/priorities/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM priorities WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });

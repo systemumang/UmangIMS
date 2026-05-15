@@ -13,8 +13,9 @@ import { Trash2 } from 'lucide-react';
 				  createSpecificationValue,
 				  fetchDepartments,
 				  fetchStores,
-				  fetchProjects,
-				  fetchUsers,
+					  fetchProjects,
+					  fetchUsers,
+            fetchPriorities,
 				  fetchItemNames,
 				  fetchUnits,
 				  fetchItemCategories,
@@ -33,8 +34,9 @@ import { Trash2 } from 'lucide-react';
 				  type SpecificationValue,
 				  type Unit,
 				  type ItemCategory,
-				  type User,
-				} from '@/src/lib/masters';
+					  type User,
+            type Priority,
+					} from '@/src/lib/masters';
 
 export default function NewPurchaseRequestView({
   onCreated,
@@ -43,7 +45,7 @@ export default function NewPurchaseRequestView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
-  type ItemDraft = { itemNameId: string; quantity: string; specs: Record<string, string> };
+  type ItemDraft = { itemNameId: string; quantity: string; priorityId: string; specs: Record<string, string> };
 
   function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
     try {
@@ -82,12 +84,14 @@ export default function NewPurchaseRequestView({
 			  const [loadingProjects, setLoadingProjects] = useState(true);
 			  const [requestType, setRequestType] = useState<'Stock' | 'Project'>('Stock');
 			  const [projectId, setProjectId] = useState('');
-			  const [users, setUsers] = useState<User[]>([]);
-			  const [loadingUsers, setLoadingUsers] = useState(true);
-			  const [requestedByUserId, setRequestedByUserId] = useState('');
+				  const [users, setUsers] = useState<User[]>([]);
+				  const [loadingUsers, setLoadingUsers] = useState(true);
+          const [priorities, setPriorities] = useState<Priority[]>([]);
+          const [loadingPriorities, setLoadingPriorities] = useState(true);
+				  const [requestedByUserId, setRequestedByUserId] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
-			  const [items, setItems] = useState<ItemDraft[]>([{ itemNameId: '', quantity: '', specs: {} }]);
+				  const [items, setItems] = useState<ItemDraft[]>([{ itemNameId: '', quantity: '', priorityId: '', specs: {} }]);
 		  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
 		  const [reqCreateValueRowIndex, setReqCreateValueRowIndex] = useState<number | null>(null);
 		  const [reqCreateValueSpecId, setReqCreateValueSpecId] = useState<string>('');
@@ -250,9 +254,9 @@ export default function NewPurchaseRequestView({
 		    return () => ac.abort();
 		  }, []);
 
-		  useEffect(() => {
-		    const ac = new AbortController();
-		    setLoadingUsers(true);
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingUsers(true);
 			    fetchUsers(ac.signal)
 			      .then((rows) => {
 			        const next = Array.isArray(rows) ? rows : [];
@@ -265,8 +269,23 @@ export default function NewPurchaseRequestView({
 		        setError(e instanceof Error ? e.message : String(e));
 		      })
 		      .finally(() => setLoadingUsers(false));
-		    return () => ac.abort();
-		  }, []);
+			    return () => ac.abort();
+			  }, []);
+
+        useEffect(() => {
+          const ac = new AbortController();
+          setLoadingPriorities(true);
+          fetchPriorities(ac.signal)
+            .then((rows) => setPriorities(rows))
+            .catch((e) => {
+              if (ac.signal.aborted) return;
+              if (e instanceof DOMException && e.name === 'AbortError') return;
+              if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
+              setError(e instanceof Error ? e.message : String(e));
+            })
+            .finally(() => setLoadingPriorities(false));
+          return () => ac.abort();
+        }, []);
 
 		  useEffect(() => {
 		    const ac = new AbortController();
@@ -707,12 +726,13 @@ export default function NewPurchaseRequestView({
 				        </div>
 
 								        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
-								          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-								            <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
-								            <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
-								            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
-								            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
-								          </div>
+									          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
+									            <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
+									            <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
+                              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Priority</div>
+									            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+									            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
+									          </div>
 	
 						          {items.map((row, idx) => {
 						            const specIds = row.itemNameId ? getItemNameSpecIds(row.itemNameId) : [];
@@ -763,7 +783,7 @@ export default function NewPurchaseRequestView({
 						                    }}
 						                  />
 						                </div>
-						                <div className="md:col-span-6 px-2 py-2 md:border-r md:border-outline-variant">
+							                <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">
 						                  {row.itemNameId ? (
 						                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 						                      {specIds.map((specId) => {
@@ -852,7 +872,17 @@ export default function NewPurchaseRequestView({
 						                    <div className="text-xs text-on-surface-variant opacity-80">Select Item Name to load specifications.</div>
 						                  )}
 						                </div>
-						                <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+                              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+                                <SearchableSelect
+                                  value={row.priorityId}
+                                  options={priorities.map((p) => ({ value: p.id, label: p.name }))}
+                                  onChange={(v) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, priorityId: v } : p)))}
+                                  placeholder={loadingPriorities ? 'Loading...' : 'Select...'}
+                                  disabled={loadingPriorities}
+                                  allowClear
+                                />
+                              </div>
+							                <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
 						                  <input
 						                    className={inputClass}
 						                    placeholder="Qty"
@@ -888,7 +918,7 @@ export default function NewPurchaseRequestView({
 										              <button
 									                type="button"
 									                className="btn-primary"
-									                onClick={() => setItems((prev) => [...prev, { itemNameId: '', quantity: '', specs: {} }])}
+									                onClick={() => setItems((prev) => [...prev, { itemNameId: '', quantity: '', priorityId: '', specs: {} }])}
 								              >
 							                + Add Item
 							              </button>
@@ -930,7 +960,7 @@ export default function NewPurchaseRequestView({
 						                      const dedupeKey = itemNameId ? `${itemNameId}:${JSON.stringify(specsObj)}` : '';
 						                      if (itemNameId && usedKeys.has(dedupeKey)) rowMessages[i] = 'Duplicate item specification row.';
 						                      if (dedupeKey) usedKeys.add(dedupeKey);
-						                      return { itemNameId, quantity: quantityNumber, specs: specsObj };
+						                      return { itemNameId, quantity: quantityNumber, priorityId: String(it.priorityId ?? '').trim() || null, specs: specsObj };
 						                    })
 						                    .filter((_, i) => !rowMessages[i]);
 						                  setItemRowErrors(rowMessages);

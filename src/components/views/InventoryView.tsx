@@ -589,7 +589,7 @@ export default function InventoryView() {
                                 return (
                                   <div className="flex items-center gap-1 justify-center flex-wrap">
                                     {urls.map((u, i) => (
-                                      <a key={`${u}-${i}`} href={u} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
+                                      <a key={`${u}-${i}`} href={normalizeViewUrl(u)} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
                                         P{i + 1}
                                       </a>
                                     ))}
@@ -599,7 +599,7 @@ export default function InventoryView() {
                             </td>
                             <td className="p-3 text-center">
                               {String(r.brochureLink ?? '').trim() ? (
-                                <a href={String(r.brochureLink)} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
+                                <a href={normalizeViewUrl(String(r.brochureLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
                                   Open
                                 </a>
                               ) : (
@@ -849,4 +849,11 @@ function getFirmLabel(row: InventorySheetRow) {
   const named = String((row as any).firmName ?? '').trim();
   if (named) return named;
   return '-';
+}
+
+function normalizeViewUrl(raw: string) {
+  const v = String(raw ?? '').trim();
+  if (!v) return '#';
+  if (/^https?:\/\//i.test(v) || v.startsWith('/')) return v;
+  return `https://${v}`;
 }

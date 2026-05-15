@@ -222,11 +222,8 @@ export default function PaymentQueueView({
 		                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
                       {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
                       <td className="px-3 py-2 border border-outline-variant">
-                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                            View PR
-                          </button>
-                          <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
+	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+	                          <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
                             {mode === 'tally' ? 'Update Tally' : 'Payment'}
                           </button>
                         </div>

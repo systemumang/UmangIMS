@@ -216,11 +216,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
 	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <div className="flex items-center gap-2 flex-wrap">
-                          <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                            View PR
-                          </button>
-                        <button
+		                        <div className="flex items-center gap-2 flex-wrap">
+	                        <button
                           type="button"
                           className="btn-primary btn-sm"
                           onClick={() => {

@@ -130,6 +130,8 @@ export type OperationsInvoiceListRow = {
   firmName: string;
   supplierId: string;
   supplierName: string;
+  approvedBy?: string;
+  tallyEntryDate?: string;
   status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
   paymentStatus?: string;
   paymentDate?: string;

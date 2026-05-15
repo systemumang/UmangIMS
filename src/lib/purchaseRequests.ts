@@ -29,6 +29,8 @@ export type PurchaseRequestItem = {
   item: string;
   quantity: number;
   approvedQty?: number;
+  priorityId?: string | null;
+  priority?: string | null;
   specification: string;
 };
 
@@ -282,8 +284,8 @@ export async function createPurchaseRequest(input: {
   requestedBy: string;
   requiredDate: string;
   items: Array<
-    | { itemId: string; item?: string; quantity: number; specification: string }
-    | { itemNameId: string; quantity: number; specs: Record<string, string> }
+    | { itemId: string; item?: string; quantity: number; priorityId?: string | null; specification: string }
+    | { itemNameId: string; quantity: number; priorityId?: string | null; specs: Record<string, string> }
   >;
 }): Promise<PurchaseRequestDetail> {
   const res = await fetch('/api/requests', {

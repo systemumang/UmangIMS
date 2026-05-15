@@ -829,16 +829,18 @@ export default function OperationsView({
 	                    <SortTh label="Received" colKey="receivedDate" />
 	                    <SortTh label="Qty" colKey="totalQty" />
 	                  </>
-	                ) : tab === 'invoices' ? (
-	                  <>
-	                    <SortTh label="Invoice" colKey="invoiceNo" />
-	                    <SortTh label="PO" colKey="poNumber" />
-	                    <SortTh label="Firm" colKey="firmName" />
-	                    <SortTh label="Supplier" colKey="supplierName" />
-	                    <SortTh label="Date" colKey="invoiceDate" />
-	                    <SortTh label="Status" colKey="status" />
-	                    <SortTh label="Amount" colKey="invoiceAmount" />
-	                  </>
+		                ) : tab === 'invoices' ? (
+		                  <>
+		                    <SortTh label="Invoice" colKey="invoiceNo" />
+		                    <SortTh label="PO" colKey="poNumber" />
+		                    <SortTh label="Firm" colKey="firmName" />
+		                    <SortTh label="Supplier" colKey="supplierName" />
+		                    <SortTh label="Date" colKey="invoiceDate" />
+                        <SortTh label="Approved By" colKey="approvedBy" />
+                        <SortTh label="Tally Entry Date" colKey="tallyEntryDate" />
+		                    <SortTh label="Status" colKey="status" />
+		                    <SortTh label="Amount" colKey="invoiceAmount" />
+		                  </>
 		                ) : (
 		                  <>
 		                    <SortTh label="Invoice" colKey="invoiceNo" />
@@ -855,13 +857,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-		                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 9 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-		                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 9 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -967,16 +969,18 @@ export default function OperationsView({
 	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.receivedDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalQty ?? 0)}</td>
 	                      </>
-	                    ) : tab === 'invoices' ? (
-	                      <>
-                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-	                      </>
+		                    ) : tab === 'invoices' ? (
+		                      <>
+	                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.approvedBy || '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.tallyEntryDate ? formatDateShort(r.tallyEntryDate) : '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+		                      </>
 		                    ) : (
 	                      <>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>

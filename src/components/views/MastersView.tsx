@@ -9,8 +9,9 @@ import {
   createFirm,
 		  createProject,
 	  createItem,
-	  createUnit,
-	  createItemCategory,
+		  createUnit,
+      createPriority,
+		  createItemCategory,
 	  createItemName,
 		  createSpecification,
 		  createSpecificationValue,
@@ -24,6 +25,7 @@ import {
 	  deleteProject,
 	  deleteItem,
 	  deleteUnit,
+    deletePriority,
 	  deleteItemCategory,
 	  deleteItemName,
 		  deleteSpecification,
@@ -37,6 +39,7 @@ import {
   fetchFirms,
 	  fetchProjects,
 	  fetchUnits,
+    fetchPriorities,
 	  fetchItemCategories,
 	  fetchItemNames,
 	  fetchItems,
@@ -51,8 +54,9 @@ import {
   type Firm,
 	  type Project,
 	  type Item,
-	  type Unit,
-	  type ItemCategory,
+		  type Unit,
+      type Priority,
+		  type ItemCategory,
 	  type ItemName,
 		  type Specification,
 		  type SpecificationValue,
@@ -66,6 +70,7 @@ import {
 	  updateProject,
 	  updateItem,
 	  updateUnit,
+    updatePriority,
 	  updateItemCategory,
 	  updateItemName,
 		  updateSpecification,
@@ -191,6 +196,7 @@ export default function MastersView({
 				  const [transporters, setTransporters] = useState<Transporter[]>([]);
 				  const [projects, setProjects] = useState<Project[]>([]);
 			  const [units, setUnits] = useState<Unit[]>([]);
+        const [priorities, setPriorities] = useState<Priority[]>([]);
 			  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
 			  const [itemNames, setItemNames] = useState<ItemName[]>([]);
 			  const [specs, setSpecs] = useState<Specification[]>([]);
@@ -236,8 +242,9 @@ export default function MastersView({
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
 					  const [newTransporterName, setNewTransporterName] = useState('');
 					  const [newTransporterPhone, setNewTransporterPhone] = useState('');
-				  const [newUnitName, setNewUnitName] = useState('');
-				  const [newItemCategoryName, setNewItemCategoryName] = useState('');
+					  const [newUnitName, setNewUnitName] = useState('');
+            const [newPriorityName, setNewPriorityName] = useState('');
+					  const [newItemCategoryName, setNewItemCategoryName] = useState('');
 					  const [newItemName, setNewItemName] = useState('');
 					  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
 					  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
@@ -498,6 +505,7 @@ export default function MastersView({
 					      setNewTransporterPhone('');
 					    }
 				    if (tab === 'units') setNewUnitName('');
+            if (tab === 'priorities') setNewPriorityName('');
 				    if (tab === 'itemCategories') setNewItemCategoryName('');
 					    if (tab === 'itemNames') {
 					      setNewItemName('');
@@ -598,6 +606,10 @@ export default function MastersView({
 			      const row = units.find((u) => u.id === id);
 			      setNewUnitName(row?.name ?? '');
 			    }
+            if (tab === 'priorities') {
+              const row = priorities.find((p) => p.id === id);
+              setNewPriorityName(row?.name ?? '');
+            }
 			    if (tab === 'itemCategories') {
 			      const row = itemCategories.find((c) => c.id === id);
 			      setNewItemCategoryName(row?.name ?? '');
@@ -672,9 +684,11 @@ export default function MastersView({
 				        return `${verb} Store`;
 				      case 'projects':
 				        return `${verb} Project`;
-				      case 'units':
-				        return `${verb} Unit`;
-				      case 'itemCategories':
+					      case 'units':
+					        return `${verb} Unit`;
+              case 'priorities':
+                return `${verb} Priority`;
+					      case 'itemCategories':
 				        return `${verb} Item Category`;
 				      case 'users':
 				        return `${verb} User`;
@@ -710,12 +724,13 @@ export default function MastersView({
 							      fetchSuppliers(signal),
 							      fetchCustomers(signal),
 							      fetchTransporters(signal),
-							      fetchUnits(signal),
-						      fetchItemCategories(signal),
+								      fetchUnits(signal),
+                      fetchPriorities(signal),
+							      fetchItemCategories(signal),
 						      fetchItemNames(signal),
 						      fetchSpecifications(signal),
 						      fetchItems(signal),
-						    ]).then(([deps, f, prj, st, u, sup, cus, trn, unt, cats, inames, sp, it]) => {
+							    ]).then(([deps, f, prj, st, u, sup, cus, trn, unt, pri, cats, inames, sp, it]) => {
 						      setDepartments(deps);
 						      setFirms(f);
 						      setProjects(prj);
@@ -724,8 +739,9 @@ export default function MastersView({
 							      setSuppliers(sup);
 							      setCustomers(cus);
 							      setTransporters(trn);
-							      setUnits(unt);
-							      setItemCategories(cats);
+								      setUnits(unt);
+                      setPriorities(pri);
+								      setItemCategories(cats);
 							      setItemNames(inames);
 						      setSpecs(sp);
 						      setItems(it);
@@ -799,9 +815,10 @@ export default function MastersView({
           if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
           if (t === 'customers') return fetchCustomers().then(setCustomers);
           if (t === 'transporters') return fetchTransporters().then(setTransporters);
-          if (t === 'projects') return fetchProjects().then(setProjects);
-          if (t === 'units') return fetchUnits().then(setUnits);
-          if (t === 'itemCategories') return fetchItemCategories().then(setItemCategories);
+	          if (t === 'projects') return fetchProjects().then(setProjects);
+	          if (t === 'units') return fetchUnits().then(setUnits);
+            if (t === 'priorities') return fetchPriorities().then(setPriorities);
+	          if (t === 'itemCategories') return fetchItemCategories().then(setItemCategories);
           if (t === 'itemNames') return fetchItemNames().then(setItemNames);
           if (t === 'specs') return fetchSpecifications().then(setSpecs);
 	          if (t === 'specValues') {
@@ -1212,11 +1229,15 @@ export default function MastersView({
             }));
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
-          if (tab === 'units') {
-            const header = ['name'];
-            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, units.map((u) => ({ name: u.name }))), 'text/csv; charset=utf-8');
-          }
-          if (tab === 'itemCategories') {
+	          if (tab === 'units') {
+	            const header = ['name'];
+	            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, units.map((u) => ({ name: u.name }))), 'text/csv; charset=utf-8');
+	          }
+            if (tab === 'priorities') {
+              const header = ['name'];
+              return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, priorities.map((p) => ({ name: p.name }))), 'text/csv; charset=utf-8');
+            }
+	          if (tab === 'itemCategories') {
             const header = ['name'];
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, itemCategories.map((c) => ({ name: c.name }))), 'text/csv; charset=utf-8');
           }
@@ -2441,7 +2462,7 @@ export default function MastersView({
 		                </div>
 		              ) : null}
 
-		              {tab === 'units' ? (
+				      {tab === 'units' ? (
 		                <div className="space-y-2">
 		                  <label className="space-y-1">
 		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
@@ -2486,9 +2507,108 @@ export default function MastersView({
 		                    </button>
 		                  </div>
 		                </div>
-		              ) : null}
+			              ) : null}
 
-		              {tab === 'itemCategories' ? (
+                    {tab === 'priorities' ? (
+                      <div className="space-y-2">
+                        <label className="space-y-1">
+                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Priority</div>
+                          <input
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                            value={newPriorityName}
+                            onChange={(e) => setNewPriorityName(e.target.value)}
+                            placeholder="High / Medium / Low"
+                          />
+                        </label>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => {
+                              setNewPriorityName('');
+                              closeModal();
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+                            disabled={!newPriorityName.trim() || busy}
+                            onClick={() => {
+                              setBusy(true);
+                              setError(null);
+                              const fn = isEditing
+                                ? updatePriority(editCtx?.id ?? '', { name: newPriorityName.trim(), updatedBy: 'system' })
+                                : createPriority({ name: newPriorityName.trim(), createdBy: 'system' });
+                              fn.then(() => loadAll())
+                                .then(() => {
+                                  setNewPriorityName('');
+                                  closeModal();
+                                })
+                                .catch(handleMasterError)
+                                .finally(() => setBusy(false));
+                            }}
+                          >
+                            {isEditing ? 'Save' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+				      ) : null}
+
+              {tab === 'priorities' ? (
+                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm text-on-surface-variant">Total: {priorities.length}</div>
+                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+                      Add
+                    </button>
+                  </div>
+                  <div className="overflow-auto">
+                    <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
+                      <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+                        <tr>
+                          <th className="text-left px-3 py-2 border border-blue-600">Priority</th>
+                          <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {priorities.map((p) => (
+                          <tr key={p.id}>
+                            <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
+                            <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(p.id)}>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete"
+                                  aria-label="Delete"
+                                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+                                  onClick={() => {
+                                    if (!window.confirm(`Delete priority "${p.name}"?`)) return;
+                                    setBusy(true);
+                                    setError(null);
+                                    deletePriority(p.id, { deletedBy: 'system' })
+                                      .then(() => loadAll())
+                                      .catch(handleMasterError)
+                                      .finally(() => setBusy(false));
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+
+				      {tab === 'itemCategories' ? (
 		                <div className="space-y-2">
 		                  <label className="space-y-1">
 		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
@@ -2546,31 +2666,65 @@ export default function MastersView({
 		                      placeholder="Bolt"
 		                    />
 		                  </label>
-			                  <label className="space-y-1">
-			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
-			                    <SearchableSelect
-			                      options={units.map((u) => ({ value: u.id, label: u.name }))}
-			                      value={newItemNameUnitId}
-			                      onChange={(v) => {
-			                        clearFieldError('itemNameUnitId');
-			                        setNewItemNameUnitId(v);
-			                      }}
-			                      placeholder="Select unit"
-			                    />
-			                    {fieldErrors.itemNameUnitId ? <div className="text-xs text-error">{fieldErrors.itemNameUnitId}</div> : null}
-			                  </label>
+					                  <label className="space-y-1">
+					                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+					                    <SearchableSelect
+					                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
+				                      value={newItemNameCategoryId}
+				                      onChange={(v) => {
+				                        clearFieldError('itemNameCategoryId');
+				                        setNewItemNameCategoryId(v);
+				                      }}
+				                      placeholder="Select category"
+                              showCreateWhenEmpty
+                              allowEmptyCreate
+                              closeOnCreate
+                              createLabel={(q) => (q?.trim() ? `+ Add Category "${q.trim()}"` : '+ Add Category')}
+                              onCreate={async (label) => {
+                                const name = String(label ?? '').trim();
+                                if (!name) return null;
+                                const created = await createItemCategory({ name, createdBy: 'system' });
+                                const cat = created.itemCategory;
+                                if (!cat?.id) return null;
+                                setItemCategories((prev) => {
+                                  if (prev.some((x) => x.id === cat.id)) return prev;
+                                  return [...prev, cat].sort((a, b) => a.name.localeCompare(b.name));
+                                });
+                                setNewItemNameCategoryId(cat.id);
+                                return { value: cat.id, label: cat.name };
+                              }}
+				                    />
+					                    {fieldErrors.itemNameCategoryId ? <div className="text-xs text-error">{fieldErrors.itemNameCategoryId}</div> : null}
+					                  </label>
 				                  <label className="space-y-1">
-				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit</div>
 				                    <SearchableSelect
-				                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
-			                      value={newItemNameCategoryId}
-			                      onChange={(v) => {
-			                        clearFieldError('itemNameCategoryId');
-			                        setNewItemNameCategoryId(v);
-			                      }}
-			                      placeholder="Select category"
-			                    />
-				                    {fieldErrors.itemNameCategoryId ? <div className="text-xs text-error">{fieldErrors.itemNameCategoryId}</div> : null}
+				                      options={units.map((u) => ({ value: u.id, label: u.name }))}
+				                      value={newItemNameUnitId}
+				                      onChange={(v) => {
+				                        clearFieldError('itemNameUnitId');
+				                        setNewItemNameUnitId(v);
+				                      }}
+				                      placeholder="Select unit"
+                              showCreateWhenEmpty
+                              allowEmptyCreate
+                              closeOnCreate
+                              createLabel={(q) => (q?.trim() ? `+ Add Unit "${q.trim()}"` : '+ Add Unit')}
+                              onCreate={async (label) => {
+                                const name = String(label ?? '').trim();
+                                if (!name) return null;
+                                const created = await createUnit({ name, createdBy: 'system' });
+                                const unit = created.unit;
+                                if (!unit?.id) return null;
+                                setUnits((prev) => {
+                                  if (prev.some((x) => x.id === unit.id)) return prev;
+                                  return [...prev, unit].sort((a, b) => a.name.localeCompare(b.name));
+                                });
+                                setNewItemNameUnitId(unit.id);
+                                return { value: unit.id, label: unit.name };
+                              }}
+				                    />
+				                    {fieldErrors.itemNameUnitId ? <div className="text-xs text-error">{fieldErrors.itemNameUnitId}</div> : null}
 				                  </label>
 
 				                  <div className="space-y-1">

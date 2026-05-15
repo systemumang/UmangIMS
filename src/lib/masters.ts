@@ -32,6 +32,7 @@ export type Project = {
   status?: string | null;
 };
 export type Unit = { id: string; name: string };
+export type Priority = { id: string; name: string };
 export type ItemCategory = { id: string; name: string };
 export type ItemName = {
   id: string;
@@ -529,6 +530,40 @@ export async function createUnit(input: { name: string; createdBy?: string }) {
     body: JSON.stringify(input),
   });
   return requireOk<{ unit?: Unit }>(res, 'Failed to create unit');
+}
+
+export async function fetchPriorities(signal?: AbortSignal): Promise<Priority[]> {
+  const res = await fetch('/api/masters/priorities', { signal });
+  const data = await requireOk<{ priorities?: Priority[] }>(res, 'Failed to load priorities');
+  const rows = Array.isArray(data.priorities) ? data.priorities : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createPriority(input: { name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/priorities', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ priority?: Priority }>(res, 'Failed to create priority');
+}
+
+export async function updatePriority(id: string, input: { name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/priorities/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ priority?: Priority }>(res, 'Failed to update priority');
+}
+
+export async function deletePriority(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/priorities/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete priority');
 }
 
 export async function updateUnit(id: string, input: { name: string; updatedBy?: string }) {

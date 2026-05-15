@@ -257,11 +257,8 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
                       <td className="px-3 py-2 border border-outline-variant">
-                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-	                          <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-	                            View PR
-                          </button>
-                          <button
+	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+	                          <button
                             type="button"
                             className="btn-primary btn-sm"
                             onClick={() => {
