@@ -104,6 +104,10 @@ export default function OperationsView({
   const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
   const [inlinePoLoadingById, setInlinePoLoadingById] = useState<Record<string, boolean>>({});
   const [inlinePoErrorById, setInlinePoErrorById] = useState<Record<string, string>>({});
+  const [inlinePoAdvancesById, setInlinePoAdvancesById] = useState<Record<string, PoAdvanceRow[]>>({});
+  const [inlinePoAdvancesLoadingById, setInlinePoAdvancesLoadingById] = useState<Record<string, boolean>>({});
+  const [inlinePoAdvancesErrorById, setInlinePoAdvancesErrorById] = useState<Record<string, string>>({});
+  const [expandedPoAdvanceIds, setExpandedPoAdvanceIds] = useState<string[]>([]);
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
   const [advanceModalBusy, setAdvanceModalBusy] = useState(false);
   const [advanceModalError, setAdvanceModalError] = useState<string | null>(null);
@@ -188,6 +192,10 @@ export default function OperationsView({
     setInlinePoDetailById({});
     setInlinePoLoadingById({});
     setInlinePoErrorById({});
+    setInlinePoAdvancesById({});
+    setInlinePoAdvancesLoadingById({});
+    setInlinePoAdvancesErrorById({});
+    setExpandedPoAdvanceIds([]);
     setDetailOpen(false);
   }, [tab]);
 
@@ -462,10 +470,32 @@ export default function OperationsView({
             : po
         )
       );
+      setInlinePoAdvancesById((prev) => ({ ...prev, [advanceModalPoId]: updated.advances ?? [] }));
       closeAdvanceModal();
     } catch (e) {
       setAdvanceModalError(e instanceof Error ? e.message : String(e));
       setAdvanceModalBusy(false);
+    }
+  };
+
+  const toggleInlineAdvance = async (row: OperationsPoListRow) => {
+    const poId = String(row.poId ?? '').trim();
+    if (!poId) return;
+    setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev.filter((x) => x !== poId) : [...prev, poId]));
+    if (inlinePoAdvancesById[poId] || inlinePoAdvancesLoadingById[poId]) return;
+    setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: true }));
+    setInlinePoAdvancesErrorById((prev) => {
+      const next = { ...prev };
+      delete next[poId];
+      return next;
+    });
+    try {
+      const rows = await fetchPoAdvances(poId);
+      setInlinePoAdvancesById((prev) => ({ ...prev, [poId]: rows ?? [] }));
+    } catch (e) {
+      setInlinePoAdvancesErrorById((prev) => ({ ...prev, [poId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: false }));
     }
   };
 
@@ -650,10 +680,14 @@ export default function OperationsView({
                           : tab === 'invoices'
                             ? String(r.invoiceId)
                             : String(r.paymentId);
-                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
-                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
-                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
-                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
+	                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+	                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
+	                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
+	                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
+	                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
+	                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
+	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
+	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
                   return (
                     <React.Fragment key={rowId}>
                       <tr className="hover:bg-surface-container-high/40 cursor-pointer" onClick={() => openDetailForRow(r)}>
@@ -677,12 +711,30 @@ export default function OperationsView({
 				                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
 				                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
-				                        <td className="px-3 py-2 border border-outline-variant">{r.advanceDate ? formatDateShort(String(r.advanceDate)) : '-'}</td>
+				                        <td
+				                          className="px-3 py-2 border border-outline-variant tabular-nums cursor-pointer hover:bg-surface-container-high/40"
+				                          onClick={(e) => {
+				                            e.stopPropagation();
+				                            toggleInlineAdvance(r as OperationsPoListRow);
+				                          }}
+				                          title="Show advances"
+				                        >
+				                          {Number(r.advanceAmount ?? 0).toFixed(2)}
+				                        </td>
+				                        <td
+				                          className="px-3 py-2 border border-outline-variant cursor-pointer hover:bg-surface-container-high/40"
+				                          onClick={(e) => {
+				                            e.stopPropagation();
+				                            toggleInlineAdvance(r as OperationsPoListRow);
+				                          }}
+				                          title="Show advances"
+				                        >
+				                          {r.advanceDate ? formatDateShort(String(r.advanceDate)) : '-'}
+				                        </td>
 				                        <td className="px-3 py-2 border border-outline-variant">
 				                          <button
 				                            type="button"
-				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
 				                            title="PO PDF"
 				                            aria-label="PO PDF"
 			                            onClick={(e) => {
@@ -697,7 +749,7 @@ export default function OperationsView({
 			                          <div className="flex items-center gap-3">
 				                          <button
 				                            type="button"
-				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
 				                            title="Advance Entry"
 				                            aria-label="Advance Entry"
 			                            onClick={(e) => {
@@ -709,7 +761,7 @@ export default function OperationsView({
 				                          </button>
 				                          <button
 				                            type="button"
-				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
 				                            title="Edit PR"
 				                            aria-label="Edit PR"
 			                            onClick={(e) => {
@@ -809,10 +861,46 @@ export default function OperationsView({
                             ) : null}
                           </td>
                         </tr>
-                      ) : null}
-                    </React.Fragment>
-                  );
-                })
+	                      ) : null}
+	                      {tab === 'pos' && isAdvanceExpanded ? (
+	                        <tr>
+	                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+	                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
+	                            {!advanceLoading && advanceError ? <div className="text-sm text-error">{advanceError}</div> : null}
+	                            {!advanceLoading && !advanceError ? (
+	                              <div className="overflow-x-auto">
+	                                <table className="w-full min-w-[480px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                  <thead>
+	                                    <tr className="bg-primary text-on-primary">
+	                                      <th className="px-3 py-2 border border-outline-variant">Adv Date</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Advance</th>
+	                                    </tr>
+	                                  </thead>
+	                                  <tbody>
+	                                    {advanceRows.length ? (
+	                                      advanceRows.map((a) => (
+	                                        <tr key={String(a.id)}>
+	                                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
+	                                        </tr>
+	                                      ))
+	                                    ) : (
+	                                      <tr>
+	                                        <td colSpan={2} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+	                                          No advances found.
+	                                        </td>
+	                                      </tr>
+	                                    )}
+	                                  </tbody>
+	                                </table>
+	                              </div>
+	                            ) : null}
+	                          </td>
+	                        </tr>
+	                      ) : null}
+	                    </React.Fragment>
+	                  );
+	                })
               )}
             </tbody>
           </table>
