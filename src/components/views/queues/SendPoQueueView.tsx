@@ -176,9 +176,9 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
 	  return (
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-	      <div className="flex items-center justify-end gap-3">
+	      <div className="hidden">
 	        <div className="text-sm text-on-surface-variant">Pending Tasks / Send PO</div>
-	        <ExportCsvButton filename={`queue-send-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+	        <ExportCsvButton id="pending-export-btn" filename={`queue-send-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
 	      </div>
 	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 

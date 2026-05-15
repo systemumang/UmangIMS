@@ -530,16 +530,30 @@ export default function App() {
 	        }}
       />
       
-	      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200 border-l-2 border-[#1f2937]', sidebarOpen ? 'ml-72' : 'ml-0')}>
-	        <TopBar
-            title={topBar.title}
-            subtitle={topBar.subtitle}
-            showSearch={topBar.showSearch}
-            sidebarOpen={sidebarOpen}
-            onToggleSidebar={() => {
-              setSidebarOpen((prev) => !prev);
-            }}
-          />
+		      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200 border-l-2 border-[#1f2937]', sidebarOpen ? 'ml-72' : 'ml-0')}>
+		        <TopBar
+	            title={topBar.title}
+	            subtitle={topBar.subtitle}
+	            showSearch={topBar.showSearch}
+	            headerRight={
+	              isPendingQueueView(view) ? (
+	                <button
+	                  type="button"
+	                  className="btn btn-sm"
+	                  onClick={() => {
+	                    const btn = document.getElementById('pending-export-btn') as HTMLButtonElement | null;
+	                    btn?.click();
+	                  }}
+	                >
+	                  Export Excel
+	                </button>
+	              ) : null
+	            }
+	            sidebarOpen={sidebarOpen}
+	            onToggleSidebar={() => {
+	              setSidebarOpen((prev) => !prev);
+	            }}
+	          />
 	        
 		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
 					          {view === 'dashboard' ? (

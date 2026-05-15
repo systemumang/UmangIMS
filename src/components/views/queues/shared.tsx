@@ -311,12 +311,25 @@ export function QueueCard({ title, subtitle, children }: { title: string; subtit
   );
 }
 
-export function ExportCsvButton({ filename, rows, disabled }: { filename: string; rows: any[]; disabled?: boolean }) {
+export function ExportCsvButton({
+  filename,
+  rows,
+  disabled,
+  id,
+  className,
+}: {
+  filename: string;
+  rows: any[];
+  disabled?: boolean;
+  id?: string;
+  className?: string;
+}) {
   const safeDisabled = Boolean(disabled);
   return (
     <button
+      id={id}
       type="button"
-      className="btn btn-sm"
+      className={cn('btn btn-sm', className)}
       disabled={safeDisabled}
       onClick={() => {
         const list = Array.isArray(rows) ? rows : [];

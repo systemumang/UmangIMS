@@ -7,12 +7,14 @@ export default function TopBar({
   showSearch,
   sidebarOpen,
   onToggleSidebar,
+  headerRight,
 }: {
   title: string;
   subtitle?: string;
   showSearch?: boolean;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  headerRight?: React.ReactNode;
 }) {
   return (
     <header className="bg-surface-container-lowest top-0 sticky z-50 flex justify-between items-center w-full px-4 py-3 border-b border-outline-variant/20">
@@ -55,7 +57,7 @@ export default function TopBar({
         ) : null}
       </div>
 
-      <div />
+      <div className="flex items-center gap-2">{headerRight ?? null}</div>
     </header>
   );
 }
