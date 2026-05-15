@@ -8786,7 +8786,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
           it.photo_3 AS photo3,
           it.photo_4 AS photo4,
           it.photo_5 AS photo5,
-          it.item_link AS brochureLink
+          it.item_link AS itemLink,
+          it.video_link AS videoLink
       FROM items it
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE it.is_active = 1
@@ -8806,7 +8807,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
               photo3: r.photo3 != null ? String(r.photo3) : '',
               photo4: r.photo4 != null ? String(r.photo4) : '',
               photo5: r.photo5 != null ? String(r.photo5) : '',
-              brochureLink: r.brochureLink != null ? String(r.brochureLink) : '',
+              itemLink: r.itemLink != null ? String(r.itemLink) : '',
+              videoLink: r.videoLink != null ? String(r.videoLink) : '',
 	        },
       ])
     );
@@ -8960,7 +8962,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
     const itemIds = Array.from(itemById.keys());
 
     const makeRow = (storeId, itemId) => {
-		      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', brochureLink: '' };
+	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', itemLink: '', videoLink: '' };
 	      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
 	        opening: 0,
 	        purchase: 0,
@@ -9002,7 +9004,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
           photo3: meta.photo3,
           photo4: meta.photo4,
           photo5: meta.photo5,
-          brochureLink: meta.brochureLink,
+          itemLink: meta.itemLink,
+          videoLink: meta.videoLink,
 	        purchase,
         issue,
         damage,

@@ -18,7 +18,8 @@ export type InventorySheetRow = {
   photo3?: string;
   photo4?: string;
   photo5?: string;
-  brochureLink?: string;
+  itemLink?: string;
+  videoLink?: string;
   purchase: number;
   issue: number;
   damage: number;

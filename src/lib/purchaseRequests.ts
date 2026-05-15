@@ -420,6 +420,7 @@ export async function updateInvoicePayment(
   input: {
     paymentStatus: 'Partly Paid' | 'Full Paid';
     paymentDate: string;
+    paymentMode?: 'Cash' | 'UPI' | 'Cheque' | 'NEFT' | 'RTGS' | 'IMPS' | 'Card' | string;
     tallyEntryDate?: string;
     updatedBy?: string;
   }

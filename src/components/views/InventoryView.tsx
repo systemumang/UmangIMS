@@ -541,14 +541,19 @@ export default function InventoryView() {
 	                      <span>Unit</span><ArrowUpDown size={12} />
 	                    </button>
 	                  </th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photos</th>
-                    <th className="px-3 py-2 border-b border-black text-center">Brochure</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 1</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 2</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 3</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 4</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 5</th>
+                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Item Link</th>
+                    <th className="px-3 py-2 border-b border-black text-center">Video Link</th>
 	                </tr>
 	              </thead>
 	              <tbody className="divide-y divide-outline-variant">
 	                {filteredRows.length === 0 ? (
 	                  <tr>
-			                    <td colSpan={15} className="p-8 text-center text-on-surface-variant italic">No items found</td>
+				                    <td colSpan={20} className="p-8 text-center text-on-surface-variant italic">No items found</td>
 		                  </tr>
 		                ) : (
 			                  sortedRows.map((r, idx) => (
@@ -583,28 +588,25 @@ export default function InventoryView() {
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).reorderLevel ?? 0)}</td>
 			                      <td className="p-3 border-r border-black text-on-surface-variant text-center">{r.unit || '-'}</td>
                             <td className="p-3 border-r border-black text-center">
-                              {(() => {
-                                const urls = [r.photo1, r.photo2, r.photo3, r.photo4, r.photo5].map((x) => String(x ?? '').trim()).filter(Boolean);
-                                if (!urls.length) return <span className="text-on-surface-variant">-</span>;
-                                return (
-                                  <div className="flex items-center gap-1 justify-center flex-wrap">
-                                    {urls.map((u, i) => (
-                                      <a key={`${u}-${i}`} href={normalizeViewUrl(u)} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
-                                        P{i + 1}
-                                      </a>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
+                              {String(r.photo1 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo1))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+                            </td>
+                            <td className="p-3 border-r border-black text-center">
+                              {String(r.photo2 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo2))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+                            </td>
+                            <td className="p-3 border-r border-black text-center">
+                              {String(r.photo3 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo3))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+                            </td>
+                            <td className="p-3 border-r border-black text-center">
+                              {String(r.photo4 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo4))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+                            </td>
+                            <td className="p-3 border-r border-black text-center">
+                              {String(r.photo5 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo5))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+                            </td>
+                            <td className="p-3 border-r border-black text-center">
+                              {String((r as any).itemLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).itemLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
                             </td>
                             <td className="p-3 text-center">
-                              {String(r.brochureLink ?? '').trim() ? (
-                                <a href={normalizeViewUrl(String(r.brochureLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">
-                                  Open
-                                </a>
-                              ) : (
-                                <span className="text-on-surface-variant">-</span>
-                              )}
+                              {String((r as any).videoLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).videoLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
                             </td>
 		                    </tr>
 	                  );
