@@ -88,6 +88,9 @@ export default function PaymentQueueView({
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [tallyDateInput, setTallyDateInput] = useState('');
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [expandedLines, setExpandedLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
+  const [expandedLoading, setExpandedLoading] = useState(false);
 
   function closeModal() {
     setModalOpen(false);
@@ -101,6 +104,21 @@ export default function PaymentQueueView({
     setSaving(false);
     setModalError(null);
   }
+
+  useEffect(() => {
+    if (mode !== 'tally') return;
+    if (!expandedInvoiceId) {
+      setExpandedLines([]);
+      return;
+    }
+    const ac = new AbortController();
+    setExpandedLoading(true);
+    fetchGrnInvoiceLinkSummary(expandedInvoiceId, ac.signal)
+      .then(setExpandedLines)
+      .catch(() => setExpandedLines([]))
+      .finally(() => setExpandedLoading(false));
+    return () => ac.abort();
+  }, [expandedInvoiceId, mode]);
 
   useEffect(() => {
     if (!modalOpen || !active) return;
@@ -143,12 +161,12 @@ export default function PaymentQueueView({
                 <col className="w-[150px]" />
                 <col className="w-[210px]" />
                 <col className="w-[220px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[140px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[130px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[260px]" />
+		                <col className="w-[140px]" />
+		                {mode !== 'tally' ? <col className="w-[140px]" /> : null}
+	                  {mode !== 'tally' ? <col className="w-[120px]" /> : null}
+	                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
+		                {mode !== 'tally' ? <col className="w-[140px]" /> : null}
+		                <col className="w-[260px]" />
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
@@ -157,30 +175,37 @@ export default function PaymentQueueView({
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Amount</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Mode</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Paid</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Amount</th>
+	                    {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Mode</th> : null}
+	                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
+		                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Paid</th> : null}
+	                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining</th> : null}
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedRows.length ? (
                   pagedRows.map((r) => (
-                    <tr key={r.invoiceId}>
+                    <React.Fragment key={r.invoiceId}>
+                    <tr
+                      className={mode === 'tally' ? 'cursor-pointer hover:bg-surface-container-low/50' : ''}
+                      onClick={() => {
+                        if (mode !== 'tally') return;
+                        setExpandedInvoiceId((prev) => (prev === r.invoiceId ? null : r.invoiceId));
+                      }}
+                    >
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.invoiceNo ?? r.invoiceId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.invoiceDate ? formatDateDDMMYYYYOnly(r.invoiceDate) : '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.paymentMode || 'Credit'}</td>
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+	                        {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.paymentMode || 'Credit'}</td> : null}
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td>
+		                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
+                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
                       <td className="px-3 py-2 border border-outline-variant">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                           <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
                             View PR
                           </button>
@@ -190,12 +215,43 @@ export default function PaymentQueueView({
                         </div>
                       </td>
                     </tr>
+                    {mode === 'tally' && expandedInvoiceId === r.invoiceId ? (
+                      <tr>
+                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={8}>
+                          {expandedLoading ? (
+                            <div className="text-sm text-on-surface-variant">Loading invoice items...</div>
+                          ) : expandedLines.length ? (
+                            <table className="w-full text-left border-collapse text-sm">
+                              <thead className="bg-primary text-on-primary">
+                                <tr>
+                                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+                                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
+                                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {expandedLines.map((l) => (
+                                  <tr key={l.invoiceItemId}>
+                                    <td className="px-3 py-2 border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
+                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.invoiceQty}</td>
+                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.linkedQty}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div className="text-sm text-on-surface-variant">No invoice items found.</div>
+                          )}
+                        </td>
+                      </tr>
+                    ) : null}
+                    </React.Fragment>
                   ))
                 ) : (
                   <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={11}>
-	                      No records.
-	                    </td>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={mode === 'tally' ? 8 : 11}>
+		                      No records.
+		                    </td>
                   </tr>
                 )}
               </tbody>

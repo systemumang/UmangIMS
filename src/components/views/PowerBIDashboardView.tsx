@@ -235,14 +235,18 @@ export default function PowerBIDashboardView({
               <ArrowUpRight size={14} />
               Issue
             </button>
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('returnMaster')}>
-              <ArrowDownLeft size={14} />
-              Return
-            </button>
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
-              <Boxes size={14} />
-              Transfer
-            </button>
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('returnMaster')}>
+	              <ArrowDownLeft size={14} />
+	              Return
+	            </button>
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('damageMaster')}>
+	              <AlertTriangle size={14} />
+	              Damage
+	            </button>
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
+	              <Boxes size={14} />
+	              Transfer
+	            </button>
           </div>
         </div>
 

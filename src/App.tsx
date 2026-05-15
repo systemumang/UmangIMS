@@ -668,7 +668,7 @@ export default function App() {
 		          ) : null}
               {view === 'issueMaster' ? <IssueMasterView onAdd={() => { setStockMasterTab('itemIssue'); setView('stockMaster'); }} /> : null}
               {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
-              {view === 'damageMaster' ? <DamageMasterView /> : null}
+              {view === 'damageMaster' ? <DamageMasterView onAdd={() => { setStockMasterTab('damage'); setView('stockMaster'); }} /> : null}
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
 	          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}

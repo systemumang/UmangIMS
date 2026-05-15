@@ -214,9 +214,14 @@ export default function TransferMasterView({ onAdd }: { onAdd?: () => void } = {
   return (
     <div className="space-y-4">
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-	        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
-	          <div className="font-headline font-bold text-sm text-on-surface">Transfer Master</div>
-	          <div className="flex items-end gap-2">
+		        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+		          <div className="font-headline font-bold text-sm text-on-surface">Transfer Master</div>
+		          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
+		            Add
+		          </button>
+		        </div>
+		        <div className="px-4 pb-4 border-b border-outline-variant bg-surface-container-low flex items-end justify-end">
+		          <div className="flex items-end gap-2">
               <div className="flex items-end gap-2">
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
@@ -355,11 +360,6 @@ export default function TransferMasterView({ onAdd }: { onAdd?: () => void } = {
               ))}
             </tbody>
 	          </table>
-	        </div>
-	        <div className="p-3 border-t border-outline-variant flex justify-end">
-	          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
-	            Add
-	          </button>
 	        </div>
 	      </div>
 
