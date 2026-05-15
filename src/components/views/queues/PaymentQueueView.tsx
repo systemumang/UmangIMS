@@ -320,26 +320,27 @@ export default function PaymentQueueView({
 
         {mode === 'tally' ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 text-sm">
               <div><span className="font-semibold">Invoice:</span> {active?.invoiceNo ?? '-'}</div>
               <div><span className="font-semibold">PO:</span> {formatPoNumber(active?.poNumber ?? active?.poId) || '-'}</div>
               <div><span className="font-semibold">Date:</span> {active?.invoiceDate ? formatDateDDMMYYYYOnly(active.invoiceDate) : '-'}</div>
               <div><span className="font-semibold">Supplier:</span> {active?.supplierName || '-'}</div>
               <div><span className="font-semibold">Amount:</span> {Number(active?.invoiceAmount ?? 0).toFixed(2)}</div>
+              <div><span className="font-semibold">Payment Mode:</span> {String(invoiceDetail?.invoice?.invoice?.paymentMode ?? active?.paymentMode ?? 'Credit')}</div>
+              <div><span className="font-semibold">Payment Status:</span> {String(invoiceDetail?.invoice?.invoice?.paymentStatus ?? '-')}</div>
+              <div><span className="font-semibold">E-way Bill No:</span> {String(invoiceDetail?.invoice?.invoice?.ewayBillNumber ?? '-')}</div>
+              <div><span className="font-semibold">CN/Courier No:</span> {String(invoiceDetail?.invoice?.invoice?.cnNumber ?? invoiceDetail?.invoice?.invoice?.courierNumber ?? '-')}</div>
+              <div><span className="font-semibold">Transporter:</span> {String(invoiceDetail?.invoice?.invoice?.transporterName ?? '-')}</div>
+              <div><span className="font-semibold">Courier Charge:</span> {Number(invoiceDetail?.invoice?.invoice?.courierCharge ?? 0).toFixed(2)}</div>
+              <div><span className="font-semibold">Packing Charge:</span> {Number(invoiceDetail?.invoice?.invoice?.packingCharge ?? 0).toFixed(2)}</div>
+              <div><span className="font-semibold">Labour Charge:</span> {Number(invoiceDetail?.invoice?.invoice?.labourCharge ?? 0).toFixed(2)}</div>
+              <div><span className="font-semibold">Other Charge:</span> {Number(invoiceDetail?.invoice?.invoice?.otherCharge ?? 0).toFixed(2)}</div>
+              <div><span className="font-semibold">GST On Charges:</span> {Number(invoiceDetail?.invoice?.invoice?.chargesGstAmount ?? 0).toFixed(2)}</div>
               <div>
                 <span className="font-semibold">Invoice PDF:</span>{' '}
                 {invoiceDetail?.invoice?.invoice?.documentUrl ? (
-                  <a
-                    href={String(invoiceDetail.invoice.invoice.documentUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline"
-                  >
-                    View PDF
-                  </a>
-                ) : (
-                  '-'
-                )}
+                  <a href={String(invoiceDetail.invoice.invoice.documentUrl)} target="_blank" rel="noreferrer" className="text-primary underline">View PDF</a>
+                ) : '-'}
               </div>
             </div>
             <label className="space-y-1 block max-w-md">
