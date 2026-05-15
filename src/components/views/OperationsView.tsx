@@ -124,7 +124,17 @@ export default function OperationsView({
   const [editPoSupplierId, setEditPoSupplierId] = useState('');
   const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
   const [editPoLines, setEditPoLines] = useState<
-    Array<{ itemId: string; itemLabel: string; quantity: string; rate: string; discountPercent: string; taxPercent: string }>
+    Array<{
+      itemId: string;
+      itemLabel: string;
+      poQty: number;
+      grnQty: number;
+      acceptedQty: number;
+      quantity: string;
+      rate: string;
+      discountPercent: string;
+      taxPercent: string;
+    }>
   >([]);
 
 	  type SortDir = 'asc' | 'desc';
@@ -506,6 +516,9 @@ export default function OperationsView({
         (items ?? []).map((it: any) => ({
           itemId: String(it.itemId ?? '').trim(),
           itemLabel: String(it.itemLabel ?? it.item ?? '-'),
+          poQty: Number(it.quantity ?? 0),
+          grnQty: Number(it.grnQty ?? 0),
+          acceptedQty: Number(it.acceptedQty ?? 0),
           quantity: String(Number(it.quantity ?? 0) || ''),
           rate: String(Number(it.rate ?? 0) || ''),
           discountPercent: String(Number(it.discountPercent ?? 0) || 0),
@@ -542,6 +555,16 @@ export default function OperationsView({
       setEditPoError('Payment terms are required.');
       return;
     }
+
+    for (const l of editPoLines) {
+      const qty = Number(l.quantity ?? 0);
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+      if (qty + 1e-9 < Number(l.acceptedQty ?? 0)) {
+        setEditPoError(`Qty cannot be less than Accepted Qty for: ${l.itemLabel}`);
+        return;
+      }
+    }
+
     const items = editPoLines
       .map((l) => ({
         itemId: String(l.itemId ?? '').trim(),
@@ -1147,7 +1170,7 @@ export default function OperationsView({
         </div>
       </Modal>
 
-      <Modal open={editPoOpen} title={`Edit PO: ${editPoNumber || '-'}`} onClose={closeEditPoModal} maxWidthClass="max-w-5xl">
+      <Modal open={editPoOpen} title={`Edit PO: ${editPoNumber || '-'}`} onClose={closeEditPoModal} fullScreen maxWidthClass="max-w-6xl">
         <div className="space-y-4">
           {editPoError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
 
@@ -1174,6 +1197,8 @@ export default function OperationsView({
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 border border-outline-variant">Item</th>
                   <th className="px-3 py-2 border border-outline-variant">Qty</th>
+                  <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
+                  <th className="px-3 py-2 border border-outline-variant">Accepted Qty</th>
                   <th className="px-3 py-2 border border-outline-variant">Rate</th>
                   <th className="px-3 py-2 border border-outline-variant">Disc %</th>
                   <th className="px-3 py-2 border border-outline-variant">GST %</th>
@@ -1192,9 +1217,11 @@ export default function OperationsView({
                             setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, quantity: sanitizeDecimalInput(e.target.value) } : x)))
                           }
                           inputMode="decimal"
-                          disabled={editPoBusy}
+                          disabled={editPoBusy || Number(l.acceptedQty ?? 0) >= Number(l.poQty ?? 0)}
                         />
                       </td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(l.grnQty ?? 0)}</td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(l.acceptedQty ?? 0)}</td>
                       <td className="px-3 py-2 border border-outline-variant">
                         <input
                           className={cn(inputClass, 'py-1.5')}
@@ -1234,7 +1261,7 @@ export default function OperationsView({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                    <td colSpan={7} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
                       No items.
                     </td>
                   </tr>
