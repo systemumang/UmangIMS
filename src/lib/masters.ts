@@ -18,6 +18,7 @@ export type Supplier = {
   address?: string | null;
   phone?: string | null;
   paymentTerms?: string | null;
+  isVendor?: boolean;
 };
 export type Transporter = { id: string; name: string; phone?: string | null };
 export type Customer = { id: string; name: string; phone?: string | null; address?: string | null };
@@ -436,6 +437,7 @@ export async function createSupplier(input: {
   address?: string;
   phone?: string;
   paymentTerms?: string;
+  isVendor?: boolean;
   createdBy?: string;
 }) {
   const res = await fetch('/api/masters/suppliers', {
@@ -455,6 +457,7 @@ export async function updateSupplier(
     address?: string;
     phone?: string;
     paymentTerms?: string;
+    isVendor?: boolean;
     updatedBy?: string;
   }
 ) {

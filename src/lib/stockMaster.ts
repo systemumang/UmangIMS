@@ -25,6 +25,8 @@ export type StockTransaction = {
   returnType?: 'Sales' | 'Project';
   customerName?: string;
   approvedBy?: string;
+  materialRequestId?: string | null;
+  materialRequestNo?: string | null;
   items: StockTransactionItem[];
 };
 

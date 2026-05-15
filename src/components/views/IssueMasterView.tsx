@@ -281,6 +281,11 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	                    <span>Issued By</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
+	                <th className="p-0 border-b border-r border-black">
+	                  <div className="w-full px-3 py-3 flex items-center justify-between">
+	                    <span>Material Req No</span>
+	                  </div>
+	                </th>
 	                <th className="p-0 border-b border-r border-black text-right">
 	                  <button type="button" onClick={() => onSort('total')} className="w-full px-3 py-3 flex items-center justify-end gap-1">
 	                    <span>Total Items</span><ArrowUpDown size={12} />
@@ -307,7 +312,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                   <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + it.quantity, 0)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-3">
 	                      <button type="button" className="text-primary hover:text-primary-dim transition-colors" title="View" onClick={() => setViewItem(row)}>

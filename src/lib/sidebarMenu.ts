@@ -1,5 +1,5 @@
 import { MASTERS_TABS } from '@/src/lib/mastersTabs';
-import { pendingQueueItems, purchaseMastersMenuItems, stockMenuItems, topLevelMenuItems } from '@/src/components/Sidebar';
+import { materialMenuItems, pendingQueueItems, purchaseMastersMenuItems, stockMenuItems, topLevelMenuItems } from '@/src/components/Sidebar';
 
 export type SidebarPermissionItem = { key: string; label: string };
 
@@ -27,6 +27,9 @@ export function getSidebarPermissionItems(): SidebarPermissionItem[] {
 
   // Stock submenu (NavView keys used by Sidebar)
   for (const s of stockMenuItems) push(`stock:${s.key}`, s.label);
+
+  // Material submenu
+  for (const m of materialMenuItems) push(`material:${m.key}`, m.label);
 
   // Purchase Masters submenu
   for (const p of purchaseMastersMenuItems) push(`purchase:${p.key}`, p.label);

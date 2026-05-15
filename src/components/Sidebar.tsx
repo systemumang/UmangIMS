@@ -28,6 +28,9 @@ export type NavView =
   | 'masters'
   | 'pendingTasks'
   | 'stockMaster'
+  | 'material'
+  | 'materialRequest'
+  | 'materialPendingIssue'
   | 'issueMaster'
   | 'returnMaster'
   | 'damageMaster'
@@ -80,7 +83,13 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'masters', label: 'Masters' },
   { key: 'pendingTasks', label: 'Pending Tasks' },
   { key: 'stockMaster', label: 'Stock' },
+  { key: 'material', label: 'Material' },
   { key: 'operations', label: 'Purchase Masters' },
+];
+
+export const materialMenuItems: Array<{ key: NavView; label: string }> = [
+  { key: 'materialRequest', label: 'Request Material' },
+  { key: 'materialPendingIssue', label: 'Pending Issue' },
 ];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
@@ -96,6 +105,7 @@ export default function Sidebar({
   mastersExpanded,
   pendingExpanded,
   stockMasterExpanded,
+  materialExpanded,
   purchaseMastersExpanded,
   activeOperationsTab,
   purchaseMastersCounts,
@@ -104,6 +114,7 @@ export default function Sidebar({
   onNavigatePendingQueue,
   onNavigateMastersTab,
   onNavigateStockView,
+  onNavigateMaterialView,
   onNavigatePurchaseMasters,
   onNewPurchaseRequest,
   onDirectPo,
@@ -120,6 +131,7 @@ export default function Sidebar({
 		  mastersExpanded?: boolean;
 		  pendingExpanded?: boolean;
 		  stockMasterExpanded?: boolean;
+        materialExpanded?: boolean;
       purchaseMastersExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
       purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
@@ -128,6 +140,7 @@ export default function Sidebar({
 	  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
 	  onNavigateMastersTab?: (tab: MastersTab) => void;
 	  onNavigateStockView?: (view: NavView) => void;
+  onNavigateMaterialView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
@@ -290,6 +303,31 @@ export default function Sidebar({
 	                ))}
 		            </div>
 		          ) : null}
+
+	          {isAllowed('material') || hasPrefix('material:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('material')} className={cn(sectionRowClass, materialExpanded ? activeRowClass : '')}>
+	              <FileText className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Material</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', materialExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
+	          {materialExpanded && onNavigateMaterialView ? (
+	            <div className="ml-7 mr-1 space-y-1">
+	              {materialMenuItems.filter((it) => isAllowed(`material:${it.key}`)).map((it) => (
+	                <button
+	                  key={it.key}
+	                  type="button"
+	                  onClick={() => onNavigateMaterialView(it.key)}
+	                  className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
+	                >
+	                  <span className="inline-flex items-center gap-2">
+	                    {it.key === 'materialRequest' ? <FileText size={14} /> : <ArrowUpRight size={14} />}
+	                    {it.label}
+	                  </span>
+	                </button>
+	              ))}
+	            </div>
+	          ) : null}
 
 	          {isAllowed('operations') || hasPrefix('purchase:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>

@@ -40,9 +40,11 @@ import { Trash2 } from 'lucide-react';
 export default function ItemIssueView({
   onCreated,
   onCancel,
+  materialRequest,
 }: {
   onCreated: (newId?: string) => void;
   onCancel: () => void;
+  materialRequest?: any;
 }) {
   type ItemDraft = {
     itemId: string;
@@ -227,9 +229,23 @@ export default function ItemIssueView({
 			    return () => ac.abort();
 			  }, []);
 
-			  useEffect(() => {
-			    if (issueType !== 'Project' && projectId) setProjectId('');
-			  }, [projectId, issueType]);
+		  useEffect(() => {
+		    if (materialRequest) {
+		      setProjectId(materialRequest.projectId || '');
+		      setIssueType('Project');
+          setIssuedTo(materialRequest.userName || materialRequest.supplierName || '');
+		      if (materialRequest.items && materialRequest.items.length > 0) {
+		        setItems(materialRequest.items.map((it: any) => ({
+		          itemId: it.itemId,
+		          itemNameId: '', // We don't necessarily have itemNameId from MR items
+		          item: it.itemName || '',
+		          quantity: String(it.quantity - (it.issuedQuantity || 0)),
+		          specification: it.specification || '',
+		          specs: {}
+		        })));
+		      }
+		    }
+		  }, [materialRequest]);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -868,6 +884,7 @@ export default function ItemIssueView({
 						                    date: requiredDate,
 						                    issueType,
 						                    issuedTo,
+						                    materialRequestId: materialRequest?.id || null,
 						                    items: normalizedItems
 						                  }).then((created) => onCreated(created.id))
 				                    .catch((e) => setError(e instanceof Error ? e.message : String(e)))

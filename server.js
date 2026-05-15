@@ -229,6 +229,41 @@ function getMysqlPool() {
           updated_at DATETIME
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS material_requests (
+          id VARCHAR(255) PRIMARY KEY,
+          request_no VARCHAR(255) NOT NULL UNIQUE,
+          date DATE NOT NULL,
+          customer_id VARCHAR(255),
+          project_id VARCHAR(255),
+          request_by_type VARCHAR(255) NOT NULL,
+          request_by_user_id VARCHAR(255),
+          request_by_supplier_id VARCHAR(255),
+          remarks TEXT,
+          status VARCHAR(255) DEFAULT 'Pending',
+          created_by VARCHAR(255),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS material_request_items (
+          id VARCHAR(255) PRIMARY KEY,
+          request_id VARCHAR(255) NOT NULL,
+          item_id VARCHAR(255) NOT NULL,
+          specification TEXT,
+          quantity DOUBLE NOT NULL,
+          issued_quantity DOUBLE DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (request_id) REFERENCES material_requests(id) ON DELETE CASCADE,
+          FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
+      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
     } catch (err) {
       console.error('Failed to ensure PO/Invoice enhancement columns:', err);
     }
@@ -4272,6 +4307,115 @@ app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
   }
 });
 
+app.post('/api/material-requests', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const date = String(req.body?.date ?? '').trim();
+    const customerId = req.body?.customerId ? String(req.body.customerId).trim() : null;
+    const projectId = req.body?.projectId ? String(req.body.projectId).trim() : null;
+    const requestByType = String(req.body?.requestByType ?? 'Inhouse').trim();
+    const requestByUserId = req.body?.requestByUserId ? String(req.body.requestByUserId).trim() : null;
+    const requestBySupplierId = req.body?.requestBySupplierId ? String(req.body.requestBySupplierId).trim() : null;
+    const remarks = req.body?.remarks ? String(req.body.remarks).trim() : null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+    if (!date) return res.status(400).json({ error: 'date is required' });
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    const requestId = crypto.randomUUID();
+    const requestNo = await allocateDocNumber(pool, 'MR', new Date());
+
+    await pool.query(
+      `INSERT INTO material_requests 
+        (id, request_no, date, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, remarks, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [requestId, requestNo, date, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, remarks, 'system']
+    );
+
+    for (const item of items) {
+      const itemId = String(item.itemId ?? '').trim();
+      const quantity = Number(item.quantity);
+      const specification = String(item.specification ?? '').trim() || null;
+      if (!itemId || !Number.isFinite(quantity) || quantity <= 0) continue;
+
+      await pool.query(
+        `INSERT INTO material_request_items (id, request_id, item_id, specification, quantity)
+         VALUES (?, ?, ?, ?, ?)`,
+        [crypto.randomUUID(), requestId, itemId, specification, quantity]
+      );
+    }
+
+    res.json({ request: { id: requestId, requestNo } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/material-requests', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const [rows] = await pool.query(`
+      SELECT 
+        mr.*,
+        c.name AS customerName,
+        p.name AS projectName,
+        u.name AS userName,
+        s.name AS supplierName
+      FROM material_requests mr
+      LEFT JOIN customers c ON c.id = mr.customer_id
+      LEFT JOIN projects p ON p.id = mr.project_id
+      LEFT JOIN users u ON u.id = mr.request_by_user_id
+      LEFT JOIN suppliers s ON s.id = mr.request_by_supplier_id
+      ORDER BY mr.created_at DESC
+    `);
+    res.json({ requests: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/material-requests/pending', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const [rows] = await pool.query(`
+      SELECT 
+        mr.*,
+        c.name AS customerName,
+        p.name AS projectName,
+        u.name AS userName,
+        s.name AS supplierName
+      FROM material_requests mr
+      LEFT JOIN customers c ON c.id = mr.customer_id
+      LEFT JOIN projects p ON p.id = mr.project_id
+      LEFT JOIN users u ON u.id = mr.request_by_user_id
+      LEFT JOIN suppliers s ON s.id = mr.request_by_supplier_id
+      WHERE mr.status = 'Pending'
+      ORDER BY mr.created_at DESC
+    `);
+    
+    const requests = [];
+    for (const row of rows) {
+      const [items] = await pool.query(`
+        SELECT mri.*, i.name AS itemName
+        FROM material_request_items mri
+        JOIN items i ON i.id = mri.item_id
+        WHERE mri.request_id = ?
+      `, [row.id]);
+      requests.push({ ...row, items });
+    }
+    
+    res.json({ requests });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.post('/api/requests', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -6311,7 +6455,8 @@ app.get('/api/masters/suppliers', async (_req, res) => {
         gst_type AS gstType,
         address,
         phone,
-        payment_terms AS paymentTerms
+        payment_terms AS paymentTerms,
+        is_vendor AS isVendor
       FROM suppliers
       ORDER BY name
       `
@@ -6342,13 +6487,14 @@ app.post('/api/masters/suppliers', async (req, res) => {
       address: req.body?.address != null ? String(req.body.address).trim() : null,
       phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
       paymentTerms: req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null,
+      isVendor: req.body?.isVendor ? 1 : 0,
       createdBy: req.body?.createdBy != null ? String(req.body.createdBy).trim() : null,
     };
 
     await pool.query(
       `
-      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, is_vendor, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
       [
         supplier.id,
@@ -6358,6 +6504,7 @@ app.post('/api/masters/suppliers', async (req, res) => {
         supplier.address,
         supplier.phone,
         supplier.paymentTerms,
+        supplier.isVendor,
         supplier.createdBy,
       ]
     );
@@ -6371,8 +6518,10 @@ app.post('/api/masters/suppliers', async (req, res) => {
         address: supplier.address ?? undefined,
         phone: supplier.phone ?? undefined,
         paymentTerms: supplier.paymentTerms ?? undefined,
+        isVendor: Boolean(supplier.isVendor),
       },
     });
+
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
@@ -8584,7 +8733,12 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
-    const [rows] = await pool.query(`SELECT * FROM ${table} ORDER BY created_at DESC`);
+    const isIssue = table === 'item_issues';
+    const query = isIssue
+      ? `SELECT t.*, mr.request_no AS material_request_no FROM ${table} t LEFT JOIN material_requests mr ON mr.id = t.material_request_id ORDER BY t.created_at DESC`
+      : `SELECT *, NULL AS material_request_no FROM ${table} ORDER BY created_at DESC`;
+    
+    const [rows] = await pool.query(query);
     const transactions = [];
 
     for (const row of Array.isArray(rows) ? rows : []) {
@@ -8605,6 +8759,9 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         toFirmId: row.to_firm_id,
         toStore: row.to_store_id || row.to_store,
         toDepartment: row.to_department,
+        projectId: row.project_id,
+        materialRequestId: row.material_request_id,
+        materialRequestNo: row.material_request_no,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
           itemId: it.item_id,
           item: it.item_name || it.item_id,
@@ -8645,16 +8802,18 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
       toStoreCol = 'to_store_id';
     }
 
+    const materialRequestId = table === 'item_issues' ? (data.materialRequestId || null) : null;
+
     await pool.query(
       `INSERT INTO ${table} (
         id, transaction_no, firm_id, ${storeCol}, department, person, date,
         issue_type, issued_to, return_type, customer_name, approved_by,
-        to_firm_id, ${toStoreCol}, to_department, project_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        to_firm_id, ${toStoreCol}, to_department, project_id, material_request_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, transactionNo, data.firmId, storeId, data.department, data.person, data.date,
         data.issueType, data.issuedTo, data.returnType, data.customerName, data.approvedBy,
-        data.toFirmId, toStoreId, data.toDepartment, data.projectId
+        data.toFirmId, toStoreId, data.toDepartment, data.projectId, materialRequestId
       ]
     );
 
@@ -8664,6 +8823,27 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
          VALUES (?, ?, ?, ?, ?, ?, NOW())`,
         [crypto.randomUUID(), id, item.itemId, item.quantity, item.specification, item.remark]
       );
+      
+      if (materialRequestId) {
+        await pool.query(
+          `UPDATE material_request_items 
+           SET issued_quantity = issued_quantity + ? 
+           WHERE request_id = ? AND item_id = ?`,
+          [item.quantity, materialRequestId, item.itemId]
+        );
+      }
+    }
+
+    if (materialRequestId) {
+      const [remaining] = await pool.query(
+        `SELECT SUM(quantity - issued_quantity) as rem 
+         FROM material_request_items 
+         WHERE request_id = ?`,
+        [materialRequestId]
+      );
+      if (remaining[0]?.rem <= 0) {
+        await pool.query(`UPDATE material_requests SET status = 'Closed' WHERE id = ?`, [materialRequestId]);
+      }
     }
 
     res.json({ id, transactionNo });

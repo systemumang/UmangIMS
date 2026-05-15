@@ -237,6 +237,7 @@ export default function MastersView({
 				  const [newSupplierAddress, setNewSupplierAddress] = useState('');
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
 					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
+					  const [newSupplierIsVendor, setNewSupplierIsVendor] = useState(false);
 					  const [newCustomerName, setNewCustomerName] = useState('');
 					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
@@ -494,6 +495,7 @@ export default function MastersView({
 						      setNewSupplierAddress('');
 						      setNewSupplierPhone('');
 						      setNewSupplierPaymentTerms('');
+						      setNewSupplierIsVendor(false);
 						    }
 						    if (tab === 'customers') {
 						      setNewCustomerName('');
@@ -590,6 +592,7 @@ export default function MastersView({
 				      setNewSupplierAddress(row?.address ?? '');
 				      setNewSupplierPhone(row?.phone ?? '');
 				      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
+				      setNewSupplierIsVendor(Boolean(row?.isVendor));
 				    }
 				    if (tab === 'customers') {
 				      const row = customers.find((c) => c.id === id);
@@ -2226,6 +2229,16 @@ export default function MastersView({
 			                        placeholder="30 days"
 			                      />
 			                    </label>
+
+			                    <label className="flex items-center gap-2 text-sm cursor-pointer pt-2">
+			                      <input
+			                        type="checkbox"
+			                        className="w-4 h-4 rounded border-outline-variant"
+			                        checked={newSupplierIsVendor}
+			                        onChange={(e) => setNewSupplierIsVendor(e.target.checked)}
+			                      />
+			                      <span className="font-semibold text-on-surface">Vendor</span>
+			                    </label>
 			                  </div>
 				                  <div className="flex justify-end gap-2">
 				                    <button
@@ -2265,6 +2278,7 @@ export default function MastersView({
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+				                              isVendor: newSupplierIsVendor,
 				                              updatedBy: 'system',
 				                            })
 				                          : createSupplier({
@@ -2274,6 +2288,7 @@ export default function MastersView({
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+				                              isVendor: newSupplierIsVendor,
 				                              createdBy: 'system',
 				                            });
 			                        fn.then(() => loadAll())
@@ -3816,6 +3831,7 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Phone Number</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Vendor</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 					                </tr>
 					              </thead>
@@ -3828,6 +3844,11 @@ export default function MastersView({
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
+					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+					                      {s.isVendor ? (
+					                        <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
+					                      ) : '-'}
+					                    </td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">
 				                        <button
