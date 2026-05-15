@@ -2556,62 +2556,10 @@ export default function MastersView({
                       </div>
 				      ) : null}
 
-              {tab === 'priorities' ? (
-                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm text-on-surface-variant">Total: {priorities.length}</div>
-                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-                      Add
-                    </button>
-                  </div>
-                  <div className="overflow-auto">
-                    <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
-                      <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-                        <tr>
-                          <th className="text-left px-3 py-2 border border-blue-600">Priority</th>
-                          <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {priorities.map((p) => (
-                          <tr key={p.id}>
-                            <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
-                            <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(p.id)}>
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  title="Delete"
-                                  aria-label="Delete"
-                                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!window.confirm(`Delete priority "${p.name}"?`)) return;
-                                    setBusy(true);
-                                    setError(null);
-                                    deletePriority(p.id, { deletedBy: 'system' })
-                                      .then(() => loadAll())
-                                      .catch(handleMasterError)
-                                      .finally(() => setBusy(false));
-                                  }}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : null}
-
-				      {tab === 'itemCategories' ? (
-		                <div className="space-y-2">
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
+					      {tab === 'itemCategories' ? (
+			                <div className="space-y-2">
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Category</div>
 		                    <input
 		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 		                      value={newItemCategoryName}
@@ -4030,16 +3978,16 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-			      {tab === 'units' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {units.length}</div>
-			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-			              Add
-			            </button>
-			          </div>
-			          <div className="overflow-auto">
-			            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
+				      {tab === 'units' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex items-center justify-between gap-2">
+				            <div className="text-sm text-on-surface-variant">Total: {units.length}</div>
+				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+				              Add
+				            </button>
+				          </div>
+				          <div className="overflow-auto">
+				            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
 			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
 			                <tr>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
@@ -4079,13 +4027,65 @@ export default function MastersView({
 			              </tbody>
 			            </table>
 			          </div>
-			        </div>
-			      ) : null}
+				        </div>
+				      ) : null}
 
-			      {tab === 'itemCategories' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {itemCategories.length}</div>
+              {tab === 'priorities' ? (
+                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm text-on-surface-variant">Total: {priorities.length}</div>
+                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+                      Add
+                    </button>
+                  </div>
+                  <div className="overflow-auto">
+                    <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
+                      <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+                        <tr>
+                          <th className="text-left px-3 py-2 border border-blue-600">Priority</th>
+                          <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {priorities.map((p) => (
+                          <tr key={p.id}>
+                            <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
+                            <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(p.id)}>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete"
+                                  aria-label="Delete"
+                                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+                                  onClick={() => {
+                                    if (!window.confirm(`Delete priority "${p.name}"?`)) return;
+                                    setBusy(true);
+                                    setError(null);
+                                    deletePriority(p.id, { deletedBy: 'system' })
+                                      .then(() => loadAll())
+                                      .catch(handleMasterError)
+                                      .finally(() => setBusy(false));
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+	
+				      {tab === 'itemCategories' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex items-center justify-between gap-2">
+				            <div className="text-sm text-on-surface-variant">Total: {itemCategories.length}</div>
 			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
 			              Add
 			            </button>
