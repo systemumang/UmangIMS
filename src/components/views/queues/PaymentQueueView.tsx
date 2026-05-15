@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchGrnInvoiceLinkSummary, updateInvoicePayment, type GrnInvoiceLinkSummaryRow } from '@/src/lib/purchaseRequests';
 import { fetchQueuePayment, updateQueueTallyEntry, type PaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { fetchOperationsInvoiceDetail } from '@/src/lib/operations';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
@@ -88,6 +89,8 @@ export default function PaymentQueueView({
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [tallyDateInput, setTallyDateInput] = useState('');
+  const [invoiceDetail, setInvoiceDetail] = useState<any>(null);
+  const [invoiceDetailLoading, setInvoiceDetailLoading] = useState(false);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   const [expandedLines, setExpandedLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
@@ -103,6 +106,8 @@ export default function PaymentQueueView({
     setModalLoading(false);
     setSaving(false);
     setModalError(null);
+    setInvoiceDetail(null);
+    setInvoiceDetailLoading(false);
   }
 
   useEffect(() => {
@@ -137,6 +142,18 @@ export default function PaymentQueueView({
       .finally(() => setModalLoading(false));
     return () => ac.abort();
   }, [active, modalOpen]);
+
+  useEffect(() => {
+    if (!modalOpen || !active || mode !== 'tally') return;
+    const ac = new AbortController();
+    setInvoiceDetailLoading(true);
+    setInvoiceDetail(null);
+    fetchOperationsInvoiceDetail(active.invoiceId, ac.signal)
+      .then((d) => setInvoiceDetail(d))
+      .catch(() => setInvoiceDetail(null))
+      .finally(() => setInvoiceDetailLoading(false));
+    return () => ac.abort();
+  }, [active, modalOpen, mode]);
 
 	  return (
 	    <div className="space-y-6">
@@ -302,13 +319,70 @@ export default function PaymentQueueView({
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
         {mode === 'tally' ? (
-          <div className="max-w-md space-y-2">
-            <div className="text-sm text-on-surface-variant">Invoice: {active?.invoiceNo ?? '-'}</div>
-            <div className="text-sm text-on-surface-variant">PO: {formatPoNumber(active?.poNumber ?? active?.poId) || '-'}</div>
-            <label className="space-y-1 block">
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div><span className="font-semibold">Invoice:</span> {active?.invoiceNo ?? '-'}</div>
+              <div><span className="font-semibold">PO:</span> {formatPoNumber(active?.poNumber ?? active?.poId) || '-'}</div>
+              <div><span className="font-semibold">Date:</span> {active?.invoiceDate ? formatDateDDMMYYYYOnly(active.invoiceDate) : '-'}</div>
+              <div><span className="font-semibold">Supplier:</span> {active?.supplierName || '-'}</div>
+              <div><span className="font-semibold">Amount:</span> {Number(active?.invoiceAmount ?? 0).toFixed(2)}</div>
+              <div>
+                <span className="font-semibold">Invoice PDF:</span>{' '}
+                {invoiceDetail?.invoice?.invoice?.documentUrl ? (
+                  <a
+                    href={String(invoiceDetail.invoice.invoice.documentUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    View PDF
+                  </a>
+                ) : (
+                  '-'
+                )}
+              </div>
+            </div>
+            <label className="space-y-1 block max-w-md">
               <div className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Tally Entry Date</div>
               <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyDateInput} onChange={(e) => setTallyDateInput(e.target.value)} />
             </label>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] table-fixed text-left border-collapse border border-outline-variant">
+                <colgroup>
+                  <col className="w-[420px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[140px]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-primary text-on-primary">
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Qty</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoiceDetailLoading ? (
+                    <tr>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>Loading invoice details...</td>
+                    </tr>
+                  ) : (invoiceDetail?.invoice?.items?.length ?? 0) > 0 ? (
+                    (invoiceDetail.invoice.items as any[]).map((it: any, idx: number) => (
+                      <tr key={String(it.id ?? idx)}>
+                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+                          {Number(lines.find((x) => String(x.itemId) === String(it.itemId))?.linkedQty ?? 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>No invoice items found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
