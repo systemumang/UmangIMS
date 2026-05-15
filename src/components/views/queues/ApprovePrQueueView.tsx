@@ -7,6 +7,7 @@ import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { fetchInventorySheet } from '@/src/lib/inventory';
 
 function isUuidLike(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value ?? '').trim());
@@ -73,6 +74,11 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [expandedPrId, setExpandedPrId] = useState<string | null>(null);
+  const [expandedItems, setExpandedItems] = useState<PurchaseRequestDetail['items']>([]);
+  const [expandedStockByItemId, setExpandedStockByItemId] = useState<Record<string, number>>({});
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [modalStockByItemId, setModalStockByItemId] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const ac = new AbortController();
@@ -129,12 +135,21 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
     const ac = new AbortController();
     setActiveDetail(null);
     setModalError(null);
+    setModalStockByItemId({});
     fetchRequest(activePrId, ac.signal)
-      .then((d) => {
+      .then(async (d) => {
         setActiveDetail(d);
         const next: Record<string, string> = {};
         for (const it of d.items) next[it.id] = String(it.quantity ?? 0);
         setQtyByItemId(next);
+        const invRows = await fetchInventorySheet(String(d.pr.firmId ?? ''), undefined, ac.signal, { includeEmpty: true });
+        const byItem: Record<string, number> = {};
+        for (const row of invRows ?? []) {
+          const itemId = String((row as any).itemId ?? '').trim();
+          if (!itemId) continue;
+          byItem[itemId] = (byItem[itemId] ?? 0) + Number((row as any).balance ?? 0);
+        }
+        setModalStockByItemId(byItem);
       })
       .catch((e) => {
         if (ac.signal.aborted) return;
@@ -142,6 +157,35 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
       });
     return () => ac.abort();
   }, [activePrId, modalOpen]);
+
+  useEffect(() => {
+    if (!expandedPrId) {
+      setExpandedItems([]);
+      setExpandedStockByItemId({});
+      return;
+    }
+    const ac = new AbortController();
+    setExpandedLoading(true);
+    fetchRequest(expandedPrId, ac.signal)
+      .then(async (d) => {
+        setExpandedItems(d.items ?? []);
+        const invRows = await fetchInventorySheet(String(d.pr.firmId ?? ''), undefined, ac.signal, { includeEmpty: true });
+        const byItem: Record<string, number> = {};
+        for (const row of invRows ?? []) {
+          const itemId = String((row as any).itemId ?? '').trim();
+          if (!itemId) continue;
+          byItem[itemId] = (byItem[itemId] ?? 0) + Number((row as any).balance ?? 0);
+        }
+        setExpandedStockByItemId(byItem);
+      })
+      .catch(() => {
+        if (ac.signal.aborted) return;
+        setExpandedItems([]);
+        setExpandedStockByItemId({});
+      })
+      .finally(() => setExpandedLoading(false));
+    return () => ac.abort();
+  }, [expandedPrId]);
 
   function closeModal() {
     setModalOpen(false);
@@ -199,17 +243,21 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
               </thead>
               <tbody>
                 {pagedRows.length ? (
-	                  pagedRows.map((r) => (
-	                    <tr key={r.prId}>
-	                    <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+                  pagedRows.map((r) => (
+                    <React.Fragment key={r.prId}>
+                    <tr
+                      className="cursor-pointer hover:bg-surface-container-low/50"
+                      onClick={() => setExpandedPrId((prev) => (prev === r.prId ? null : r.prId))}
+                    >
+                    <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestType ?? '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
-		                      <td className="px-3 py-2 border border-outline-variant">
-	                        <div className="flex items-center gap-2 flex-wrap">
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
 	                          <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
 	                            View PR
                           </button>
@@ -237,9 +285,49 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                          </button>
 	                        </div>
 	                      </td>
-	                    </tr>
-	                  ))
-	                ) : (
+                    </tr>
+                    {expandedPrId === r.prId ? (
+                      <tr>
+                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={8}>
+                          {expandedLoading ? (
+                            <div className="text-sm text-on-surface-variant">Loading items...</div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[760px] table-fixed text-left border-collapse border border-outline-variant">
+                                <colgroup>
+                                  <col className="w-[520px]" />
+                                  <col className="w-[120px]" />
+                                  <col className="w-[120px]" />
+                                </colgroup>
+                                <thead>
+                                  <tr className="bg-surface-container-high">
+                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {expandedItems.map((it) => (
+                                    <tr key={it.id}>
+                                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+                                        {formatItemWithSpecification(it.item, it.specification, specNameById)}
+                                      </td>
+                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                        {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ) : null}
+                    </React.Fragment>
+                  ))
+                ) : (
 	                  <tr>
 	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
 	                      No records.
@@ -354,27 +442,32 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
               <div className="text-sm text-on-surface-variant">Loading items...</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant">
-	                  <colgroup>
-	                    <col className="w-[540px]" />
-	                    <col className="w-[160px]" />
-	                    <col className="w-[160px]" />
-	                  </colgroup>
-                  <thead>
-                    <tr className="bg-surface-container-high">
-                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
-                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
-	                    </tr>
-                  </thead>
+	                <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant">
+		                  <colgroup>
+		                    <col className="w-[460px]" />
+		                    <col className="w-[130px]" />
+		                    <col className="w-[130px]" />
+		                    <col className="w-[140px]" />
+		                  </colgroup>
+	                  <thead>
+	                    <tr className="bg-surface-container-high">
+	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
+		                    </tr>
+	                  </thead>
 	                  <tbody>
 	                    {activeDetail.items.map((it) => (
 	                      <tr key={it.id}>
 		                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
 		                          {formatItemWithSpecification(it.item, it.specification, specNameById)}
 		                        </td>
-	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">
+		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
+		                        </td>
+		                        <td className="px-3 py-2 border border-outline-variant">
 	                          <input
 	                            className={cn(inputClass, 'py-1.5')}
                             value={qtyByItemId[it.id] ?? ''}
