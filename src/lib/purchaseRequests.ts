@@ -59,6 +59,7 @@ export type Po = {
   sentDate?: string | null;
   sentProof?: string | null;
   advanceAmount?: number;
+  advanceDate?: string | null;
   cancelReason?: string | null;
   cancelledBy?: string | null;
   cancelledAt?: string | null;
@@ -308,6 +309,7 @@ export async function createPo(
     supplier: string;
     paymentTerms: string;
     advanceAmount?: number;
+    advanceDate?: string | null;
     shippingAddress?: string;
     termsConditions?: string;
     items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
@@ -328,6 +330,7 @@ export async function createDirectPo(input: {
   supplierId: string;
   paymentTerms: string;
   advanceAmount?: number;
+  advanceDate?: string | null;
   shippingAddress?: string;
   termsConditions?: string;
   items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
@@ -634,6 +637,7 @@ export async function updatePo(
     termsConditions?: string;
     status?: 'Open' | 'Partial' | 'Closed';
     advanceAmount?: number;
+    advanceDate?: string | null;
     cancelReason?: string;
     items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
     lineCancels?: Array<{ itemId: string; cancelledQty: number; cancelReason?: string }>;

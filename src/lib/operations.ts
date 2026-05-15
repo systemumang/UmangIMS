@@ -85,11 +85,19 @@ export type OperationsPoListRow = {
   supplierId: string;
   supplierName: string;
   orderDate?: string | null;
+  advanceDate?: string | null;
   createdAt: string;
   status: 'Open' | 'Partial' | 'Closed';
   itemCount: number;
   totalAmount: number;
   advanceAmount?: number;
+};
+
+export type PoAdvanceRow = {
+  id: string;
+  poId: string;
+  advanceDate: string;
+  advanceAmount: number;
 };
 
 export type OperationsGrnListRow = {
@@ -205,6 +213,27 @@ export async function fetchOperationsPoDetail(poId: string, signal?: AbortSignal
   const data = await requireOk<{ detail?: any }>(res, 'Failed to load PO detail');
   if (!data.detail) throw new Error('PO detail not found');
   return data.detail;
+}
+
+export async function fetchPoAdvances(poId: string, signal?: AbortSignal): Promise<PoAdvanceRow[]> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advances`, { signal });
+  const data = await requireOk<{ advances?: PoAdvanceRow[] }>(res, 'Failed to load PO advances');
+  return Array.isArray(data.advances) ? data.advances : [];
+}
+
+export async function updatePoAdvances(
+  poId: string,
+  advances: Array<{ id?: string; advanceDate: string; advanceAmount: number }>
+): Promise<{ ok: boolean; advances: PoAdvanceRow[]; summary: { advanceAmount: number; advanceDate: string | null } }> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advances`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ advances }),
+  });
+  return requireOk<{ ok: boolean; advances: PoAdvanceRow[]; summary: { advanceAmount: number; advanceDate: string | null } }>(
+    res,
+    'Failed to update PO advances'
+  );
 }
 
 export async function fetchOperationsGrnDetail(grnId: string, signal?: AbortSignal): Promise<any> {

@@ -75,25 +75,27 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [advanceBySupplierId, setAdvanceBySupplierId] = useState<Record<string, string>>({});
-  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
+	  const [modalLoading, setModalLoading] = useState(false);
+	  const [advanceBySupplierId, setAdvanceBySupplierId] = useState<Record<string, string>>({});
+	  const [advanceDateBySupplierId, setAdvanceDateBySupplierId] = useState<Record<string, string>>({});
+	  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const supplierOptions = useMemo(
     () => masters.suppliers.map((s) => ({ value: s.id, label: s.name })),
     [masters.suppliers]
   );
 
-  function closeModal() {
-    setModalOpen(false);
-    setActivePrId(null);
-    setLines([]);
-    setModalError(null);
-    setSaving(false);
-    setModalLoading(false);
-    setAdvanceBySupplierId({});
-    setAvailableStockByItemId({});
-  }
+	  function closeModal() {
+	    setModalOpen(false);
+	    setActivePrId(null);
+	    setLines([]);
+	    setModalError(null);
+	    setSaving(false);
+	    setModalLoading(false);
+	    setAdvanceBySupplierId({});
+	    setAdvanceDateBySupplierId({});
+	    setAvailableStockByItemId({});
+	  }
 
   useEffect(() => {
     if (!modalOpen || !activePrId) return;
@@ -338,17 +340,20 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                setModalError(null);
 		                Promise.resolve()
 		                  .then(async () => {
-		                    for (const [, g] of groups.entries()) {
-		                      const advRaw = String(advanceBySupplierId[g.supplierId] ?? '').trim();
-		                      const adv = advRaw ? Number(advRaw) : 0;
-		                      await createPo(activePrId, {
-		                        supplier: g.supplierName,
-		                        paymentTerms: g.paymentTerms,
-		                        advanceAmount: Number.isFinite(adv) && adv > 0 ? adv : 0,
-		                        items: g.items,
-		                      });
-		                    }
-		                  })
+			                    for (const [, g] of groups.entries()) {
+			                      const advRaw = String(advanceBySupplierId[g.supplierId] ?? '').trim();
+			                      const adv = advRaw ? Number(advRaw) : 0;
+			                      const advDateRaw = String(advanceDateBySupplierId[g.supplierId] ?? '').trim();
+			                      const advDate = adv > 0 ? (advDateRaw || new Date().toISOString().slice(0, 10)) : null;
+			                      await createPo(activePrId, {
+			                        supplier: g.supplierName,
+			                        paymentTerms: g.paymentTerms,
+			                        advanceAmount: Number.isFinite(adv) && adv > 0 ? adv : 0,
+			                        advanceDate: advDate,
+			                        items: g.items,
+			                      });
+			                    }
+			                  })
 	                  .then(() => fetchQueueCreatePo(filters).then(setRows))
 	                  .then(() => closeModal())
 	                  .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
@@ -376,30 +381,44 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                   </div>
                 );
               }
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedSupplierIds.map((sid) => {
-                    const supplierName = String(masters.suppliers.find((s) => s.id === sid)?.name ?? sid);
-                    return (
-                      <label key={sid} className="space-y-1">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance - {supplierName}</div>
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={advanceBySupplierId[sid] ?? ''}
-                          onChange={(e) =>
-                            setAdvanceBySupplierId((prev) => ({
-                              ...prev,
-                              [sid]: sanitizeDecimalInput(e.target.value),
-                            }))
-                          }
-                          placeholder="0"
-                          inputMode="decimal"
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-              );
+	              return (
+	                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+	                  {selectedSupplierIds.map((sid) => {
+	                    const supplierName = String(masters.suppliers.find((s) => s.id === sid)?.name ?? sid);
+	                    const today = new Date().toISOString().slice(0, 10);
+	                    return (
+	                      <label key={sid} className="space-y-1">
+	                        <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance - {supplierName}</div>
+	                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+	                          <input
+	                            className={cn(inputClass, 'py-1.5')}
+	                            value={advanceBySupplierId[sid] ?? ''}
+	                            onChange={(e) =>
+	                              setAdvanceBySupplierId((prev) => ({
+	                                ...prev,
+	                                [sid]: sanitizeDecimalInput(e.target.value),
+	                              }))
+	                            }
+	                            placeholder="0"
+	                            inputMode="decimal"
+	                          />
+	                          <input
+	                            type="date"
+	                            className={cn(inputClass, 'py-1.5')}
+	                            value={advanceDateBySupplierId[sid] ?? today}
+	                            onChange={(e) =>
+	                              setAdvanceDateBySupplierId((prev) => ({
+	                                ...prev,
+	                                [sid]: String(e.target.value ?? '').slice(0, 10),
+	                              }))
+	                            }
+	                          />
+	                        </div>
+	                      </label>
+	                    );
+	                  })}
+	                </div>
+	              );
             })()}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-outline-variant">

@@ -174,12 +174,26 @@ function getMysqlPool() {
       };
 
       await ensureColumn('purchase_orders', 'advance_amount', 'DOUBLE NOT NULL DEFAULT 0');
+      await ensureColumn('purchase_orders', 'advance_date', 'DATE NULL');
       await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
       await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
 
       await ensureColumn('purchase_order_items', 'cancelled_qty', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('purchase_order_items', 'cancel_reason', 'TEXT NULL');
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS po_advances (
+          id VARCHAR(255) PRIMARY KEY,
+          po_id VARCHAR(255) NOT NULL,
+          advance_date DATE NOT NULL,
+          advance_amount DOUBLE NOT NULL DEFAULT 0,
+          created_by VARCHAR(255) NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
@@ -437,6 +451,28 @@ function toIsoDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+async function syncPoAdvanceSummary(db, poId) {
+  const [sumRows] = await db.query(
+    `
+    SELECT
+      COALESCE(SUM(advance_amount), 0) AS totalAdvanceAmount,
+      MAX(advance_date) AS lastAdvanceDate
+    FROM po_advances
+    WHERE po_id = ?
+    `,
+    [poId]
+  );
+  const row = Array.isArray(sumRows) && sumRows.length ? sumRows[0] : null;
+  const totalAdvanceAmount = Number(row?.totalAdvanceAmount ?? 0);
+  const lastAdvanceDate = toIsoDate(row?.lastAdvanceDate) || null;
+  await db.query('UPDATE purchase_orders SET advance_amount = ?, advance_date = ?, updated_at = NOW() WHERE id = ?', [
+    totalAdvanceAmount,
+    lastAdvanceDate,
+    poId,
+  ]);
+  return { advanceAmount: totalAdvanceAmount, advanceDate: lastAdvanceDate };
 }
 
 function mapPrStatus(status) {
@@ -2467,6 +2503,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       po.shipping_address AS shippingAddress,
       po.terms_conditions AS termsConditions,
       po.advance_amount AS advanceAmount,
+      po.advance_date AS advanceDate,
       po.cancel_reason AS cancelReason,
       po.cancelled_by AS cancelledBy,
       po.cancelled_at AS cancelledAt,
@@ -2520,6 +2557,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     shippingAddress: poRow.shippingAddress != null ? String(poRow.shippingAddress) : undefined,
     termsConditions: poRow.termsConditions != null ? String(poRow.termsConditions) : undefined,
     advanceAmount: Number(poRow.advanceAmount ?? 0),
+    advanceDate: toIsoDate(poRow.advanceDate) || null,
     cancelReason: poRow.cancelReason != null ? String(poRow.cancelReason) : null,
     cancelledBy: poRow.cancelledBy != null ? String(poRow.cancelledBy) : null,
     cancelledAt: toIsoDateTime(poRow.cancelledAt) || null,
@@ -3055,6 +3093,7 @@ app.get('/api/operations/pos', async (req, res) => {
         po.supplier_id AS supplierId,
         s.name AS supplierName,
         po.order_date AS orderDate,
+        po.advance_date AS advanceDate,
         po.created_at AS createdAt,
         po.status AS status,
         po.advance_amount AS advanceAmount,
@@ -3094,6 +3133,7 @@ app.get('/api/operations/pos', async (req, res) => {
         itemCount: Number(r.itemCount ?? 0),
         totalAmount: Number(r.totalAmount ?? 0),
         advanceAmount: Number(r.advanceAmount ?? 0),
+        advanceDate: toIsoDate(r.advanceDate) || null,
       };
     });
     if (status) out = out.filter((x) => x.status === status);
@@ -3502,34 +3542,35 @@ app.get('/api/requests/:id/pos', async (req, res) => {
     const prId = String(req.params.id ?? '').trim();
     if (!prId) return res.status(400).json({ error: 'id is required' });
 
-    const [poRows] = await pool.query(
-      `
-      SELECT
-        po.id AS id,
-        po.pr_id AS prId,
-        po.firm_id AS firmId,
-        po.supplier_id AS supplierId,
-        sup.name AS supplier,
-        po.po_number AS poNumber,
-        po.status AS status,
-        po.order_date AS orderDate,
-        po.payment_terms AS paymentTerms,
-        po.shipping_address AS shippingAddress,
-        po.terms_conditions AS termsConditions,
-        po.check_po AS checkPo,
-        po.check_po_user_id AS checkPoUserId,
-        po.check_date AS checkDate,
-        po.sent_by AS sentBy,
-        po.sent_date AS sentDate,
-        po.sent_proof AS sentProof,
-        po.advance_amount AS advanceAmount,
-        po.cancel_reason AS cancelReason,
-        po.cancelled_by AS cancelledBy,
-        po.cancelled_at AS cancelledAt,
-        po.created_by AS createdBy,
-        po.created_at AS createdAt
-      FROM purchase_orders po
-      LEFT JOIN suppliers sup ON sup.id = po.supplier_id
+	    const [poRows] = await pool.query(
+	      `
+	      SELECT
+	        po.id AS id,
+	        po.pr_id AS prId,
+	        po.firm_id AS firmId,
+	        po.supplier_id AS supplierId,
+	        sup.name AS supplier,
+	        po.po_number AS poNumber,
+	        po.status AS status,
+	        po.order_date AS orderDate,
+	        po.payment_terms AS paymentTerms,
+	        po.shipping_address AS shippingAddress,
+	        po.terms_conditions AS termsConditions,
+	        po.check_po AS checkPo,
+	        po.check_po_user_id AS checkPoUserId,
+	        po.check_date AS checkDate,
+	        po.sent_by AS sentBy,
+	        po.sent_date AS sentDate,
+	        po.sent_proof AS sentProof,
+	        po.advance_amount AS advanceAmount,
+	        po.advance_date AS advanceDate,
+	        po.cancel_reason AS cancelReason,
+	        po.cancelled_by AS cancelledBy,
+	        po.cancelled_at AS cancelledAt,
+	        po.created_by AS createdBy,
+	        po.created_at AS createdAt
+	      FROM purchase_orders po
+	      LEFT JOIN suppliers sup ON sup.id = po.supplier_id
       WHERE po.pr_id = ?
       ORDER BY po.created_at ASC
       `,
@@ -3611,13 +3652,14 @@ app.get('/api/requests/:id/pos', async (req, res) => {
 	          sentBy: r.sentBy != null ? String(r.sentBy) : null,
 	          sentDate: toIsoDate(r.sentDate) || null,
 	          sentProof: r.sentProof != null ? String(r.sentProof) : null,
-            advanceAmount: Number(r.advanceAmount ?? 0),
-            cancelReason: r.cancelReason != null ? String(r.cancelReason) : null,
-            cancelledBy: r.cancelledBy != null ? String(r.cancelledBy) : null,
-            cancelledAt: toIsoDateTime(r.cancelledAt) || null,
-	        },
-        items: itemsByPoId.get(poId) ?? [],
-      };
+	            advanceAmount: Number(r.advanceAmount ?? 0),
+	            advanceDate: toIsoDate(r.advanceDate) || null,
+	            cancelReason: r.cancelReason != null ? String(r.cancelReason) : null,
+	            cancelledBy: r.cancelledBy != null ? String(r.cancelledBy) : null,
+	            cancelledAt: toIsoDateTime(r.cancelledAt) || null,
+		        },
+	        items: itemsByPoId.get(poId) ?? [],
+	      };
     });
 
     res.json({ pos });
@@ -4268,6 +4310,11 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    const supplierName = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
       const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
+      const advanceDateInput = req.body?.advanceDate;
+      const normalizedAdvanceDateInput =
+        advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
+      const autoAdvanceDate = new Date().toISOString().slice(0, 10);
+      const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
 	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
 	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
 	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -4292,9 +4339,9 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    await pool.query(
 	      `
 	      INSERT INTO purchase_orders
-	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
 	      VALUES
-	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
 	      `,
 	      [
 	        poId,
@@ -4303,14 +4350,24 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	        String(prRow.storeId),
 	        prRow.projectId ? String(prRow.projectId) : null,
 	        supplierId,
-		        prId,
-		        paymentTerms,
-            advanceAmount,
-		        'system',
+	        prId,
+	        paymentTerms,
+	        advanceAmount,
+          advanceDate,
+	        'system',
 	        shippingAddress,
 	        termsConditions,
 	      ]
 	    );
+	    if (advanceAmount > 0 && advanceDate) {
+	      await pool.query(
+	        `
+	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
+	        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+	        `,
+	        [crypto.randomUUID(), poId, advanceDate, advanceAmount, 'system']
+	      );
+	    }
 
 	    const outItems = [];
 	    for (const row of items) {
@@ -4486,13 +4543,19 @@ app.post('/api/pos', async (req, res) => {
 
     const firmId = String(req.body?.firmId ?? '').trim();
     const storeId = String(req.body?.storeId ?? '').trim();
-    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
-    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
-    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
-    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
-    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
-    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+	    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
+	    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
+	    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
+	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+	    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
+	    const advanceDateInput = req.body?.advanceDate;
+	    const normalizedAdvanceDateInput =
+	      advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
+	    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
+	    const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
+	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
     if (!firmId) return res.status(400).json({ error: 'firmId is required' });
     if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
@@ -4556,28 +4619,38 @@ app.post('/api/pos', async (req, res) => {
       ]
     );
 
-    await pool.query(
-      `
-	      INSERT INTO purchase_orders
-	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-	      VALUES
-	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
-      `,
-      [
-        poId,
-        poNumber,
-        firmId,
-        effectiveStoreId,
-        projectId ? projectId : null,
-        supplierId,
-	        directPrId,
-	        paymentTerms,
-          advanceAmount,
-	        'system',
-        shippingAddress,
-        termsConditions,
-      ]
-    );
+	    await pool.query(
+	      `
+		      INSERT INTO purchase_orders
+		        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+		      VALUES
+		        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+	      `,
+	      [
+	        poId,
+	        poNumber,
+	        firmId,
+	        effectiveStoreId,
+	        projectId ? projectId : null,
+	        supplierId,
+		        directPrId,
+		        paymentTerms,
+	          advanceAmount,
+	          advanceDate,
+		        'system',
+	        shippingAddress,
+	        termsConditions,
+	      ]
+	    );
+	    if (advanceAmount > 0 && advanceDate) {
+	      await pool.query(
+	        `
+	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
+	        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+	        `,
+	        [crypto.randomUUID(), poId, advanceDate, advanceAmount, 'system']
+	      );
+	    }
 
     const outItems = [];
     for (const row of items) {
@@ -4665,28 +4738,158 @@ app.post('/api/pos', async (req, res) => {
     }
 
     res.status(201).json({
-      po: {
-        po: {
-          id: poId,
-          poNumber,
-          prId: directPrId,
-          firmId,
-          orderDate: new Date().toISOString().slice(0, 10),
-          createdBy: 'system',
-          supplierId,
-          supplier: supplierName,
-	          paymentTerms,
-            advanceAmount,
-          shippingAddress: shippingAddress || undefined,
-          termsConditions: termsConditions || undefined,
-          status: 'Open',
-          createdAt: new Date().toISOString(),
-        },
-        items: outItems,
+	      po: {
+	        po: {
+	          id: poId,
+	          poNumber,
+	          prId: directPrId,
+	          firmId,
+	          orderDate: new Date().toISOString().slice(0, 10),
+	          createdBy: 'system',
+	          supplierId,
+	          supplier: supplierName,
+		          paymentTerms,
+	            advanceAmount,
+            advanceDate,
+	          shippingAddress: shippingAddress || undefined,
+	          termsConditions: termsConditions || undefined,
+	          status: 'Open',
+	          createdAt: new Date().toISOString(),
+	        },
+	        items: outItems,
       },
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/pos/:id/advances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [[poRow]] = await pool.query(
+      'SELECT id, advance_amount AS advanceAmount, advance_date AS advanceDate, order_date AS orderDate FROM purchase_orders WHERE id = ? LIMIT 1',
+      [poId]
+    );
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        po_id AS poId,
+        advance_date AS advanceDate,
+        advance_amount AS advanceAmount
+      FROM po_advances
+      WHERE po_id = ?
+      ORDER BY advance_date ASC, created_at ASC
+      `,
+      [poId]
+    );
+
+    let advances = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      poId: String(r.poId ?? poId),
+      advanceDate: toIsoDate(r.advanceDate) || '',
+      advanceAmount: Number(r.advanceAmount ?? 0),
+    }));
+
+    if (!advances.length && Number(poRow.advanceAmount ?? 0) > 0) {
+      advances = [
+        {
+          id: `legacy-${poId}`,
+          poId,
+          advanceDate: toIsoDate(poRow.advanceDate) || toIsoDate(poRow.orderDate) || new Date().toISOString().slice(0, 10),
+          advanceAmount: Number(poRow.advanceAmount ?? 0),
+        },
+      ];
+    }
+
+    res.json({ advances });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/pos/:id/advances', async (req, res) => {
+  let conn;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const input = Array.isArray(req.body?.advances) ? req.body.advances : [];
+    const normalized = [];
+    for (const raw of input) {
+      const advanceDate = toIsoDate(String(raw?.advanceDate ?? '').trim());
+      const advanceAmount = Math.max(0, num(raw?.advanceAmount, 0));
+      if (!advanceDate) continue;
+      if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) continue;
+      normalized.push({
+        id: String(raw?.id ?? '').trim(),
+        advanceDate,
+        advanceAmount,
+      });
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[poRow]] = await conn.query('SELECT id FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+    if (!poRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'PO not found' });
+    }
+
+    await conn.query('DELETE FROM po_advances WHERE po_id = ?', [poId]);
+    for (const row of normalized) {
+      await conn.query(
+        `
+        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [row.id || crypto.randomUUID(), poId, row.advanceDate, row.advanceAmount, 'Purchase Team']
+      );
+    }
+
+    const summary = await syncPoAdvanceSummary(conn, poId);
+    await conn.commit();
+
+    const [savedRows] = await pool.query(
+      `
+      SELECT
+        id,
+        po_id AS poId,
+        advance_date AS advanceDate,
+        advance_amount AS advanceAmount
+      FROM po_advances
+      WHERE po_id = ?
+      ORDER BY advance_date ASC, created_at ASC
+      `,
+      [poId]
+    );
+    const advances = (Array.isArray(savedRows) ? savedRows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      poId: String(r.poId ?? poId),
+      advanceDate: toIsoDate(r.advanceDate) || '',
+      advanceAmount: Number(r.advanceAmount ?? 0),
+    }));
+
+    res.json({ ok: true, advances, summary });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
   }
 });
 
@@ -4697,7 +4900,10 @@ app.put('/api/pos/:id', async (req, res) => {
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'id is required' });
 
-    const [[poRow]] = await pool.query('SELECT id, status, advance_amount AS advanceAmount FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+    const [[poRow]] = await pool.query(
+      'SELECT id, status, advance_amount AS advanceAmount, advance_date AS advanceDate FROM purchase_orders WHERE id = ? LIMIT 1',
+      [poId]
+    );
     if (!poRow) return res.status(404).json({ error: 'PO not found' });
 
     const supplierId = req.body?.supplierId != null ? String(req.body.supplierId).trim() : '';
@@ -4708,6 +4914,13 @@ app.put('/api/pos/:id', async (req, res) => {
     const statusInput = String(req.body?.status ?? '').trim().toLowerCase();
     const cancelReason = req.body?.cancelReason != null ? String(req.body.cancelReason).trim() : '';
     const advanceAmount = Math.max(0, num(req.body?.advanceAmount, Number(poRow.advanceAmount ?? 0)));
+    const advanceDateInput = req.body?.advanceDate;
+    const normalizedAdvanceDateInput =
+      advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
+    const existingAdvanceDate = toIsoDate(poRow.advanceDate) || null;
+    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
+    const advanceDate =
+      advanceAmount > 0 ? (normalizedAdvanceDateInput ?? existingAdvanceDate ?? autoAdvanceDate) : null;
     const lineCancels = Array.isArray(req.body?.lineCancels) ? req.body.lineCancels : [];
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
@@ -4731,6 +4944,7 @@ app.put('/api/pos/:id', async (req, res) => {
           terms_conditions = ?,
           status = ?,
           advance_amount = ?,
+          advance_date = ?,
           cancel_reason = ?,
           cancelled_by = ?,
           cancelled_at = ?,
@@ -4745,6 +4959,7 @@ app.put('/api/pos/:id', async (req, res) => {
         termsConditions,
         finalStatus,
         advanceAmount,
+        advanceDate,
         cancelReason || null,
         cancelReason ? updatedBy : null,
         cancelReason ? new Date() : null,

@@ -1,27 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { CircleDollarSign, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
+import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import {
-			  fetchOperationsGrnDetail,
-			  fetchOperationsGrns,
-			  fetchOperationsInvoiceDetail,
+				  fetchOperationsGrnDetail,
+				  fetchOperationsGrns,
+				  fetchOperationsInvoiceDetail,
 	  fetchOperationsInvoices,
 	  fetchOperationsPaymentDetail,
 	  fetchOperationsPayments,
-	  fetchOperationsPoDetail,
-	  fetchOperationsPos,
-	  fetchOperationsPrDetail,
-	  fetchOperationsPrs,
-	  type OperationsFilters,
-	  type OperationsGrnListRow,
-	  type OperationsInvoiceListRow,
-	  type OperationsPaymentListRow,
-	  type OperationsPoListRow,
-  type OperationsPrListRow,
+		  fetchOperationsPoDetail,
+		  fetchPoAdvances,
+		  fetchOperationsPos,
+		  fetchOperationsPrDetail,
+		  fetchOperationsPrs,
+		  updatePoAdvances,
+		  type OperationsFilters,
+		  type OperationsGrnListRow,
+		  type OperationsInvoiceListRow,
+		  type OperationsPaymentListRow,
+		  type OperationsPoListRow,
+	  type PoAdvanceRow,
+	  type OperationsPrListRow,
 } from '@/src/lib/operations';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
@@ -99,6 +104,12 @@ export default function OperationsView({
   const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
   const [inlinePoLoadingById, setInlinePoLoadingById] = useState<Record<string, boolean>>({});
   const [inlinePoErrorById, setInlinePoErrorById] = useState<Record<string, string>>({});
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
+  const [advanceModalBusy, setAdvanceModalBusy] = useState(false);
+  const [advanceModalError, setAdvanceModalError] = useState<string | null>(null);
+  const [advanceModalPoId, setAdvanceModalPoId] = useState('');
+  const [advanceModalPoNumber, setAdvanceModalPoNumber] = useState('');
+  const [advanceLines, setAdvanceLines] = useState<Array<{ id?: string; advanceDate: string; advanceAmount: string }>>([]);
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {
@@ -378,7 +389,7 @@ export default function OperationsView({
 	    });
 	  };
 
-	  const SortTh = ({ label, colKey }: { label: string; colKey: string }) => {
+		  const SortTh = ({ label, colKey }: { label: string; colKey: string }) => {
 	    const active = sort.key === colKey;
     const arrow = active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
 	    return (
@@ -396,7 +407,71 @@ export default function OperationsView({
 	        </button>
 	      </th>
 	    );
-	  };
+		  };
+
+  const openAdvanceModal = async (row: OperationsPoListRow) => {
+    const poId = String(row.poId ?? '').trim();
+    if (!poId) return;
+    setAdvanceModalPoId(poId);
+    setAdvanceModalPoNumber(String(row.poNumber ?? poId));
+    setAdvanceModalOpen(true);
+    setAdvanceModalBusy(true);
+    setAdvanceModalError(null);
+    try {
+      const list = await fetchPoAdvances(poId);
+      const mapped = (list ?? []).map((x: PoAdvanceRow) => ({
+        id: x.id,
+        advanceDate: String(x.advanceDate ?? '').slice(0, 10),
+        advanceAmount: Number(x.advanceAmount ?? 0).toFixed(2).replace(/\.00$/, ''),
+      }));
+      setAdvanceLines(mapped.length ? mapped : [{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
+    } catch (e) {
+      setAdvanceModalError(e instanceof Error ? e.message : String(e));
+      setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
+    } finally {
+      setAdvanceModalBusy(false);
+    }
+  };
+
+  const closeAdvanceModal = () => {
+    setAdvanceModalOpen(false);
+    setAdvanceModalBusy(false);
+    setAdvanceModalError(null);
+    setAdvanceModalPoId('');
+    setAdvanceModalPoNumber('');
+    setAdvanceLines([]);
+  };
+
+  const saveAdvances = async () => {
+    if (!advanceModalPoId) return;
+    const normalized = advanceLines
+      .map((line) => ({
+        id: String(line.id ?? '').trim() || undefined,
+        advanceDate: String(line.advanceDate ?? '').trim(),
+        advanceAmount: Number(line.advanceAmount ?? 0),
+      }))
+      .filter((line) => line.advanceDate && Number.isFinite(line.advanceAmount) && line.advanceAmount > 0);
+    setAdvanceModalBusy(true);
+    setAdvanceModalError(null);
+    try {
+      const updated = await updatePoAdvances(advanceModalPoId, normalized);
+      setPos((prev) =>
+        prev.map((po) =>
+          po.poId === advanceModalPoId
+            ? {
+                ...po,
+                advanceAmount: Number(updated.summary?.advanceAmount ?? 0),
+                advanceDate: updated.summary?.advanceDate ?? null,
+              }
+            : po
+        )
+      );
+      closeAdvanceModal();
+    } catch (e) {
+      setAdvanceModalError(e instanceof Error ? e.message : String(e));
+      setAdvanceModalBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -508,18 +583,20 @@ export default function OperationsView({
 	                    <SortTh label="Status" colKey="status" />
 	                  </>
 		                ) : tab === 'pos' ? (
-		                  <>
-		                    <SortTh label="PO" colKey="poNumber" />
-		                    <SortTh label="PR" colKey="prNumber" />
-		                    <SortTh label="Firm" colKey="firmName" />
-		                    <SortTh label="Supplier" colKey="supplierName" />
-		                    <SortTh label="Order Date" colKey="orderDate" />
-		                    <SortTh label="Status" colKey="status" />
-			                    <SortTh label="Amount" colKey="totalAmount" />
-			                    <SortTh label="Advance" colKey="advanceAmount" />
-			                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
-		                  </>
-	                ) : tab === 'grns' ? (
+			                  <>
+			                    <SortTh label="PO" colKey="poNumber" />
+			                    <SortTh label="PR" colKey="prNumber" />
+			                    <SortTh label="Firm" colKey="firmName" />
+			                    <SortTh label="Supplier" colKey="supplierName" />
+			                    <SortTh label="Order Date" colKey="orderDate" />
+			                    <SortTh label="Status" colKey="status" />
+				                    <SortTh label="Amount" colKey="totalAmount" />
+				                    <SortTh label="Advance" colKey="advanceAmount" />
+				                    <SortTh label="Adv Date" colKey="advanceDate" />
+				                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
+				                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
+			                  </>
+		                ) : tab === 'grns' ? (
 	                  <>
 	                    <SortTh label="GRN" colKey="grnNumber" />
 	                    <SortTh label="PO" colKey="poNumber" />
@@ -553,19 +630,19 @@ export default function OperationsView({
 	              </tr>
 	            </thead>
             <tbody>
-	              {loading ? (
-	                <tr>
-	                  <td colSpan={tab === 'pos' ? 9 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-	                    Loading...
-	                  </td>
-	                </tr>
-	              ) : !paged.length ? (
-	                <tr>
-	                  <td colSpan={tab === 'pos' ? 9 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-	                    No records.
-	                  </td>
-	                </tr>
-	              ) : (
+		              {loading ? (
+		                <tr>
+		                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+		                    Loading...
+		                  </td>
+		                </tr>
+		              ) : !paged.length ? (
+		                <tr>
+		                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+		                    No records.
+		                  </td>
+		                </tr>
+		              ) : (
                 (paged as any[]).map((r) => {
                   const rowId =
                     tab === 'prs'
@@ -601,23 +678,54 @@ export default function OperationsView({
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-			                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-			                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-			                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-			                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number((r as any).advanceAmount ?? 0).toFixed(2)}</td>
+				                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
+				                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
+				                        <td className="px-3 py-2 border border-outline-variant">{r.advanceDate ? formatDateShort(String(r.advanceDate)) : '-'}</td>
+				                        <td className="px-3 py-2 border border-outline-variant">
+				                          <button
+				                            type="button"
+				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            title="PO PDF"
+				                            aria-label="PO PDF"
+			                            onClick={(e) => {
+			                              e.stopPropagation();
+	                              window.location.href = `/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf?t=${Date.now()}`;
+			                            }}
+			                          >
+				                            <FileText size={16} />
+				                          </button>
+			                        </td>
 			                        <td className="px-3 py-2 border border-outline-variant">
-		                          <button
-		                            type="button"
-		                            className="btn btn-sm"
-		                            onClick={(e) => {
-		                              e.stopPropagation();
-                              window.location.href = `/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf?t=${Date.now()}`;
-		                            }}
-		                          >
-		                            PO PDF
-		                          </button>
-		                        </td>
-		                      </>
+			                          <div className="flex items-center gap-3">
+				                          <button
+				                            type="button"
+				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            title="Advance Entry"
+				                            aria-label="Advance Entry"
+			                            onClick={(e) => {
+			                              e.stopPropagation();
+			                              openAdvanceModal(r as OperationsPoListRow);
+			                            }}
+				                          >
+				                            <CircleDollarSign size={16} />
+				                          </button>
+				                          <button
+				                            type="button"
+				                            className="text-primary hover:text-primary-dim transition-colors"
+				                            title="Edit PR"
+				                            aria-label="Edit PR"
+			                            onClick={(e) => {
+			                              e.stopPropagation();
+			                              if (onViewPr) onViewPr(String((r as any).prId ?? ''));
+			                            }}
+				                          >
+				                            <Pencil size={16} />
+				                          </button>
+			                          </div>
+			                        </td>
+			                      </>
 	                    ) : tab === 'grns' ? (
                       <>
                         <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.grnNumber}</td>
@@ -650,12 +758,12 @@ export default function OperationsView({
                       </>
                     )}
                       </tr>
-                      {tab === 'pos' && isExpanded ? (
-                        <tr>
-	                          <td colSpan={9} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
-                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
-                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
-                            {!detailLoading && !detailError ? (
+	                      {tab === 'pos' && isExpanded ? (
+	                        <tr>
+		                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+	                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
+	                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
+	                            {!detailLoading && !detailError ? (
                               <div className="space-y-2">
                                 <div className="text-xs text-on-surface-variant">
                                   Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
@@ -721,10 +829,86 @@ export default function OperationsView({
         </div>
       </div>
 
-		      <Modal
-		        open={detailOpen}
-		        title={`${TAB_LABEL[detailTab]}: ${detailTitle}`}
-		        onClose={closeDetail}
+      <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} maxWidthClass="max-w-3xl">
+        <div className="space-y-3">
+          {advanceModalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{advanceModalError}</div> : null}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+              <thead>
+                <tr className="bg-surface-container-high">
+                  <th className="px-3 py-2 border border-outline-variant">Advance Date</th>
+                  <th className="px-3 py-2 border border-outline-variant">Advance Amount</th>
+                  <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advanceLines.map((line, idx) => (
+                  <tr key={`${line.id ?? 'new'}-${idx}`}>
+                    <td className="px-3 py-2 border border-outline-variant">
+                      <input
+                        type="date"
+                        className={cn(inputClass, 'py-1.5')}
+                        value={line.advanceDate}
+                        onChange={(e) =>
+                          setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, advanceDate: String(e.target.value ?? '').slice(0, 10) } : x)))
+                        }
+                        disabled={advanceModalBusy}
+                      />
+                    </td>
+                    <td className="px-3 py-2 border border-outline-variant">
+                      <input
+                        className={cn(inputClass, 'py-1.5')}
+                        value={line.advanceAmount}
+                        onChange={(e) =>
+                          setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, advanceAmount: sanitizeDecimalInput(e.target.value) } : x)))
+                        }
+                        inputMode="decimal"
+                        placeholder="0"
+                        disabled={advanceModalBusy}
+                      />
+                    </td>
+                    <td className="px-3 py-2 border border-outline-variant">
+                      <button
+                        type="button"
+                        className="text-error hover:text-error/80 transition-colors"
+                        title="Delete"
+                        aria-label="Delete"
+                        onClick={() => setAdvanceLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)))}
+                        disabled={advanceModalBusy || advanceLines.length <= 1}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setAdvanceLines((prev) => [...prev, { advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }])}
+              disabled={advanceModalBusy}
+            >
+              <Plus size={14} /> Add Row
+            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" className="btn btn-sm" onClick={closeAdvanceModal} disabled={advanceModalBusy}>
+                Close
+              </button>
+              <button type="button" className="btn-primary btn-sm" onClick={saveAdvances} disabled={advanceModalBusy}>
+                {advanceModalBusy ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+			      <Modal
+			        open={detailOpen}
+			        title={`${TAB_LABEL[detailTab]}: ${detailTitle}`}
+			        onClose={closeDetail}
 		        fullScreen
 		        maxWidthClass="max-w-6xl"
 		      >

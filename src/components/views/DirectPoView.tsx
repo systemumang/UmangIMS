@@ -40,6 +40,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [supplierId, setSupplierId] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
   const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceDate, setAdvanceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [shippingAddress, setShippingAddress] = useState('');
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
@@ -211,6 +212,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
         supplierId,
           paymentTerms: paymentTerms.trim(),
           advanceAmount: String(advanceAmount ?? '').trim() ? Number(advanceAmount) : 0,
+          advanceDate: String(advanceAmount ?? '').trim() ? (String(advanceDate ?? '').trim() || null) : null,
         shippingAddress: shippingAddress.trim() || undefined,
         termsConditions: firmTermsConditions || undefined,
         items: picked,
@@ -264,6 +266,15 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 value={advanceAmount}
                 onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
                 placeholder="0"
+              />
+            </label>
+            <label className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance Date</div>
+              <input
+                type="date"
+                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
+                value={advanceDate}
+                onChange={(e) => setAdvanceDate(String(e.target.value ?? '').slice(0, 10))}
               />
             </label>
 

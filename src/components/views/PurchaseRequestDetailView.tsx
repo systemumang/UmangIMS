@@ -377,13 +377,14 @@ export default function PurchaseRequestDetailView({
 							  const [poDetailsOpen, setPoDetailsOpen] = useState(false);
 							  const [activePoDetails, setActivePoDetails] = useState<{ po: Po; items: PoItem[] } | null>(null);
 							  const [poDetailsError, setPoDetailsError] = useState<string | null>(null);
-							  const [poDetailsSentDate, setPoDetailsSentDate] = useState('');
-							  const [editPoSupplierId, setEditPoSupplierId] = useState('');
-							  const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
-                const [editPoAdvanceAmount, setEditPoAdvanceAmount] = useState('');
-							  const [editPoLines, setEditPoLines] = useState<
-							    Array<{ itemId: string; label: string; quantity: string; rate: string; discountPercent: string; taxPercent: string; cancelledQty: string; cancelReason: string }>
-							  >([]);
+								  const [poDetailsSentDate, setPoDetailsSentDate] = useState('');
+								  const [editPoSupplierId, setEditPoSupplierId] = useState('');
+								  const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
+	                const [editPoAdvanceAmount, setEditPoAdvanceAmount] = useState('');
+								  const [editPoAdvanceDate, setEditPoAdvanceDate] = useState('');
+								  const [editPoLines, setEditPoLines] = useState<
+								    Array<{ itemId: string; label: string; quantity: string; rate: string; discountPercent: string; taxPercent: string; cancelledQty: string; cancelReason: string }>
+								  >([]);
 						  const [editPoShippingSameAsFirm, setEditPoShippingSameAsFirm] = useState(true);
 						  const [editPoShippingAddress, setEditPoShippingAddress] = useState('');
 						  const [editPoTermsConditions, setEditPoTermsConditions] = useState('');
@@ -2421,22 +2422,25 @@ export default function PurchaseRequestDetailView({
 				    setPoDetailsSentDate('');
 				  };
 
-					  const openPoDetails = (p: { po: Po; items: PoItem[] }) => {
-					    setPoDetailsError(null);
-					    setActivePoDetails(p);
-					    const fallbackToday = new Date().toISOString().slice(0, 10);
-					    setPoDetailsSentDate(String(p.po.sentDate ?? fallbackToday).slice(0, 10) || fallbackToday);
+						  const openPoDetails = (p: { po: Po; items: PoItem[] }) => {
+						    setPoDetailsError(null);
+						    setActivePoDetails(p);
+						    const fallbackToday = new Date().toISOString().slice(0, 10);
+						    setPoDetailsSentDate(String(p.po.sentDate ?? fallbackToday).slice(0, 10) || fallbackToday);
 
 				    const initialSupplierId =
 				      String(p.po.supplierId ?? '').trim() ||
 				      (suppliers.find((s) => s.name.trim().toLowerCase() === String(p.po.supplier ?? '').trim().toLowerCase())?.id ?? '');
-					    setEditPoSupplierId(initialSupplierId);
-					    setEditPoPaymentTerms(String(p.po.paymentTerms ?? '').trim());
-              setEditPoAdvanceAmount(Number(p.po.advanceAmount ?? 0) ? String(p.po.advanceAmount) : '');
+						    setEditPoSupplierId(initialSupplierId);
+						    setEditPoPaymentTerms(String(p.po.paymentTerms ?? '').trim());
+	              const initialAdvanceAmount = Number(p.po.advanceAmount ?? 0) ? String(p.po.advanceAmount) : '';
+	              setEditPoAdvanceAmount(initialAdvanceAmount);
+	              const initialAdvanceDateRaw = String((p.po as any).advanceDate ?? '').slice(0, 10);
+	              setEditPoAdvanceDate(initialAdvanceAmount ? (initialAdvanceDateRaw || fallbackToday) : '');
 
-				    const firmRow = pr ? firms.find((f) => f.id === pr.firmId) : undefined;
-				    const firmAddress = String(firmRow?.address ?? '').trim();
-					    const defaultTerms = String(firmRow?.termsConditions ?? '').trim();
+					    const firmRow = pr ? firms.find((f) => f.id === pr.firmId) : undefined;
+					    const firmAddress = String(firmRow?.address ?? '').trim();
+						    const defaultTerms = String(firmRow?.termsConditions ?? '').trim();
 				    const existingShipping = String(p.po.shippingAddress ?? '').trim();
 				    const shipping = existingShipping || firmAddress;
 				    const sameAsFirm = Boolean(firmAddress) && (shipping === firmAddress);
@@ -4452,16 +4456,25 @@ export default function PurchaseRequestDetailView({
 				                          placeholder="15 / 30 days"
 					                        />
 					                      </Field>
-                              <Field label="Advance">
-                                <input
-                                  className={inputClass}
-                                  value={editPoAdvanceAmount}
-                                  onChange={(e) => setEditPoAdvanceAmount(sanitizeDecimalInput(e.target.value))}
-                                  disabled={busy}
-                                  placeholder="0"
-                                />
-                              </Field>
-					                    </div>
+							                      <Field label="Advance">
+							                        <input
+							                          className={inputClass}
+							                          value={editPoAdvanceAmount}
+							                          onChange={(e) => setEditPoAdvanceAmount(sanitizeDecimalInput(e.target.value))}
+							                          disabled={busy}
+							                          placeholder="0"
+							                        />
+							                      </Field>
+	                              <Field label="Advance Date">
+	                                <input
+	                                  type="date"
+	                                  className={inputClass}
+	                                  value={editPoAdvanceDate}
+	                                  onChange={(e) => setEditPoAdvanceDate(String(e.target.value ?? '').slice(0, 10))}
+	                                  disabled={busy}
+	                                />
+	                              </Field>
+						                    </div>
 
 				                    {(() => {
 				                      const firmRow = pr ? firms.find((f) => f.id === pr.firmId) : undefined;
@@ -4764,13 +4777,14 @@ export default function PurchaseRequestDetailView({
 				                        }
 
 				                        run(async () => {
-					                          await updatePo(activePoDetails.po.id, {
-					                            supplierId: supplier.id,
-					                            paymentTerms: terms,
-                                  advanceAmount: String(editPoAdvanceAmount ?? '').trim() ? Number(editPoAdvanceAmount) : 0,
-					                            shippingAddress: shippingTrimmed || undefined,
-					                            // Terms & Conditions always taken from Firm Master on backend
-					                            items: lines,
+						                          await updatePo(activePoDetails.po.id, {
+						                            supplierId: supplier.id,
+						                            paymentTerms: terms,
+	                                  advanceAmount: String(editPoAdvanceAmount ?? '').trim() ? Number(editPoAdvanceAmount) : 0,
+	                                  advanceDate: String(editPoAdvanceAmount ?? '').trim() ? (String(editPoAdvanceDate ?? '').trim() || null) : null,
+						                            shippingAddress: shippingTrimmed || undefined,
+						                            // Terms & Conditions always taken from Firm Master on backend
+						                            items: lines,
                                   lineCancels: editPoLines
                                     .map((l) => ({
                                       itemId: String(l.itemId ?? '').trim(),
