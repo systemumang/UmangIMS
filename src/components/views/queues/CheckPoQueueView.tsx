@@ -164,13 +164,14 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
     return total.toFixed(2);
   }
 
-  return (
-    <div className="space-y-6">
-      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
-      <div className="flex justify-end">
-        <ExportCsvButton filename={`queue-check-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
-      </div>
+	  return (
+	    <div className="space-y-6">
+	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
+	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+	      <div className="flex items-center justify-end gap-3">
+	        <div className="text-sm text-on-surface-variant">Pending Tasks / Check PO</div>
+	        <ExportCsvButton filename={`queue-check-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+	      </div>
 
       {loading ? (
         <LoadingCard label="Loading POs pending check..." />
@@ -213,28 +214,29 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                       : expandedDetails
                       ? ([{ poId, itemId: '', item: '-', quantity: 0, rate: 0 } as any] as PoItem[])
                       : [];
-                    return (
-                      <React.Fragment key={r.poId}>
-                        <tr className={cn('transition-colors', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40')}>
-                          <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">
-                            <button type="button" className="text-left underline-offset-2 hover:underline" onClick={() => toggleExpandRow(r)}>
-                              {formatPoNumber(r.poNumber ?? r.poId) || '-'}
-                            </button>
-                          </td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                                View PR
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-primary btn-sm"
-                                onClick={() => {
+	                    return (
+	                      <React.Fragment key={r.poId}>
+	                        <tr
+	                          className={cn(
+	                            'transition-colors cursor-pointer',
+	                            isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40'
+	                          )}
+	                          onClick={() => toggleExpandRow(r)}
+	                        >
+	                          <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">
+	                            {formatPoNumber(r.poNumber ?? r.poId) || '-'}
+	                          </td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
+	                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+	                            <div className="flex items-center gap-2 flex-wrap">
+	                              <button
+	                                type="button"
+	                                className="btn-primary btn-sm"
+	                                onClick={() => {
                                   setActive(r);
                                   setModalOpen(true);
                                 }}
