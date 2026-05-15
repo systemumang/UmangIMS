@@ -83,6 +83,7 @@ export default function PaymentQueueView({
   const [active, setActive] = useState<PaymentQueueRow | null>(null);
   const [paymentDate, setPaymentDate] = useState(todayIsoDate());
   const [paymentStatus, setPaymentStatus] = useState<'' | 'Partly Paid' | 'Full Paid'>('');
+  const [paymentModeInput, setPaymentModeInput] = useState('Cash');
   const [tallyEntryDate, setTallyEntryDate] = useState('');
   const [lines, setLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
@@ -100,6 +101,7 @@ export default function PaymentQueueView({
     setActive(null);
     setPaymentDate(todayIsoDate());
     setPaymentStatus('');
+    setPaymentModeInput('Cash');
     setTallyEntryDate('');
     setTallyDateInput('');
     setLines([]);
@@ -129,6 +131,7 @@ export default function PaymentQueueView({
     if (!modalOpen || !active) return;
     setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
     setPaymentStatus((active.paymentStatus as any) || '');
+    setPaymentModeInput(String((active as any)?.paymentMode ?? 'Cash') || 'Cash');
     setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
     setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
     const ac = new AbortController();
@@ -179,8 +182,7 @@ export default function PaymentQueueView({
                 <col className="w-[210px]" />
                 <col className="w-[220px]" />
 		                <col className="w-[140px]" />
-		                {mode !== 'tally' ? <col className="w-[140px]" /> : null}
-	                  {mode !== 'tally' ? <col className="w-[120px]" /> : null}
+		                  {mode !== 'tally' ? <col className="w-[120px]" /> : null}
 	                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
 		                {mode !== 'tally' ? <col className="w-[140px]" /> : null}
 		                <col className="w-[260px]" />
@@ -193,8 +195,7 @@ export default function PaymentQueueView({
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Amount</th>
-	                    {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Mode</th> : null}
-	                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
+		                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
 		                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Paid</th> : null}
 	                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining</th> : null}
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
@@ -217,8 +218,7 @@ export default function PaymentQueueView({
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-	                        {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.paymentMode || 'Credit'}</td> : null}
-                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
 		                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
                       {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
                       <td className="px-3 py-2 border border-outline-variant">
@@ -263,7 +263,7 @@ export default function PaymentQueueView({
                   ))
                 ) : (
                   <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={mode === 'tally' ? 8 : 11}>
+			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={mode === 'tally' ? 8 : 10}>
 		                      No records.
 		                    </td>
                   </tr>
@@ -300,7 +300,13 @@ export default function PaymentQueueView({
                 const savePromise =
                   mode === 'tally'
                     ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
-                    : updateInvoicePayment(active.invoiceId, { paymentStatus, paymentDate, updatedBy: 'Accounts Team', tallyEntryDate: tallyEntryDate || undefined });
+                    : updateInvoicePayment(active.invoiceId, {
+                        paymentStatus,
+                        paymentDate,
+                        paymentMode: paymentModeInput || undefined,
+                        updatedBy: 'Accounts Team',
+                        tallyEntryDate: tallyEntryDate || undefined,
+                      });
                 savePromise
                   .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())
@@ -393,8 +399,8 @@ export default function PaymentQueueView({
 	                <col className="w-[130px]" />
 	                <col className="w-[120px]" />
 	                <col className="w-[120px]" />
-	                <col className="w-[150px]" />
-		                <col className="w-[150px]" />
+			                <col className="w-[160px]" />
+	                    <col className="w-[150px]" />
                     <col className="w-[150px]" />
 		                <col className="w-[420px]" />
 	                <col className="w-[90px]" />
@@ -409,7 +415,8 @@ export default function PaymentQueueView({
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Status</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Status</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
-                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
+                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
+	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
@@ -443,9 +450,20 @@ export default function PaymentQueueView({
                               <option value="Full Paid">Full Paid</option>
                             </select>
                           </td>
-	                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                            <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
-	                          </td>
+		                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+		                            <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+		                          </td>
+                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                                <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+                                  <option value="Cash">Cash</option>
+                                  <option value="UPI">UPI</option>
+                                  <option value="Cheque">Cheque</option>
+                                  <option value="NEFT">NEFT</option>
+                                  <option value="RTGS">RTGS</option>
+                                  <option value="IMPS">IMPS</option>
+                                  <option value="Card">Card</option>
+                                </select>
+                              </td>
                             <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                               <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyEntryDate} onChange={(e) => setTallyEntryDate(e.target.value)} />
                             </td>
@@ -458,7 +476,7 @@ export default function PaymentQueueView({
 		                  ))
 	                ) : (
 	                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={11}>
+			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={12}>
 		                      No records.
 		                    </td>
 	                  </tr>

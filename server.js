@@ -9318,13 +9318,16 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
     const paymentStatus = String(req.body?.paymentStatus ?? '').trim();
     const paymentDate = String(req.body?.paymentDate ?? '').trim();
+    const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
     if (!paymentStatus) return res.status(400).json({ error: 'paymentStatus is required' });
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
     await pool.query(
-      `UPDATE invoices SET payment_status=?, payment_date=?, tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW() WHERE id=?`,
-      [paymentStatus, paymentDate, tallyEntryDate || null, updatedBy, invoiceId]
+      `UPDATE invoices
+       SET payment_status=?, payment_date=?, payment_mode=COALESCE(?, payment_mode), tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
+       WHERE id=?`,
+      [paymentStatus, paymentDate, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
     );
     res.json({ ok: true });
   } catch (e) {
