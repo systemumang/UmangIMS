@@ -46,7 +46,7 @@ export default function ReturnView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
-  type ItemDraft = { itemId: string; item: string; quantity: string; specification: string };
+  type ItemDraft = { itemId: string; item: string; quantity: string; specification: string; reason: string };
 
 	  function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
 	    try {
@@ -88,7 +88,7 @@ export default function ReturnView({
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
-		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '' }]);
+		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '', specification: '', reason: '' }]);
 	  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
 	  const [itemNames, setItemNames] = useState<ItemName[]>([]);
 	  const [loadingItemNames, setLoadingItemNames] = useState(true);
@@ -408,13 +408,14 @@ export default function ReturnView({
 					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 					    if (returnType === 'Project' && !projectId.trim()) return false;
 					    if (!customerName.trim()) return false;
-					    const normalized = items
-					      .map((it) => ({
-					        item: it.item.trim(),
-					        quantity: Number(it.quantity),
-			        specification: it.specification.trim(),
-						    }))
-						    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification);
+						    const normalized = items
+						      .map((it) => ({
+						        item: it.item.trim(),
+						        quantity: Number(it.quantity),
+				        specification: it.specification.trim(),
+				        reason: it.reason.trim(),
+							    }))
+							    .filter((it) => it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification && it.reason);
 					    return normalized.length > 0;
 					  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, returnType, customerName, storeId]);
 
@@ -682,9 +683,10 @@ export default function ReturnView({
 
 							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
 							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-							            <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
-							            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
-							            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
+								            <div className="md:col-span-7 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
+								            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
+								            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Reason</div>
+								            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
 							          </div>
 
 					          {items.map((row, idx) => (
@@ -695,7 +697,7 @@ export default function ReturnView({
 							                idx === 0 ? '' : 'border-t border-outline-variant',
 							              ].join(' ')}
 							            >
-						              <div className="md:col-span-9 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
+							              <div className="md:col-span-7 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
 						                <SearchableSelect
 				                  value={row.itemId}
 				                  options={masterItems
@@ -710,7 +712,7 @@ export default function ReturnView({
 			                    setItems((prev) =>
 			                      prev.map((p, i) => {
 			                        if (i !== idx) return p;
-			                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
+				                        if (!found) return { ...p, itemId: id, item: '', specification: '' };
 			                        return {
 			                          ...p,
 			                          itemId: id,
@@ -779,6 +781,18 @@ export default function ReturnView({
 				                />
 				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
 				              </div>
+							              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+							                <input
+							                  className={inputClass}
+					                  placeholder="Reason"
+					                  value={row.reason}
+					                  onChange={(e) => {
+					                    const v = String(e.target.value ?? '');
+					                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+					                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, reason: v } : p)));
+					                  }}
+					                />
+					              </div>
 							              <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
 							                <div className="flex items-center gap-2">
 						                  <button
@@ -799,7 +813,7 @@ export default function ReturnView({
 									              <button
 								                type="button"
 								                className="btn-primary"
-								                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '' }])}
+									                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '', specification: '', reason: '' }])}
 							              >
 						                + Add Item
 						              </button>
@@ -825,14 +839,16 @@ export default function ReturnView({
 					                      const itemName = it.item.trim();
 					                      const itemId = String(it.itemId ?? '').trim();
 					                      const quantityNumber = Number(it.quantity);
-					                      const specification = it.specification.trim();
-					                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
-					                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
-					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
-					                      else if (!specification) rowMessages[i] = 'Missing specification.';
-					                      if (itemId) usedItemIds.add(itemId);
-					                      return { itemId, item: itemName, quantity: quantityNumber, specification };
-					                    })
+						                      const specification = it.specification.trim();
+						                      const reason = String(it.reason ?? '').trim();
+						                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
+						                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
+						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+						                      else if (!specification) rowMessages[i] = 'Missing specification.';
+						                      else if (!reason) rowMessages[i] = 'Enter reason.';
+						                      if (itemId) usedItemIds.add(itemId);
+						                      return { itemId, item: itemName, quantity: quantityNumber, specification, remark: reason };
+						                    })
 					                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 
