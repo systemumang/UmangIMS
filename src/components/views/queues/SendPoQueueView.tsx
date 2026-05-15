@@ -71,6 +71,10 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedPoId, setExpandedPoId] = useState<string>('');
+  const [expandedLoadingPoId, setExpandedLoadingPoId] = useState<string>('');
+  const [expandedDetailsByPoId, setExpandedDetailsByPoId] = useState<Record<string, { po: Po; items: PoItem[] }>>({});
+  const [expandedErrorByPoId, setExpandedErrorByPoId] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const ac = new AbortController();
@@ -129,6 +133,46 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     setDetailLoading(false);
   }
 
+  async function toggleExpandRow(row: SendPoQueueRow) {
+    const poId = String(row.poId ?? '').trim();
+    if (!poId) return;
+    if (expandedPoId === poId) {
+      setExpandedPoId('');
+      return;
+    }
+    setExpandedPoId(poId);
+    if (expandedDetailsByPoId[poId] || expandedLoadingPoId === poId) return;
+    setExpandedLoadingPoId(poId);
+    setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: '' }));
+    try {
+      const pos = await fetchPos(row.prId);
+      const found = (pos ?? []).find((p) => String(p?.po?.id ?? '').trim() === poId);
+      if (!found) throw new Error('PO details not found');
+      setExpandedDetailsByPoId((prev) => ({
+        ...prev,
+        [poId]: { po: found.po, items: Array.isArray(found.items) ? found.items : [] },
+      }));
+    } catch (e) {
+      setExpandedErrorByPoId((prev) => ({
+        ...prev,
+        [poId]: e instanceof Error ? e.message : String(e),
+      }));
+    } finally {
+      setExpandedLoadingPoId((prev) => (prev === poId ? '' : prev));
+    }
+  }
+
+  function itemTotal(it: PoItem) {
+    const qty = Number(it.quantity ?? 0);
+    const rate = Number(it.rate ?? 0);
+    const disc = Number(it.discountPercent ?? 0);
+    const gst = Number(it.taxPercent ?? 0);
+    const base = qty * rate;
+    const afterDisc = base - (base * disc) / 100;
+    const total = afterDisc + (afterDisc * gst) / 100;
+    return total.toFixed(2);
+  }
+
   return (
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
@@ -167,33 +211,102 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
               </thead>
               <tbody>
                 {pagedRows.length ? (
-                  pagedRows.map((r) => (
-                    <tr key={r.poId}>
-	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <div className="flex items-center gap-2 flex-wrap">
-                          <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                            View PR
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-primary btn-sm"
-                            onClick={() => {
-                              setActive(r);
-                              setModalOpen(true);
-                            }}
-                          >
-                            Mark Sent
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  pagedRows.map((r) => {
+                    const poId = String(r.poId ?? '').trim();
+                    const isExpanded = expandedPoId === poId;
+                    const expandedDetails = expandedDetailsByPoId[poId];
+                    const expandedError = expandedErrorByPoId[poId];
+                    const isExpandedLoading = expandedLoadingPoId === poId;
+                    const items = expandedDetails?.items?.length
+                      ? expandedDetails.items
+                      : expandedDetails
+                      ? ([{ poId, itemId: '', item: '-', quantity: 0, rate: 0 } as any] as PoItem[])
+                      : [];
+                    return (
+                      <React.Fragment key={r.poId}>
+                        <tr className={cn('transition-colors', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40')}>
+                          <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">
+                            <button type="button" className="text-left underline-offset-2 hover:underline" onClick={() => toggleExpandRow(r)}>
+                              {formatPoNumber(r.poNumber ?? r.poId) || '-'}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
+                                View PR
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-primary btn-sm"
+                                onClick={() => {
+                                  setActive(r);
+                                  setModalOpen(true);
+                                }}
+                              >
+                                Mark Sent
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                              {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO details...</div> : null}
+                              {!isExpandedLoading && expandedError ? (
+                                <div className="text-sm text-error">Failed to load details: {expandedError}</div>
+                              ) : null}
+                              {!isExpandedLoading && expandedDetails ? (
+                                <div className="space-y-2">
+                                  <div className="text-sm text-on-surface">
+                                    Supplier: {expandedDetails.po.supplier || '-'} | Payment Terms: {expandedDetails.po.paymentTerms || '-'}
+                                  </div>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[980px] table-fixed border-collapse border border-outline-variant text-sm">
+                                      <colgroup>
+                                        <col className="w-[38%]" />
+                                        <col className="w-[10%]" />
+                                        <col className="w-[12%]" />
+                                        <col className="w-[10%]" />
+                                        <col className="w-[10%]" />
+                                        <col className="w-[20%]" />
+                                      </colgroup>
+                                      <thead>
+                                        <tr className="bg-surface-container-high">
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Item</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Rate</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Disc %</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Total</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {items.map((it, idx) => (
+                                          <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
+                                            <td className="px-3 py-2 border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{itemTotal(it)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   <tr>
 	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
