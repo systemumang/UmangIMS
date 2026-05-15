@@ -507,17 +507,18 @@ export default function OperationsView({
                     <SortTh label="Req Date" colKey="requisitionDate" />
 	                    <SortTh label="Status" colKey="status" />
 	                  </>
-	                ) : tab === 'pos' ? (
-	                  <>
-	                    <SortTh label="PO" colKey="poNumber" />
-	                    <SortTh label="PR" colKey="prNumber" />
-	                    <SortTh label="Firm" colKey="firmName" />
-	                    <SortTh label="Supplier" colKey="supplierName" />
-	                    <SortTh label="Order Date" colKey="orderDate" />
-	                    <SortTh label="Status" colKey="status" />
-		                    <SortTh label="Amount" colKey="totalAmount" />
-		                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
-	                  </>
+		                ) : tab === 'pos' ? (
+		                  <>
+		                    <SortTh label="PO" colKey="poNumber" />
+		                    <SortTh label="PR" colKey="prNumber" />
+		                    <SortTh label="Firm" colKey="firmName" />
+		                    <SortTh label="Supplier" colKey="supplierName" />
+		                    <SortTh label="Order Date" colKey="orderDate" />
+		                    <SortTh label="Status" colKey="status" />
+			                    <SortTh label="Amount" colKey="totalAmount" />
+			                    <SortTh label="Advance" colKey="advanceAmount" />
+			                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
+		                  </>
 	                ) : tab === 'grns' ? (
 	                  <>
 	                    <SortTh label="GRN" colKey="grnNumber" />
@@ -554,16 +555,16 @@ export default function OperationsView({
             <tbody>
 	              {loading ? (
 	                <tr>
-                  <td colSpan={tab === 'pos' || tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-                    Loading...
-                  </td>
-                </tr>
-              ) : !paged.length ? (
-                <tr>
-                  <td colSpan={tab === 'pos' || tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-                    No records.
-                  </td>
-                </tr>
+	                  <td colSpan={tab === 'pos' ? 9 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+	                    Loading...
+	                  </td>
+	                </tr>
+	              ) : !paged.length ? (
+	                <tr>
+	                  <td colSpan={tab === 'pos' ? 9 : tab === 'prs' ? 8 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+	                    No records.
+	                  </td>
+	                </tr>
 	              ) : (
                 (paged as any[]).map((r) => {
                   const rowId =
@@ -600,10 +601,11 @@ export default function OperationsView({
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">
+			                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
+			                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+			                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+			                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number((r as any).advanceAmount ?? 0).toFixed(2)}</td>
+			                        <td className="px-3 py-2 border border-outline-variant">
 		                          <button
 		                            type="button"
 		                            className="btn btn-sm"
@@ -650,7 +652,7 @@ export default function OperationsView({
                       </tr>
                       {tab === 'pos' && isExpanded ? (
                         <tr>
-                          <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+	                          <td colSpan={9} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
                             {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
                             {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
                             {!detailLoading && !detailError ? (

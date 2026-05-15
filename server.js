@@ -3057,6 +3057,7 @@ app.get('/api/operations/pos', async (req, res) => {
         po.order_date AS orderDate,
         po.created_at AS createdAt,
         po.status AS status,
+        po.advance_amount AS advanceAmount,
         COUNT(poi.id) AS itemCount,
         COALESCE(SUM(poi.total_amount), 0) AS totalAmount
       FROM purchase_orders po
@@ -3092,6 +3093,7 @@ app.get('/api/operations/pos', async (req, res) => {
         status: mappedStatus,
         itemCount: Number(r.itemCount ?? 0),
         totalAmount: Number(r.totalAmount ?? 0),
+        advanceAmount: Number(r.advanceAmount ?? 0),
       };
     });
     if (status) out = out.filter((x) => x.status === status);

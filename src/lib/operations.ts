@@ -89,6 +89,7 @@ export type OperationsPoListRow = {
   status: 'Open' | 'Partial' | 'Closed';
   itemCount: number;
   totalAmount: number;
+  advanceAmount?: number;
 };
 
 export type OperationsGrnListRow = {
