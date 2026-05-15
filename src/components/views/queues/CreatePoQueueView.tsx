@@ -3,6 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { createPo, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
@@ -26,16 +27,6 @@ type Line = {
   discountPercent: string;
   taxPercent: string;
 };
-
-function formatItemWithSpecification(item: string, specification: string) {
-  const base = String(item ?? '').trim();
-  const specs = String(specification ?? '')
-    .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (!specs.length) return base || '-';
-  return [base, ...specs].filter(Boolean).join(' - ');
-}
 
 export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
@@ -85,7 +76,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceBySupplierId, setAdvanceBySupplierId] = useState<Record<string, string>>({});
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const supplierOptions = useMemo(
@@ -100,7 +91,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     setModalError(null);
     setSaving(false);
     setModalLoading(false);
-    setAdvanceAmount('');
+    setAdvanceBySupplierId({});
     setAvailableStockByItemId({});
   }
 
@@ -321,35 +312,43 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  }
 	                }
 
-	                const groups = new Map<
-	                  string,
-	                  {
-	                    supplierName: string;
-	                    paymentTerms: string;
-	                    items: Array<{ itemId: string; quantity: number; rate: number; discountPercent: number; taxPercent: number }>;
-	                  }
-	                >();
+		                const groups = new Map<
+		                  string,
+		                  {
+		                    supplierId: string;
+		                    supplierName: string;
+		                    paymentTerms: string;
+		                    items: Array<{ itemId: string; quantity: number; rate: number; discountPercent: number; taxPercent: number }>;
+		                  }
+		                >();
 	                for (const it of picked) {
 	                  const supplierName = String(masters.suppliers.find((s) => s.id === it.supplierId)?.name ?? '').trim();
 	                  if (!supplierName) {
 	                    setModalError('Supplier name is missing for a selected supplier.');
 	                    return;
 	                  }
-	                  const key = `${it.supplierId}||${it.paymentTerms}`;
-	                  const existing = groups.get(key);
-	                  const itemLine = { itemId: it.itemId, quantity: it.quantity, rate: it.rate, discountPercent: it.discountPercent, taxPercent: it.taxPercent };
-	                  if (existing) existing.items.push(itemLine);
-	                  else groups.set(key, { supplierName, paymentTerms: it.paymentTerms, items: [itemLine] });
-	                }
+		                  const key = `${it.supplierId}||${it.paymentTerms}`;
+		                  const existing = groups.get(key);
+		                  const itemLine = { itemId: it.itemId, quantity: it.quantity, rate: it.rate, discountPercent: it.discountPercent, taxPercent: it.taxPercent };
+		                  if (existing) existing.items.push(itemLine);
+		                  else groups.set(key, { supplierId: it.supplierId, supplierName, paymentTerms: it.paymentTerms, items: [itemLine] });
+		                }
 
 	                setSaving(true);
 	                setModalError(null);
-	                Promise.resolve()
-	                  .then(async () => {
-	                    for (const [, g] of groups.entries()) {
-		                      await createPo(activePrId, { supplier: g.supplierName, paymentTerms: g.paymentTerms, advanceAmount: String(advanceAmount ?? '').trim() ? Number(advanceAmount) : 0, items: g.items });
-	                    }
-	                  })
+		                Promise.resolve()
+		                  .then(async () => {
+		                    for (const [, g] of groups.entries()) {
+		                      const advRaw = String(advanceBySupplierId[g.supplierId] ?? '').trim();
+		                      const adv = advRaw ? Number(advRaw) : 0;
+		                      await createPo(activePrId, {
+		                        supplier: g.supplierName,
+		                        paymentTerms: g.paymentTerms,
+		                        advanceAmount: Number.isFinite(adv) && adv > 0 ? adv : 0,
+		                        items: g.items,
+		                      });
+		                    }
+		                  })
 	                  .then(() => fetchQueueCreatePo(filters).then(setRows))
 	                  .then(() => closeModal())
 	                  .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
@@ -367,32 +366,57 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           <div className="text-sm text-on-surface-variant">Loading PR items...</div>
         ) : (
           <div className="space-y-3">
-            <div className="max-w-xs">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance</label>
-              <input
-                className={cn(inputClass, 'py-1.5')}
-                value={advanceAmount}
-                onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
-                placeholder="0"
-                inputMode="decimal"
-              />
-            </div>
+            {(() => {
+              const selectedSupplierIds = Array.from(new Set(lines.map((l) => String(l.supplierId ?? '').trim()).filter(Boolean)));
+              if (!selectedSupplierIds.length) {
+                return (
+                  <div className="max-w-xs">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance</label>
+                    <input className={cn(inputClass, 'py-1.5')} value="" placeholder="Select supplier first" disabled />
+                  </div>
+                );
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedSupplierIds.map((sid) => {
+                    const supplierName = String(masters.suppliers.find((s) => s.id === sid)?.name ?? sid);
+                    return (
+                      <label key={sid} className="space-y-1">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance - {supplierName}</div>
+                        <input
+                          className={cn(inputClass, 'py-1.5')}
+                          value={advanceBySupplierId[sid] ?? ''}
+                          onChange={(e) =>
+                            setAdvanceBySupplierId((prev) => ({
+                              ...prev,
+                              [sid]: sanitizeDecimalInput(e.target.value),
+                            }))
+                          }
+                          placeholder="0"
+                          inputMode="decimal"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>
-                <col className="w-[320px]" />
+                <col className="w-[420px]" />
                 <col className="w-[90px]" />
-	                <col className="w-[120px]" />
-                  <col className="w-[120px]" />
+		                <col className="w-[130px]" />
+	                  <col className="w-[110px]" />
                 <col className="w-[110px]" />
                 <col className="w-[90px]" />
                 <col className="w-[90px]" />
                 <col className="w-[90px]" />
                 <col className="w-[90px]" />
+                <col className="w-[150px]" />
+                <col className="w-[90px]" />
+                <col className="w-[220px]" />
                 <col className="w-[140px]" />
-                <col className="w-[90px]" />
-                <col className="w-[160px]" />
-                <col className="w-[90px]" />
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
@@ -416,7 +440,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                   lines.map((l, idx) => (
                     <tr key={l.itemId}>
                       <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-                        {formatItemWithSpecification(l.item, l.specification)}
+                        {formatItemInline(l.item, l.specification)}
                       </td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>

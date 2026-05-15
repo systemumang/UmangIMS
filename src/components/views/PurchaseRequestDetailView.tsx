@@ -1257,12 +1257,11 @@ export default function PurchaseRequestDetailView({
 				        if (!invoiceItemId) continue;
 
 				        const prRow = prItems.find((r) => r.itemId === itemId);
-				        const specInline = String(prRow?.specification ?? '')
-				          .split(/\r?\n/)
-				          .map((s) => s.trim())
-				          .filter(Boolean)
-				          .join(' - ');
-				        const itemLabel = [prRow?.item || (it as any)?.item, specInline || null].filter(Boolean).join(' - ');
+				        const itemLabel = formatItemWithSpecText(
+				          String(prRow?.item || (it as any)?.item || ''),
+				          String(prRow?.specification ?? ''),
+				          specNameById
+				        );
 
 				        const invQty = invQtyByItemIdForSelectedInvoice.get(itemId) ?? 0;
 				        const qcQty = Number(qcAcceptedByGrnIdItemId[`${grnId}||${itemId}`] ?? 0);
@@ -1521,12 +1520,11 @@ export default function PurchaseRequestDetailView({
 					        if (!grnItemId || !itemId) continue;
 					        if (grnItemMeta.has(grnItemId)) continue;
 					        const prRow = prItems.find((r) => r.itemId === itemId);
-					        const specInline = String(prRow?.specification ?? '')
-					          .split(/\r?\n/)
-					          .map((s) => s.trim())
-					          .filter(Boolean)
-					          .join(' - ');
-					        const itemLabel = [prRow?.item || (it as any)?.item, specInline || null].filter(Boolean).join(' - ');
+					        const itemLabel = formatItemWithSpecText(
+					          String(prRow?.item || (it as any)?.item || ''),
+					          String(prRow?.specification ?? ''),
+					          specNameById
+					        );
 					        grnItemMeta.set(grnItemId, { grnId, poId, itemId, itemLabel: itemLabel || itemId });
 					      }
 					    }
@@ -1684,12 +1682,11 @@ export default function PurchaseRequestDetailView({
 			        if (!itemId) continue;
 
 		        const prRow = prItems.find((r) => r.itemId === itemId);
-		        const specInline = String(prRow?.specification ?? '')
-		          .split(/\r?\n/)
-		          .map((s) => s.trim())
-		          .filter(Boolean)
-		          .join(' - ');
-			        const itemLabel = [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ');
+				        const itemLabel = formatItemWithSpecText(
+				          String(prRow?.item || it.item || ''),
+				          String(prRow?.specification ?? ''),
+				          specNameById
+				        );
 
 			        const key = `${poId}||${itemId}`;
 			        const linked = linkedInvoicesByGrnItemId.get(grnItemId) ?? [];
@@ -4845,12 +4842,11 @@ export default function PurchaseRequestDetailView({
 					                          }
 			                          return makePoItems.map((it) => {
 			                            const lineId = String((it as any)?.id ?? '').trim() || String((it as any)?.itemId ?? '').trim();
-			                            const specInline = (it.specification || '')
-			                              .split(/\r?\n/)
-			                              .map((s) => s.trim())
-			                              .filter(Boolean)
-			                              .join(' - ');
-		                            const label = [it.item, specInline || null].filter(Boolean).join(' - ');
+			                            const label = formatItemWithSpecText(
+			                              String(it.item ?? ''),
+			                              String(it.specification ?? ''),
+			                              specNameById
+			                            );
 			                            const ordered = orderedQtyByItemId[it.itemId] ?? 0;
 				                            const pending = remainingQtyByItemId[it.itemId] ?? 0;
 					                            return (

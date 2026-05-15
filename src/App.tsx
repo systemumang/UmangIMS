@@ -624,8 +624,13 @@ export default function App() {
 	            <NewPurchaseRequestView
 	              onCreated={(newId) => {
 	                setSelectedRequestId(newId ?? null);
-	                setDetailBackView('purchasing');
-	                setView(newId ? 'purchaseRequestDetail' : 'purchasing');
+	                setMastersExpanded(false);
+	                setStockMasterExpanded(false);
+	                setPurchaseMastersExpanded(false);
+	                setPendingExpanded(true);
+	                hideSidebarAfterViewChange();
+	                setDetailBackView('pendingTasks');
+	                setView('queueApprovePr');
 	              }}
 	              onCancel={() => {
 	                setSelectedRequestId(null);
