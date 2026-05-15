@@ -2899,6 +2899,36 @@ app.get('/api/operations/pos/:id', async (req, res) => {
       if (g) grns.push(g.grn);
     }
 
+    const [qtyRows] = await pool.query(
+      `
+      SELECT
+        gi.item_id AS itemId,
+        COALESCE(SUM(gi.received_qty), 0) AS grnQty,
+        COALESCE(SUM(qc.accepted_qty), 0) AS acceptedQty,
+        COALESCE(SUM(qc.rejected_qty), 0) AS rejectedQty
+      FROM grns g
+      INNER JOIN grn_items gi ON gi.grn_id = g.id
+      LEFT JOIN qc_records qc ON qc.grn_id = g.id AND qc.item_id = gi.item_id
+      WHERE g.po_id = ?
+      GROUP BY gi.item_id
+      `,
+      [poId]
+    );
+    const qtyByItemId = new Map();
+    for (const r of Array.isArray(qtyRows) ? qtyRows : []) {
+      qtyByItemId.set(String(r.itemId ?? ''), {
+        grnQty: Number(r.grnQty ?? 0),
+        acceptedQty: Number(r.acceptedQty ?? 0),
+        rejectedQty: Number(r.rejectedQty ?? 0),
+      });
+    }
+    if (Array.isArray(po?.items)) {
+      po.items = po.items.map((it) => {
+        const q = qtyByItemId.get(String(it?.itemId ?? '')) ?? { grnQty: 0, acceptedQty: 0, rejectedQty: 0 };
+        return { ...it, ...q };
+      });
+    }
+
     const [invRows] = await pool.query(
       `
       SELECT inv.id AS id

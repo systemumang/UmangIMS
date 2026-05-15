@@ -326,7 +326,13 @@ export default function OperationsView({
     if (tab === 'pos') {
       const poId = String(row?.poId ?? '').trim();
       if (!poId) return;
-      setExpandedPoIds((prev) => (prev.includes(poId) ? prev.filter((x) => x !== poId) : [...prev, poId]));
+      const currentlyExpanded = expandedPoIds.includes(poId);
+      if (currentlyExpanded) {
+        setExpandedPoIds((prev) => prev.filter((x) => x !== poId));
+        setExpandedPoAdvanceIds((prev) => prev.filter((x) => x !== poId));
+        return;
+      }
+      setExpandedPoIds((prev) => [...prev, poId]);
       if (!inlinePoDetailById[poId] && !inlinePoLoadingById[poId]) {
         setInlinePoLoadingById((prev) => ({ ...prev, [poId]: true }));
         setInlinePoErrorById((prev) => {
@@ -341,8 +347,31 @@ export default function OperationsView({
               ...prev,
               [poId]: e instanceof Error ? e.message : String(e),
             }))
+	          )
+	          .finally(() => setInlinePoLoadingById((prev) => ({ ...prev, [poId]: false })));
+	      }
+      if (!inlinePoAdvancesById[poId] && !inlinePoAdvancesLoadingById[poId]) {
+        setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: true }));
+        setInlinePoAdvancesErrorById((prev) => {
+          const next = { ...prev };
+          delete next[poId];
+          return next;
+        });
+        fetchPoAdvances(poId)
+          .then((rows) => {
+            const list = rows ?? [];
+            setInlinePoAdvancesById((prev) => ({ ...prev, [poId]: list }));
+            setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+          })
+          .catch((e) =>
+            setInlinePoAdvancesErrorById((prev) => ({
+              ...prev,
+              [poId]: e instanceof Error ? e.message : String(e),
+            }))
           )
-          .finally(() => setInlinePoLoadingById((prev) => ({ ...prev, [poId]: false })));
+          .finally(() => setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: false })));
+      } else {
+        setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
       }
       return;
     }
@@ -481,8 +510,17 @@ export default function OperationsView({
   const toggleInlineAdvance = async (row: OperationsPoListRow) => {
     const poId = String(row.poId ?? '').trim();
     if (!poId) return;
-    setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev.filter((x) => x !== poId) : [...prev, poId]));
-    if (inlinePoAdvancesById[poId] || inlinePoAdvancesLoadingById[poId]) return;
+    const isOpen = expandedPoAdvanceIds.includes(poId);
+    if (isOpen) {
+      setExpandedPoAdvanceIds((prev) => prev.filter((x) => x !== poId));
+      return;
+    }
+    if (inlinePoAdvancesById[poId]) {
+      const cached = inlinePoAdvancesById[poId] ?? [];
+      if (cached.length > 0) setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+      return;
+    }
+    if (inlinePoAdvancesLoadingById[poId]) return;
     setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: true }));
     setInlinePoAdvancesErrorById((prev) => {
       const next = { ...prev };
@@ -491,7 +529,9 @@ export default function OperationsView({
     });
     try {
       const rows = await fetchPoAdvances(poId);
-      setInlinePoAdvancesById((prev) => ({ ...prev, [poId]: rows ?? [] }));
+      const list = rows ?? [];
+      setInlinePoAdvancesById((prev) => ({ ...prev, [poId]: list }));
+      if (list.length > 0) setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
     } catch (e) {
       setInlinePoAdvancesErrorById((prev) => ({ ...prev, [poId]: e instanceof Error ? e.message : String(e) }));
     } finally {
@@ -592,10 +632,25 @@ export default function OperationsView({
 
       {error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load: {error}</div> : null}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-	            <thead>
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+	        <div className="overflow-x-auto">
+	          <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+              {tab === 'pos' ? (
+                <colgroup>
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[220px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[70px]" />
+                  <col className="w-[90px]" />
+                </colgroup>
+              ) : null}
+		            <thead>
 	              <tr className="bg-primary text-on-primary">
 		            {tab === 'prs' ? (
 	                  <>
@@ -711,24 +766,10 @@ export default function OperationsView({
 				                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
 				                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-				                        <td
-				                          className="px-3 py-2 border border-outline-variant tabular-nums cursor-pointer hover:bg-surface-container-high/40"
-				                          onClick={(e) => {
-				                            e.stopPropagation();
-				                            toggleInlineAdvance(r as OperationsPoListRow);
-				                          }}
-				                          title="Show advances"
-				                        >
+				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
 				                          {Number(r.advanceAmount ?? 0).toFixed(2)}
 				                        </td>
-				                        <td
-				                          className="px-3 py-2 border border-outline-variant cursor-pointer hover:bg-surface-container-high/40"
-				                          onClick={(e) => {
-				                            e.stopPropagation();
-				                            toggleInlineAdvance(r as OperationsPoListRow);
-				                          }}
-				                          title="Show advances"
-				                        >
+				                        <td className="px-3 py-2 border border-outline-variant">
 				                          {r.advanceDate ? formatDateShort(String(r.advanceDate)) : '-'}
 				                        </td>
 				                        <td className="px-3 py-2 border border-outline-variant">
@@ -819,14 +860,17 @@ export default function OperationsView({
                                 <div className="overflow-x-auto">
                                   <table className="w-full min-w-[880px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                                     <thead>
-                                      <tr className="bg-primary text-on-primary">
-                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                        <th className="px-3 py-2 border border-outline-variant">PO Qty</th>
-                                        <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
-                                        <th className="px-3 py-2 border border-outline-variant">Disc %</th>
-                                        <th className="px-3 py-2 border border-outline-variant">GST %</th>
-                                        <th className="px-3 py-2 border border-outline-variant">Total</th>
-                                      </tr>
+	                                      <tr className="bg-primary text-on-primary">
+	                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">PO Qty</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">Accepted Qty</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">Rejected Qty</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">Disc %</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">GST %</th>
+	                                        <th className="px-3 py-2 border border-outline-variant">Total</th>
+	                                      </tr>
                                     </thead>
                                     <tbody>
                                       {(detail?.po?.items ?? []).length ? (
@@ -837,22 +881,25 @@ export default function OperationsView({
                                           const base = qty * rate;
                                           const total = base - base * (disc / 100);
                                           return (
-                                            <tr key={`${String(r.poId ?? '')}-it-${idx}`}>
-                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(total).toFixed(2)}</td>
-                                            </tr>
+	                                            <tr key={`${String(r.poId ?? '')}-it-${idx}`}>
+	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(total).toFixed(2)}</td>
+	                                            </tr>
                                           );
                                         })
                                       ) : (
                                         <tr>
-                                          <td colSpan={6} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-                                            No PO items found.
-                                          </td>
-                                        </tr>
+	                                          <td colSpan={9} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+	                                            No PO items found.
+	                                          </td>
+	                                        </tr>
                                       )}
                                     </tbody>
                                   </table>
