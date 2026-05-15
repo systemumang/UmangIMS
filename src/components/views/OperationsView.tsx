@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircleDollarSign, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
@@ -415,22 +415,9 @@ export default function OperationsView({
     setAdvanceModalPoId(poId);
     setAdvanceModalPoNumber(String(row.poNumber ?? poId));
     setAdvanceModalOpen(true);
-    setAdvanceModalBusy(true);
     setAdvanceModalError(null);
-    try {
-      const list = await fetchPoAdvances(poId);
-      const mapped = (list ?? []).map((x: PoAdvanceRow) => ({
-        id: x.id,
-        advanceDate: String(x.advanceDate ?? '').slice(0, 10),
-        advanceAmount: Number(x.advanceAmount ?? 0).toFixed(2).replace(/\.00$/, ''),
-      }));
-      setAdvanceLines(mapped.length ? mapped : [{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
-    } catch (e) {
-      setAdvanceModalError(e instanceof Error ? e.message : String(e));
-      setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
-    } finally {
-      setAdvanceModalBusy(false);
-    }
+    setAdvanceModalBusy(false);
+    setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
   };
 
   const closeAdvanceModal = () => {
@@ -454,7 +441,16 @@ export default function OperationsView({
     setAdvanceModalBusy(true);
     setAdvanceModalError(null);
     try {
-      const updated = await updatePoAdvances(advanceModalPoId, normalized);
+      const existing = await fetchPoAdvances(advanceModalPoId);
+      const merged = [
+        ...(existing ?? []).map((x: PoAdvanceRow) => ({
+          id: x.id,
+          advanceDate: String(x.advanceDate ?? '').slice(0, 10),
+          advanceAmount: Number(x.advanceAmount ?? 0),
+        })),
+        ...normalized,
+      ];
+      const updated = await updatePoAdvances(advanceModalPoId, merged);
       setPos((prev) =>
         prev.map((po) =>
           po.poId === advanceModalPoId
@@ -709,7 +705,7 @@ export default function OperationsView({
 			                              openAdvanceModal(r as OperationsPoListRow);
 			                            }}
 				                          >
-				                            <CircleDollarSign size={16} />
+				                            <IndianRupee size={16} />
 				                          </button>
 				                          <button
 				                            type="button"
