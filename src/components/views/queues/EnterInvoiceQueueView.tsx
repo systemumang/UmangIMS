@@ -262,15 +262,16 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     return { ok: Object.keys(errors).length === 0, errors, firstError, items };
   }, [chargesGstAmount, courierCharge, invoiceDate, labourCharge, lines, otherCharge, packingCharge, supplierInvoiceNo, updatedBy]);
 
-  return (
-    <div className="space-y-6">
-      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
-      <div className="flex justify-end">
-        <ExportCsvButton filename={`queue-enter-invoice-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
-      </div>
+	  return (
+	    <div className="space-y-6">
+	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
+	      <div className="flex items-center justify-end gap-3">
+	        <div className="text-sm text-on-surface-variant">Pending Tasks / Enter Invoice</div>
+	        <ExportCsvButton filename={`queue-enter-invoice-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+	      </div>
+	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
-      {loading ? (
+	      {loading ? (
         <LoadingCard label="Loading POs pending invoice..." />
       ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>

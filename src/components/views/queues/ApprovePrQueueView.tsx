@@ -161,10 +161,11 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   return (
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} showSupplier={false} />
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <div className="text-sm text-on-surface-variant">Pending Tasks / Approve PR</div>
         <ExportCsvButton filename={`queue-approve-pr-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
       </div>
+      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} showSupplier={false} />
 
       {loading ? (
         <LoadingCard label="Loading pending PR approvals..." />

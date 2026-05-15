@@ -167,15 +167,15 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	  return (
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 	      <div className="flex items-center justify-end gap-3">
 	        <div className="text-sm text-on-surface-variant">Pending Tasks / Check PO</div>
 	        <ExportCsvButton filename={`queue-check-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
 	      </div>
+	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
-      {loading ? (
-        <LoadingCard label="Loading POs pending check..." />
-      ) : error ? (
+	      {loading ? (
+	        <LoadingCard label="Loading POs pending check..." />
+	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
         <QueueCard title="Check PO" subtitle={`${rows.length} pending`}>

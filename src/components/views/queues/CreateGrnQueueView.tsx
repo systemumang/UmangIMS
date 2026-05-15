@@ -156,17 +156,18 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     return v;
   }
 
-  return (
-    <div className="space-y-6">
-      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
-      <div className="flex justify-end">
-        <ExportCsvButton filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
-      </div>
+	  return (
+	    <div className="space-y-6">
+	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
+	      <div className="flex items-center justify-end gap-3">
+	        <div className="text-sm text-on-surface-variant">Pending Tasks / Create GRN</div>
+	        <ExportCsvButton filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+	      </div>
+	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
-      {loading ? (
-        <LoadingCard label="Loading POs pending GRN..." />
-      ) : error ? (
+	      {loading ? (
+	        <LoadingCard label="Loading POs pending GRN..." />
+	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
         <QueueCard title="Create GRN" subtitle={`${rows.length} pending`}>
