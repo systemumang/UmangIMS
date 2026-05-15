@@ -61,11 +61,6 @@ export default function ItemIssueView({
     }
   }
 
-  function formatItemInline(itemName: string, specificationsJson: string, specNameById?: Record<string, string>) {
-    const specs = formatSpecsLines(specificationsJson, specNameById);
-    return [itemName, ...specs].join(' - ');
-  }
-
 		  const [firms, setFirms] = useState<Firm[]>([]);
 		  const [loadingFirms, setLoadingFirms] = useState(true);
 			  const [departments, setDepartments] = useState<Department[]>([]);
@@ -675,7 +670,7 @@ export default function ItemIssueView({
 				                      if (it.id === row.itemId) return true;
 				                      return !items.some((r, j) => j !== idx && r.itemId && r.itemId === it.id);
 				                    })
-				                    .map((it) => ({ value: it.id, label: formatItemInline(it.itemName, it.specificationsJson, specNameById) }))}
+					                    .map((it) => ({ value: it.id, label: it.itemName }))}
 				                  onChange={(id) => {
 			                    const found = masterItems.find((it) => it.id === id);
 			                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));

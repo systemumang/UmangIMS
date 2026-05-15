@@ -5,7 +5,7 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { Trash2 } from 'lucide-react';
 import { fetchDepartments, fetchItems, fetchStores, fetchUsers, type Department, type Item, type Store, type User } from '@/src/lib/masters';
-import { formatItemInline, formatSpecsLines } from '@/src/lib/itemLabel';
+import { formatSpecsLines } from '@/src/lib/itemLabel';
 
 export default function StockTransferView({
   onCreated,
@@ -136,7 +136,7 @@ export default function StockTransferView({
     return masterItems
       .map((it) => ({
         value: it.id,
-        label: formatItemInline(it.itemName, it.specificationsJson),
+        label: it.itemName,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [masterItems]);

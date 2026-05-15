@@ -156,17 +156,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     }
   };
 
-  const getFullItemLabel = (item: Item) => {
-    const name = String(item.itemName ?? '').trim();
-    const desc = String(item.description ?? '').trim();
-    const specs = formatSpecsLines(item.specificationsJson);
-    const parts = [name, ...specs, desc].filter(Boolean);
-    return parts.join(' - ') || item.itemCode;
-  };
-
   const itemOptions = useMemo(
-    () => items.slice().sort((a, b) => getFullItemLabel(a).localeCompare(getFullItemLabel(b))).map((it) => ({ value: it.id, label: getFullItemLabel(it) })),
-    [items, specNameById]
+    () =>
+      items
+        .slice()
+        .sort((a, b) => String(a.itemName ?? '').localeCompare(String(b.itemName ?? '')))
+        .map((it) => ({ value: it.id, label: String(it.itemName ?? '').trim() || it.itemCode })),
+    [items]
   );
 
   const canSave = useMemo(() => {
