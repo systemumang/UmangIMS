@@ -40,6 +40,7 @@ export type PendingQueueKey =
   | 'queueCreateGrn'
   | 'queueCheckQuality'
   | 'queueEnterInvoice'
+  | 'queueTallyEntry'
   | 'queueLinkInvoiceGrn'
   | 'queuePayment';
 
@@ -51,6 +52,7 @@ export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> =
   { key: 'queueCreateGrn', label: 'Create GRN' },
   { key: 'queueCheckQuality', label: 'Check Quality' },
   { key: 'queueEnterInvoice', label: 'Enter Invoice' },
+  { key: 'queueTallyEntry', label: 'Tally Entry' },
   { key: 'queueLinkInvoiceGrn', label: 'Link Invoice ↔ GRN' },
   { key: 'queuePayment', label: 'Pending Payment' },
 ];

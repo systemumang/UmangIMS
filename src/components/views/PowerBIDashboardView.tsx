@@ -90,9 +90,10 @@ export default function PowerBIDashboardView({
       fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
       fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
-      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
-      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
-      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
+	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
+	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
+	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
+	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
       fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
     ])
       .then((pairs) => {
@@ -182,9 +183,10 @@ export default function PowerBIDashboardView({
       queueCheckPo: SearchCheck,
       queueSendPo: Send,
       queueCreateGrn: PackagePlus,
-      queueCheckQuality: BadgeCheck,
-      queueEnterInvoice: Receipt,
-      queueLinkInvoiceGrn: Link2,
+	      queueCheckQuality: BadgeCheck,
+	      queueEnterInvoice: Receipt,
+	      queueTallyEntry: Receipt,
+	      queueLinkInvoiceGrn: Link2,
       queuePayment: CreditCard,
     }),
     []

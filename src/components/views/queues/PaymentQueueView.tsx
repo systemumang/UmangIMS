@@ -13,7 +13,17 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+export default function PaymentQueueView({
+  onViewPr,
+  queueLabel = 'Pending Payment',
+  queuePathLabel = 'Pending Tasks / Pending Payment',
+  exportPrefix = 'queue-payment',
+}: {
+  onViewPr: (prId: string) => void;
+  queueLabel?: string;
+  queuePathLabel?: string;
+  exportPrefix?: string;
+}) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
@@ -107,8 +117,8 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
 	      <div className="hidden">
-	        <div className="text-sm text-on-surface-variant">Pending Tasks / Pending Payment</div>
-	        <ExportCsvButton id="pending-export-btn" filename={`queue-payment-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+		        <div className="text-sm text-on-surface-variant">{queuePathLabel}</div>
+		        <ExportCsvButton id="pending-export-btn" filename={`${exportPrefix}-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
 	      </div>
 	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
@@ -117,7 +127,7 @@ export default function PaymentQueueView({ onViewPr }: { onViewPr: (prId: string
       ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Pending Payment" subtitle={`${rows.length} pending`}>
+	        <QueueCard title={queueLabel} subtitle={`${rows.length} pending`}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1340px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>
