@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { approveInvoice } from '@/src/lib/purchaseRequests';
-import { fetchQueueApproveInvoice, type ApproveInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
+import { fetchQueueApproveInvoice, updateQueueApproveInvoice, type ApproveInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
 export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
-  const masters = useQueueMasters({ includeSuppliers: true });
+  const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<ApproveInvoiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +34,24 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
   const [active, setActive] = useState<ApproveInvoiceQueueRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ status: string; mismatches: string[] } | null>(null);
+  const [approvedBy, setApprovedBy] = useState('');
+  const [approveDate, setApproveDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   function closeModal() {
     setModalOpen(false);
     setActive(null);
     setSaving(false);
     setModalError(null);
-    setResult(null);
+    setApprovedBy('');
+    setApproveDate(new Date().toISOString().slice(0, 10));
   }
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    if (approvedBy) return;
+    if (masters.loading) return;
+    if (masters.users.length) setApprovedBy(String(masters.users[0]?.name ?? ''));
+  }, [approvedBy, masters.loading, masters.users, modalOpen]);
 
 	  return (
 	    <div className="space-y-6">
@@ -105,13 +113,12 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                             className="btn-primary btn-sm"
                             onClick={() => {
                               setActive(r);
-                              setResult(null);
                               setModalError(null);
                               setModalOpen(true);
                             }}
                           >
-                            Decide
-	                          </button>
+                            Approve
+		                          </button>
 	                        </div>
 	                      </td>
 	                    </tr>
@@ -131,7 +138,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 
       <Modal
         open={modalOpen}
-        title={`Approve / Hold Invoice ${active?.invoiceNo ?? active?.invoiceId ?? ''}`}
+        title={`Approve Invoice ${active?.invoiceNo ?? active?.invoiceId ?? ''}`}
         onClose={() => (saving ? null : closeModal())}
         maxWidthClass="max-w-3xl"
         footer={
@@ -142,47 +149,44 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={saving || !active}
+              disabled={saving || !active || !approvedBy.trim() || !approveDate}
               onClick={() => {
                 if (!active) return;
                 setSaving(true);
                 setModalError(null);
-                setResult(null);
-                approveInvoice(active.invoiceId)
-                  .then((r) => setResult({ status: String(r.status), mismatches: Array.isArray(r.mismatches) ? r.mismatches : [] }))
+                updateQueueApproveInvoice(active.invoiceId, { approvedBy: approvedBy.trim(), approveDate })
                   .then(() => fetchQueueApproveInvoice(filters).then(setRows))
+                  .then(() => closeModal())
                   .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
                   .finally(() => setSaving(false));
               }}
             >
-              {saving ? 'Processing...' : 'Run Approval'}
+              {saving ? 'Saving...' : 'Approve'}
             </button>
           </>
         }
       >
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
-        <div className="text-sm text-on-surface-variant">
-          This will approve the invoice when there are no mismatches, otherwise it will put it on hold.
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Approved By</div>
+            <input
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant"
+              value={approvedBy}
+              onChange={(e) => setApprovedBy(e.target.value)}
+              placeholder="Enter approver name"
+            />
+          </label>
+          <label className="space-y-1">
+            <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Approve Date</div>
+            <input
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant"
+              type="date"
+              value={approveDate}
+              onChange={(e) => setApproveDate(e.target.value)}
+            />
+          </label>
         </div>
-        {result ? (
-          <div className="bg-surface-container rounded-xl border border-outline-variant/10 p-4 space-y-2">
-            <div className="text-sm text-on-surface">
-              Result status: <span className="font-bold">{result.status}</span>
-            </div>
-            {result.mismatches.length ? (
-              <div>
-                <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Mismatches</div>
-                <ul className="list-disc pl-5 text-sm text-on-surface-variant space-y-1">
-                  {result.mismatches.map((m, idx) => (
-                    <li key={idx}>{m}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="text-sm text-on-surface-variant">No mismatches.</div>
-            )}
-          </div>
-        ) : null}
       </Modal>
     </div>
   );

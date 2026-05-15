@@ -683,9 +683,10 @@ export default function ReturnView({
 
 							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
 							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-								            <div className="md:col-span-7 px-2 py-2 md:border-r md:border-outline-variant">Item</div>
+								            <div className="md:col-span-3 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
+								            <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
 								            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
-								            <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant">Reason</div>
+								            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Reason</div>
 								            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
 							          </div>
 
@@ -697,7 +698,7 @@ export default function ReturnView({
 							                idx === 0 ? '' : 'border-t border-outline-variant',
 							              ].join(' ')}
 							            >
-							              <div className="md:col-span-7 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
+							              <div className="md:col-span-3 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
 						                <SearchableSelect
 				                  value={row.itemId}
 				                  options={masterItems
@@ -764,6 +765,11 @@ export default function ReturnView({
 			                  }}
 		                />
 			              </div>
+						              <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">
+						                <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
+						                  {row.specification?.trim() ? row.specification : '-'}
+						                </div>
+						              </div>
 						              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
 						                <input
 						                  className={inputClass}
@@ -781,7 +787,7 @@ export default function ReturnView({
 				                />
 				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
 				              </div>
-							              <div className="md:col-span-2 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+							              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
 							                <input
 							                  className={inputClass}
 					                  placeholder="Reason"

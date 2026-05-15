@@ -5,7 +5,7 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { Trash2 } from 'lucide-react';
 import { fetchDepartments, fetchItems, fetchStores, fetchUsers, type Department, type Item, type Store, type User } from '@/src/lib/masters';
-import { formatItemInline } from '@/src/lib/itemLabel';
+import { formatItemInline, formatSpecsLines } from '@/src/lib/itemLabel';
 
 export default function StockTransferView({
   onCreated,
@@ -19,7 +19,7 @@ export default function StockTransferView({
     || String((e as any)?.name ?? '').toLowerCase() === 'aborterror'
     || String((e as any)?.message ?? '').toLowerCase().includes('signal is aborted');
 
-  type ItemDraft = { itemId: string; item: string; quantity: string };
+  type ItemDraft = { itemId: string; item: string; specification: string; quantity: string };
 
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loadingFirms, setLoadingFirms] = useState(true);
@@ -41,7 +41,7 @@ export default function StockTransferView({
   const [transferByUserId, setTransferByUserId] = useState('');
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', quantity: '' }]);
+  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', specification: '', quantity: '' }]);
   const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -371,7 +371,8 @@ export default function StockTransferView({
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="bg-surface-container-low text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                   <tr>
-                    <th className="p-3 border-b border-outline-variant">Item</th>
+                    <th className="p-3 border-b border-outline-variant">Item Name</th>
+                    <th className="p-3 border-b border-outline-variant">Specifications</th>
                     <th className="p-3 border-b border-outline-variant text-right">Qty</th>
                     <th className="p-3 border-b border-outline-variant text-right">Action</th>
                   </tr>
@@ -379,7 +380,7 @@ export default function StockTransferView({
                 <tbody className="divide-y divide-outline-variant">
                   {items.map((row, idx) => (
                     <tr key={idx} className="hover:bg-surface-container-low/50">
-                      <td className="p-3 min-w-[320px]">
+                      <td className="p-3 min-w-[280px]">
                         {loadingItems ? (
                           <div className="flex items-center gap-2 text-on-surface-variant text-sm">
                             <Spinner className="h-4 w-4" /> Loading...
@@ -397,7 +398,8 @@ export default function StockTransferView({
                                     : {
                                         ...p,
                                         itemId: v,
-                                        item: selected ? formatItemInline(selected.itemName, selected.specificationsJson) : p.item,
+                                        item: selected ? selected.itemName : '',
+                                        specification: selected ? formatSpecsLines(selected.specificationsJson).join(', ') : '',
                                       }
                                 )
                               );
@@ -406,6 +408,11 @@ export default function StockTransferView({
                             allowClear
                           />
                         )}
+                      </td>
+                      <td className="p-3 min-w-[260px]">
+                        <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
+                          {row.specification?.trim() ? row.specification : '-'}
+                        </div>
                       </td>
                       <td className="p-3 text-right w-[120px]">
                         <input
@@ -443,7 +450,7 @@ export default function StockTransferView({
               <button
                 type="button"
                 className="btn btn-sm"
-                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', quantity: '' }])}
+                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', specification: '', quantity: '' }])}
               >
                 + Add Row
               </button>

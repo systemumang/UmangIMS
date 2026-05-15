@@ -16,6 +16,7 @@ import SendPoQueueView from './components/views/queues/SendPoQueueView';
 import CreateGrnQueueView from './components/views/queues/CreateGrnQueueView';
 import QcQueueView from './components/views/queues/QcQueueView';
 import EnterInvoiceQueueView from './components/views/queues/EnterInvoiceQueueView';
+import ApproveInvoiceQueueView from './components/views/queues/ApproveInvoiceQueueView';
 import LinkInvoiceGrnQueueView from './components/views/queues/LinkInvoiceGrnQueueView';
 import PaymentQueueView from './components/views/queues/PaymentQueueView';
 import Spinner from './components/common/Spinner';
@@ -60,6 +61,7 @@ import {
   fetchQueueCreateGrn,
   fetchQueueCreatePo,
   fetchQueueEnterInvoice,
+  fetchQueueApproveInvoice,
   fetchQueueLinkInvoiceGrn,
   fetchQueuePayment,
   fetchQueueTallyEntry,
@@ -174,6 +176,7 @@ export default function App() {
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
 	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
 	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
+	      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
 	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
 	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
       fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
@@ -279,8 +282,9 @@ export default function App() {
 	        queueCheckPo: 'Check PO',
 	        queueSendPo: 'Send PO',
 	        queueCreateGrn: 'Create GRN',
-	        queueCheckQuality: 'Check Quality',
+		        queueCheckQuality: 'Check Quality',
 		        queueEnterInvoice: 'Enter Invoice',
+		        queueApproveInvoice: 'Approve Invoice',
 		        queueTallyEntry: 'Tally Entry',
 	        queueLinkInvoiceGrn: 'Link Invoice ↔ GRN',
 		        queuePayment: 'Pending Payment',
@@ -677,6 +681,7 @@ export default function App() {
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
+			          {view === 'queueApproveInvoice' ? <ApproveInvoiceQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Pending Tasks / Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
 			          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}

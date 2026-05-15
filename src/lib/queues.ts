@@ -234,6 +234,8 @@ export type ApproveInvoiceQueueRow = {
   supplierName: string;
   invoiceAmount: number;
   status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
+  approvedBy?: string;
+  approvedAt?: string;
   pendingReason: string;
 };
 
@@ -241,6 +243,18 @@ export async function fetchQueueApproveInvoice(filters?: QueueFilters, signal?: 
   const res = await fetch(`/api/queues/approve-invoice${buildQueueQuery(filters)}`, { signal });
   const data = await requireOk<{ rows?: ApproveInvoiceQueueRow[] }>(res, 'Failed to load Approve Invoice queue');
   return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function updateQueueApproveInvoice(
+  invoiceId: string,
+  input: { approvedBy: string; approveDate: string }
+): Promise<{ ok?: boolean }> {
+  const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/approve-entry`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ ok?: boolean }>(res, 'Failed to approve invoice');
 }
 
 export type PaymentQueueRow = {
