@@ -397,10 +397,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                  try {
 	                    const documentUrl = invPdfFile ? (await uploadFileToServer(invPdfFile)).url : undefined;
 	                    const cnCopyUrl = cnCopyFile ? (await uploadFileToServer(cnCopyFile)).url : undefined;
-	                    await createInvoice(active.poId, {
-	                      supplierInvoiceNo: supplierInvoiceNo.trim(),
-	                      invoiceDate,
-	                      invoiceAmount: invAmt,
+		                    await createInvoice(active.poId, {
+		                      supplierInvoiceNo: supplierInvoiceNo.trim(),
+		                      invoiceDate,
+		                      invoiceAmount: invAmt,
 	                      courierCharge: c,
 	                      packingCharge: p,
 	                      labourCharge: lb,
@@ -409,9 +409,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                      transporterName: transporterName.trim() ? transporterName.trim() : undefined,
 	                      cnNumber: cnOrCourierNo.trim() ? cnOrCourierNo.trim() : undefined,
 	                      ewayBillNumber: ewayBillNumber.trim() ? ewayBillNumber.trim() : undefined,
-	                      documentUrl,
-	                      cnCopyUrl,
+		                      documentUrl,
+		                      cnCopyUrl,
 	                      updatedBy: updatedBy.trim(),
+	                      paymentMode: 'Credit',
 	                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: it.taxPercent })),
 	                    });
 	                    await fetchQueueEnterInvoice(filters).then(setRows);

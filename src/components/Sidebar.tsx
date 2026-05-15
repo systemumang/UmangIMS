@@ -207,10 +207,17 @@ export default function Sidebar({
 	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', pendingExpanded ? 'rotate-180' : 'rotate-0')} />
 	            </motion.button>
 	          ) : null}
-	          {pendingExpanded && onNavigatePendingQueue ? (
-	            <div className="ml-7 mr-1 space-y-1">
-		              {pendingQueueItems.filter((q) => isAllowed(`pending:${q.key}`)).map((q) => (
-		                <motion.button
+          {pendingExpanded && onNavigatePendingQueue ? (
+            <div className="ml-7 mr-1 space-y-1">
+			              {pendingQueueItems
+			                .filter((q) => {
+			                  const direct = isAllowed(`pending:${q.key}`);
+			                  if (direct) return true;
+			                  if (q.key === 'queueTallyEntry') return isAllowed('pending:queuePayment');
+			                  return false;
+			                })
+			                .map((q) => (
+			                <motion.button
 	                  key={q.key}
                   whileHover={{ x: 4 }}
                   type="button"
