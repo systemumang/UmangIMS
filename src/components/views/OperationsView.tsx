@@ -7,6 +7,7 @@ import { formatPrNumber } from '@/src/lib/docNumbers';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
+import { updatePo } from '@/src/lib/purchaseRequests';
 import {
 				  fetchOperationsGrnDetail,
 				  fetchOperationsGrns,
@@ -114,6 +115,17 @@ export default function OperationsView({
   const [advanceModalPoId, setAdvanceModalPoId] = useState('');
   const [advanceModalPoNumber, setAdvanceModalPoNumber] = useState('');
   const [advanceLines, setAdvanceLines] = useState<Array<{ id?: string; advanceDate: string; advanceAmount: string }>>([]);
+
+  const [editPoOpen, setEditPoOpen] = useState(false);
+  const [editPoBusy, setEditPoBusy] = useState(false);
+  const [editPoError, setEditPoError] = useState<string | null>(null);
+  const [editPoId, setEditPoId] = useState('');
+  const [editPoNumber, setEditPoNumber] = useState('');
+  const [editPoSupplierId, setEditPoSupplierId] = useState('');
+  const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
+  const [editPoLines, setEditPoLines] = useState<
+    Array<{ itemId: string; itemLabel: string; quantity: string; rate: string; discountPercent: string; taxPercent: string }>
+  >([]);
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {
@@ -475,6 +487,104 @@ export default function OperationsView({
     setAdvanceLines([]);
   };
 
+  const openEditPoModal = async (row: OperationsPoListRow) => {
+    const poId = String(row.poId ?? '').trim();
+    if (!poId) return;
+    setEditPoId(poId);
+    setEditPoNumber(String(row.poNumber ?? poId));
+    setEditPoOpen(true);
+    setEditPoBusy(true);
+    setEditPoError(null);
+    try {
+      const detail = await fetchOperationsPoDetail(poId);
+      const po = detail?.po?.po;
+      const items = detail?.po?.items ?? [];
+      const supplierId = String(po?.supplierId ?? row.supplierId ?? '').trim();
+      setEditPoSupplierId(supplierId);
+      setEditPoPaymentTerms(String(po?.paymentTerms ?? '').trim());
+      setEditPoLines(
+        (items ?? []).map((it: any) => ({
+          itemId: String(it.itemId ?? '').trim(),
+          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
+          quantity: String(Number(it.quantity ?? 0) || ''),
+          rate: String(Number(it.rate ?? 0) || ''),
+          discountPercent: String(Number(it.discountPercent ?? 0) || 0),
+          taxPercent: String(Number(it.taxPercent ?? 0) || 0),
+        }))
+      );
+    } catch (e) {
+      setEditPoError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEditPoBusy(false);
+    }
+  };
+
+  const closeEditPoModal = () => {
+    setEditPoOpen(false);
+    setEditPoBusy(false);
+    setEditPoError(null);
+    setEditPoId('');
+    setEditPoNumber('');
+    setEditPoSupplierId('');
+    setEditPoPaymentTerms('');
+    setEditPoLines([]);
+  };
+
+  const saveEditPo = async () => {
+    if (!editPoId) return;
+    const supplierId = String(editPoSupplierId ?? '').trim();
+    if (!supplierId) {
+      setEditPoError('Supplier is required.');
+      return;
+    }
+    const paymentTerms = String(editPoPaymentTerms ?? '').trim();
+    if (!paymentTerms) {
+      setEditPoError('Payment terms are required.');
+      return;
+    }
+    const items = editPoLines
+      .map((l) => ({
+        itemId: String(l.itemId ?? '').trim(),
+        quantity: Number(l.quantity ?? 0),
+        rate: Number(l.rate ?? 0),
+        discountPercent: Number(l.discountPercent ?? 0),
+        taxPercent: Number(l.taxPercent ?? 0),
+      }))
+      .filter((x) => x.itemId && Number.isFinite(x.quantity) && x.quantity > 0 && Number.isFinite(x.rate) && x.rate >= 0);
+    if (!items.length) {
+      setEditPoError('Enter Qty and Rate for at least one line.');
+      return;
+    }
+
+    setEditPoBusy(true);
+    setEditPoError(null);
+    try {
+      await updatePo(editPoId, {
+        supplierId,
+        paymentTerms,
+        items,
+        updatedBy: 'Operations',
+      });
+      const refreshed = await fetchOperationsPoDetail(editPoId);
+      setInlinePoDetailById((prev) => ({ ...prev, [editPoId]: refreshed }));
+      setPos((prev) =>
+        prev.map((p) =>
+          p.poId === editPoId
+            ? {
+                ...p,
+                supplierId,
+                supplierName: String(masters.suppliers.find((s) => s.id === supplierId)?.name ?? p.supplierName),
+              }
+            : p
+        )
+      );
+      closeEditPoModal();
+    } catch (e) {
+      setEditPoError(e instanceof Error ? e.message : String(e));
+      setEditPoBusy(false);
+    }
+  };
+
   const saveAdvances = async () => {
     if (!advanceModalPoId) return;
     const normalized = advanceLines
@@ -646,10 +756,10 @@ export default function OperationsView({
 	          <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant text-sm">
               {tab === 'pos' ? (
                 <colgroup>
-                  <col className="w-[120px]" />
-                  <col className="w-[120px]" />
+                  <col className="w-[95px]" />
+                  <col className="w-[95px]" />
                   <col className="w-[220px]" />
-                  <col className="w-[120px]" />
+                  <col className="w-[180px]" />
                   <col className="w-[120px]" />
                   <col className="w-[80px]" />
                   <col className="w-[120px]" />
@@ -812,12 +922,12 @@ export default function OperationsView({
 				                          <button
 				                            type="button"
 				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-				                            title="Edit PR"
-				                            aria-label="Edit PR"
-			                            onClick={(e) => {
-			                              e.stopPropagation();
-			                              if (onViewPr) onViewPr(String((r as any).prId ?? ''));
-			                            }}
+				                            title="Edit PO"
+				                            aria-label="Edit PO"
+				                            onClick={(e) => {
+				                              e.stopPropagation();
+				                              openEditPoModal(r as OperationsPoListRow);
+				                            }}
 				                          >
 				                            <Pencil size={16} />
 				                          </button>
@@ -1033,6 +1143,113 @@ export default function OperationsView({
                 {advanceModalBusy ? 'Saving...' : 'Save'}
               </button>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={editPoOpen} title={`Edit PO: ${editPoNumber || '-'}`} onClose={closeEditPoModal} maxWidthClass="max-w-5xl">
+        <div className="space-y-4">
+          {editPoError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <div className={labelClass}>Supplier</div>
+              <SearchableSelect
+                value={editPoSupplierId}
+                options={masters.suppliers.map((s) => ({ value: s.id, label: s.name }))}
+                onChange={(v) => setEditPoSupplierId(String(v ?? ''))}
+                disabled={editPoBusy || masters.loading}
+                placeholder="Select supplier..."
+              />
+            </label>
+            <label className="space-y-1">
+              <div className={labelClass}>Payment Terms</div>
+              <input className={inputClass} value={editPoPaymentTerms} onChange={(e) => setEditPoPaymentTerms(e.target.value)} disabled={editPoBusy} />
+            </label>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+              <thead>
+                <tr className="bg-surface-container-high">
+                  <th className="px-3 py-2 border border-outline-variant">Item</th>
+                  <th className="px-3 py-2 border border-outline-variant">Qty</th>
+                  <th className="px-3 py-2 border border-outline-variant">Rate</th>
+                  <th className="px-3 py-2 border border-outline-variant">Disc %</th>
+                  <th className="px-3 py-2 border border-outline-variant">GST %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {editPoLines.length ? (
+                  editPoLines.map((l, idx) => (
+                    <tr key={`${l.itemId}-${idx}`}>
+                      <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{l.itemLabel}</td>
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <input
+                          className={cn(inputClass, 'py-1.5')}
+                          value={l.quantity}
+                          onChange={(e) =>
+                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, quantity: sanitizeDecimalInput(e.target.value) } : x)))
+                          }
+                          inputMode="decimal"
+                          disabled={editPoBusy}
+                        />
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <input
+                          className={cn(inputClass, 'py-1.5')}
+                          value={l.rate}
+                          onChange={(e) =>
+                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, rate: sanitizeDecimalInput(e.target.value) } : x)))
+                          }
+                          inputMode="decimal"
+                          disabled={editPoBusy}
+                        />
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <input
+                          className={cn(inputClass, 'py-1.5')}
+                          value={l.discountPercent}
+                          onChange={(e) =>
+                            setEditPoLines((prev) =>
+                              prev.map((x, i) => (i === idx ? { ...x, discountPercent: sanitizeDecimalInput(e.target.value) } : x))
+                            )
+                          }
+                          inputMode="decimal"
+                          disabled={editPoBusy}
+                        />
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <input
+                          className={cn(inputClass, 'py-1.5')}
+                          value={l.taxPercent}
+                          onChange={(e) =>
+                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizeDecimalInput(e.target.value) } : x)))
+                          }
+                          inputMode="decimal"
+                          disabled={editPoBusy}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                      No items.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" className="btn btn-sm" onClick={closeEditPoModal} disabled={editPoBusy}>
+              Close
+            </button>
+            <button type="button" className="btn-primary btn-sm" onClick={saveEditPo} disabled={editPoBusy}>
+              {editPoBusy ? 'Saving...' : 'Save'}
+            </button>
           </div>
         </div>
       </Modal>
