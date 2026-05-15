@@ -2173,8 +2173,8 @@ app.get('/api/queues/tally-entry', async (req, res) => {
       .filter((x) => x.remainingAmount > 1e-9)
       .filter((x) => String(x.paymentMode ?? '').trim().toLowerCase() !== 'cash')
       .filter((x) => {
-        const approvedBy = String((x as any).approvedBy ?? '').trim();
-        const approvedAt = String((x as any).approvedAt ?? '').trim();
+        const approvedBy = String(x?.approvedBy ?? '').trim();
+        const approvedAt = String(x?.approvedAt ?? '').trim();
         return Boolean(approvedBy) && Boolean(approvedAt);
       })
       .filter((x) => !x.tallyEntryDate);
