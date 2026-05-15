@@ -216,6 +216,25 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
   return data as T;
 }
 
+async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init: RequestInit & { signal?: AbortSignal },
+  opts?: { retries?: number; baseDelayMs?: number }
+): Promise<Response> {
+  const retries = Math.max(0, Number(opts?.retries ?? 2));
+  const baseDelayMs = Math.max(50, Number(opts?.baseDelayMs ?? 350));
+
+  let last: Response | null = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(input, init);
+    last = res;
+    if (res.status !== 503) return res;
+    if (attempt >= retries) return res;
+    await new Promise<void>((r) => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+  }
+  return last ?? fetch(input, init);
+}
+
 export type LastSupplierInfo = { supplierName: string; rate: number };
 export type LastSupplierInfoWithId = { supplierId: string; supplierName: string; rate: number };
 
@@ -235,7 +254,7 @@ export async function fetchLastSupplierByItemIds(
 }
 
 export async function fetchFirms(signal?: AbortSignal): Promise<Firm[]> {
-  const res = await fetch('/api/firms', { signal });
+  const res = await fetchWithRetry('/api/firms', { signal }, { retries: 3, baseDelayMs: 350 });
   const data = await requireOk<{ firms?: Firm[] }>(res, 'Failed to load firms');
   const rows = Array.isArray(data.firms) ? data.firms : [];
   return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
