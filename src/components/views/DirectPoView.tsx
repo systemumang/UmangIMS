@@ -4,15 +4,19 @@ import { createDirectPo } from '@/src/lib/purchaseRequests';
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import {
   fetchFirms,
+  fetchItemNames,
   fetchItems,
+  fetchSpecificationValues,
   fetchProjects,
   fetchSpecifications,
   fetchStores,
   fetchSuppliers,
   type Firm,
   type Item,
+  type ItemName,
   type Project,
   type Specification,
+  type SpecificationValue,
   type Store,
   type Supplier,
 } from '@/src/lib/masters';
@@ -20,6 +24,8 @@ import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInpu
 
 type Line = {
   itemId: string;
+  itemNameId: string;
+  specs: Record<string, string>;
   quantity: string;
   rate: string;
   discountPercent: string;
@@ -31,8 +37,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [stores, setStores] = useState<Store[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [itemNames, setItemNames] = useState<ItemName[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [specs, setSpecs] = useState<Specification[]>([]);
+  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
   const [firmId, setFirmId] = useState('');
   const [storeId, setStoreId] = useState('');
@@ -44,7 +52,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [shippingAddress, setShippingAddress] = useState('');
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
-  const [lines, setLines] = useState<Line[]>([{ itemId: '', quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+  const [lines, setLines] = useState<Line[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +66,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     fetchStores(ac.signal).then(setStores).catch(() => setStores([]));
     fetchProjects(ac.signal).then(setProjects).catch(() => setProjects([]));
     fetchItems(ac.signal).then(setItems).catch(() => setItems([]));
+    fetchItemNames(ac.signal).then(setItemNames).catch(() => setItemNames([]));
     fetchSuppliers(ac.signal).then(setSuppliers).catch(() => setSuppliers([]));
     fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
     return () => ac.abort();
@@ -157,13 +166,41 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   };
 
   const itemOptions = useMemo(
-    () =>
-      items
-        .slice()
-        .sort((a, b) => String(a.itemName ?? '').localeCompare(String(b.itemName ?? '')))
-        .map((it) => ({ value: it.id, label: String(it.itemName ?? '').trim() || it.itemCode })),
-    [items]
+    () => itemNames.slice().sort((a, b) => a.name.localeCompare(b.name)).map((it) => ({ value: it.id, label: it.name })),
+    [itemNames]
   );
+
+  const getItemNameSpecIds = (itemNameId: string): string[] => {
+    const row = itemNames.find((n) => n.id === itemNameId);
+    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+    return ids.filter(Boolean);
+  };
+
+  const specValueKey = (itemNameId: string, specificationId: string) => `${itemNameId}::${specificationId}`;
+
+  const parseSpecObject = (specificationsJson: string) => {
+    try {
+      const parsed = JSON.parse(specificationsJson || '{}');
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const resolveSelectedItem = (itemNameId: string, specValues: Record<string, string>) => {
+    if (!itemNameId) return null;
+    const specIds = getItemNameSpecIds(itemNameId);
+    const candidates = items.filter((it) => it.itemNameId === itemNameId);
+    if (!candidates.length) return null;
+    if (!specIds.length) return candidates[0] ?? null;
+    if (specIds.some((specId) => !String(specValues?.[specId] ?? '').trim())) return null;
+    return (
+      candidates.find((it) => {
+        const saved = parseSpecObject(it.specificationsJson);
+        return specIds.every((specId) => String(saved[specId] ?? '').trim() === String(specValues?.[specId] ?? '').trim());
+      }) ?? null
+    );
+  };
 
   const canSave = useMemo(() => {
     if (!firmId || !supplierId) return false;
@@ -180,11 +217,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const removeLine = (idx: number) => {
     setLines((prev) => {
       const next = prev.filter((_, i) => i !== idx);
-      return next.length ? next : [{ itemId: '', quantity: '', rate: '', discountPercent: '', taxPercent: '' }];
+      return next.length ? next : [{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }];
     });
   };
 
-  const addLine = () => setLines((prev) => [...prev, { itemId: '', quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+  const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
 
   const save = async () => {
     if (!canSave) return;
@@ -366,21 +403,62 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                   <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
                     <td className="p-2 border border-outline-variant min-w-[360px]">
                       <SearchableSelect
-                        value={l.itemId}
+                        value={l.itemNameId}
                         options={itemOptions}
-                        onChange={(v) => updateLine(idx, { itemId: v })}
-                        placeholder="Search item..."
+                        onChange={(itemNameId) => {
+                          const specIdsToLoad = itemNameId ? getItemNameSpecIds(itemNameId) : [];
+                          for (const specId of specIdsToLoad) {
+                            const key = specValueKey(itemNameId, specId);
+                            if ((specValueOptions[key] ?? []).length) continue;
+                            fetchSpecificationValues(specId, { itemNameId })
+                              .then((vals) => setSpecValueOptions((m) => ({ ...m, [key]: vals })))
+                              .catch(() => {});
+                          }
+                          updateLine(idx, { itemNameId, itemId: '', specs: {} });
+                        }}
+                        placeholder="Search item name..."
                       />
                     </td>
                     <td className="p-2 border border-outline-variant min-w-[280px]">
-                      <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
-                        {(() => {
-                          const item = items.find((it) => it.id === l.itemId);
-                          if (!item) return '-';
-                          const specsText = formatSpecsLines(item.specificationsJson).join(', ').trim();
-                          return specsText || '-';
-                        })()}
-                      </div>
+                      {l.itemNameId ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {getItemNameSpecIds(l.itemNameId).map((specId) => {
+                            const specName = specNameById?.[specId] ?? specId;
+                            const value = String(l.specs?.[specId] ?? '');
+                            const key = specValueKey(l.itemNameId, specId);
+                            const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                            if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                            return (
+                              <label key={`${idx}-${specId}`} className="space-y-1">
+                                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
+                                <SearchableSelect
+                                  value={value}
+                                  options={options}
+                                  placeholder="Select value..."
+                                  onChange={(selectedValue) => {
+                                    setLines((prev) =>
+                                      prev.map((p, i) => {
+                                        if (i !== idx) return p;
+                                        const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
+                                        const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
+                                        return {
+                                          ...p,
+                                          specs: nextSpecs,
+                                          itemId: matched?.id ?? '',
+                                        };
+                                      })
+                                    );
+                                  }}
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
+                          -
+                        </div>
+                      )}
                     </td>
                     <td className="p-2 border border-outline-variant text-right w-28">
                       {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}

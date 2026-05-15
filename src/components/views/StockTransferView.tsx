@@ -4,7 +4,22 @@ import { createTransfer } from '@/src/lib/stockMaster';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import { Trash2 } from 'lucide-react';
-import { fetchDepartments, fetchItems, fetchStores, fetchUsers, type Department, type Item, type Store, type User } from '@/src/lib/masters';
+import {
+  fetchDepartments,
+  fetchItemNames,
+  fetchItems,
+  fetchSpecificationValues,
+  fetchSpecifications,
+  fetchStores,
+  fetchUsers,
+  type Department,
+  type Item,
+  type ItemName,
+  type Specification,
+  type SpecificationValue,
+  type Store,
+  type User,
+} from '@/src/lib/masters';
 import { formatSpecsLines } from '@/src/lib/itemLabel';
 
 export default function StockTransferView({
@@ -19,7 +34,14 @@ export default function StockTransferView({
     || String((e as any)?.name ?? '').toLowerCase() === 'aborterror'
     || String((e as any)?.message ?? '').toLowerCase().includes('signal is aborted');
 
-  type ItemDraft = { itemId: string; item: string; specification: string; quantity: string };
+  type ItemDraft = {
+    itemId: string;
+    itemNameId: string;
+    item: string;
+    specification: string;
+    specs: Record<string, string>;
+    quantity: string;
+  };
 
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loadingFirms, setLoadingFirms] = useState(true);
@@ -29,8 +51,13 @@ export default function StockTransferView({
   const [loadingStores, setLoadingStores] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [itemNames, setItemNames] = useState<ItemName[]>([]);
+  const [loadingItemNames, setLoadingItemNames] = useState(true);
   const [masterItems, setMasterItems] = useState<Item[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [specs, setSpecs] = useState<Specification[]>([]);
+  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   const [fromFirmId, setFromFirmId] = useState('');
   const [fromStoreId, setFromStoreId] = useState('');
@@ -41,7 +68,7 @@ export default function StockTransferView({
   const [transferByUserId, setTransferByUserId] = useState('');
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', item: '', specification: '', quantity: '' }]);
+  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', itemNameId: '', item: '', specification: '', specs: {}, quantity: '' }]);
   const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +127,19 @@ export default function StockTransferView({
 
   useEffect(() => {
     const ac = new AbortController();
+    setLoadingItemNames(true);
+    fetchItemNames(ac.signal)
+      .then(setItemNames)
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setLoadingItemNames(false));
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
     setLoadingItems(true);
     fetchItems(ac.signal)
       .then(setMasterItems)
@@ -108,6 +148,17 @@ export default function StockTransferView({
         setError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setLoadingItems(false));
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal)
+      .then(setSpecs)
+      .catch((e) => {
+        if (ac.signal.aborted || isAbort(e)) return;
+        setError(e instanceof Error ? e.message : String(e));
+      });
     return () => ac.abort();
   }, []);
 
@@ -132,14 +183,37 @@ export default function StockTransferView({
     [users]
   );
 
-  const itemOptions = useMemo(() => {
-    return masterItems
-      .map((it) => ({
-        value: it.id,
-        label: it.itemName,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [masterItems]);
+  const getItemNameSpecIds = (itemNameId: string): string[] => {
+    const row = itemNames.find((n) => n.id === itemNameId);
+    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+    return ids.filter(Boolean);
+  };
+
+  const specValueKey = (itemNameId: string, specificationId: string) => `${itemNameId}::${specificationId}`;
+
+  const parseSpecObject = (specificationsJson: string) => {
+    try {
+      const parsed = JSON.parse(specificationsJson || '{}');
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const resolveSelectedItem = (itemNameId: string, specValues: Record<string, string>) => {
+    if (!itemNameId) return null;
+    const specIds = getItemNameSpecIds(itemNameId);
+    const candidates = masterItems.filter((it) => it.itemNameId === itemNameId);
+    if (!candidates.length) return null;
+    if (!specIds.length) return candidates[0] ?? null;
+    if (specIds.some((specId) => !String(specValues?.[specId] ?? '').trim())) return null;
+    return (
+      candidates.find((it) => {
+        const saved = parseSpecObject(it.specificationsJson);
+        return specIds.every((specId) => String(saved[specId] ?? '').trim() === String(specValues?.[specId] ?? '').trim());
+      }) ?? null
+    );
+  };
 
   const fromFirmName = useMemo(() => firms.find((f) => f.id === fromFirmId)?.name ?? fromFirmId, [firms, fromFirmId]);
   const fromStoreName = useMemo(() => stores.find((s) => s.id === fromStoreId)?.name ?? fromStoreId, [stores, fromStoreId]);
@@ -164,11 +238,11 @@ export default function StockTransferView({
 
     for (const row of rows) {
       const qty = Number.parseFloat(row.quantity || '0');
-      const hasAny = Boolean(row.itemId.trim() || row.item.trim() || row.quantity.trim());
+      const hasAny = Boolean(row.itemNameId.trim() || row.itemId.trim() || row.item.trim() || row.quantity.trim());
       if (!hasAny) continue;
 
       if (!row.itemId.trim()) {
-        errors.push('Please select item for all filled rows.');
+        errors.push('Please select valid item/specification for all filled rows.');
         continue;
       }
       if (!Number.isFinite(qty) || qty <= 0) {
@@ -387,32 +461,80 @@ export default function StockTransferView({
                           </div>
                         ) : (
                           <SearchableSelect
-                            value={row.itemId}
-                            options={itemOptions}
-                            onChange={(v) => {
-                              const selected = masterItems.find((m) => m.id === v) ?? null;
+                            value={row.itemNameId}
+                            options={itemNames.map((it) => ({ value: it.id, label: it.name }))}
+                            onChange={(itemNameId) => {
+                              const specIdsToLoad = itemNameId ? getItemNameSpecIds(itemNameId) : [];
+                              for (const specId of specIdsToLoad) {
+                                const key = specValueKey(itemNameId, specId);
+                                if ((specValueOptions[key] ?? []).length) continue;
+                                fetchSpecificationValues(specId, { itemNameId })
+                                  .then((vals) => setSpecValueOptions((m) => ({ ...m, [key]: vals })))
+                                  .catch(() => {});
+                              }
                               setItems((prev) =>
                                 prev.map((p, i) =>
                                   i !== idx
                                     ? p
                                     : {
                                         ...p,
-                                        itemId: v,
-                                        item: selected ? selected.itemName : '',
-                                        specification: selected ? formatSpecsLines(selected.specificationsJson).join(', ') : '',
+                                        itemNameId,
+                                        itemId: '',
+                                        item: '',
+                                        specification: '',
+                                        specs: {},
                                       }
                                 )
                               );
                             }}
-                            placeholder="Search item..."
+                            placeholder="Search item name..."
                             allowClear
+                            disabled={loadingItemNames}
                           />
                         )}
                       </td>
                       <td className="p-3 min-w-[260px]">
-                        <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
-                          {row.specification?.trim() ? row.specification : '-'}
-                        </div>
+                        {row.itemNameId ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {getItemNameSpecIds(row.itemNameId).map((specId) => {
+                              const specName = specNameById?.[specId] ?? specId;
+                              const value = String(row.specs?.[specId] ?? '');
+                              const key = specValueKey(row.itemNameId, specId);
+                              const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                              if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                              return (
+                                <label key={`${idx}-${specId}`} className="space-y-1">
+                                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
+                                  <SearchableSelect
+                                    value={value}
+                                    options={options}
+                                    placeholder="Select value..."
+                                    onChange={(selectedValue) => {
+                                      setItems((prev) =>
+                                        prev.map((p, i) => {
+                                          if (i !== idx) return p;
+                                          const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
+                                          const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
+                                          return {
+                                            ...p,
+                                            specs: nextSpecs,
+                                            itemId: matched?.id ?? '',
+                                            item: matched?.itemName ?? '',
+                                            specification: matched ? formatSpecsLines(matched.specificationsJson, specNameById).join(', ') : '',
+                                          };
+                                        })
+                                      );
+                                    }}
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
+                            -
+                          </div>
+                        )}
                       </td>
                       <td className="p-3 text-right w-[120px]">
                         <input
@@ -450,7 +572,7 @@ export default function StockTransferView({
               <button
                 type="button"
                 className="btn btn-sm"
-                onClick={() => setItems((prev) => [...prev, { itemId: '', item: '', specification: '', quantity: '' }])}
+                onClick={() => setItems((prev) => [...prev, { itemId: '', itemNameId: '', item: '', specification: '', specs: {}, quantity: '' }])}
               >
                 + Add Row
               </button>
