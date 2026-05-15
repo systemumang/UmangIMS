@@ -355,7 +355,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
             <table className="w-full text-left border-collapse text-sm">
               <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                 <tr>
-                  <th className="px-3 py-2 border border-outline-variant">Item</th>
+                  <th className="px-3 py-2 border border-outline-variant">Item Name</th>
+                  <th className="px-3 py-2 border border-outline-variant">Specifications</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Available</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
@@ -368,7 +369,22 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 {lines.map((l, idx) => (
                   <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
                     <td className="p-2 border border-outline-variant min-w-[360px]">
-                      <SearchableSelect value={l.itemId} options={itemOptions} onChange={(v) => updateLine(idx, { itemId: v })} placeholder="Select item..." />
+                      <SearchableSelect
+                        value={l.itemId}
+                        options={itemOptions}
+                        onChange={(v) => updateLine(idx, { itemId: v })}
+                        placeholder="Search item..."
+                      />
+                    </td>
+                    <td className="p-2 border border-outline-variant min-w-[280px]">
+                      <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
+                        {(() => {
+                          const item = items.find((it) => it.id === l.itemId);
+                          if (!item) return '-';
+                          const specsText = formatSpecsLines(item.specificationsJson).join(', ').trim();
+                          return specsText || '-';
+                        })()}
+                      </div>
                     </td>
                     <td className="p-2 border border-outline-variant text-right w-28">
                       {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}

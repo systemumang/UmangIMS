@@ -361,7 +361,7 @@ export default function PaymentQueueView({
                   <tr className="bg-primary text-on-primary">
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Qty</th>
-                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -419,7 +419,7 @@ export default function PaymentQueueView({
 	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
 	                </tr>
 	              </thead>
 	              <tbody>

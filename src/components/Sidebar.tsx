@@ -136,14 +136,22 @@ export default function Sidebar({
   onLogout?: () => void;
   open?: boolean;
 		}) {
-	  const allowed = useMemo(() => new Set((menuAccessKeys ?? []).map((x) => String(x))), [menuAccessKeys]);
-	  const hasAny = allowed.size > 0;
-	  const isAllowed = (key: string) => (!hasAny ? true : allowed.has(String(key)));
-	  const hasPrefix = (prefix: string) => {
-	    if (!hasAny) return true;
-	    for (const k of allowed) if (k.startsWith(prefix)) return true;
-	    return false;
-	  };
+		  const allowed = useMemo(() => new Set((menuAccessKeys ?? []).map((x) => String(x))), [menuAccessKeys]);
+		  const hasAny = allowed.size > 0;
+		  const isAllowed = (key: string) => (!hasAny ? true : allowed.has(String(key)));
+		  const isMasterTabAllowed = (tab: MastersTab) => {
+		    if (!hasAny) return true;
+		    if (allowed.has(`masters:${tab}`)) return true;
+		    // Backward compatibility: older users may have top-level Masters access
+		    // saved before newly added master tabs existed.
+		    if (tab === 'priorities' && allowed.has('masters')) return true;
+		    return false;
+		  };
+		  const hasPrefix = (prefix: string) => {
+		    if (!hasAny) return true;
+		    for (const k of allowed) if (k.startsWith(prefix)) return true;
+		    return false;
+		  };
 
 	  const borderClass = 'border-2 border-[#1f2937]';
 	  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
@@ -187,12 +195,12 @@ export default function Sidebar({
 	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', mastersExpanded ? 'rotate-180' : 'rotate-0')} />
 	            </motion.button>
 	          ) : null}
-	          {mastersExpanded ? (
-	            <div className="ml-7 mr-1 space-y-1">
-		              {MASTERS_TABS.filter((t) => isAllowed(`masters:${t.key}`)).map((t) => (
-		                <button key={t.key} type="button" onClick={() => onNavigateMastersTab?.(t.key)} className={cn(subRowClass, activeMastersTab === t.key ? subActiveClass : subInactiveClass)}>
-	                    <span className="flex items-center justify-between gap-2 w-full">
-		                     <span>{t.label}</span>
+		          {mastersExpanded ? (
+		            <div className="ml-7 mr-1 space-y-1">
+			              {MASTERS_TABS.filter((t) => isMasterTabAllowed(t.key)).map((t) => (
+			                <button key={t.key} type="button" onClick={() => onNavigateMastersTab?.(t.key)} className={cn(subRowClass, activeMastersTab === t.key ? subActiveClass : subInactiveClass)}>
+		                    <span className="flex items-center justify-between gap-2 w-full">
+			                     <span>{t.label}</span>
 	                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
 	                        {Number(mastersCounts?.[t.key] ?? 0)}
 	                      </span>

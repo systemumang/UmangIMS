@@ -2145,13 +2145,26 @@ app.get('/api/queues/tally-entry', async (req, res) => {
         po.project_id AS projectId,
         proj.name AS projectName,
         po.supplier_id AS supplierId,
-        s.name AS supplierName
+        s.name AS supplierName,
+        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
+        FROM invoice_items ii
+        GROUP BY ii.invoice_id
+      ) invq ON invq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(gil.linked_qty, 0)) AS totalLinkedQty
+        FROM invoice_items ii
+        LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
+        GROUP BY ii.invoice_id
+      ) linkq ON linkq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
       `,
@@ -2316,6 +2329,8 @@ app.get('/api/queues/payment', async (req, res) => {
           projectName: r.projectName ? String(r.projectName) : null,
           supplierId: r.supplierId ? String(r.supplierId) : null,
           supplierName: String(r.supplierName ?? ''),
+          totalInvoiceQty: Number(r.totalInvoiceQty ?? 0),
+          totalLinkedQty: Number(r.totalLinkedQty ?? 0),
           invoiceAmount,
           paidAmount,
           remainingAmount,
@@ -2323,6 +2338,8 @@ app.get('/api/queues/payment', async (req, res) => {
         };
       })
       .filter((x) => x.remainingAmount > 1e-9)
+      // Show only invoices where all invoice qty is linked (invoice qty == link qty).
+      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalLinkedQty) <= 1e-9)
       // Only "accounted" invoices become due for payment.
       // If tally_entry_date column exists, require it to be set.
       .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
