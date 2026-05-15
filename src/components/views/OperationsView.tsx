@@ -361,7 +361,11 @@ export default function OperationsView({
           .then((rows) => {
             const list = rows ?? [];
             setInlinePoAdvancesById((prev) => ({ ...prev, [poId]: list }));
-            setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+            if (list.length > 0) {
+              setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+            } else {
+              setExpandedPoAdvanceIds((prev) => prev.filter((x) => x !== poId));
+            }
           })
           .catch((e) =>
             setInlinePoAdvancesErrorById((prev) => ({
@@ -371,7 +375,12 @@ export default function OperationsView({
           )
           .finally(() => setInlinePoAdvancesLoadingById((prev) => ({ ...prev, [poId]: false })));
       } else {
-        setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+        const cached = inlinePoAdvancesById[poId] ?? [];
+        if (cached.length > 0) {
+          setExpandedPoAdvanceIds((prev) => (prev.includes(poId) ? prev : [...prev, poId]));
+        } else {
+          setExpandedPoAdvanceIds((prev) => prev.filter((x) => x !== poId));
+        }
       }
       return;
     }
@@ -909,42 +918,34 @@ export default function OperationsView({
                           </td>
                         </tr>
 	                      ) : null}
-	                      {tab === 'pos' && isAdvanceExpanded ? (
-	                        <tr>
-	                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
-	                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
-	                            {!advanceLoading && advanceError ? <div className="text-sm text-error">{advanceError}</div> : null}
-	                            {!advanceLoading && !advanceError ? (
-	                              <div className="overflow-x-auto">
-	                                <table className="w-full min-w-[480px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-	                                  <thead>
-	                                    <tr className="bg-primary text-on-primary">
-	                                      <th className="px-3 py-2 border border-outline-variant">Adv Date</th>
-	                                      <th className="px-3 py-2 border border-outline-variant">Advance</th>
-	                                    </tr>
-	                                  </thead>
-	                                  <tbody>
-	                                    {advanceRows.length ? (
-	                                      advanceRows.map((a) => (
-	                                        <tr key={String(a.id)}>
-	                                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
-	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
-	                                        </tr>
-	                                      ))
-	                                    ) : (
-	                                      <tr>
-	                                        <td colSpan={2} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-	                                          No advances found.
-	                                        </td>
-	                                      </tr>
-	                                    )}
-	                                  </tbody>
-	                                </table>
-	                              </div>
-	                            ) : null}
-	                          </td>
-	                        </tr>
-	                      ) : null}
+		                      {tab === 'pos' && isAdvanceExpanded && (advanceLoading || Boolean(advanceError) || advanceRows.length > 0) ? (
+		                        <tr>
+		                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+		                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
+		                            {!advanceLoading && advanceError ? <div className="text-sm text-error">{advanceError}</div> : null}
+		                            {!advanceLoading && !advanceError && advanceRows.length ? (
+		                              <div className="overflow-x-auto">
+		                                <table className="w-full min-w-[480px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+		                                  <thead>
+		                                    <tr className="bg-primary text-on-primary">
+		                                      <th className="px-3 py-2 border border-outline-variant">Adv Date</th>
+		                                      <th className="px-3 py-2 border border-outline-variant">Advance</th>
+		                                    </tr>
+		                                  </thead>
+		                                  <tbody>
+		                                    {advanceRows.map((a) => (
+		                                      <tr key={String(a.id)}>
+		                                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
+		                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
+		                                      </tr>
+		                                    ))}
+		                                  </tbody>
+		                                </table>
+		                              </div>
+		                            ) : null}
+		                          </td>
+		                        </tr>
+		                      ) : null}
 	                    </React.Fragment>
 	                  );
 	                })
