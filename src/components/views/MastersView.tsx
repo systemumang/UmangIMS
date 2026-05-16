@@ -3908,7 +3908,12 @@ export default function MastersView({
                               const link = String((s as any).catalogueLink ?? '').trim();
                               if (!link) return '';
                               return (
-                                <a className="btn-primary btn-sm inline-flex" href={link} target="_blank" rel="noreferrer">
+                                <a
+                                  className="btn-sm inline-flex bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
                                   Catalogue
                                 </a>
                               );
@@ -4267,7 +4272,12 @@ export default function MastersView({
                               const link = String((n as any).catalogueLink ?? '').trim();
                               if (!link) return '';
                               return (
-                                <a className="btn-primary btn-sm inline-flex" href={link} target="_blank" rel="noreferrer">
+                                <a
+                                  className="btn-sm inline-flex bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
                                   Catalogue
                                 </a>
                               );
