@@ -235,13 +235,30 @@ export default function PowerBIDashboardView({
 	        <div className="text-xs font-semibold text-on-surface-variant">{formatDDMMYYYY(new Date())}</div>
 	      </div>
 
-	        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-	          <div className="font-headline font-bold text-sm text-on-surface mb-3 pb-2 border-b-2 border-[#374151]">Quick Actions</div>
-	          <div className="flex items-center gap-2 overflow-x-auto">
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
-              <Plus size={14} />
-              Purchase Request
-            </button>
+		        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+              <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b-2 border-[#374151]">
+                <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
+                {catalogueUrl ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]"
+                    onClick={() => {
+                      const url = catalogueUrl.trim();
+                      if (!url) return;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    title="Open Catelouge"
+                  >
+                    <Link2 size={14} />
+                    Catelouge
+                  </button>
+                ) : null}
+              </div>
+		          <div className="flex items-center gap-2 overflow-x-auto">
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
+	              <Plus size={14} />
+	              Purchase Request
+	            </button>
 	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onDirectPo}>
               <Plus size={14} />
               Direct PO
@@ -262,25 +279,10 @@ export default function PowerBIDashboardView({
 	              <AlertTriangle size={14} />
 	              Damage
 	            </button>
-		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
-		              <Boxes size={14} />
-		              Transfer
-		            </button>
-                {catalogueUrl ? (
-                  <button
-                    type="button"
-                    className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]"
-                    onClick={() => {
-                      const url = catalogueUrl.trim();
-                      if (!url) return;
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                    }}
-                    title="Open Catelouge"
-                  >
-                    <Link2 size={14} />
-                    Catelouge
-                  </button>
-                ) : null}
+			            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
+			              <Boxes size={14} />
+			              Transfer
+			            </button>
 	          </div>
 	        </div>
 
