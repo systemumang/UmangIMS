@@ -3903,7 +3903,17 @@ export default function MastersView({
 					                        <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
 					                      ) : '-'}
 					                    </td>
-                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{(s as any).catalogueLink ?? ''}</td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">
+                            {(() => {
+                              const link = String((s as any).catalogueLink ?? '').trim();
+                              if (!link) return '';
+                              return (
+                                <a className="btn-primary btn-sm inline-flex" href={link} target="_blank" rel="noreferrer">
+                                  Catalogue
+                                </a>
+                              );
+                            })()}
+                          </td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">
 				                        <button
@@ -4252,7 +4262,17 @@ export default function MastersView({
 					                          .join(', ');
 					                      })()}
 					                    </td>
-                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{(n as any).catalogueLink ?? ''}</td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">
+                            {(() => {
+                              const link = String((n as any).catalogueLink ?? '').trim();
+                              if (!link) return '';
+                              return (
+                                <a className="btn-primary btn-sm inline-flex" href={link} target="_blank" rel="noreferrer">
+                                  Catalogue
+                                </a>
+                              );
+                            })()}
+                          </td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">
 						                        <button

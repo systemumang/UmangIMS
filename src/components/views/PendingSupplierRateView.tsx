@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchPendingSupplierRates, updateRfqItemSupplierRate, type PendingSupplierRateRow } from '@/src/lib/purchaseRequests';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { inputClass, LoadingCard, QueueCard } from '@/src/components/views/queues/shared';
@@ -12,6 +13,11 @@ export default function PendingSupplierRateView() {
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [rateById, setRateById] = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+  const [filterSupplierId, setFilterSupplierId] = useState<string>('');
+  const [filterItemId, setFilterItemId] = useState<string>('');
+  const [bulkRate, setBulkRate] = useState<string>('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const [specs, setSpecs] = useState<Specification[]>([]);
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
@@ -29,6 +35,7 @@ export default function PendingSupplierRateView() {
     fetchPendingSupplierRates(ac.signal)
       .then((r) => {
         setRows(r);
+        setSelectedIds({});
         setRateById((prev) => {
           const next = { ...prev };
           for (const row of r) {
@@ -46,6 +53,39 @@ export default function PendingSupplierRateView() {
 
   const pendingCount = rows.length;
 
+  const supplierOptions = useMemo(() => {
+    const uniq = new Map<string, { value: string; label: string }>();
+    for (const r of rows) {
+      const id = String(r.supplierId ?? '').trim();
+      if (!id) continue;
+      const label = String(r.supplierName ?? r.supplierId ?? '').trim() || id;
+      if (!uniq.has(id)) uniq.set(id, { value: id, label });
+    }
+    return Array.from(uniq.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [rows]);
+
+  const itemOptions = useMemo(() => {
+    const uniq = new Map<string, { value: string; label: string }>();
+    for (const r of rows) {
+      const id = String(r.itemId ?? '').trim();
+      if (!id) continue;
+      const label = formatItemInline(r.item, r.specification, specNameById);
+      if (!uniq.has(id)) uniq.set(id, { value: id, label });
+    }
+    return Array.from(uniq.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [rows, specNameById]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (filterSupplierId && String(r.supplierId ?? '') !== filterSupplierId) return false;
+      if (filterItemId && String(r.itemId ?? '') !== filterItemId) return false;
+      return true;
+    });
+  }, [filterItemId, filterSupplierId, rows]);
+
+  const selectedRowIds = useMemo(() => filteredRows.filter((r) => selectedIds[r.rfqItemId]).map((r) => r.rfqItemId), [filteredRows, selectedIds]);
+  const allFilteredSelected = filteredRows.length > 0 && filteredRows.every((r) => selectedIds[r.rfqItemId]);
+
   return (
     <div className="space-y-4">
       {loading ? (
@@ -54,9 +94,73 @@ export default function PendingSupplierRateView() {
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load: {error}</div>
       ) : (
         <QueueCard title="Pending Supplier Rate" subtitle={`${pendingCount} pending`}>
+          <div className="flex flex-wrap items-end gap-3 pb-3">
+            <div className="min-w-[220px]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier</div>
+              <SearchableSelect
+                value={filterSupplierId}
+                options={supplierOptions}
+                allowClear
+                placeholder="All suppliers"
+                onChange={(next) => setFilterSupplierId(String(next ?? '').trim())}
+              />
+            </div>
+            <div className="min-w-[260px]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Item</div>
+              <SearchableSelect
+                value={filterItemId}
+                options={itemOptions}
+                allowClear
+                placeholder="All items"
+                onChange={(next) => setFilterItemId(String(next ?? '').trim())}
+              />
+            </div>
+            <div className="min-w-[220px]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Bulk Supplier Rate</div>
+              <input
+                className={cn(inputClass, 'py-1.5')}
+                value={bulkRate}
+                onChange={(e) => setBulkRate(sanitizeDecimalInput(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                placeholder="Rate"
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              disabled={bulkSaving || selectedRowIds.length === 0}
+              onClick={async () => {
+                const raw = String(bulkRate ?? '').trim();
+                const rate = raw ? Number(raw) : NaN;
+                if (!Number.isFinite(rate) || rate <= 0) {
+                  setError('Enter valid bulk supplier rate.');
+                  return;
+                }
+                setBulkSaving(true);
+                setError(null);
+                try {
+                  for (const id of selectedRowIds) {
+                    await updateRfqItemSupplierRate(id, rate);
+                  }
+                  const next = await fetchPendingSupplierRates();
+                  setRows(next);
+                  setSelectedIds({});
+                  setBulkRate('');
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setBulkSaving(false);
+                }
+              }}
+            >
+              {bulkSaving ? 'Saving...' : `Save Selected (${selectedRowIds.length})`}
+            </button>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] table-fixed text-left border-collapse border border-outline-variant">
+            <table className="w-full min-w-[1230px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>
+                <col className="w-[54px]" />
                 <col className="w-[140px]" />
                 <col className="w-[140px]" />
                 <col className="w-[420px]" />
@@ -66,6 +170,20 @@ export default function PendingSupplierRateView() {
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={() =>
+                        setSelectedIds((prev) => {
+                          if (allFilteredSelected) return {};
+                          const next: Record<string, boolean> = { ...prev };
+                          for (const r of filteredRows) next[r.rfqItemId] = true;
+                          return next;
+                        })
+                      }
+                    />
+                  </th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">RFQ</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Date</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
@@ -75,9 +193,16 @@ export default function PendingSupplierRateView() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length ? (
-                  rows.map((r) => (
+                {filteredRows.length ? (
+                  filteredRows.map((r) => (
                     <tr key={r.rfqItemId}>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedIds[r.rfqItemId])}
+                          onChange={() => setSelectedIds((prev) => ({ ...prev, [r.rfqItemId]: !prev[r.rfqItemId] }))}
+                        />
+                      </td>
                       <td className="px-3 py-2 text-sm text-primary border border-outline-variant">{r.rfqNumber || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.rfqDate || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
@@ -129,7 +254,7 @@ export default function PendingSupplierRateView() {
                   ))
                 ) : (
                   <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
                       No pending supplier rates.
                     </td>
                   </tr>
@@ -142,4 +267,3 @@ export default function PendingSupplierRateView() {
     </div>
   );
 }
-
