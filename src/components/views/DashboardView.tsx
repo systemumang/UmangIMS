@@ -37,12 +37,15 @@ export default function DashboardView({
                   const data = await res.json();
                   if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue link'));
                   const links = Array.isArray(data?.links) ? data.links : [];
-                  const found = links.find((r: any) => String(r?.name ?? '').trim().toLowerCase() === 'catelouge');
+                  const found = links.find((r: any) => {
+                    const n = String(r?.name ?? '').trim().toLowerCase();
+                    return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
+                  });
                   url = String(found?.link ?? '').trim();
                   if (url) localStorage.setItem('ims.settings.catelougeLink', url);
                 }
                 if (!url) {
-                  window.alert('Catalogue link not set. Go to Settings → Links and add name "Catelogue".');
+                  window.alert('Catalogue link not set. Go to Settings → Links and add name "Catalogue".');
                   return;
                 }
                 window.open(url, '_blank', 'noreferrer');
@@ -53,7 +56,6 @@ export default function DashboardView({
               }
             }}
           >
-            <BookOpen size={16} />
             {catLoading ? 'Opening...' : 'Catalogue'}
           </button>
         </div>

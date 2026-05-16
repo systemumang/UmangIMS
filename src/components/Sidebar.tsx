@@ -9,6 +9,7 @@ import {
   CreditCard,
   Database,
   FileText,
+  IndianRupee,
   LayoutDashboard,
   Package,
   Receipt,
@@ -84,6 +85,7 @@ export const purchaseMastersMenuItems: Array<{ key: 'prs' | 'pos' | 'grns' | 'in
 
 export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'settingsCatalogue', label: 'Catalogue' },
   { key: 'masters', label: 'Masters' },
   { key: 'pendingTasks', label: 'Pending Tasks' },
   { key: 'stockMaster', label: 'Stock' },
@@ -97,7 +99,7 @@ export const materialMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'materialRequest', label: 'Request Material' },
   { key: 'materialPendingIssue', label: 'Pending Issue' },
 ];
-export const settingsMenuItems: Array<{ key: NavView; label: string }> = [{ key: 'settingsCatalogue', label: 'Links' }];
+export const settingsMenuItems: Array<{ key: NavView; label: string }> = [];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
@@ -211,6 +213,17 @@ export default function Sidebar({
 	              <span className="flex-1">Dashboard</span>
 	            </motion.button>
 	          ) : null}
+
+          {isAllowed('settingsCatalogue') ? (
+            <motion.button
+              whileHover={{ x: 4 }}
+              type="button"
+              onClick={() => onNavigate('settingsCatalogue')}
+              className={cn(viewRowClass, activeView === 'settingsCatalogue' ? activeRowClass : '', 'mt-1')}
+            >
+              <span className="ml-[30px] flex-1">Catalogue</span>
+            </motion.button>
+          ) : null}
 
 	          {isAllowed('masters') || hasPrefix('masters:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
@@ -355,7 +368,7 @@ export default function Sidebar({
               onClick={() => onNavigate('pendingSupplierRate')}
               className={cn(viewRowClass, activeView === 'pendingSupplierRate' ? activeRowClass : '')}
             >
-              <Receipt className="mr-3 text-white" size={18} />
+              <IndianRupee className="mr-3 text-white" size={18} />
               <span className="flex-1">Pending Supplier Rate</span>
             </motion.button>
           ) : null}

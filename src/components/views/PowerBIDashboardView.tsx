@@ -287,10 +287,9 @@ export default function PowerBIDashboardView({
                           window.alert(e instanceof Error ? e.message : String(e));
                         }
                       }}
-                      title="Open Catelouge"
+                      title="Open Catalogue"
                     >
-                      <Link2 size={14} />
-                      Catelouge
+                      Catalogue
                     </button>
 	              </div>
 			          <div className="flex items-center gap-2 overflow-x-auto">
