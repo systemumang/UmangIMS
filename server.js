@@ -279,6 +279,32 @@ function getMysqlPool() {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS rfqs (
+          id VARCHAR(255) PRIMARY KEY,
+          rfq_number VARCHAR(255) NOT NULL UNIQUE,
+          pr_id VARCHAR(255) NULL,
+          firm_id VARCHAR(255) NULL,
+          project_id VARCHAR(255) NULL,
+          status VARCHAR(255) NOT NULL DEFAULT 'created',
+          rfq_date DATE NOT NULL,
+          remarks TEXT NULL,
+          created_by VARCHAR(255) NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS rfq_items (
+          id VARCHAR(255) PRIMARY KEY,
+          rfq_id VARCHAR(255) NOT NULL,
+          item_id VARCHAR(255) NOT NULL,
+          specification TEXT NULL,
+          quantity DOUBLE NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
       await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
       await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
       await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
@@ -7237,6 +7263,55 @@ app.post('/api/settings/links', async (req, res) => {
       [id, name, link]
     );
     res.status(201).json({ link: { id, name, link } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Create RFQ for a PR (no link with PO/follow-up flows)
+app.post('/api/requests/:id/rfq', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const prId = String(req.params.id ?? '').trim();
+    if (!prId) return res.status(400).json({ error: 'id is required' });
+
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'items are required' });
+
+    const [[prRow]] = await pool.query(
+      'SELECT id, firm_id AS firmId, project_id AS projectId FROM purchase_requisitions WHERE id = ? LIMIT 1',
+      [prId]
+    );
+    if (!prRow) return res.status(404).json({ error: 'PR not found' });
+
+    const rfqId = crypto.randomUUID();
+    const rfqNumber = await allocateDocNumber(pool, 'RFQ', new Date());
+
+    await pool.query(
+      `
+      INSERT INTO rfqs (id, rfq_number, pr_id, firm_id, project_id, status, rfq_date, remarks, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'created', CURDATE(), NULL, ?, NOW(), NOW())
+      `,
+      [rfqId, rfqNumber, prId, prRow.firmId ? String(prRow.firmId) : null, prRow.projectId ? String(prRow.projectId) : null, 'system']
+    );
+
+    for (const row of items) {
+      const itemId = String(row?.itemId ?? '').trim();
+      const quantity = Number(row?.quantity ?? 0);
+      const specification = row?.specification != null ? String(row.specification).trim() : null;
+      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+      await pool.query(
+        `
+        INSERT INTO rfq_items (id, rfq_id, item_id, specification, quantity, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [crypto.randomUUID(), rfqId, itemId, specification, quantity]
+      );
+    }
+
+    res.status(201).json({ rfq: { id: rfqId, rfqNumber, prId } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { createPo, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
+import { createPo, createRfq, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -71,6 +71,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   }, [page, pageSize, rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalKind, setModalKind] = useState<'po' | 'rfq'>('po');
   const [activePrId, setActivePrId] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
@@ -87,6 +88,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
 	  function closeModal() {
 	    setModalOpen(false);
+      setModalKind('po');
 	    setActivePrId(null);
 	    setLines([]);
 	    setModalError(null);
@@ -217,17 +219,29 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
 	                      <td className="px-3 py-2 border border-outline-variant">
 		                        <div className="flex items-center gap-2 flex-wrap">
-	                        <button
+		                        <button
+	                          type="button"
+	                          className="btn-primary btn-sm"
+	                          onClick={() => {
+	                            setModalKind('po');
+	                            setActivePrId(r.prId);
+	                            setModalOpen(true);
+	                          }}
+	                        >
+	                          Create PO
+	                        </button>
+                        <button
                           type="button"
-                          className="btn-primary btn-sm"
+                          className="btn btn-sm"
                           onClick={() => {
+                            setModalKind('rfq');
                             setActivePrId(r.prId);
                             setModalOpen(true);
                           }}
                         >
-                          Create PO
+                          RFQ
                         </button>
-                      </div>
+	                      </div>
                     </td>
                   </tr>
                 ))
@@ -249,7 +263,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
       <Modal
         open={modalOpen}
-        title={`Make PO`}
+        title={modalKind === 'rfq' ? 'Create RFQ' : `Make PO`}
         onClose={() => (saving ? null : closeModal())}
         fullScreen
         titleCentered
@@ -263,10 +277,44 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	              type="button"
 	              className="btn-primary btn-sm"
 	              disabled={saving || modalLoading || !activePrId || !lines.some((l) => Number(l.quantity) > 0)}
-	              onClick={() => {
-	                if (!activePrId) return;
-	                const picked = lines
-	                  .map((l) => ({
+		              onClick={() => {
+		                if (!activePrId) return;
+                    if (modalKind === 'rfq') {
+                      const picked = lines
+                        .map((l) => ({
+                          itemId: l.itemId,
+                          quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
+                          remainingQty: l.remainingQty,
+                          specification: l.specification,
+                        }))
+                        .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
+
+                      if (!picked.length) {
+                        setModalError('Enter Qty for at least one item.');
+                        return;
+                      }
+                      for (const it of picked) {
+                        if (it.quantity > it.remainingQty + 1e-9) {
+                          setModalError('Qty cannot exceed remaining PR quantity');
+                          return;
+                        }
+                      }
+
+                      setSaving(true);
+                      setModalError(null);
+                      createRfq(activePrId, {
+                        items: picked.map((x) => ({ itemId: x.itemId, quantity: x.quantity, specification: x.specification })),
+                      })
+                        .then(() => {
+                          closeModal();
+                          return fetchQueueCreatePo(filters).then(setRows);
+                        })
+                        .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
+                        .finally(() => setSaving(false));
+                      return;
+                    }
+		                const picked = lines
+		                  .map((l) => ({
 	                    itemId: l.itemId,
 	                    supplierId: String(l.supplierId ?? '').trim(),
 	                    paymentTerms: String(l.paymentTerms ?? '').trim(),
@@ -369,7 +417,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           <div className="text-sm text-on-surface-variant">Loading PR items...</div>
         ) : (
           <div className="space-y-3">
-            {(() => {
+            {modalKind === 'po' ? (() => {
               const selectedSupplierIds = Array.from(new Set(lines.map((l) => String(l.supplierId ?? '').trim()).filter(Boolean)));
               if (!selectedSupplierIds.length) {
                 return (
@@ -417,30 +465,45 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  })}
 	                </div>
 	              );
-            })()}
+            })() : null}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-outline-variant">
+            <table
+              className={cn(
+                'w-full table-fixed text-left border-collapse border border-outline-variant',
+                modalKind === 'rfq' ? 'min-w-[860px]' : 'min-w-[1400px]'
+              )}
+            >
               <colgroup>
                 <col className="w-[420px]" />
                 <col className="w-[90px]" />
-		                <col className="w-[130px]" />
-	                  <col className="w-[110px]" />
-                <col className="w-[110px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[150px]" />
-                <col className="w-[90px]" />
-                <col className="w-[220px]" />
-                <col className="w-[140px]" />
+                {modalKind === 'po' ? (
+                  <>
+                    <col className="w-[130px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[150px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[220px]" />
+                    <col className="w-[140px]" />
+                  </>
+                ) : (
+                  <col className="w-[160px]" />
+                )}
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+                  {modalKind === 'rfq' ? (
+                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
+                  ) : (
+                    <>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
                     <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
@@ -450,6 +513,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -458,134 +523,154 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     <tr key={l.itemId}>
                       <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
                         {formatItemInline(l.item, l.specification)}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
-                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-                          {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+	                      </td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
+                      {modalKind === 'rfq' ? (
+                        <td className="px-3 py-2 border border-outline-variant">
+                          <input
+                            className={cn(inputClass, 'py-1.5')}
+                            value={l.quantity}
+                            onChange={(e) =>
+                              setLines((prev) => {
+                                const next = prev.slice();
+                                next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+                                return next;
+                              })
+                            }
+                            type="text"
+                            inputMode="decimal"
+                          />
                         </td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={l.quantity}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={l.rate}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, rate: sanitizeDecimalInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={l.discountPercent}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, discountPercent: sanitizePercentInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          onBlur={() =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, discountPercent: clampPercentString(next[idx]!.discountPercent) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={l.taxPercent}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, taxPercent: sanitizePercentInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          onBlur={() =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, taxPercent: clampPercentString(next[idx]!.taxPercent) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-                      <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <SearchableSelect
-	                          value={l.supplierId}
-	                          options={supplierOptions}
-	                          allowClear
-	                          disabled={masters.loading}
-	                          placeholder="Select supplier..."
-	                          onChange={(nextId) => {
-	                            const safeId = String(nextId ?? '').trim();
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              if (!safeId) {
-	                                next[idx] = { ...next[idx]!, supplierId: '', paymentTerms: '' };
-	                                return next;
-	                              }
-	                              const suggested = String(masters.suppliers.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
-	                              const currentTerms = String(next[idx]?.paymentTerms ?? '').trim();
-	                              next[idx] = { ...next[idx]!, supplierId: safeId, paymentTerms: currentTerms || suggested };
-	                              return next;
-	                            });
-	                          }}
-	                        />
-	                      </td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={l.paymentTerms}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, paymentTerms: e.target.value };
-	                              return next;
-	                            })
-	                          }
-	                        />
-	                      </td>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                            {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={l.quantity}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={l.rate}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, rate: sanitizeDecimalInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={l.discountPercent}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, discountPercent: sanitizePercentInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              onBlur={() =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, discountPercent: clampPercentString(next[idx]!.discountPercent) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={l.taxPercent}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, taxPercent: sanitizePercentInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              onBlur={() =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, taxPercent: clampPercentString(next[idx]!.taxPercent) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <SearchableSelect
+                              value={l.supplierId}
+                              options={supplierOptions}
+                              allowClear
+                              disabled={masters.loading}
+                              placeholder="Select supplier..."
+                              onChange={(nextId) => {
+                                const safeId = String(nextId ?? '').trim();
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  if (!safeId) {
+                                    next[idx] = { ...next[idx]!, supplierId: '', paymentTerms: '' };
+                                    return next;
+                                  }
+                                  const suggested = String(masters.suppliers.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
+                                  const currentTerms = String(next[idx]?.paymentTerms ?? '').trim();
+                                  next[idx] = { ...next[idx]!, supplierId: safeId, paymentTerms: currentTerms || suggested };
+                                  return next;
+                                });
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={l.paymentTerms}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, paymentTerms: e.target.value };
+                                  return next;
+                                })
+                              }
+                            />
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))
-	                ) : (
-	                  <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
-	                      No remaining items to order.
-	                    </td>
-	                  </tr>
-	                )}
+		                ) : (
+		                  <tr>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 3 : 13}>
+		                      No remaining items to order.
+		                    </td>
+		                  </tr>
+		                )}
               </tbody>
             </table>
           </div>

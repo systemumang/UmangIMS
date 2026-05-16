@@ -344,6 +344,18 @@ export async function createPo(
   return requireOk<{ po?: { po: Po; items: PoItem[] }; error?: string }>(res, 'Failed to create PO');
 }
 
+export async function createRfq(
+  prId: string,
+  input: { items: Array<{ itemId: string; quantity: number; specification?: string | null }> }
+) {
+  const res = await fetch(`/api/requests/${encodeURIComponent(prId)}/rfq`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ rfq?: { id: string; rfqNumber: string; prId: string } }>(res, 'Failed to create RFQ');
+}
+
 export async function createDirectPo(input: {
   firmId: string;
   storeId?: string | null;
