@@ -1,5 +1,5 @@
 import { MASTERS_TABS } from '@/src/lib/mastersTabs';
-import { materialMenuItems, pendingQueueItems, purchaseMastersMenuItems, stockMenuItems, topLevelMenuItems } from '@/src/components/Sidebar';
+import { materialMenuItems, pendingQueueItems, purchaseMastersMenuItems, settingsMenuItems, stockMenuItems, topLevelMenuItems } from '@/src/components/Sidebar';
 
 export type SidebarPermissionItem = { key: string; label: string };
 
@@ -30,6 +30,7 @@ export function getSidebarPermissionItems(): SidebarPermissionItem[] {
 
   // Material submenu
   for (const m of materialMenuItems) push(`material:${m.key}`, m.label);
+  for (const s of settingsMenuItems) push(`settings:${s.key}`, s.label);
 
   // Purchase Masters submenu
   for (const p of purchaseMastersMenuItems) push(`purchase:${p.key}`, p.label);

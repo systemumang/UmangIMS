@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   Truck,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
@@ -31,6 +32,8 @@ export type NavView =
   | 'material'
   | 'materialRequest'
   | 'materialPendingIssue'
+  | 'settings'
+  | 'settingsCatalogue'
   | 'issueMaster'
   | 'returnMaster'
   | 'damageMaster'
@@ -85,12 +88,14 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'stockMaster', label: 'Stock' },
   { key: 'material', label: 'Material' },
   { key: 'operations', label: 'Purchase Masters' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 export const materialMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'materialRequest', label: 'Request Material' },
   { key: 'materialPendingIssue', label: 'Pending Issue' },
 ];
+export const settingsMenuItems: Array<{ key: NavView; label: string }> = [{ key: 'settingsCatalogue', label: 'Catelouge' }];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
@@ -106,6 +111,7 @@ export default function Sidebar({
   pendingExpanded,
   stockMasterExpanded,
   materialExpanded,
+  settingsExpanded,
   purchaseMastersExpanded,
   activeOperationsTab,
   purchaseMastersCounts,
@@ -115,6 +121,7 @@ export default function Sidebar({
   onNavigateMastersTab,
   onNavigateStockView,
   onNavigateMaterialView,
+  onNavigateSettingsView,
   onNavigatePurchaseMasters,
   onNewPurchaseRequest,
   onDirectPo,
@@ -132,6 +139,7 @@ export default function Sidebar({
 		  pendingExpanded?: boolean;
 		  stockMasterExpanded?: boolean;
         materialExpanded?: boolean;
+      settingsExpanded?: boolean;
       purchaseMastersExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
       purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
@@ -141,6 +149,7 @@ export default function Sidebar({
 	  onNavigateMastersTab?: (tab: MastersTab) => void;
 	  onNavigateStockView?: (view: NavView) => void;
   onNavigateMaterialView?: (view: NavView) => void;
+  onNavigateSettingsView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
@@ -336,6 +345,31 @@ export default function Sidebar({
 	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
 	            </motion.button>
 	          ) : null}
+
+          {isAllowed('settings') || hasPrefix('settings:') ? (
+            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('settings')} className={cn(sectionRowClass, settingsExpanded ? activeRowClass : '')}>
+              <Settings className="mr-3 text-white" size={18} />
+              <span className="flex-1">Settings</span>
+              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', settingsExpanded ? 'rotate-180' : 'rotate-0')} />
+            </motion.button>
+          ) : null}
+          {settingsExpanded && onNavigateSettingsView ? (
+            <div className="ml-7 mr-1 space-y-1">
+              {settingsMenuItems.filter((it) => isAllowed(`settings:${it.key}`)).map((it) => (
+                <button
+                  key={it.key}
+                  type="button"
+                  onClick={() => onNavigateSettingsView(it.key)}
+                  className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Settings size={14} />
+                    {it.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
 			          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
 			            <div className="ml-7 mr-1 space-y-1">
                   {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (

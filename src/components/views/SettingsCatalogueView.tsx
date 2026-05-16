@@ -1,0 +1,114 @@
+import React, { useEffect, useState } from 'react';
+import Spinner from '@/src/components/common/Spinner';
+
+type CatalogueRow = {
+  id: string;
+  link: string;
+  updatedAt?: string | null;
+};
+
+export default function SettingsCatalogueView() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [link, setLink] = useState('');
+  const [row, setRow] = useState<CatalogueRow | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/settings/catalogue');
+      const data = await res.json();
+      if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue'));
+      const next = data?.catalogue ? (data.catalogue as CatalogueRow) : null;
+      setRow(next);
+      setLink(next?.link ?? '');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const onSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/settings/catalogue', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: link.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(String(data?.error ?? 'Failed to save catalogue'));
+      setRow(data.catalogue as CatalogueRow);
+      setLink(String(data.catalogue?.link ?? ''));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="p-8 flex justify-center"><Spinner /></div>;
+
+  return (
+    <div className="p-4 max-w-5xl mx-auto space-y-4">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="text-sm font-bold text-on-surface mb-3 uppercase tracking-wider">Catelouge Link</div>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+          <input
+            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://..."
+          />
+          <button
+            type="button"
+            className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+            disabled={saving || !link.trim()}
+            onClick={onSave}
+          >
+            {saving ? 'Saving...' : 'Upload'}
+          </button>
+        </div>
+        {error ? <div className="text-xs text-error mt-2">{error}</div> : null}
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="text-sm text-on-surface-variant mb-3">Saved Catelouge</div>
+        <div className="overflow-auto">
+          <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+            <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+              <tr>
+                <th className="text-left px-3 py-2 border border-blue-600">Link</th>
+                <th className="text-left px-3 py-2 border border-blue-600">Updated At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {row ? (
+                <tr>
+                  <td className="px-3 py-2 border border-blue-600">
+                    <a href={row.link} target="_blank" rel="noreferrer" className="text-primary underline break-all">
+                      {row.link}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2 border border-blue-600 text-on-surface-variant">{row.updatedAt ?? ''}</td>
+                </tr>
+              ) : (
+                <tr>
+                  <td className="px-3 py-2 border border-blue-600 text-on-surface-variant" colSpan={2}>No catelouge link uploaded.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

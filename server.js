@@ -262,6 +262,14 @@ function getMysqlPool() {
           FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS settings_catalogue (
+          id VARCHAR(64) PRIMARY KEY,
+          link TEXT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
       await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
       await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
       await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
@@ -7184,6 +7192,45 @@ app.delete('/api/masters/users/:id', async (req, res) => {
     // Also make inactive to prevent login.
     await pool.query('UPDATE users SET is_active=0, is_deleted=1, deleted_at=NOW(), deleted_by=? WHERE id=?', [deletedBy, id]);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// --- Settings: Catelouge ---
+app.get('/api/settings/catalogue', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query(
+      `SELECT id, link, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') AS updatedAt FROM settings_catalogue WHERE id='default' LIMIT 1`
+    );
+    const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+    res.json({ catalogue: row });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/settings/catalogue', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const link = String(req.body?.link ?? '').trim();
+    if (!link) return res.status(400).json({ error: 'link is required' });
+    await pool.query(
+      `
+      INSERT INTO settings_catalogue (id, link, created_at, updated_at)
+      VALUES ('default', ?, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE link=VALUES(link), updated_at=NOW()
+      `,
+      [link]
+    );
+    const [rows] = await pool.query(
+      `SELECT id, link, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') AS updatedAt FROM settings_catalogue WHERE id='default' LIMIT 1`
+    );
+    const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+    res.json({ catalogue: row });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
