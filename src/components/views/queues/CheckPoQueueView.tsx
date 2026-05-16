@@ -17,6 +17,16 @@ function displayPoNumber(raw: string) {
   return formatPoNumber(String(raw ?? '').trim()) || '-';
 }
 
+function itemTotalNumber(it: PoItem) {
+  const qty = Number(it.quantity ?? 0);
+  const rate = Number(it.rate ?? 0);
+  const disc = Number(it.discountPercent ?? 0);
+  const gst = Number(it.taxPercent ?? 0);
+  const base = qty * rate;
+  const afterDisc = base - (base * disc) / 100;
+  return afterDisc + (afterDisc * gst) / 100;
+}
+
 export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
@@ -81,16 +91,42 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
+  const activePoTotal = useMemo(() => {
+    const items = activePoDetails?.items ?? [];
+    if (!items.length) return 0;
+    return items.reduce((sum, it) => sum + itemTotalNumber(it), 0);
+  }, [activePoDetails]);
+
+  const eligibleUsers = useMemo(() => {
+    const itemsPresent = Boolean(activePoDetails?.items?.length);
+    if (!itemsPresent) return masters.users.filter((u) => u.isActive !== false);
+
+    return masters.users.filter((u) => {
+      if (u.isActive === false) return false;
+      const limit = Number(u.poApprovalAmount ?? 0);
+      if (!Number.isFinite(limit) || limit <= 0) return false;
+      return activePoTotal <= limit + 1e-9;
+    });
+  }, [activePoDetails?.items?.length, activePoTotal, masters.users]);
+
   useEffect(() => {
     if (!modalOpen) return;
     if (checkUserId) return;
     if (masters.loading) return;
-    if (masters.users.length) setCheckUserId(masters.users[0]!.id);
-  }, [checkUserId, masters.loading, masters.users, modalOpen]);
+    if (eligibleUsers.length) setCheckUserId(eligibleUsers[0]!.id);
+  }, [checkUserId, eligibleUsers, masters.loading, modalOpen]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    if (!checkUserId) return;
+    if (!eligibleUsers.length) return;
+    if (eligibleUsers.some((u) => u.id === checkUserId)) return;
+    setCheckUserId(eligibleUsers[0]!.id);
+  }, [checkUserId, eligibleUsers, modalOpen]);
 
   const userOptions = useMemo(
-    () => [{ value: '', label: 'Select user' }, ...masters.users.map((u) => ({ value: u.id, label: u.name }))],
-    [masters.users]
+    () => [{ value: '', label: 'Select user' }, ...eligibleUsers.map((u) => ({ value: u.id, label: u.name }))],
+    [eligibleUsers]
   );
 
   useEffect(() => {

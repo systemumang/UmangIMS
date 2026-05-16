@@ -2232,7 +2232,8 @@ app.get('/api/queues/tally-entry', async (req, res) => {
         po.supplier_id AS supplierId,
         s.name AS supplierName,
         COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
-        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty
+        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
@@ -2250,6 +2251,23 @@ app.get('/api/queues/tally-entry', async (req, res) => {
         LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
         GROUP BY ii.invoice_id
       ) linkq ON linkq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT
+          ii.invoice_id AS invoiceId,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
+        FROM invoice_items ii
+        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+        LEFT JOIN (
+          SELECT
+            g.po_id AS poId,
+            qc.item_id AS itemId,
+            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+          FROM grns g
+          INNER JOIN qc_records qc ON qc.grn_id = g.id
+          GROUP BY g.po_id, qc.item_id
+        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+        GROUP BY ii.invoice_id
+      ) qcq ON qcq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
       `,
@@ -2416,6 +2434,7 @@ app.get('/api/queues/payment', async (req, res) => {
           supplierName: String(r.supplierName ?? ''),
           totalInvoiceQty: Number(r.totalInvoiceQty ?? 0),
           totalLinkedQty: Number(r.totalLinkedQty ?? 0),
+          totalApprovedQty: Number(r.totalApprovedQty ?? 0),
           invoiceAmount,
           paidAmount,
           remainingAmount,
@@ -2423,8 +2442,9 @@ app.get('/api/queues/payment', async (req, res) => {
         };
       })
       .filter((x) => x.remainingAmount > 1e-9)
-      // Show only invoices where all invoice qty is linked (invoice qty == link qty).
-      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalLinkedQty) <= 1e-9)
+      // Show only invoices where all invoice qty is QC-approved (invoice qty <= approved qty for each item).
+      // `totalApprovedQty` is computed as SUM(LEAST(invoiceQty, approvedQty)) so equality means fully approved.
+      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalApprovedQty) <= 1e-9)
       // Only "accounted" invoices become due for payment.
       // If tally_entry_date column exists, require it to be set.
       .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));

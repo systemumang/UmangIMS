@@ -360,6 +360,37 @@ export default function Sidebar({
 	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
 	            </motion.button>
 	          ) : null}
+			          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
+			            <div className="ml-7 mr-1 space-y-1">
+                  {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (
+	                    <button
+                      key={it.key}
+                      type="button"
+                      onClick={() => onNavigatePurchaseMasters(it.key)}
+                      className={cn(
+                        subRowClass,
+                        it.key === 'prs'
+                          ? activeView === 'purchasing'
+                            ? subActiveClass
+                            : subInactiveClass
+                          : activeView === 'operations' && activeOperationsTab === it.key
+                            ? subActiveClass
+                            : subInactiveClass
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-between gap-2 w-full">
+                        <span className="inline-flex items-center gap-2">
+                          {it.key === 'pos' ? <Receipt size={14} /> : it.key === 'grns' ? <Truck size={14} /> : it.key === 'payments' ? <CreditCard size={14} /> : <FileText size={14} />}
+                          {it.label}
+                        </span>
+                        <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+                          {Number((purchaseMastersCounts as any)?.[it.key] ?? 0)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+		            </div>
+			          ) : null}
 
           {isAllowed('pendingSupplierRate') ? (
             <motion.button
@@ -397,37 +428,6 @@ export default function Sidebar({
               ))}
             </div>
           ) : null}
-			          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
-			            <div className="ml-7 mr-1 space-y-1">
-                  {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (
-	                    <button
-                      key={it.key}
-                      type="button"
-                      onClick={() => onNavigatePurchaseMasters(it.key)}
-                      className={cn(
-                        subRowClass,
-                        it.key === 'prs'
-                          ? activeView === 'purchasing'
-                            ? subActiveClass
-                            : subInactiveClass
-                          : activeView === 'operations' && activeOperationsTab === it.key
-                            ? subActiveClass
-                            : subInactiveClass
-                      )}
-                    >
-                      <span className="inline-flex items-center justify-between gap-2 w-full">
-                        <span className="inline-flex items-center gap-2">
-                          {it.key === 'pos' ? <Receipt size={14} /> : it.key === 'grns' ? <Truck size={14} /> : it.key === 'payments' ? <CreditCard size={14} /> : <FileText size={14} />}
-                          {it.label}
-                        </span>
-                        <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                          {Number((purchaseMastersCounts as any)?.[it.key] ?? 0)}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-		            </div>
-			          ) : null}
 	        </nav>
 
 			      <div className="px-4 py-6 border-t border-outline-variant/10 shrink-0 bg-surface-container-lowest space-y-2">

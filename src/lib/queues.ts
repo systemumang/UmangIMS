@@ -261,6 +261,8 @@ export type PaymentQueueRow = {
   invoiceId: string;
   invoiceNo: string;
   invoiceDate: string;
+  paymentStatus?: string;
+  paymentDate?: string;
   poId: string;
   poNumber: string;
   prId: string;
@@ -276,6 +278,9 @@ export type PaymentQueueRow = {
   tallyEntryDate?: string;
   paidAmount: number;
   remainingAmount: number;
+  totalInvoiceQty?: number;
+  totalLinkedQty?: number;
+  totalApprovedQty?: number;
   pendingReason: string;
 };
 
