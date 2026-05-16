@@ -300,6 +300,7 @@ function getMysqlPool() {
 	          rfq_id VARCHAR(255) NOT NULL,
 	          item_id VARCHAR(255) NOT NULL,
 	          supplier_id VARCHAR(255) NULL,
+	          supplier_rate DOUBLE NULL,
 	          specification TEXT NULL,
 	          quantity DOUBLE NOT NULL,
 	          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -309,6 +310,7 @@ function getMysqlPool() {
 	      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
 	      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
 	      await ensureColumn('rfq_items', 'supplier_id', 'VARCHAR(255) NULL');
+	      await ensureColumn('rfq_items', 'supplier_rate', 'DOUBLE NULL');
 	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
 	      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
@@ -7302,6 +7304,8 @@ app.post('/api/requests/:id/rfq', async (req, res) => {
 	      const itemId = String(row?.itemId ?? '').trim();
 	      const supplierIdRaw = row?.supplierId != null ? String(row.supplierId).trim() : '';
 	      const supplierId = supplierIdRaw ? supplierIdRaw : null;
+	      const supplierRateRaw = row?.supplierRate != null ? Number(row.supplierRate) : null;
+	      const supplierRate = supplierRateRaw != null && Number.isFinite(supplierRateRaw) ? supplierRateRaw : null;
 	      const quantity = Number(row?.quantity ?? 0);
 	      const specification = row?.specification != null ? String(row.specification).trim() : null;
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
@@ -7309,14 +7313,89 @@ app.post('/api/requests/:id/rfq', async (req, res) => {
 	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
 	      await pool.query(
 	        `
-	        INSERT INTO rfq_items (id, rfq_id, item_id, supplier_id, specification, quantity, created_at)
-	        VALUES (?, ?, ?, ?, ?, ?, NOW())
+	        INSERT INTO rfq_items (id, rfq_id, item_id, supplier_id, supplier_rate, specification, quantity, created_at)
+	        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
 	        `,
-	        [crypto.randomUUID(), rfqId, itemId, supplierId, specification, quantity]
+	        [crypto.randomUUID(), rfqId, itemId, supplierId, supplierRate, specification, quantity]
 	      );
 	    }
 
-    res.status(201).json({ rfq: { id: rfqId, rfqNumber, prId } });
+	    res.status(201).json({ rfq: { id: rfqId, rfqNumber, prId } });
+	  } catch (e) {
+	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
+
+// Pending Supplier Rate (RFQ Items)
+app.get('/api/rfq-items/pending-supplier-rate', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ri.id AS rfqItemId,
+        ri.rfq_id AS rfqId,
+        r.rfq_number AS rfqNumber,
+        r.rfq_date AS rfqDate,
+        r.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        ri.item_id AS itemId,
+        iname.name AS item,
+        ri.specification AS specification,
+        ri.quantity AS quantity,
+        ri.supplier_id AS supplierId,
+        s.name AS supplierName,
+        ri.supplier_rate AS supplierRate
+      FROM rfq_items ri
+      INNER JOIN rfqs r ON r.id = ri.rfq_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = r.pr_id
+      LEFT JOIN items it ON it.id = ri.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN suppliers s ON s.id = ri.supplier_id
+      WHERE (ri.supplier_rate IS NULL OR ri.supplier_rate = 0)
+      ORDER BY r.rfq_date DESC, ri.created_at DESC
+      `
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      rfqItemId: String(r.rfqItemId ?? ''),
+      rfqId: String(r.rfqId ?? ''),
+      rfqNumber: String(r.rfqNumber ?? ''),
+      rfqDate: toIsoDate(r.rfqDate) || '',
+      prId: r.prId ? String(r.prId) : null,
+      prNumber: r.prNumber ? String(r.prNumber) : null,
+      itemId: String(r.itemId ?? ''),
+      item: String(r.item ?? ''),
+      specification: String(r.specification ?? ''),
+      quantity: Number(r.quantity ?? 0),
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: r.supplierName ? String(r.supplierName) : null,
+      supplierRate: r.supplierRate != null ? Number(r.supplierRate) : null,
+    }));
+
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/rfq-items/:id/supplier-rate', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    const supplierRateRaw = req.body?.supplierRate;
+    const supplierRate = Number(supplierRateRaw);
+    if (!Number.isFinite(supplierRate) || supplierRate <= 0) return res.status(400).json({ error: 'supplierRate must be a positive number' });
+
+    const [[found]] = await pool.query('SELECT id FROM rfq_items WHERE id = ? LIMIT 1', [id]);
+    if (!found) return res.status(404).json({ error: 'RFQ item not found' });
+
+    await pool.query('UPDATE rfq_items SET supplier_rate = ? WHERE id = ?', [supplierRate, id]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

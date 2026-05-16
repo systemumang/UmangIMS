@@ -28,6 +28,7 @@ export type NavView =
   | 'inventory'
   | 'masters'
   | 'pendingTasks'
+  | 'pendingSupplierRate'
   | 'stockMaster'
   | 'material'
   | 'materialRequest'
@@ -88,6 +89,7 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'stockMaster', label: 'Stock' },
   { key: 'material', label: 'Material' },
   { key: 'operations', label: 'Purchase Masters' },
+  { key: 'pendingSupplierRate', label: 'Pending Supplier Rate' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -346,13 +348,25 @@ export default function Sidebar({
 	            </motion.button>
 	          ) : null}
 
-          {isAllowed('settings') || hasPrefix('settings:') ? (
-            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('settings')} className={cn(sectionRowClass, settingsExpanded ? activeRowClass : '')}>
-              <Settings className="mr-3 text-white" size={18} />
-              <span className="flex-1">Settings</span>
-              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', settingsExpanded ? 'rotate-180' : 'rotate-0')} />
+          {isAllowed('pendingSupplierRate') ? (
+            <motion.button
+              whileHover={{ x: 4 }}
+              type="button"
+              onClick={() => onNavigate('pendingSupplierRate')}
+              className={cn(viewRowClass, activeView === 'pendingSupplierRate' ? activeRowClass : '')}
+            >
+              <Receipt className="mr-3 text-white" size={18} />
+              <span className="flex-1">Pending Supplier Rate</span>
             </motion.button>
           ) : null}
+
+	          {isAllowed('settings') || hasPrefix('settings:') ? (
+	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('settings')} className={cn(sectionRowClass, settingsExpanded ? activeRowClass : '')}>
+	              <Settings className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Settings</span>
+	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', settingsExpanded ? 'rotate-180' : 'rotate-0')} />
+	            </motion.button>
+	          ) : null}
           {settingsExpanded && onNavigateSettingsView ? (
             <div className="ml-7 mr-1 space-y-1">
               {settingsMenuItems.filter((it) => isAllowed(`settings:${it.key}`)).map((it) => (

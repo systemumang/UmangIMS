@@ -4,6 +4,7 @@ import { createPo, createRfq, fetchLastSupplierByItemIds, fetchPos, fetchRequest
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
@@ -30,6 +31,7 @@ type Line = {
 
 export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<CreatePoQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,11 +88,19 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     [masters.suppliers]
   );
 
-	  function closeModal() {
-	    setModalOpen(false);
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
+
+		  function closeModal() {
+		    setModalOpen(false);
       setModalKind('po');
-	    setActivePrId(null);
-	    setLines([]);
+		    setActivePrId(null);
+		    setLines([]);
 	    setModalError(null);
 	    setSaving(false);
 	    setModalLoading(false);
@@ -417,11 +427,11 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  .finally(() => setSaving(false));
 	              }}
 	            >
-              {saving ? 'Creating...' : 'Make PO'}
-            </button>
-          </>
-        }
-      >
+	              {saving ? 'Creating...' : modalKind === 'rfq' ? 'Create RFQ' : 'Make PO'}
+	            </button>
+	          </>
+	        }
+	      >
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
         {modalLoading ? (
@@ -538,9 +548,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                 {lines.length ? (
                   lines.map((l, idx) => (
                     <tr key={l.itemId}>
-                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-                        {formatItemInline(l.item, l.specification)}
-	                      </td>
+	                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+	                        {formatItemInline(l.item, l.specification, specNameById)}
+		                      </td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
 	                      {modalKind === 'rfq' ? (
 	                        <>

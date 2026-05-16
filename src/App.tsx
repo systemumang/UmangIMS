@@ -73,6 +73,7 @@ import {
 import RequestMaterialView from './components/views/RequestMaterialView';
 import PendingIssueView from './components/views/PendingIssueView';
 import SettingsCatalogueView from './components/views/SettingsCatalogueView';
+import PendingSupplierRateView from './components/views/PendingSupplierRateView';
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
@@ -267,15 +268,16 @@ export default function App() {
     return () => ac.abort();
   }, [view]);
 
-		  const topBar = useMemo(() => {
-		    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
-		    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
-		    if (view === 'operations') return { title: 'Operations', showSearch: false };
-		    if (view === 'stockMaster') {
-		      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
-		      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
-		      if (stockMasterTab === 'damage') return { title: 'Stock Master', subtitle: 'Damage', showSearch: false };
-		      if (stockMasterTab === 'transfer') return { title: 'Stock Master', subtitle: 'Transfer', showSearch: false };
+			  const topBar = useMemo(() => {
+			    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
+			    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
+			    if (view === 'operations') return { title: 'Operations', showSearch: false };
+			    if (view === 'pendingSupplierRate') return { title: 'Pending Supplier Rate', showSearch: false };
+			    if (view === 'stockMaster') {
+			      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
+			      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
+			      if (stockMasterTab === 'damage') return { title: 'Stock Master', subtitle: 'Damage', showSearch: false };
+			      if (stockMasterTab === 'transfer') return { title: 'Stock Master', subtitle: 'Transfer', showSearch: false };
 		      return { title: 'Stock Master', showSearch: false };
 		    }
 		    if (view === 'issueMaster') return { title: 'Issue Master', showSearch: false };
@@ -743,15 +745,16 @@ export default function App() {
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 
 		          {view === 'materialRequest' ? <RequestMaterialView /> : null}
-		          {view === 'materialPendingIssue' ? (
-		            <PendingIssueView
-		              onIssue={(mr) => {
-		                setActiveMaterialRequest(mr);
-		                setStockMasterTab('itemIssue');
-		                setView('stockMaster');
-		              }}
-		            />
-		          ) : null}
+	          {view === 'materialPendingIssue' ? (
+	            <PendingIssueView
+	              onIssue={(mr) => {
+	                setActiveMaterialRequest(mr);
+	                setStockMasterTab('itemIssue');
+	                setView('stockMaster');
+	              }}
+	            />
+	          ) : null}
+            {view === 'pendingSupplierRate' ? <PendingSupplierRateView /> : null}
               {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
 
 		          {view === 'stockMaster' ? (

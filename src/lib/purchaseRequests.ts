@@ -346,7 +346,7 @@ export async function createPo(
 
 export async function createRfq(
   prId: string,
-  input: { items: Array<{ itemId: string; supplierId?: string | null; quantity: number; specification?: string | null }> }
+  input: { items: Array<{ itemId: string; supplierId?: string | null; supplierRate?: number | null; quantity: number; specification?: string | null }> }
 ) {
   const res = await fetch(`/api/requests/${encodeURIComponent(prId)}/rfq`, {
     method: 'POST',
@@ -354,6 +354,36 @@ export async function createRfq(
     body: JSON.stringify(input),
   });
   return requireOk<{ rfq?: { id: string; rfqNumber: string; prId: string } }>(res, 'Failed to create RFQ');
+}
+
+export type PendingSupplierRateRow = {
+  rfqItemId: string;
+  rfqId: string;
+  rfqNumber: string;
+  rfqDate: string; // YYYY-MM-DD
+  prId?: string | null;
+  prNumber?: string | null;
+  itemId: string;
+  item: string;
+  specification: string;
+  quantity: number;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  supplierRate?: number | null;
+};
+
+export async function fetchPendingSupplierRates(signal?: AbortSignal) {
+  const res = await fetch(`/api/rfq-items/pending-supplier-rate`, { signal });
+  return requireOk<{ rows?: PendingSupplierRateRow[] }>(res, 'Failed to load pending supplier rates').then((d) => d.rows ?? []);
+}
+
+export async function updateRfqItemSupplierRate(rfqItemId: string, supplierRate: number) {
+  const res = await fetch(`/api/rfq-items/${encodeURIComponent(rfqItemId)}/supplier-rate`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ supplierRate }),
+  });
+  return requireOk<{ ok?: boolean }>(res, 'Failed to update supplier rate');
 }
 
 export async function createDirectPo(input: {
