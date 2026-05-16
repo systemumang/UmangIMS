@@ -195,6 +195,23 @@ function getMysqlPool() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS po_advance_invoice_adjustments (
+          id VARCHAR(255) PRIMARY KEY,
+          po_id VARCHAR(255) NOT NULL,
+          invoice_id VARCHAR(255) NOT NULL,
+          adjusted_amount DOUBLE NOT NULL DEFAULT 0,
+          created_by VARCHAR(255) NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_by VARCHAR(255) NULL,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uniq_invoice (invoice_id),
+          KEY idx_po (po_id),
+          FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+          FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
       await ensureColumn('invoices', 'approved_by', 'VARCHAR(255) NULL');
@@ -3993,6 +4010,219 @@ app.get('/api/operations/payments', async (req, res) => {
       createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
     }));
     res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/advances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.order_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.order_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ? OR proj.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        po.order_date AS orderDate,
+        po.advance_date AS advanceDate,
+        po.created_at AS createdAt,
+        po.status AS status,
+        po.advance_amount AS advanceAmount,
+        COALESCE(adj.amountAdjusted, 0) AS amountAdjusted
+      FROM purchase_orders po
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT po_id AS poId, SUM(adjusted_amount) AS amountAdjusted
+        FROM po_advance_invoice_adjustments
+        GROUP BY po_id
+      ) adj ON adj.poId = po.id
+      WHERE ${where.join(' AND ')}
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const rawStatus = String(r.status ?? '').toLowerCase();
+        const mappedStatus = rawStatus === 'closed' ? 'Closed' : rawStatus === 'partial' ? 'Partial' : 'Open';
+        return {
+          poId: String(r.poId ?? ''),
+          poNumber: String(r.poNumber ?? r.poId ?? ''),
+          prId: String(r.prId ?? ''),
+          prNumber: String(r.prNumber ?? r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          firmName: String(r.firmName ?? ''),
+          department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+          projectId: r.projectId ? String(r.projectId) : null,
+          projectName: r.projectName ? String(r.projectName) : null,
+          supplierId: String(r.supplierId ?? ''),
+          supplierName: String(r.supplierName ?? ''),
+          orderDate: toIsoDate(r.orderDate) || null,
+          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+          status: mappedStatus,
+          advanceAmount: Number(r.advanceAmount ?? 0),
+          advanceDate: toIsoDate(r.advanceDate) || null,
+          amountAdjusted: Number(r.amountAdjusted ?? 0),
+        };
+      })
+      .filter((x) => x.advanceAmount > 1e-9);
+
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'po id is required' });
+
+    const [invoiceRows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.created_at AS createdAt
+      FROM invoices inv
+      WHERE inv.po_id = ?
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      [poId]
+    );
+
+    const [adjRows] = await pool.query(
+      `
+      SELECT invoice_id AS invoiceId, adjusted_amount AS adjustedAmount
+      FROM po_advance_invoice_adjustments
+      WHERE po_id = ?
+      `,
+      [poId]
+    );
+
+    const adjustedByInvoiceId = Object.fromEntries(
+      (Array.isArray(adjRows) ? adjRows : []).map((r) => [String(r.invoiceId ?? ''), Number(r.adjustedAmount ?? 0)])
+    );
+
+    const invoices = (Array.isArray(invoiceRows) ? invoiceRows : []).map((r) => {
+      const invoiceId = String(r.invoiceId ?? '');
+      return {
+        invoiceId,
+        invoiceNo: String(r.invoiceNo ?? invoiceId),
+        invoiceDate: toIsoDate(r.invoiceDate) || '',
+        invoiceAmount: Number(r.invoiceAmount ?? 0),
+        adjustedAmount: Number(adjustedByInvoiceId[invoiceId] ?? 0),
+        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+      };
+    });
+
+    res.json({ invoices });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'po id is required' });
+
+    const input = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+
+    const rows = input
+      .map((r) => ({
+        invoiceId: String(r?.invoiceId ?? '').trim(),
+        adjustedAmount: Number(r?.adjustedAmount ?? 0),
+      }))
+      .filter((r) => r.invoiceId)
+      .map((r) => ({ ...r, adjustedAmount: Number.isFinite(r.adjustedAmount) ? Math.max(0, r.adjustedAmount) : 0 }));
+
+    const invoiceIds = Array.from(new Set(rows.map((r) => r.invoiceId)));
+    if (!invoiceIds.length) {
+      await pool.query('DELETE FROM po_advance_invoice_adjustments WHERE po_id = ?', [poId]);
+      return res.json({ ok: true });
+    }
+
+    const placeholders = invoiceIds.map(() => '?').join(',');
+    const [invRows] = await pool.query(`SELECT id, po_id AS poId FROM invoices WHERE id IN (${placeholders})`, invoiceIds);
+    const invalid = invoiceIds.filter(
+      (id) => !((Array.isArray(invRows) ? invRows : []).some((r) => String(r.id) === id && String(r.poId) === poId))
+    );
+    if (invalid.length) return res.status(400).json({ error: `Some invoices do not belong to this PO.` });
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query('DELETE FROM po_advance_invoice_adjustments WHERE po_id = ?', [poId]);
+      for (const r of rows) {
+        if (!(r.adjustedAmount > 1e-9)) continue;
+        await conn.query(
+          `INSERT INTO po_advance_invoice_adjustments (id, po_id, invoice_id, adjusted_amount, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), poId, r.invoiceId, r.adjustedAmount, updatedBy, updatedBy]
+        );
+      }
+      await conn.commit();
+    } catch (e) {
+      try {
+        await conn.rollback();
+      } catch {}
+      throw e;
+    } finally {
+      conn.release();
+    }
+
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

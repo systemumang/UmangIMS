@@ -160,6 +160,35 @@ export type OperationsPaymentListRow = {
   createdAt: string;
 };
 
+export type OperationsAdvanceListRow = {
+  poId: string;
+  poNumber: string;
+  prId: string;
+  prNumber: string;
+  firmId: string;
+  firmName: string;
+  supplierId: string;
+  supplierName: string;
+  department?: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  orderDate?: string | null;
+  status?: string;
+  advanceAmount: number;
+  advanceDate?: string | null;
+  amountAdjusted: number;
+  createdAt: string;
+};
+
+export type PoAdvanceAdjustmentInvoiceRow = {
+  invoiceId: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  invoiceAmount: number;
+  adjustedAmount: number;
+  createdAt: string;
+};
+
 export type OperationsPrDetail = {
   pr: any;
   pos: any[];
@@ -203,6 +232,31 @@ export async function fetchOperationsPayments(filters?: OperationsFilters, signa
   const res = await fetch(`/api/operations/payments${buildOpsQuery(filters)}`, { signal });
   const data = await requireOk<{ rows?: OperationsPaymentListRow[] }>(res, 'Failed to load payments');
   return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function fetchOperationsAdvances(filters?: OperationsFilters, signal?: AbortSignal): Promise<OperationsAdvanceListRow[]> {
+  const res = await fetch(`/api/operations/advances${buildOpsQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: OperationsAdvanceListRow[] }>(res, 'Failed to load advances');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function fetchPoAdvanceAdjustments(poId: string, signal?: AbortSignal): Promise<PoAdvanceAdjustmentInvoiceRow[]> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advance-adjustments`, { signal });
+  const data = await requireOk<{ invoices?: PoAdvanceAdjustmentInvoiceRow[] }>(res, 'Failed to load advance adjustments');
+  return Array.isArray(data.invoices) ? data.invoices : [];
+}
+
+export async function updatePoAdvanceAdjustments(
+  poId: string,
+  rows: Array<{ invoiceId: string; adjustedAmount: number }>,
+  updatedBy?: string
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advance-adjustments`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows, updatedBy }),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to save advance adjustments');
 }
 
 export async function fetchOperationsPrDetail(prId: string, signal?: AbortSignal): Promise<OperationsPrDetail> {
