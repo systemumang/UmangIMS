@@ -60,7 +60,7 @@ export default function SettingsCatalogueView() {
   return (
     <div className="p-4 max-w-5xl mx-auto space-y-4">
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-        <div className="text-sm font-bold text-on-surface mb-3 uppercase tracking-wider">Catelouge Link</div>
+        <div className="text-sm font-bold text-on-surface mb-3 uppercase tracking-wider">Settings</div>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
           <input
             className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
@@ -81,28 +81,28 @@ export default function SettingsCatalogueView() {
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-        <div className="text-sm text-on-surface-variant mb-3">Saved Catelouge</div>
+        <div className="text-sm text-on-surface-variant mb-3">Links</div>
         <div className="overflow-auto">
           <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
             <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
               <tr>
+                <th className="text-left px-3 py-2 border border-blue-600">Name</th>
                 <th className="text-left px-3 py-2 border border-blue-600">Link</th>
-                <th className="text-left px-3 py-2 border border-blue-600">Updated At</th>
               </tr>
             </thead>
             <tbody>
               {row ? (
                 <tr>
+                  <td className="px-3 py-2 border border-blue-600">Catalogue</td>
                   <td className="px-3 py-2 border border-blue-600">
                     <a href={row.link} target="_blank" rel="noreferrer" className="text-primary underline break-all">
                       {row.link}
                     </a>
                   </td>
-                  <td className="px-3 py-2 border border-blue-600 text-on-surface-variant">{row.updatedAt ?? ''}</td>
                 </tr>
               ) : (
                 <tr>
-                  <td className="px-3 py-2 border border-blue-600 text-on-surface-variant" colSpan={2}>No catelouge link uploaded.</td>
+                  <td className="px-3 py-2 border border-blue-600 text-on-surface-variant" colSpan={2}>No link uploaded.</td>
                 </tr>
               )}
             </tbody>

@@ -95,7 +95,7 @@ export const materialMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'materialRequest', label: 'Request Material' },
   { key: 'materialPendingIssue', label: 'Pending Issue' },
 ];
-export const settingsMenuItems: Array<{ key: NavView; label: string }> = [{ key: 'settingsCatalogue', label: 'Catelouge' }];
+export const settingsMenuItems: Array<{ key: NavView; label: string }> = [{ key: 'settingsCatalogue', label: 'Links' }];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
