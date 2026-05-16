@@ -253,36 +253,6 @@ export default function PowerBIDashboardView({
 			        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	              <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b-2 border-[#374151]">
 	                <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
-	              </div>
-			          <div className="flex items-center gap-2 overflow-x-auto">
-			            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
-		              <Plus size={14} />
-	              Purchase Request
-	            </button>
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onDirectPo}>
-              <Plus size={14} />
-              Direct PO
-            </button>
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('inventory')}>
-              <Package size={14} />
-              Inventory
-            </button>
-	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('issueMaster')}>
-              <ArrowUpRight size={14} />
-              Issue
-            </button>
-		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('returnMaster')}>
-	              <ArrowDownLeft size={14} />
-	              Return
-	            </button>
-		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('damageMaster')}>
-	              <AlertTriangle size={14} />
-	              Damage
-	            </button>
-				            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
-				              <Boxes size={14} />
-				              Transfer
-				            </button>
                     <button
                       type="button"
                       className="btn btn-sm whitespace-nowrap bg-sky-500 hover:bg-sky-600 text-white border-2 border-[#111827] hover:border-[#0f172a]"
@@ -322,6 +292,36 @@ export default function PowerBIDashboardView({
                       <Link2 size={14} />
                       Catelouge
                     </button>
+	              </div>
+			          <div className="flex items-center gap-2 overflow-x-auto">
+			            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
+		              <Plus size={14} />
+	              Purchase Request
+	            </button>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onDirectPo}>
+              <Plus size={14} />
+              Direct PO
+            </button>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('inventory')}>
+              <Package size={14} />
+              Inventory
+            </button>
+	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('issueMaster')}>
+              <ArrowUpRight size={14} />
+              Issue
+            </button>
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('returnMaster')}>
+	              <ArrowDownLeft size={14} />
+	              Return
+	            </button>
+		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('damageMaster')}>
+	              <AlertTriangle size={14} />
+	              Damage
+	            </button>
+				            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
+				              <Boxes size={14} />
+				              Transfer
+				            </button>
 		          </div>
 		        </div>
 
