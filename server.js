@@ -263,7 +263,10 @@ function getMysqlPool() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
       await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
+      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
       await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
+      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
+      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
     } catch (err) {
       console.error('Failed to ensure PO/Invoice enhancement columns:', err);
     }
@@ -6465,7 +6468,8 @@ app.get('/api/masters/suppliers', async (_req, res) => {
         address,
         phone,
         payment_terms AS paymentTerms,
-        is_vendor AS isVendor
+        is_vendor AS isVendor,
+        catalogue_link AS catalogueLink
       FROM suppliers
       ORDER BY name
       `
@@ -6497,13 +6501,14 @@ app.post('/api/masters/suppliers', async (req, res) => {
       phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
       paymentTerms: req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null,
       isVendor: req.body?.isVendor ? 1 : 0,
+      catalogueLink: req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null,
       createdBy: req.body?.createdBy != null ? String(req.body.createdBy).trim() : null,
     };
 
     await pool.query(
       `
-      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, is_vendor, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
       [
         supplier.id,
@@ -6514,6 +6519,7 @@ app.post('/api/masters/suppliers', async (req, res) => {
         supplier.phone,
         supplier.paymentTerms,
         supplier.isVendor,
+        supplier.catalogueLink,
         supplier.createdBy,
       ]
     );
@@ -6528,6 +6534,7 @@ app.post('/api/masters/suppliers', async (req, res) => {
         phone: supplier.phone ?? undefined,
         paymentTerms: supplier.paymentTerms ?? undefined,
         isVendor: Boolean(supplier.isVendor),
+        catalogueLink: supplier.catalogueLink ?? undefined,
       },
     });
 
@@ -6555,20 +6562,21 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     const address = req.body?.address != null ? String(req.body.address).trim() : null;
     const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
     const paymentTerms = req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null;
+    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
 
     await pool.query(
       `
       UPDATE suppliers
-      SET name=?, gst_number=?, gst_type=?, address=?, phone=?, payment_terms=?, updated_by=?, updated_at=NOW()
+      SET name=?, gst_number=?, gst_type=?, address=?, phone=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
       WHERE id=?
       `,
-      [name, gstNumber, gstType, address, phone, paymentTerms, updatedBy, id]
+      [name, gstNumber, gstType, address, phone, paymentTerms, req.body?.isVendor ? 1 : 0, catalogueLink, updatedBy, id]
     );
 
     const [rows] = await pool.query(
       `
-      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, address, phone, payment_terms AS paymentTerms
+      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, address, phone, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
       FROM suppliers WHERE id=?
       `,
       [id]
@@ -7023,6 +7031,7 @@ app.get('/api/masters/users', async (req, res) => {
         menu_access AS menuAccess,
         is_active AS isActive,
         phone AS mobile,
+        po_approval_amount AS poApprovalAmount,
         CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword
       FROM users
       WHERE is_deleted=0
@@ -7067,6 +7076,8 @@ app.post('/api/masters/users', async (req, res) => {
     const password = String(req.body?.password ?? '').trim();
     const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
     const isActive = req.body?.isActive === false ? 0 : 1;
+    const poApprovalAmountRaw = req.body?.poApprovalAmount;
+    const poApprovalAmount = poApprovalAmountRaw === '' || poApprovalAmountRaw == null ? null : Number(poApprovalAmountRaw);
     const menuAccessRaw = req.body?.menuAccess;
     const menuAccess = Array.isArray(menuAccessRaw) ? menuAccessRaw.map((x) => String(x)) : [];
     if (!name) return res.status(400).json({ error: 'name is required' });
@@ -7076,8 +7087,8 @@ app.post('/api/masters/users', async (req, res) => {
     const id = crypto.randomUUID();
     const passwordHash = sha256(password);
     await pool.query(
-      'INSERT INTO users (id, name, role, login_id, menu_access, phone, email, is_active, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
-      [id, name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, passwordHash]
+      'INSERT INTO users (id, name, role, login_id, menu_access, phone, email, is_active, po_approval_amount, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+      [id, name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash]
     );
     res.status(201).json({
       user: {
@@ -7090,6 +7101,7 @@ app.post('/api/masters/users', async (req, res) => {
         menuAccess,
         isActive: Boolean(isActive),
         mobile,
+        poApprovalAmount: Number.isFinite(poApprovalAmount) ? poApprovalAmount : null,
         hasPassword: true,
       },
     });
@@ -7114,6 +7126,8 @@ app.put('/api/masters/users/:id', async (req, res) => {
     const mobile = req.body?.mobile != null ? String(req.body.mobile).trim() : null;
     const password = req.body?.password != null ? String(req.body.password).trim() : '';
     const isActive = req.body?.isActive === false ? 0 : 1;
+    const poApprovalAmountRaw = req.body?.poApprovalAmount;
+    const poApprovalAmount = poApprovalAmountRaw === '' || poApprovalAmountRaw == null ? null : Number(poApprovalAmountRaw);
     const menuAccessRaw = req.body?.menuAccess;
     const menuAccess = Array.isArray(menuAccessRaw) ? menuAccessRaw.map((x) => String(x)) : [];
     if (!id) return res.status(400).json({ error: 'id is required' });
@@ -7124,13 +7138,13 @@ app.put('/api/masters/users/:id', async (req, res) => {
     if (password) {
       const passwordHash = sha256(password);
       await pool.query(
-        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, password_hash=? WHERE id=?',
-        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, passwordHash, id]
+        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, po_approval_amount=?, password_hash=? WHERE id=?',
+        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash, id]
       );
     } else {
       await pool.query(
-        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=? WHERE id=?',
-        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, id]
+        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, po_approval_amount=? WHERE id=?',
+        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, id]
       );
     }
 
@@ -7149,6 +7163,7 @@ app.put('/api/masters/users/:id', async (req, res) => {
         menuAccess,
         isActive: Boolean(isActive),
         mobile,
+        poApprovalAmount: Number.isFinite(poApprovalAmount) ? poApprovalAmount : null,
         hasPassword: Boolean(meta?.hasPassword),
       },
     });
@@ -7379,6 +7394,7 @@ app.get('/api/masters/item-names', async (_req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
+        n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n
@@ -7433,9 +7449,10 @@ app.post('/api/masters/item-names', async (req, res) => {
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     await pool.query(
-      'INSERT INTO item_names (id, name, unit_id, item_category_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, name, unitId, itemCategoryId, createdBy]
+      'INSERT INTO item_names (id, name, unit_id, item_category_id, catalogue_link, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, name, unitId, itemCategoryId, catalogueLink, createdBy]
     );
     if (specificationIds.length) {
       for (const specId of specificationIds) {
@@ -7454,6 +7471,7 @@ app.post('/api/masters/item-names', async (req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
+        n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n
@@ -7513,9 +7531,10 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     await pool.query(
-      'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [name, unitId, itemCategoryId, updatedBy, id]
+      'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, catalogue_link=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [name, unitId, itemCategoryId, catalogueLink, updatedBy, id]
     );
     await pool.query('DELETE FROM item_name_specifications WHERE item_name_id=?', [id]);
     if (specificationIds.length) {
@@ -7535,6 +7554,7 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
         u.name AS unitName,
         n.item_category_id AS itemCategoryId,
         c.name AS itemCategoryName,
+        n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
       FROM item_names n

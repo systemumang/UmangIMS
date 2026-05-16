@@ -231,6 +231,7 @@ export default function MastersView({
 			  const [newUserIsActive, setNewUserIsActive] = useState(true);
 			  const [newUserPassword, setNewUserPassword] = useState('');
 			  const [newUserMobile, setNewUserMobile] = useState('');
+        const [newUserPoApprovalAmount, setNewUserPoApprovalAmount] = useState('');
 				  const [newSupplierName, setNewSupplierName] = useState('');
 				  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
 				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
@@ -238,6 +239,7 @@ export default function MastersView({
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
 					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
 					  const [newSupplierIsVendor, setNewSupplierIsVendor] = useState(false);
+            const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
 					  const [newCustomerName, setNewCustomerName] = useState('');
 					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
@@ -250,6 +252,7 @@ export default function MastersView({
 					  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
 					  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
 					  const [newItemNameSpecIds, setNewItemNameSpecIds] = useState<string[]>([]);
+            const [newItemNameCatalogueLink, setNewItemNameCatalogueLink] = useState('');
 			  const [newSpecName, setNewSpecName] = useState('');
 		  const [specIdForValues, setSpecIdForValues] = useState('');
 		  const [specValuesFilterItemNameId, setSpecValuesFilterItemNameId] = useState('');
@@ -487,6 +490,7 @@ export default function MastersView({
 			      setNewUserIsActive(true);
 			      setNewUserPassword('');
 			      setNewUserMobile('');
+            setNewUserPoApprovalAmount('');
 			    }
 						    if (tab === 'suppliers') {
 						      setNewSupplierName('');
@@ -496,6 +500,7 @@ export default function MastersView({
 						      setNewSupplierPhone('');
 						      setNewSupplierPaymentTerms('');
 						      setNewSupplierIsVendor(false);
+                  setNewSupplierCatalogueLink('');
 						    }
 						    if (tab === 'customers') {
 						      setNewCustomerName('');
@@ -514,6 +519,7 @@ export default function MastersView({
 					      setNewItemNameUnitId('');
 					      setNewItemNameCategoryId('');
 					      setNewItemNameSpecIds([]);
+                setNewItemNameCatalogueLink('');
 					    }
 				    if (tab === 'specs') setNewSpecName('');
 				    if (tab === 'specValues') {
@@ -582,6 +588,7 @@ export default function MastersView({
 			        setNewUserIsActive((row as any).isActive === false ? false : true);
 			        setNewUserPassword('');
 			        setNewUserMobile(row.mobile ?? '');
+              setNewUserPoApprovalAmount((row as any).poApprovalAmount == null ? '' : String((row as any).poApprovalAmount));
 			      }
 			    }
 				    if (tab === 'suppliers') {
@@ -593,6 +600,7 @@ export default function MastersView({
 				      setNewSupplierPhone(row?.phone ?? '');
 				      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
 				      setNewSupplierIsVendor(Boolean(row?.isVendor));
+              setNewSupplierCatalogueLink((row as any)?.catalogueLink ?? '');
 				    }
 				    if (tab === 'customers') {
 				      const row = customers.find((c) => c.id === id);
@@ -623,6 +631,7 @@ export default function MastersView({
 				      setNewItemNameUnitId(row?.unitId ?? '');
 				      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
 				      setNewItemNameSpecIds(Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : []);
+              setNewItemNameCatalogueLink((row as any)?.catalogueLink ?? '');
 			    }
 	    if (tab === 'specs') {
 	      const row = specs.find((s) => s.id === id);
@@ -1950,8 +1959,8 @@ export default function MastersView({
 		                        </button>
 		                      </div>
 		                    </div>
-			                    <label className="space-y-1">
-			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile</div>
 			                      <input
 			                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.userMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
 		                        value={newUserMobile}
@@ -1966,6 +1975,16 @@ export default function MastersView({
 		                      />
 		                      {fieldErrors.userMobile ? <div className="text-xs text-error">{fieldErrors.userMobile}</div> : null}
 		                    </label>
+                        <label className="space-y-1">
+                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">PO Approval Amount</div>
+                          <input
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                            value={newUserPoApprovalAmount}
+                            onChange={(e) => setNewUserPoApprovalAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                            placeholder="0"
+                            inputMode="decimal"
+                          />
+                        </label>
 	                  </div>
 
 		                  <label className="space-y-1">
@@ -2085,6 +2104,7 @@ export default function MastersView({
 		                        setNewUserIsActive(true);
 		                        setNewUserPassword('');
 		                        setNewUserMobile('');
+                            setNewUserPoApprovalAmount('');
 		                        closeModal();
 		                      }}
 		                    >
@@ -2121,6 +2141,7 @@ export default function MastersView({
 			                              menuAccess: newUserMenuAccess.slice(),
 			                              isActive: newUserIsActive,
 			                              mobile: mobile || undefined,
+                                poApprovalAmount: newUserPoApprovalAmount.trim() ? Number(newUserPoApprovalAmount) : null,
 			                              password: password || undefined,
 			                              updatedBy: 'system',
 			                            })
@@ -2132,6 +2153,7 @@ export default function MastersView({
 			                              menuAccess: newUserMenuAccess.slice(),
 			                              isActive: newUserIsActive,
 			                              mobile: mobile || undefined,
+                                poApprovalAmount: newUserPoApprovalAmount.trim() ? Number(newUserPoApprovalAmount) : null,
 			                              password,
 			                              createdBy: 'system',
 			                            });
@@ -2145,6 +2167,7 @@ export default function MastersView({
 		                            setNewUserIsActive(true);
 		                            setNewUserPassword('');
 		                            setNewUserMobile('');
+                                setNewUserPoApprovalAmount('');
 		                            closeModal();
 		                          })
 	                          .catch(handleMasterError)
@@ -2229,6 +2252,15 @@ export default function MastersView({
 			                        placeholder="30 days"
 			                      />
 			                    </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Upload Catalogue Link</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierCatalogueLink}
+                              onChange={(e) => setNewSupplierCatalogueLink(e.target.value)}
+                              placeholder="https://..."
+                            />
+                          </label>
 
 			                    <label className="flex items-center gap-2 text-sm cursor-pointer pt-2">
 			                      <input
@@ -2252,6 +2284,7 @@ export default function MastersView({
 				                        setNewSupplierPhone('');
 				                        setNewSupplierPaymentTerms('');
 				                        setNewSupplierIsVendor(false);
+                                setNewSupplierCatalogueLink('');
 				                        closeModal();
 				                      }}
 			                    >
@@ -2280,6 +2313,7 @@ export default function MastersView({
 				                              phone: phone || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
+                                  catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              updatedBy: 'system',
 				                            })
 				                          : createSupplier({
@@ -2290,6 +2324,7 @@ export default function MastersView({
 				                              phone: phone || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
+                                  catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              createdBy: 'system',
 				                            });
 			                        fn.then(() => loadAll())
@@ -2301,6 +2336,7 @@ export default function MastersView({
 				                            setNewSupplierPhone('');
 				                            setNewSupplierPaymentTerms('');
 				                            setNewSupplierIsVendor(false);
+                                setNewSupplierCatalogueLink('');
 				                            closeModal();
 				                          })
 		                          .catch(handleMasterError)
@@ -2742,6 +2778,15 @@ export default function MastersView({
 				                      </button>
 				                    </div>
 				                  </div>
+                      <label className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Catalogue Link</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={newItemNameCatalogueLink}
+                          onChange={(e) => setNewItemNameCatalogueLink(e.target.value)}
+                          placeholder="https://..."
+                        />
+                      </label>
 			                  <div className="flex justify-end gap-2">
 			                    <button
 			                      type="button"
@@ -2750,6 +2795,7 @@ export default function MastersView({
 			                        setNewItemName('');
 			                        setNewItemNameUnitId('');
 			                        setNewItemNameCategoryId('');
+                          setNewItemNameCatalogueLink('');
 		                        closeModal();
 		                      }}
 		                    >
@@ -2779,6 +2825,7 @@ export default function MastersView({
 				                              unitId: newItemNameUnitId || null,
 			                              itemCategoryId: newItemNameCategoryId || null,
 			                              specificationIds: newItemNameSpecIds.filter(Boolean),
+                                catalogueLink: newItemNameCatalogueLink.trim() || null,
 				                              updatedBy: 'system',
 				                            })
 				                          : createItemName({
@@ -2786,6 +2833,7 @@ export default function MastersView({
 				                              unitId: newItemNameUnitId || null,
 				                              itemCategoryId: newItemNameCategoryId || null,
 				                              specificationIds: newItemNameSpecIds.filter(Boolean),
+                                catalogueLink: newItemNameCatalogueLink.trim() || null,
 				                              createdBy: 'system',
 				                            });
 		                        fn.then(() => loadAll())
@@ -2794,6 +2842,7 @@ export default function MastersView({
 			                            setNewItemNameUnitId('');
 			                            setNewItemNameCategoryId('');
 			                            setNewItemNameSpecIds([]);
+                              setNewItemNameCatalogueLink('');
 			                            closeModal();
 			                          })
 		                          .catch(handleMasterError)
@@ -3756,6 +3805,7 @@ export default function MastersView({
 				                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Login ID</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Role</th>
+                          <th className="text-left px-3 py-2 border border-blue-600">PO Approval Amount</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Status</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Email</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Password</th>
@@ -3769,6 +3819,7 @@ export default function MastersView({
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).loginId ?? '')}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).role ?? u.designation ?? '')}</td>
+                            <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(u as any).poApprovalAmount ?? ''}</td>
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
 				                      {(u as any).isActive === false ? 'Inactive' : 'Active'}
 				                    </td>
@@ -3834,6 +3885,7 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">Phone Number</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Vendor</th>
+                        <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 					                </tr>
 					              </thead>
@@ -3851,6 +3903,7 @@ export default function MastersView({
 					                        <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
 					                      ) : '-'}
 					                    </td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{(s as any).catalogueLink ?? ''}</td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">
 				                        <button
@@ -4177,6 +4230,7 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Specifications</th>
+                        <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 					                </tr>
 					              </thead>
@@ -4198,6 +4252,7 @@ export default function MastersView({
 					                          .join(', ');
 					                      })()}
 					                    </td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{(n as any).catalogueLink ?? ''}</td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">
 						                        <button

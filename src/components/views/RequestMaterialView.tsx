@@ -404,7 +404,7 @@ export default function RequestMaterialView() {
                           type="button"
                           onClick={() => handleRemoveItem(index)}
                           className="text-error hover:bg-error/5 p-1 rounded"
-                          disabled={items.length === 1}
+                          disabled={rows.length === 1}
                         >
                           <Trash2 size={16} />
                         </button>

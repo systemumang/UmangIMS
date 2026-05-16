@@ -19,6 +19,7 @@ export type Supplier = {
   phone?: string | null;
   paymentTerms?: string | null;
   isVendor?: boolean;
+  catalogueLink?: string | null;
 };
 export type Transporter = { id: string; name: string; phone?: string | null };
 export type Customer = { id: string; name: string; phone?: string | null; address?: string | null };
@@ -43,6 +44,7 @@ export type ItemName = {
   itemCategoryId?: string | null;
   itemCategoryName?: string | null;
   specificationIds?: string[];
+  catalogueLink?: string | null;
 };
 export type Specification = { id: string; name: string };
 export type SpecificationValue = {
@@ -66,6 +68,7 @@ export type User = {
   isActive?: boolean;
   menuAccess?: string[];
   mobile?: string | null;
+  poApprovalAmount?: number | null;
   hasPassword: boolean;
 };
 export type Item = {
@@ -318,6 +321,7 @@ export async function createUser(input: {
   isActive?: boolean;
   password: string;
   mobile?: string;
+  poApprovalAmount?: number | null;
   createdBy?: string;
 }) {
   const res = await fetch('/api/masters/users', {
@@ -339,6 +343,7 @@ export async function updateUser(
     isActive?: boolean;
     password?: string;
     mobile?: string;
+    poApprovalAmount?: number | null;
     updatedBy?: string;
   }
 ) {
@@ -438,6 +443,7 @@ export async function createSupplier(input: {
   phone?: string;
   paymentTerms?: string;
   isVendor?: boolean;
+  catalogueLink?: string;
   createdBy?: string;
 }) {
   const res = await fetch('/api/masters/suppliers', {
@@ -458,6 +464,7 @@ export async function updateSupplier(
     phone?: string;
     paymentTerms?: string;
     isVendor?: boolean;
+    catalogueLink?: string;
     updatedBy?: string;
   }
 ) {
@@ -626,6 +633,7 @@ export async function createItemName(input: {
   unitId?: string | null;
   itemCategoryId?: string | null;
   specificationIds?: string[];
+  catalogueLink?: string | null;
   createdBy?: string;
 }) {
   const res = await fetch('/api/masters/item-names', {
@@ -638,7 +646,14 @@ export async function createItemName(input: {
 
 export async function updateItemName(
   id: string,
-  input: { name: string; unitId?: string | null; itemCategoryId?: string | null; specificationIds?: string[]; updatedBy?: string }
+  input: {
+    name: string;
+    unitId?: string | null;
+    itemCategoryId?: string | null;
+    specificationIds?: string[];
+    catalogueLink?: string | null;
+    updatedBy?: string;
+  }
 ) {
   const res = await fetch(`/api/masters/item-names/${encodeURIComponent(id)}`, {
     method: 'PUT',
