@@ -81,6 +81,7 @@ export default function PowerBIDashboardView({
   const [dailyLoading, setDailyLoading] = useState(true);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
+  const [catalogueUrl, setCatalogueUrl] = useState<string>('');
 
   useEffect(() => {
     const ac = new AbortController();
@@ -151,6 +152,21 @@ export default function PowerBIDashboardView({
       .finally(() => setDailyLoading(false));
     return () => ac.abort();
   }, [activeDayIso]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetch('/api/settings/links', { signal: ac.signal })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) return;
+        const rows = Array.isArray((data as any)?.links) ? ((data as any).links as any[]) : [];
+        const found = rows.find((r) => String(r?.name ?? '').trim().toLowerCase() === 'catelouge');
+        const url = String(found?.link ?? '').trim();
+        setCatalogueUrl(url);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
 
   const pendingTotal = useMemo(() => pendingQueueItems.reduce((sum, it) => sum + (pendingCounts[it.key] ?? 0), 0), [pendingCounts]);
 
@@ -247,11 +263,26 @@ export default function PowerBIDashboardView({
 	              Damage
 	            </button>
 		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
-	              <Boxes size={14} />
-	              Transfer
-	            </button>
-          </div>
-        </div>
+		              <Boxes size={14} />
+		              Transfer
+		            </button>
+                {catalogueUrl ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]"
+                    onClick={() => {
+                      const url = catalogueUrl.trim();
+                      if (!url) return;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    title="Open Catelouge"
+                  >
+                    <Link2 size={14} />
+                    Catelouge
+                  </button>
+                ) : null}
+	          </div>
+	        </div>
 
 	        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	          <div className="flex items-center justify-between gap-2 mb-3">
