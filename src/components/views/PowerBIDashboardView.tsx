@@ -167,7 +167,12 @@ export default function PowerBIDashboardView({
         const data = await res.json().catch(() => null);
         if (!res.ok) return;
         const rows = Array.isArray((data as any)?.links) ? ((data as any).links as any[]) : [];
-        const found = rows.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catelouge');
+        const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
+        const isCatalogueName = (name: unknown) => {
+          const n = norm(name);
+          return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
+        };
+        const found = rows.find((r) => isCatalogueName((r as any)?.name));
         const url = String(found?.link ?? '').trim();
         setCatalogueUrl(url);
         try {
@@ -292,10 +297,15 @@ export default function PowerBIDashboardView({
                           const data = await res.json().catch(() => null);
                           if (!res.ok) throw new Error((data as any)?.error ? String((data as any).error) : 'Failed to load catalogue link');
                           const rows = Array.isArray((data as any)?.links) ? ((data as any).links as any[]) : [];
-                          const found = rows.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catelouge');
+                          const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
+                          const isCatalogueName = (name: unknown) => {
+                            const n = norm(name);
+                            return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
+                          };
+                          const found = rows.find((r) => isCatalogueName((r as any)?.name));
                           const url = String(found?.link ?? '').trim();
                           if (!url) {
-                            window.alert('Catalogue link not set. Go to Settings → Links and add name "Catelogue".');
+                            window.alert('Catalogue link not set. Go to Settings → Links and add/update the Catalogue link.');
                             return;
                           }
                           setCatalogueUrl(url);

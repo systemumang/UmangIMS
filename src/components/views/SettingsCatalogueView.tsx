@@ -16,22 +16,27 @@ export default function SettingsCatalogueView() {
   const [link, setLink] = useState('');
   const [rows, setRows] = useState<CatalogueRow[]>([]);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/settings/links');
-      const data = await res.json();
-      if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue'));
-      const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
-      setRows(next);
-      try {
-        const found = next.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catelouge');
-        const url = String(found?.link ?? '').trim();
-        if (url) localStorage.setItem('ims.settings.catelougeLink', url);
-      } catch {}
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+	  const load = async () => {
+	    setLoading(true);
+	    setError(null);
+	    try {
+	      const res = await fetch('/api/settings/links');
+	      const data = await res.json();
+	      if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue'));
+	      const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
+	      setRows(next);
+	      try {
+	        const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
+	        const isCatalogueName = (name: unknown) => {
+	          const n = norm(name);
+	          return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
+	        };
+	        const found = next.find((r) => isCatalogueName((r as any)?.name));
+	        const url = String(found?.link ?? '').trim();
+	        if (url) localStorage.setItem('ims.settings.catelougeLink', url);
+	      } catch {}
+	    } catch (e) {
+	      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
