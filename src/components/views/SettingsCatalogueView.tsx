@@ -3,6 +3,7 @@ import Spinner from '@/src/components/common/Spinner';
 
 type CatalogueRow = {
   id: string;
+  name: string;
   link: string;
   updatedAt?: string | null;
 };
@@ -11,19 +12,19 @@ export default function SettingsCatalogueView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState('');
   const [link, setLink] = useState('');
-  const [row, setRow] = useState<CatalogueRow | null>(null);
+  const [rows, setRows] = useState<CatalogueRow[]>([]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/settings/catalogue');
+      const res = await fetch('/api/settings/links');
       const data = await res.json();
       if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue'));
-      const next = data?.catalogue ? (data.catalogue as CatalogueRow) : null;
-      setRow(next);
-      setLink(next?.link ?? '');
+      const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
+      setRows(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -39,15 +40,16 @@ export default function SettingsCatalogueView() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/settings/catalogue', {
-        method: 'PUT',
+      const res = await fetch('/api/settings/links', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: link.trim() }),
+        body: JSON.stringify({ name: name.trim(), link: link.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(String(data?.error ?? 'Failed to save catalogue'));
-      setRow(data.catalogue as CatalogueRow);
-      setLink(String(data.catalogue?.link ?? ''));
+      setName('');
+      setLink('');
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -61,7 +63,13 @@ export default function SettingsCatalogueView() {
     <div className="p-4 max-w-5xl mx-auto space-y-4">
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
         <div className="text-sm font-bold text-on-surface mb-3 uppercase tracking-wider">Settings</div>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr_auto] gap-3">
+          <input
+            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+          />
           <input
             className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
             value={link}
@@ -71,7 +79,7 @@ export default function SettingsCatalogueView() {
           <button
             type="button"
             className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-            disabled={saving || !link.trim()}
+            disabled={saving || !name.trim() || !link.trim()}
             onClick={onSave}
           >
             {saving ? 'Saving...' : 'Upload'}
@@ -91,15 +99,17 @@ export default function SettingsCatalogueView() {
               </tr>
             </thead>
             <tbody>
-              {row ? (
-                <tr>
-                  <td className="px-3 py-2 border border-blue-600">Catalogue</td>
-                  <td className="px-3 py-2 border border-blue-600">
-                    <a href={row.link} target="_blank" rel="noreferrer" className="text-primary underline break-all">
-                      {row.link}
-                    </a>
-                  </td>
-                </tr>
+              {rows.length ? (
+                rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-3 py-2 border border-blue-600">{row.name}</td>
+                    <td className="px-3 py-2 border border-blue-600">
+                      <a href={row.link} target="_blank" rel="noreferrer" className="text-primary underline break-all">
+                        {row.link}
+                      </a>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td className="px-3 py-2 border border-blue-600 text-on-surface-variant" colSpan={2}>No link uploaded.</td>
