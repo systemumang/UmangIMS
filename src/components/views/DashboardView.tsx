@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, ClipboardList } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, ClipboardList, BookOpen } from 'lucide-react';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 
 type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
@@ -15,11 +15,13 @@ export default function DashboardView({
   onNavigateStockMasterTab: (tab: StockMasterTab) => void;
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
 }) {
+  const [catLoading, setCatLoading] = useState(false);
+
   return (
     <div className="space-y-6">
-	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
-	        <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
-	        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+		      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
+		        <div className="font-headline font-bold text-sm text-on-surface mb-4">Quick Actions</div>
+		        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 	          <button
 	            type="button"
 	            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
@@ -65,16 +67,51 @@ export default function DashboardView({
             Damage
           </button>
 
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
-            onClick={() => onNavigateStockMasterTab('transfer')}
-          >
-            <Plus size={16} />
-            Transfer
-          </button>
-        </div>
-      </div>
+	          <button
+	            type="button"
+	            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+	            onClick={() => onNavigateStockMasterTab('transfer')}
+	          >
+	            <Plus size={16} />
+	            Transfer
+	          </button>
+
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
+              disabled={catLoading}
+              onClick={async () => {
+                if (catLoading) return;
+                setCatLoading(true);
+                try {
+                  const fromCache = String(localStorage.getItem('ims.settings.catelougeLink') ?? '').trim();
+                  let url = fromCache;
+                  if (!url) {
+                    const res = await fetch('/api/settings/links');
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue link'));
+                    const links = Array.isArray(data?.links) ? data.links : [];
+                    const found = links.find((r: any) => String(r?.name ?? '').trim().toLowerCase() === 'catelouge');
+                    url = String(found?.link ?? '').trim();
+                    if (url) localStorage.setItem('ims.settings.catelougeLink', url);
+                  }
+                  if (!url) {
+                    window.alert('Catalogue link not set. Go to Settings → Links and add name "Catelogue".');
+                    return;
+                  }
+                  window.open(url, '_blank', 'noreferrer');
+                } catch (e) {
+                  window.alert(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setCatLoading(false);
+                }
+              }}
+            >
+              <BookOpen size={16} />
+              {catLoading ? 'Opening...' : 'Catalogue'}
+            </button>
+	        </div>
+	      </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 shadow-sm">
         <div className="font-headline font-bold text-sm text-on-surface mb-4">Pending Tasks</div>
