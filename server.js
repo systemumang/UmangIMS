@@ -2387,13 +2387,44 @@ app.get('/api/queues/payment', async (req, res) => {
         po.project_id AS projectId,
         proj.name AS projectName,
         po.supplier_id AS supplierId,
-        s.name AS supplierName
+        s.name AS supplierName,
+        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
+        FROM invoice_items ii
+        GROUP BY ii.invoice_id
+      ) invq ON invq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(gil.linked_qty, 0)) AS totalLinkedQty
+        FROM invoice_items ii
+        LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
+        GROUP BY ii.invoice_id
+      ) linkq ON linkq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT
+          ii.invoice_id AS invoiceId,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
+        FROM invoice_items ii
+        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+        LEFT JOIN (
+          SELECT
+            g.po_id AS poId,
+            qc.item_id AS itemId,
+            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+          FROM grns g
+          INNER JOIN qc_records qc ON qc.grn_id = g.id
+          GROUP BY g.po_id, qc.item_id
+        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+        GROUP BY ii.invoice_id
+      ) qcq ON qcq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
       `,
@@ -2451,6 +2482,121 @@ app.get('/api/queues/payment', async (req, res) => {
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Debug helper: why an invoice is/isn't in Pending Payment.
+// Mirrors the filters used by `/api/queues/payment` for a single invoice id.
+app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+
+    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
+    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
+        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
+        po.po_number AS poNumber,
+        f.name AS firmName,
+        s.name AS supplierName,
+        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
+        FROM invoice_items ii
+        GROUP BY ii.invoice_id
+      ) invq ON invq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT
+          ii.invoice_id AS invoiceId,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
+        FROM invoice_items ii
+        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+        LEFT JOIN (
+          SELECT
+            g.po_id AS poId,
+            qc.item_id AS itemId,
+            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+          FROM grns g
+          INNER JOIN qc_records qc ON qc.grn_id = g.id
+          GROUP BY g.po_id, qc.item_id
+        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+        GROUP BY ii.invoice_id
+      ) qcq ON qcq.invoiceId = inv.id
+      WHERE inv.id = ?
+      LIMIT 1
+      `,
+      [invoiceId]
+    );
+
+    const r = Array.isArray(rows) ? rows[0] : null;
+    if (!r) return res.status(404).json({ error: 'Invoice not found' });
+
+    const invoiceAmount = Number(r.invoiceAmount ?? 0);
+    const paymentStatusLower = String(r.paymentStatus ?? '').toLowerCase();
+    const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+    const paymentModeLower = paymentMode.trim().toLowerCase();
+    const isCash = paymentModeLower === 'cash';
+    const isFull = paymentStatusLower.includes('full') || isCash;
+    const paidAmount = isFull ? invoiceAmount : 0;
+    const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+
+    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
+    const totalApprovedQty = Number(r.totalApprovedQty ?? 0);
+    const tallyEntryDate = toIsoDate(r.tallyEntryDate) || '';
+
+    const failures = [];
+    if (!(remainingAmount > 1e-9)) failures.push('Fully paid (remainingAmount is 0)');
+    if (isCash) failures.push('Payment mode is Cash (treated as fully paid)');
+    if (!(totalInvoiceQty > 0)) failures.push('No invoice items (totalInvoiceQty is 0)');
+    if (!(totalInvoiceQty > 0 && Math.abs(totalInvoiceQty - totalApprovedQty) <= 1e-9)) failures.push('Not fully QC-approved (invoice qty != approved qty)');
+    if (hasTallyEntryDate && !tallyEntryDate) failures.push('Tally entry date is empty');
+
+    const eligible =
+      remainingAmount > 1e-9 &&
+      totalInvoiceQty > 0 &&
+      Math.abs(totalInvoiceQty - totalApprovedQty) <= 1e-9 &&
+      (hasTallyEntryDate ? Boolean(tallyEntryDate) : true);
+
+    res.json({
+      eligible,
+      failures,
+      computed: {
+        invoiceId: String(r.invoiceId ?? ''),
+        invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+        invoiceDate: toIsoDate(r.invoiceDate) || '',
+        poNumber: String(r.poNumber ?? ''),
+        firmName: String(r.firmName ?? ''),
+        supplierName: String(r.supplierName ?? ''),
+        invoiceAmount,
+        paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : null,
+        paymentDate: toIsoDate(r.paymentDate) || null,
+        paymentMode,
+        tallyEntryDate: tallyEntryDate || null,
+        totalInvoiceQty,
+        totalApprovedQty,
+        remainingAmount,
+      },
+      notes: { hasTallyEntryDate },
+    });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
