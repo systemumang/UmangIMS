@@ -2251,8 +2251,9 @@ export default function MastersView({
 				                        setNewSupplierAddress('');
 				                        setNewSupplierPhone('');
 				                        setNewSupplierPaymentTerms('');
-			                        closeModal();
-			                      }}
+				                        setNewSupplierIsVendor(false);
+				                        closeModal();
+				                      }}
 			                    >
 		                      Cancel
 	                    </button>
@@ -2296,11 +2297,12 @@ export default function MastersView({
 			                            setNewSupplierName('');
 			                            setNewSupplierGstNumber('');
 			                            setNewSupplierGstType('Intra-State');
-			                            setNewSupplierAddress('');
-			                            setNewSupplierPhone('');
-			                            setNewSupplierPaymentTerms('');
-			                            closeModal();
-			                          })
+				                            setNewSupplierAddress('');
+				                            setNewSupplierPhone('');
+				                            setNewSupplierPaymentTerms('');
+				                            setNewSupplierIsVendor(false);
+				                            closeModal();
+				                          })
 		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
 		                      }}

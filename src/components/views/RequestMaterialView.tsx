@@ -1,14 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
-import { fetchCustomers, fetchProjects, fetchSuppliers, fetchUsers, type Customer, type Project, type Supplier, type User } from '@/src/lib/masters';
+import {
+  fetchCustomers,
+  fetchItemNames,
+  fetchItems,
+  fetchProjects,
+  fetchSpecificationValues,
+  fetchSpecifications,
+  fetchSuppliers,
+  fetchUsers,
+  type Customer,
+  type Item,
+  type ItemName,
+  type Project,
+  type Specification,
+  type SpecificationValue,
+  type Supplier,
+  type User,
+} from '@/src/lib/masters';
 import { createMaterialRequest } from '@/src/lib/materialRequests';
-import { fetchItems, type Item } from '@/src/lib/masters';
 import { Plus, Trash2, X } from 'lucide-react';
 
 export default function RequestMaterialView() {
+  type Row = {
+    itemId: string;
+    itemNameId: string;
+    specs: Record<string, string>;
+    quantity: string;
+  };
+
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -16,14 +37,16 @@ export default function RequestMaterialView() {
   const [requestByUserId, setRequestByUserId] = useState('');
   const [requestBySupplierId, setRequestBySupplierId] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [items, setItems] = useState<Array<{ itemId: string; specification: string; quantity: number }>>([
-    { itemId: '', specification: '', quantity: 1 }
-  ]);
+  const [rows, setRows] = useState<Row[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '' }]);
+  const [rowErrors, setRowErrors] = useState<string[]>([]);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [itemNames, setItemNames] = useState<ItemName[]>([]);
+  const [specs, setSpecs] = useState<Specification[]>([]);
+  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
   const [masterItems, setMasterItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,17 +56,21 @@ export default function RequestMaterialView() {
   useEffect(() => {
     async function load() {
       try {
-        const [c, p, s, u, i] = await Promise.all([
+        const [c, p, s, u, itemNameRows, specRows, i] = await Promise.all([
           fetchCustomers(),
           fetchProjects(),
           fetchSuppliers(),
           fetchUsers(),
+          fetchItemNames(),
+          fetchSpecifications(),
           fetchItems()
         ]);
         setCustomers(c);
         setProjects(p);
         setSuppliers(s.filter(it => it.isVendor));
         setUsers(u);
+        setItemNames(itemNameRows);
+        setSpecs(specRows);
         setMasterItems(i);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
@@ -54,18 +81,62 @@ export default function RequestMaterialView() {
     load();
   }, []);
 
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+
+  const getItemNameSpecIds = (itemNameId: string): string[] => {
+    const row = itemNames.find((n) => n.id === itemNameId);
+    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+    return ids.filter(Boolean);
+  };
+
+  const specValueKey = (itemNameId: string, specificationId: string) => `${itemNameId}::${specificationId}`;
+
+  const parseSpecObject = (specificationsJson: string) => {
+    try {
+      const parsed = JSON.parse(specificationsJson || '{}');
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const formatSpecsLines = (specificationsJson: string) => {
+    const specObj = parseSpecObject(specificationsJson);
+    return Object.entries(specObj)
+      .map(([specId, value]) => {
+        const name = specNameById?.[specId] ?? specId;
+        const v = String(value ?? '').trim();
+        if (!v) return '';
+        return `${name}: ${v}`;
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  };
+
+  const resolveSelectedItem = (itemNameId: string, specValues: Record<string, string>) => {
+    if (!itemNameId) return null;
+    const specIds = getItemNameSpecIds(itemNameId);
+    const candidates = masterItems.filter((it) => it.itemNameId === itemNameId);
+    if (!candidates.length) return null;
+    if (!specIds.length) return candidates[0] ?? null;
+    if (specIds.some((specId) => !String(specValues?.[specId] ?? '').trim())) return null;
+    return (
+      candidates.find((it) => {
+        const saved = parseSpecObject(it.specificationsJson);
+        return specIds.every((specId) => String(saved[specId] ?? '').trim() === String(specValues?.[specId] ?? '').trim());
+      }) ?? null
+    );
+  };
+
   const handleAddItem = () => {
-    setItems([...items, { itemId: '', specification: '', quantity: 1 }]);
+    setRows((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '' }]);
+    setRowErrors((prev) => [...prev, '']);
   };
 
   const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const next = [...items];
-    next[index] = { ...next[index], [field]: value };
-    setItems(next);
+    setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setRowErrors((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,6 +144,26 @@ export default function RequestMaterialView() {
     setSaving(true);
     setError(null);
     try {
+      const nextErrors: string[] = [];
+      const payloadItems = rows
+        .map((row, idx) => {
+          const itemId = String(row.itemId ?? '').trim();
+          const quantity = Number(row.quantity);
+          if (!itemId) nextErrors[idx] = 'Select item and specifications.';
+          else if (!Number.isFinite(quantity) || quantity <= 0) nextErrors[idx] = 'Enter valid quantity.';
+          const matched = masterItems.find((it) => it.id === itemId);
+          return {
+            itemId,
+            quantity,
+            specification: matched ? formatSpecsLines(matched.specificationsJson) : '',
+          };
+        })
+        .filter((row, idx) => !nextErrors[idx]);
+      setRowErrors(nextErrors);
+      if (!payloadItems.length) {
+        throw new Error('Please add at least one valid item row.');
+      }
+
       await createMaterialRequest({
         date,
         customerId: customerId || null,
@@ -81,7 +172,7 @@ export default function RequestMaterialView() {
         requestByUserId: requestByType === 'Inhouse' ? requestByUserId : null,
         requestBySupplierId: requestByType === 'Vendor' ? requestBySupplierId : null,
         remarks,
-        items: items.filter(it => it.itemId && it.quantity > 0)
+        items: payloadItems,
       });
       setSuccess(true);
       // Reset form
@@ -90,7 +181,8 @@ export default function RequestMaterialView() {
       setRequestByUserId('');
       setRequestBySupplierId('');
       setRemarks('');
-      setItems([{ itemId: '', specification: '', quantity: 1 }]);
+      setRows([{ itemId: '', itemNameId: '', specs: {}, quantity: '' }]);
+      setRowErrors([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -235,33 +327,77 @@ export default function RequestMaterialView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, index) => (
+                  {rows.map((row, index) => (
                     <tr key={index}>
                       <td className="p-1 border border-outline-variant/20">
                         <SearchableSelect
-                          options={masterItems.map(i => ({ value: i.id, label: (i.itemName || '') + ' - ' + (i.itemCode || '') }))}
-                          value={item.itemId}
-                          onChange={val => handleItemChange(index, 'itemId', val)}
-                          placeholder="Select Item"
+                          options={itemNames.map((i) => ({ value: i.id, label: i.name }))}
+                          value={row.itemNameId}
+                          onChange={(itemNameId) => {
+                            const specIds = itemNameId ? getItemNameSpecIds(itemNameId) : [];
+                            for (const specId of specIds) {
+                              const key = specValueKey(itemNameId, specId);
+                              if ((specValueOptions[key] ?? []).length) continue;
+                              fetchSpecificationValues(specId, { itemNameId })
+                                .then((vals) => setSpecValueOptions((m) => ({ ...m, [key]: vals })))
+                                .catch(() => {});
+                            }
+                            setRowErrors((prev) => prev.map((m, i) => (i === index ? '' : m)));
+                            setRows((prev) => prev.map((p, i) => (i === index ? { ...p, itemNameId, itemId: '', specs: {} } : p)));
+                          }}
+                          placeholder="Search item name..."
                         />
                       </td>
                       <td className="p-1 border border-outline-variant/20">
-                        <input
-                          className="w-full bg-transparent px-2 py-1 text-sm outline-none"
-                          value={item.specification}
-                          onChange={e => handleItemChange(index, 'specification', e.target.value)}
-                          placeholder="Specification"
-                        />
+                        {row.itemNameId ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1">
+                            {getItemNameSpecIds(row.itemNameId).map((specId) => {
+                              const specName = specNameById?.[specId] ?? specId;
+                              const value = String(row.specs?.[specId] ?? '');
+                              const key = specValueKey(row.itemNameId, specId);
+                              const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                              if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                              return (
+                                <label key={`${index}-${specId}`} className="space-y-1">
+                                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
+                                  <SearchableSelect
+                                    value={value}
+                                    options={options}
+                                    placeholder="Select value..."
+                                    onChange={(selectedValue) => {
+                                      setRowErrors((prev) => prev.map((m, i) => (i === index ? '' : m)));
+                                      setRows((prev) =>
+                                        prev.map((p, i) => {
+                                          if (i !== index) return p;
+                                          const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
+                                          const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
+                                          return { ...p, specs: nextSpecs, itemId: matched?.id ?? '' };
+                                        })
+                                      );
+                                    }}
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="px-2 py-1 text-sm text-on-surface-variant">Select Item Name first</div>
+                        )}
                       </td>
                       <td className="p-1 border border-outline-variant/20">
                         <input
                           type="number"
                           className="w-full bg-transparent px-2 py-1 text-sm outline-none"
-                          value={item.quantity}
-                          onChange={e => handleItemChange(index, 'quantity', Number(e.target.value))}
+                          value={row.quantity}
+                          onChange={e => {
+                            const quantity = String(e.target.value ?? '');
+                            setRowErrors((prev) => prev.map((m, i) => (i === index ? '' : m)));
+                            setRows((prev) => prev.map((p, i) => (i === index ? { ...p, quantity } : p)));
+                          }}
                           min="0.001"
                           step="any"
                         />
+                        {rowErrors[index] ? <div className="text-[11px] text-error px-2 pb-1">{rowErrors[index]}</div> : null}
                       </td>
                       <td className="p-1 border border-outline-variant/20 text-center">
                         <button

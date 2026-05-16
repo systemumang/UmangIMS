@@ -4323,6 +4323,15 @@ app.post('/api/material-requests', async (req, res) => {
 
     if (!date) return res.status(400).json({ error: 'date is required' });
     if (!items.length) return res.status(400).json({ error: 'items are required' });
+    if (requestByType !== 'Inhouse' && requestByType !== 'Vendor') {
+      return res.status(400).json({ error: 'requestByType must be Inhouse or Vendor' });
+    }
+    if (requestByType === 'Inhouse' && !requestByUserId) {
+      return res.status(400).json({ error: 'requestByUserId is required for Inhouse' });
+    }
+    if (requestByType === 'Vendor' && !requestBySupplierId) {
+      return res.status(400).json({ error: 'requestBySupplierId is required for Vendor' });
+    }
 
     const requestId = crypto.randomUUID();
     const requestNo = await allocateDocNumber(pool, 'MR', new Date());
@@ -4402,7 +4411,7 @@ app.get('/api/material-requests/pending', async (_req, res) => {
     const requests = [];
     for (const row of rows) {
       const [items] = await pool.query(`
-        SELECT mri.*, i.name AS itemName
+        SELECT mri.*, i.item_name AS itemName
         FROM material_request_items mri
         JOIN items i ON i.id = mri.item_id
         WHERE mri.request_id = ?
