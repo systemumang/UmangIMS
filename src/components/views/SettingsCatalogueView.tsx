@@ -26,11 +26,7 @@ export default function SettingsCatalogueView() {
       const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
       setRows(next);
       try {
-        const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        const found = next.find((r) => {
-          const n = norm((r as any)?.name);
-          return n === 'catelouge' || n === 'catalogue' || n.includes('catelouge') || n.includes('catalogue');
-        });
+        const found = next.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catelouge');
         const url = String(found?.link ?? '').trim();
         if (url) localStorage.setItem('ims.settings.catelougeLink', url);
       } catch {}
