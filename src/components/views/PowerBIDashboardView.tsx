@@ -245,28 +245,13 @@ export default function PowerBIDashboardView({
 	        <div className="text-xs font-semibold text-on-surface-variant">{formatDDMMYYYY(new Date())}</div>
 	      </div>
 
-		        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-              <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b-2 border-[#374151]">
-                <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
-                {catalogueUrl ? (
-                  <button
-                    type="button"
-                    className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]"
-                    onClick={() => {
-                      const url = catalogueUrl.trim();
-                      if (!url) return;
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                    }}
-                    title="Open Catelouge"
-                  >
-                    <Link2 size={14} />
-                    Catelouge
-                  </button>
-                ) : null}
-              </div>
-		          <div className="flex items-center gap-2 overflow-x-auto">
-		            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
-	              <Plus size={14} />
+			        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+	              <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b-2 border-[#374151]">
+	                <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
+	              </div>
+			          <div className="flex items-center gap-2 overflow-x-auto">
+			            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onNewPurchaseRequest}>
+		              <Plus size={14} />
 	              Purchase Request
 	            </button>
 	            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={onDirectPo}>
@@ -289,12 +274,46 @@ export default function PowerBIDashboardView({
 	              <AlertTriangle size={14} />
 	              Damage
 	            </button>
-			            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
-			              <Boxes size={14} />
-			              Transfer
-			            </button>
-	          </div>
-	        </div>
+				            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
+				              <Boxes size={14} />
+				              Transfer
+				            </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm whitespace-nowrap bg-sky-500 hover:bg-sky-600 text-white border-2 border-[#111827] hover:border-[#0f172a]"
+                      onClick={async () => {
+                        const cached = String(catalogueUrl ?? '').trim();
+                        if (cached) {
+                          window.open(cached, '_blank', 'noopener,noreferrer');
+                          return;
+                        }
+                        try {
+                          const res = await fetch('/api/settings/links');
+                          const data = await res.json().catch(() => null);
+                          if (!res.ok) throw new Error((data as any)?.error ? String((data as any).error) : 'Failed to load catalogue link');
+                          const rows = Array.isArray((data as any)?.links) ? ((data as any).links as any[]) : [];
+                          const found = rows.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catelouge');
+                          const url = String(found?.link ?? '').trim();
+                          if (!url) {
+                            window.alert('Catalogue link not set. Go to Settings → Links and add name "Catelogue".');
+                            return;
+                          }
+                          setCatalogueUrl(url);
+                          try {
+                            localStorage.setItem('ims.settings.catelougeLink', url);
+                          } catch {}
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        } catch (e) {
+                          window.alert(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                      title="Open Catelouge"
+                    >
+                      <Link2 size={14} />
+                      Catelouge
+                    </button>
+		          </div>
+		        </div>
 
 	        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
 	          <div className="flex items-center justify-between gap-2 mb-3">
