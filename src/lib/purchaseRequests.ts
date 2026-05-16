@@ -346,7 +346,7 @@ export async function createPo(
 
 export async function createRfq(
   prId: string,
-  input: { items: Array<{ itemId: string; quantity: number; specification?: string | null }> }
+  input: { items: Array<{ itemId: string; supplierId?: string | null; quantity: number; specification?: string | null }> }
 ) {
   const res = await fetch(`/api/requests/${encodeURIComponent(prId)}/rfq`, {
     method: 'POST',

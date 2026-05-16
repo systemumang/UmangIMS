@@ -294,25 +294,27 @@ function getMysqlPool() {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS rfq_items (
-          id VARCHAR(255) PRIMARY KEY,
-          rfq_id VARCHAR(255) NOT NULL,
-          item_id VARCHAR(255) NOT NULL,
-          specification TEXT NULL,
-          quantity DOUBLE NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-      `);
-      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
-      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
-      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
-      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
-      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
-    } catch (err) {
-      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
-    }
+	      await pool.query(`
+	        CREATE TABLE IF NOT EXISTS rfq_items (
+	          id VARCHAR(255) PRIMARY KEY,
+	          rfq_id VARCHAR(255) NOT NULL,
+	          item_id VARCHAR(255) NOT NULL,
+	          supplier_id VARCHAR(255) NULL,
+	          specification TEXT NULL,
+	          quantity DOUBLE NOT NULL,
+	          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	          FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE
+	        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	      `);
+	      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
+	      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
+	      await ensureColumn('rfq_items', 'supplier_id', 'VARCHAR(255) NULL');
+	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
+	      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
+	      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
+	    } catch (err) {
+	      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
+	    }
   })();
 
   return mysqlPool;
@@ -7296,20 +7298,23 @@ app.post('/api/requests/:id/rfq', async (req, res) => {
       [rfqId, rfqNumber, prId, prRow.firmId ? String(prRow.firmId) : null, prRow.projectId ? String(prRow.projectId) : null, 'system']
     );
 
-    for (const row of items) {
-      const itemId = String(row?.itemId ?? '').trim();
-      const quantity = Number(row?.quantity ?? 0);
-      const specification = row?.specification != null ? String(row.specification).trim() : null;
-      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
-      await pool.query(
-        `
-        INSERT INTO rfq_items (id, rfq_id, item_id, specification, quantity, created_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-        `,
-        [crypto.randomUUID(), rfqId, itemId, specification, quantity]
-      );
-    }
+	    for (const row of items) {
+	      const itemId = String(row?.itemId ?? '').trim();
+	      const supplierIdRaw = row?.supplierId != null ? String(row.supplierId).trim() : '';
+	      const supplierId = supplierIdRaw ? supplierIdRaw : null;
+	      const quantity = Number(row?.quantity ?? 0);
+	      const specification = row?.specification != null ? String(row.specification).trim() : null;
+	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+	      if (!supplierId) return res.status(400).json({ error: 'Each item requires supplierId' });
+	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+	      await pool.query(
+	        `
+	        INSERT INTO rfq_items (id, rfq_id, item_id, supplier_id, specification, quantity, created_at)
+	        VALUES (?, ?, ?, ?, ?, ?, NOW())
+	        `,
+	        [crypto.randomUUID(), rfqId, itemId, supplierId, specification, quantity]
+	      );
+	    }
 
     res.status(201).json({ rfq: { id: rfqId, rfqNumber, prId } });
   } catch (e) {

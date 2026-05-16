@@ -273,42 +273,53 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
             <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
               Cancel
             </button>
-	            <button
-	              type="button"
-	              className="btn-primary btn-sm"
-	              disabled={saving || modalLoading || !activePrId || !lines.some((l) => Number(l.quantity) > 0)}
-		              onClick={() => {
-		                if (!activePrId) return;
-                    if (modalKind === 'rfq') {
-                      const picked = lines
-                        .map((l) => ({
-                          itemId: l.itemId,
-                          quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
-                          remainingQty: l.remainingQty,
-                          specification: l.specification,
-                        }))
-                        .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
+		            <button
+		              type="button"
+		              className="btn-primary btn-sm"
+		              disabled={saving || modalLoading || !activePrId || !lines.some((l) => Number(l.quantity) > 0)}
+			              onClick={() => {
+			                if (!activePrId) return;
+	                    if (modalKind === 'rfq') {
+	                      const picked = lines
+	                        .map((l) => ({
+	                          itemId: l.itemId,
+	                          supplierId: String(l.supplierId ?? '').trim(),
+	                          quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
+	                          remainingQty: l.remainingQty,
+	                          specification: l.specification,
+	                        }))
+	                        .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
 
-                      if (!picked.length) {
-                        setModalError('Enter Qty for at least one item.');
-                        return;
-                      }
-                      for (const it of picked) {
-                        if (it.quantity > it.remainingQty + 1e-9) {
-                          setModalError('Qty cannot exceed remaining PR quantity');
-                          return;
-                        }
-                      }
+	                      if (!picked.length) {
+	                        setModalError('Enter Qty for at least one item.');
+	                        return;
+	                      }
+	                      const missingSupplier = picked.find((x) => !x.supplierId);
+	                      if (missingSupplier) {
+	                        setModalError('Select supplier for all items where Qty is entered.');
+	                        return;
+	                      }
+	                      for (const it of picked) {
+	                        if (it.quantity > it.remainingQty + 1e-9) {
+	                          setModalError('Qty cannot exceed remaining PR quantity');
+	                          return;
+	                        }
+	                      }
 
-                      setSaving(true);
-                      setModalError(null);
-                      createRfq(activePrId, {
-                        items: picked.map((x) => ({ itemId: x.itemId, quantity: x.quantity, specification: x.specification })),
-                      })
-                        .then(() => {
-                          closeModal();
-                          return fetchQueueCreatePo(filters).then(setRows);
-                        })
+	                      setSaving(true);
+	                      setModalError(null);
+	                      createRfq(activePrId, {
+	                        items: picked.map((x) => ({
+	                          itemId: x.itemId,
+	                          supplierId: x.supplierId,
+	                          quantity: x.quantity,
+	                          specification: x.specification,
+	                        })),
+	                      })
+	                        .then(() => {
+	                          closeModal();
+	                          return fetchQueueCreatePo(filters).then(setRows);
+	                        })
                         .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
                         .finally(() => setSaving(false));
                       return;
@@ -467,16 +478,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	              );
             })() : null}
           <div className="overflow-x-auto">
-            <table
-              className={cn(
-                'w-full table-fixed text-left border-collapse border border-outline-variant',
-                modalKind === 'rfq' ? 'min-w-[860px]' : 'min-w-[1400px]'
-              )}
-            >
-              <colgroup>
-                <col className="w-[420px]" />
-                <col className="w-[90px]" />
-                {modalKind === 'po' ? (
+	            <table
+	              className={cn(
+	                'w-full table-fixed text-left border-collapse border border-outline-variant',
+	                modalKind === 'rfq' ? 'min-w-[1060px]' : 'min-w-[1400px]'
+	              )}
+	            >
+	              <colgroup>
+	                <col className="w-[420px]" />
+	                <col className="w-[90px]" />
+	                {modalKind === 'po' ? (
                   <>
                     <col className="w-[130px]" />
                     <col className="w-[110px]" />
@@ -489,22 +500,28 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     <col className="w-[90px]" />
                     <col className="w-[220px]" />
                     <col className="w-[140px]" />
-                  </>
-                ) : (
-                  <col className="w-[160px]" />
-                )}
-              </colgroup>
-              <thead>
-                <tr className="bg-surface-container-high">
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
-                  {modalKind === 'rfq' ? (
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
-                  ) : (
-                    <>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
+	                  </>
+	                ) : (
+	                  <>
+	                    <col className="w-[160px]" />
+	                    <col className="w-[220px]" />
+	                  </>
+	                )}
+	              </colgroup>
+	              <thead>
+	                <tr className="bg-surface-container-high">
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
+	                  {modalKind === 'rfq' ? (
+	                    <>
+	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
+	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
+	                    </>
+	                  ) : (
+	                    <>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+	                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
@@ -525,27 +542,46 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         {formatItemInline(l.item, l.specification)}
 	                      </td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
-                      {modalKind === 'rfq' ? (
-                        <td className="px-3 py-2 border border-outline-variant">
-                          <input
-                            className={cn(inputClass, 'py-1.5')}
-                            value={l.quantity}
-                            onChange={(e) =>
-                              setLines((prev) => {
-                                const next = prev.slice();
-                                next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
-                                return next;
-                              })
-                            }
-                            type="text"
-                            inputMode="decimal"
-                          />
-                        </td>
-                      ) : (
-                        <>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+	                      {modalKind === 'rfq' ? (
+	                        <>
+	                          <td className="px-3 py-2 border border-outline-variant">
+	                            <input
+	                              className={cn(inputClass, 'py-1.5')}
+	                              value={l.quantity}
+	                              onChange={(e) =>
+	                                setLines((prev) => {
+	                                  const next = prev.slice();
+	                                  next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+	                                  return next;
+	                                })
+	                              }
+	                              type="text"
+	                              inputMode="decimal"
+	                            />
+	                          </td>
+	                          <td className="px-3 py-2 border border-outline-variant">
+	                            <SearchableSelect
+	                              value={l.supplierId}
+	                              options={supplierOptions}
+	                              allowClear
+	                              disabled={masters.loading}
+	                              placeholder="Select supplier..."
+	                              onChange={(nextId) => {
+	                                const safeId = String(nextId ?? '').trim();
+	                                setLines((prev) => {
+	                                  const next = prev.slice();
+	                                  next[idx] = { ...next[idx]!, supplierId: safeId };
+	                                  return next;
+	                                });
+	                              }}
+	                            />
+	                          </td>
+	                        </>
+	                      ) : (
+	                        <>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
+	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
                             {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
                           </td>
                           <td className="px-3 py-2 border border-outline-variant">
@@ -664,14 +700,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       )}
                     </tr>
                   ))
-		                ) : (
-		                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 3 : 13}>
-		                      No remaining items to order.
-		                    </td>
-		                  </tr>
-		                )}
-              </tbody>
+			                ) : (
+			                  <tr>
+			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 13}>
+			                      No remaining items to order.
+			                    </td>
+			                  </tr>
+			                )}
+	              </tbody>
             </table>
           </div>
           </div>
