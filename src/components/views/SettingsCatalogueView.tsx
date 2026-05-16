@@ -25,6 +25,15 @@ export default function SettingsCatalogueView() {
       if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue'));
       const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
       setRows(next);
+      try {
+        const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const found = next.find((r) => {
+          const n = norm((r as any)?.name);
+          return n === 'catelouge' || n === 'catalogue' || n.includes('catelouge') || n.includes('catalogue');
+        });
+        const url = String(found?.link ?? '').trim();
+        if (url) localStorage.setItem('ims.settings.catelougeLink', url);
+      } catch {}
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

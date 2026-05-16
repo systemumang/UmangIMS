@@ -154,15 +154,29 @@ export default function PowerBIDashboardView({
   }, [activeDayIso]);
 
   useEffect(() => {
+    // Fast path: show button even if API call is slow/blocked.
+    try {
+      const raw = localStorage.getItem('ims.settings.catelougeLink');
+      const v = String(raw ?? '').trim();
+      if (v) setCatalogueUrl(v);
+    } catch {}
+
     const ac = new AbortController();
     fetch('/api/settings/links', { signal: ac.signal })
       .then(async (res) => {
         const data = await res.json().catch(() => null);
         if (!res.ok) return;
         const rows = Array.isArray((data as any)?.links) ? ((data as any).links as any[]) : [];
-        const found = rows.find((r) => String(r?.name ?? '').trim().toLowerCase() === 'catelouge');
+        const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const found = rows.find((r) => {
+          const n = norm((r as any)?.name);
+          return n === 'catelouge' || n === 'catalogue' || n.includes('catelouge') || n.includes('catalogue');
+        });
         const url = String(found?.link ?? '').trim();
         setCatalogueUrl(url);
+        try {
+          if (url) localStorage.setItem('ims.settings.catelougeLink', url);
+        } catch {}
       })
       .catch(() => {});
     return () => ac.abort();
