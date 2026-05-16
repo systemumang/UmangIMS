@@ -24,7 +24,7 @@ export default function DashboardView({
           <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
           <button
             type="button"
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm shadow-sm transition-colors bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm shadow-sm transition-colors !bg-sky-400 hover:!bg-sky-500 text-white disabled:opacity-50"
             disabled={catLoading}
             onClick={async () => {
               if (catLoading) return;

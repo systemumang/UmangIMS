@@ -255,7 +255,7 @@ export default function PowerBIDashboardView({
 	                <div className="font-headline font-bold text-sm text-on-surface">Quick Actions</div>
                     <button
                       type="button"
-                      className="btn btn-sm whitespace-nowrap bg-sky-500 hover:bg-sky-600 text-white border-2 border-[#111827] hover:border-[#0f172a]"
+                      className="btn btn-sm whitespace-nowrap !bg-sky-400 hover:!bg-sky-500 text-white border-2 border-[#111827] hover:border-[#0f172a]"
                       onClick={async () => {
                         const cached = String(catalogueUrl ?? '').trim();
                         if (cached) {
