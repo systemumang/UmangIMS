@@ -3695,12 +3695,35 @@ app.get('/api/operations/invoices', async (req, res) => {
         po.firm_id AS firmId,
         f.name AS firmName,
         po.supplier_id AS supplierId,
-        s.name AS supplierName
+        s.name AS supplierName,
+        COALESCE(qtyq.grnQty, 0) AS grnQty,
+        COALESCE(qtyq.approvedQty, 0) AS approvedQty
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT
+          ii.invoice_id AS invoiceId,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(grnt.receivedQty, 0))) AS grnQty,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS approvedQty
+        FROM invoice_items ii
+        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+        LEFT JOIN (
+          SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(COALESCE(gi.received_qty, 0)) AS receivedQty
+          FROM grns g
+          INNER JOIN grn_items gi ON gi.grn_id = g.id
+          GROUP BY g.po_id, gi.item_id
+        ) grnt ON grnt.poId = inv2.po_id AND grnt.itemId = ii.item_id
+        LEFT JOIN (
+          SELECT g.po_id AS poId, qc.item_id AS itemId, SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+          FROM grns g
+          INNER JOIN qc_records qc ON qc.grn_id = g.id
+          GROUP BY g.po_id, qc.item_id
+        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+        GROUP BY ii.invoice_id
+      ) qtyq ON qtyq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.created_at DESC
       `,
@@ -3720,6 +3743,8 @@ app.get('/api/operations/invoices', async (req, res) => {
       firmName: String(r.firmName ?? ''),
       supplierId: String(r.supplierId ?? ''),
       supplierName: String(r.supplierName ?? ''),
+      grnQty: Number(r.grnQty ?? 0),
+      approvedQty: Number(r.approvedQty ?? 0),
       approvedBy: r.approvedBy != null ? String(r.approvedBy) : undefined,
       tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
       status: mapInvoiceStatus(r),

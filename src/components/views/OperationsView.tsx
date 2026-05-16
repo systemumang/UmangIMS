@@ -836,6 +836,8 @@ export default function OperationsView({
 		                    <SortTh label="Firm" colKey="firmName" />
 		                    <SortTh label="Supplier" colKey="supplierName" />
 		                    <SortTh label="Date" colKey="invoiceDate" />
+                        <SortTh label="GRN Qty" colKey="grnQty" />
+                        <SortTh label="Approved Qty" colKey="approvedQty" />
                         <SortTh label="Approved By" colKey="approvedBy" />
                         <SortTh label="Tally Entry Date" colKey="tallyEntryDate" />
 		                    <SortTh label="Status" colKey="status" />
@@ -857,13 +859,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 9 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 11 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 9 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 11 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -976,6 +978,8 @@ export default function OperationsView({
 		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
                             <td className="px-3 py-2 border border-outline-variant">{r.approvedBy || '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant">{r.tallyEntryDate ? formatDateShort(r.tallyEntryDate) : '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>

@@ -122,6 +122,8 @@ export type OperationsInvoiceListRow = {
   invoiceNo: string;
   invoiceDate: string;
   invoiceAmount: number;
+  grnQty?: number;
+  approvedQty?: number;
   poId: string;
   poNumber: string;
   prId: string;
