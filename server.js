@@ -4922,9 +4922,6 @@ app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
 
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
 
-    // Replace links for this grn_item_id.
-    await pool.query('DELETE FROM grn_invoice_item_links WHERE grn_item_id = ?', [grnItemId]);
-
     for (const l of links) {
       const invoiceItemId = String(l?.invoiceItemId ?? '').trim();
       const linkedQty = Number(l?.linkedQty ?? 0);
