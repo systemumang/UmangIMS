@@ -148,10 +148,12 @@ function MultiSelectFilter({
   options,
   values,
   onChange,
+  controlClassName,
 }: {
   options: Array<{ value: string; label: string }>;
   values: string[];
   onChange: (next: string[]) => void;
+  controlClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -164,13 +166,22 @@ function MultiSelectFilter({
     onChange(has ? active.filter((x) => x !== value) : [...active, value]);
   };
   return (
-    <div className="relative w-full sm:w-72">
-      <button type="button" className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-left" onClick={() => setOpen((v) => !v)}>
+    <div className={cn('relative w-full sm:w-40', controlClassName)}>
+      <button
+        type="button"
+        className="w-full h-9 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-1.5 text-xs font-medium text-left text-on-surface-variant"
+        onClick={() => setOpen((v) => !v)}
+      >
         {title}
       </button>
       {open ? (
         <div className="absolute z-20 mt-1 w-full bg-white border border-outline-variant/20 rounded-lg shadow-lg p-2 space-y-2">
-          <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input
+            className="w-full h-9 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-1.5 text-xs outline-none"
+            placeholder="Search..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
           <div className="flex items-center gap-2">
             <button type="button" className="btn btn-sm flex-1" onClick={() => onChange(options.map((o) => o.value))}>All</button>
             <button type="button" className="btn btn-sm flex-1" onClick={() => onChange([])}>Clear</button>
