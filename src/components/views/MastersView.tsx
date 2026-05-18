@@ -4469,48 +4469,24 @@ export default function MastersView({
 					          </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State Filter (Multi Select)</div>
-                        <input
-                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          placeholder="Search state..."
-                          value={cityFilterQuery}
-                          onChange={(e) => setCityFilterQuery(e.target.value)}
-                        />
-                        <select
-                          multiple
-                          className="w-full h-32 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          value={cityStateFilters}
-                          onChange={(e) => setCityStateFilters(Array.from(e.target.selectedOptions).map((o) => o.value))}
-                        >
-                          {Array.from(new Set(cities.map((c) => String(c.state ?? '').trim()).filter(Boolean)))
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State Filter</div>
+                        <MultiSelectFilter
+                          options={Array.from(new Set(cities.map((c) => String(c.state ?? '').trim()).filter(Boolean)))
                             .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                            .filter((s) => !cityFilterQuery.trim() || normalizeKey(s).includes(normalizeKey(cityFilterQuery)))
-                            .map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                        </select>
+                            .map((s) => ({ value: s, label: s }))}
+                          values={cityStateFilters}
+                          onChange={setCityStateFilters}
+                        />
                       </div>
                       <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City Filter (Multi Select)</div>
-                        <input
-                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          placeholder="Search city..."
-                          value={cityNameFilterQuery}
-                          onChange={(e) => setCityNameFilterQuery(e.target.value)}
-                        />
-                        <select
-                          multiple
-                          className="w-full h-32 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          value={cityNameFilters}
-                          onChange={(e) => setCityNameFilters(Array.from(e.target.selectedOptions).map((o) => o.value))}
-                        >
-                          {Array.from(new Set(cities.map((c) => String(c.name ?? '').trim()).filter(Boolean)))
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City Filter</div>
+                        <MultiSelectFilter
+                          options={Array.from(new Set(cities.map((c) => String(c.name ?? '').trim()).filter(Boolean)))
                             .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                            .filter((s) => !cityNameFilterQuery.trim() || normalizeKey(s).includes(normalizeKey(cityNameFilterQuery)))
-                            .map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                        </select>
+                            .map((s) => ({ value: s, label: s }))}
+                          values={cityNameFilters}
+                          onChange={setCityNameFilters}
+                        />
                       </div>
                     </div>
 					          <div className="overflow-auto">
