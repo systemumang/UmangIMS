@@ -392,20 +392,7 @@ export default function PaymentQueueView({
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
         ) : (
 	          <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1220px] table-fixed text-left border-collapse border border-outline-variant">
-	              <colgroup>
-	                <col className="w-[130px]" />
-	                <col className="w-[130px]" />
-	                <col className="w-[130px]" />
-	                <col className="w-[120px]" />
-	                <col className="w-[120px]" />
-			                <col className="w-[160px]" />
-	                    <col className="w-[150px]" />
-                    <col className="w-[150px]" />
-		                <col className="w-[420px]" />
-	                <col className="w-[90px]" />
-	                <col className="w-[90px]" />
-	              </colgroup>
+	            <table className="w-full min-w-[1220px] table-auto text-left border-collapse border border-outline-variant">
 	              <thead>
 	                <tr className="bg-primary text-on-primary">
 	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
@@ -469,7 +456,7 @@ export default function PaymentQueueView({
                             </td>
 	                        </>
 	                      ) : null}
-		                      <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
+		                      <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
 		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.invoiceQty}</td>
 		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.linkedQty}</td>
 		                    </tr>

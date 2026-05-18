@@ -1992,7 +1992,7 @@ export default function OperationsView({
 	                            onClick={() => pushDetail({ tab: 'payments', id: String(p.id ?? ''), title: String(p.id ?? 'Payment') })}
 	                          >
 	                            <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{p.id ?? '-'}</td>
-	                            <td className="px-3 py-2 border border-outline-variant">{formatIsoDateShort(p.paymentDate)}</td>
+	                            <td className="px-3 py-2 border border-outline-variant">{formatDateShort(p.paymentDate)}</td>
 	                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p.amount ?? 0).toFixed(2)}</td>
 	                            <td className="px-3 py-2 border border-outline-variant">{p.mode ?? '-'}</td>
 	                            <td className="px-3 py-2 border border-outline-variant">{p.referenceNo ?? '-'}</td>
