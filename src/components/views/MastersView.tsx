@@ -144,6 +144,51 @@ function formatItemInline(itemName: string, specificationsJson: string, specName
   return [itemName, ...specs].join(' - ');
 }
 
+function MultiSelectFilter({
+  options,
+  values,
+  onChange,
+}: {
+  options: Array<{ value: string; label: string }>;
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const q = String(query ?? '').trim().toLowerCase();
+  const active = values.length ? values : ['name'];
+  const filtered = options.filter((o) => !q || String(o.label ?? '').toLowerCase().includes(q));
+  const title = active.length ? options.filter((o) => active.includes(o.value)).map((o) => o.label).join(', ') : 'Select filters...';
+  const toggle = (value: string) => {
+    const has = active.includes(value);
+    onChange(has ? active.filter((x) => x !== value) : [...active, value]);
+  };
+  return (
+    <div className="relative w-full sm:w-72">
+      <button type="button" className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-left" onClick={() => setOpen((v) => !v)}>
+        {title}
+      </button>
+      {open ? (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-outline-variant/20 rounded-lg shadow-lg p-2 space-y-2">
+          <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn btn-sm flex-1" onClick={() => onChange(options.map((o) => o.value))}>All</button>
+            <button type="button" className="btn btn-sm flex-1" onClick={() => onChange([])}>Clear</button>
+          </div>
+          <div className="max-h-48 overflow-auto space-y-1">
+            {filtered.map((o) => (
+              <label key={o.value} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={active.includes(o.value)} onChange={() => toggle(o.value)} />
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function MastersView({
   tab: externalTab,
   onTabChange,
@@ -308,7 +353,13 @@ export default function MastersView({
 		  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
 
 		  const [listQuery, setListQuery] = useState('');
-		  const [listField, setListField] = useState<string>('name');
+		  const [listFields, setListFields] = useState<string[]>(['name']);
+      const listField = useMemo(() => {
+        if (!listFields.length) return 'all';
+        if (listFields.includes('all')) return 'all';
+        if (listFields.length > 1) return 'all';
+        return listFields[0] ?? 'all';
+      }, [listFields]);
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
       const [cityFilterQuery, setCityFilterQuery] = useState('');
       const [cityNameFilterQuery, setCityNameFilterQuery] = useState('');
@@ -319,8 +370,8 @@ export default function MastersView({
 		  useEffect(() => {
 		    setListQuery('');
 		    // Default filter field per tab (user asked for "like name")
-		    setListField(
-		      tab === 'firms' ||
+			    setListFields([
+			      tab === 'firms' ||
 		        tab === 'departments' ||
 		        tab === 'stores' ||
 		        tab === 'projects' ||
@@ -335,9 +386,9 @@ export default function MastersView({
 		        tab === 'specs' ||
 		        tab === 'specValues' ||
 		        tab === 'items'
-		        ? 'name'
-		        : 'name'
-		    );
+			        ? 'name'
+			        : 'name'
+			    ]);
 		    setListStatusFilter('all');
 		  }, [tab]);
 
@@ -4154,18 +4205,7 @@ export default function MastersView({
 					          <div className="flex flex-wrap items-center justify-between gap-2">
 					            <div className="flex flex-wrap items-center gap-2">
 					              <div className="text-sm text-on-surface-variant">Showing: {filteredFirms.length} / {firms.length}</div>
-					              <select
-					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-					                value={listField}
-					                onChange={(e) => setListField(e.target.value)}
-					                aria-label="Filter field"
-					              >
-					                {listFieldOptions.map((o) => (
-					                  <option key={o.value} value={o.value}>
-					                    {o.label}
-					                  </option>
-					                ))}
-					              </select>
+					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 					              <input
 					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
@@ -4271,18 +4311,7 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">
 				                Showing: {filteredDepartments.length} / {departments.length}
 				              </div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4356,18 +4385,7 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredStates.length} / {states.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4546,18 +4564,7 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredStores.length} / {stores.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4637,18 +4644,7 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredProjects.length} / {projects.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4734,18 +4730,7 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredUsers.length} / {users.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4847,18 +4832,7 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">
 				                Showing: {filteredSuppliers.length} / {suppliers.length}
 				              </div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -5063,18 +5037,7 @@ export default function MastersView({
 			              <div className="text-sm text-on-surface-variant">
 			                Showing: {filteredTransporters.length} / {transporters.length}
 			              </div>
-			              <select
-			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                value={listField}
-			                onChange={(e) => setListField(e.target.value)}
-			                aria-label="Filter field"
-			              >
-			                {listFieldOptions.map((o) => (
-			                  <option key={o.value} value={o.value}>
-			                    {o.label}
-			                  </option>
-			                ))}
-			              </select>
+			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -5146,18 +5109,7 @@ export default function MastersView({
 					          <div className="flex flex-wrap items-center justify-between gap-2">
 					            <div className="flex flex-wrap items-center gap-2">
 					              <div className="text-sm text-on-surface-variant">Showing: {filteredUnits.length} / {units.length}</div>
-					              <select
-					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-					                value={listField}
-					                onChange={(e) => setListField(e.target.value)}
-					                aria-label="Filter field"
-					              >
-					                {listFieldOptions.map((o) => (
-					                  <option key={o.value} value={o.value}>
-					                    {o.label}
-					                  </option>
-					                ))}
-					              </select>
+					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 					              <input
 					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
@@ -5225,18 +5177,7 @@ export default function MastersView({
 	                      <div className="text-sm text-on-surface-variant">
 	                        Showing: {filteredPriorities.length} / {priorities.length}
 	                      </div>
-	                      <select
-	                        className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={listField}
-	                        onChange={(e) => setListField(e.target.value)}
-	                        aria-label="Filter field"
-	                      >
-	                        {listFieldOptions.map((o) => (
-	                          <option key={o.value} value={o.value}>
-	                            {o.label}
-	                          </option>
-	                        ))}
-	                      </select>
+	                      <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 	                      <input
 	                        className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                        value={listQuery}
@@ -5304,18 +5245,7 @@ export default function MastersView({
 					              <div className="text-sm text-on-surface-variant">
 					                Showing: {filteredItemCategories.length} / {itemCategories.length}
 					              </div>
-					              <select
-					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-					                value={listField}
-					                onChange={(e) => setListField(e.target.value)}
-					                aria-label="Filter field"
-					              >
-					                {listFieldOptions.map((o) => (
-					                  <option key={o.value} value={o.value}>
-					                    {o.label}
-					                  </option>
-					                ))}
-					              </select>
+					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 					              <input
 					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
@@ -5381,18 +5311,7 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredItemNames.length} / {itemNames.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -5500,18 +5419,7 @@ export default function MastersView({
 			          <div className="flex flex-wrap items-center justify-between gap-2">
 			            <div className="flex flex-wrap items-center gap-2">
 			              <div className="text-sm text-on-surface-variant">Showing: {filteredSpecs.length} / {specs.length}</div>
-			              <select
-			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                value={listField}
-			                onChange={(e) => setListField(e.target.value)}
-			                aria-label="Filter field"
-			              >
-			                {listFieldOptions.map((o) => (
-			                  <option key={o.value} value={o.value}>
-			                    {o.label}
-			                  </option>
-			                ))}
-			              </select>
+			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -5616,18 +5524,7 @@ export default function MastersView({
 			              <div className="text-sm text-on-surface-variant">
 			                Showing: {filteredSpecValues.length} / {specValues.length}
 			              </div>
-			              <select
-			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                value={listField}
-			                onChange={(e) => setListField(e.target.value)}
-			                aria-label="Filter field"
-			              >
-			                {listFieldOptions.map((o) => (
-			                  <option key={o.value} value={o.value}>
-			                    {o.label}
-			                  </option>
-			                ))}
-			              </select>
+			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -5717,18 +5614,7 @@ export default function MastersView({
 	          <div className="flex flex-wrap items-center justify-between gap-2">
 	            <div className="flex flex-wrap items-center gap-2">
 	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
-	              <select
-	                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                value={listField}
-	                onChange={(e) => setListField(e.target.value)}
-	                aria-label="Filter field"
-	              >
-	                {listFieldOptions.map((o) => (
-	                  <option key={o.value} value={o.value}>
-	                    {o.label}
-	                  </option>
-	                ))}
-	              </select>
+	              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 	              <input
 	                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                value={listQuery}
@@ -5847,3 +5733,4 @@ export default function MastersView({
     </div>
   );
 }
+
