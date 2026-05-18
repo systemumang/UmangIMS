@@ -409,13 +409,6 @@ export default function PurchaseRequestDetailView({
 	  [transporters]
 	);
 
-	const paymentStatusOptions = useMemo(
-	  () => [
-	    { value: 'Partly Paid', label: 'Partly Paid' },
-	    { value: 'Full Paid', label: 'Full Paid' },
-	  ],
-		  []
-	);
 		  const [posList, setPosList] = useState<Array<{ po: Po; items: PoItem[] }>>([]);
 		  const [loadingPos, setLoadingPos] = useState(true);
 			  const [pendingCheckDateByPoId, setPendingCheckDateByPoId] = useState<Record<string, string>>({});
@@ -561,9 +554,18 @@ export default function PurchaseRequestDetailView({
 		  return computedInvoiceAmountNumber.toFixed(2);
 		}, [computedInvoiceAmountNumber]);
 			const [invoicesForPr, setInvoicesForPr] = useState<InvoiceWithItems[]>([]);
-			const [paymentStatusByInvoiceId, setPaymentStatusByInvoiceId] = useState<Record<string, string>>({});
 			const [paymentDateByInvoiceId, setPaymentDateByInvoiceId] = useState<Record<string, string>>({});
+			const [paymentAmountByInvoiceId, setPaymentAmountByInvoiceId] = useState<Record<string, string>>({});
 			const [linkedItemOrder, setLinkedItemOrder] = useState<string[]>([]);
+      const gstPercentOptions = ['0', '0.25', '3', '5', '12', '18', '28', '40'];
+      const supplierOptionsSorted = useMemo(
+        () =>
+          suppliers
+            .slice()
+            .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+            .map((s) => ({ value: s.id, label: s.name })),
+        [suppliers]
+      );
 
 			const [linkInvoiceId, setLinkInvoiceId] = useState('');
 				const [linkSummaryRows, setLinkSummaryRows] = useState<GrnInvoiceLinkSummaryRow[]>([]);
@@ -4441,7 +4443,7 @@ export default function PurchaseRequestDetailView({
 				                      <Field label="Supplier">
 				                        <SearchableSelect
 				                          value={editPoSupplierId}
-				                          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+				                          options={supplierOptionsSorted}
 				                          onChange={(id) => setEditPoSupplierId(id)}
 				                          disabled={busy || loadingSuppliers}
 				                          placeholder="Select supplier..."
@@ -4908,17 +4910,22 @@ export default function PurchaseRequestDetailView({
 								                                    placeholder=""
 								                                  />
 							                                </td>
-							                                <td className="px-2 py-2 border border-outline-variant">
-								                                  <input
-								                                    className={compactTableInputClass}
-								                                    value={poTaxes[lineId] ?? ''}
-							                                    onChange={(e) => {
-							                                      setPoTaxesTouched((prev) => ({ ...prev, [lineId]: true }));
-							                                      setPoTaxes((prev) => ({ ...prev, [lineId]: e.target.value }));
-							                                    }}
-								                                    inputMode="decimal"
-								                                    placeholder=""
-								                                  />
+								                                <td className="px-2 py-2 border border-outline-variant">
+                                  <select
+                                    className={compactTableInputClass}
+                                    value={poTaxes[lineId] ?? ''}
+                                    onChange={(e) => {
+                                      setPoTaxesTouched((prev) => ({ ...prev, [lineId]: true }));
+                                      setPoTaxes((prev) => ({ ...prev, [lineId]: e.target.value }));
+                                    }}
+                                  >
+                                    <option value="">Select</option>
+                                    {gstPercentOptions.map((v) => (
+                                      <option key={v} value={v}>
+                                        {v}
+                                      </option>
+                                    ))}
+                                  </select>
 							                                </td>
 						                                <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant break-words whitespace-normal leading-snug">
 						                                  {lastSupplierByItemId[it.itemId]?.supplierName ?? '-'}
@@ -4929,7 +4936,7 @@ export default function PurchaseRequestDetailView({
 							                                <td className="px-2 py-2 border border-outline-variant">
 								                                  <SearchableSelect
 								                                    value={poSupplierByItemId[lineId] ?? ''}
-								                                    options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+								                                    options={supplierOptionsSorted}
 								                                    onChange={(id) => {
 								                                      setPoSupplierTouched((prev) => ({ ...prev, [lineId]: true }));
 					                                      const safeId = String(id ?? '').trim();
@@ -6355,15 +6362,17 @@ export default function PurchaseRequestDetailView({
 		              {invoicesDueForPayment.length ? (
 		                <div className="bg-surface-container-lowest rounded-xl tonal-shadow overflow-hidden border border-outline-variant border-black">
 		                  <div className="overflow-x-auto">
-		                    <table className="w-full min-w-[1910px] table-fixed text-left border-collapse border border-outline-variant border-black [&_th]:border-black [&_td]:border-black">
+			                    <table className="w-full min-w-[2010px] table-fixed text-left border-collapse border border-outline-variant border-black [&_th]:border-black [&_td]:border-black">
 		                      <colgroup>
 		                        <col className="w-[140px]" />
 		                        <col className="w-[180px]" />
 		                        <col className="w-[140px]" />
-		                        <col className="w-[120px]" />
-		                        <col className="w-[120px]" />
-		                        <col className="w-[140px]" />
-		                        <col className="w-[140px]" />
+			                        <col className="w-[120px]" />
+			                        <col className="w-[140px]" />
+			                        <col className="w-[140px]" />
+			                        <col className="w-[130px]" />
+			                        <col className="w-[130px]" />
+			                        <col className="w-[140px]" />
 		                        <col className="w-[450px]" />
 		                        <col className="w-[120px]" />
 		                        <col className="w-[110px]" />
@@ -6378,9 +6387,11 @@ export default function PurchaseRequestDetailView({
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Invoice No</th>
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Invoice Date</th>
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Amount</th>
-		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Status</th>
-		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Payment Status</th>
-		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Payment Date</th>
+			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Amount Adjusted</th>
+			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Payment Amount</th>
+			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Total Paid</th>
+			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Status</th>
+			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Payment Date</th>
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Inv Qty</th>
 		                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Rate</th>
@@ -6394,10 +6405,14 @@ export default function PurchaseRequestDetailView({
 		                        {invoicesDueForPayment.flatMap((inv) => {
 		                          const lines = Array.isArray(inv.items) && inv.items.length ? inv.items : [null];
 		                          const rowSpan = lines.length;
-		                          const amountCell =
-		                            typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount)
-		                              ? inv.invoice.invoiceAmount.toFixed(2)
-		                              : '-';
+			                          const amountCell =
+			                            typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount)
+			                              ? inv.invoice.invoiceAmount.toFixed(2)
+			                              : '-';
+                                const adjustedAmount = Number(inv.invoice.adjustedAmount ?? 0);
+                                const paymentAmount = Number(paymentAmountByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentAmount ?? 0);
+                                const totalPaid = adjustedAmount + (Number.isFinite(paymentAmount) ? paymentAmount : 0);
+                                const dueStatus = totalPaid >= Number(inv.invoice.invoiceAmount ?? 0) - 1e-9 ? 'Full Paid' : 'Partly Paid';
 
 		                          return lines.map((it, idx) => {
 		                            const prRow = it ? prItems.find((r) => r.itemId === it.itemId) : null;
@@ -6434,23 +6449,25 @@ export default function PurchaseRequestDetailView({
 		                                    >
 		                                      {amountCell}
 		                                    </td>
-		                                    <td
-		                                      rowSpan={rowSpan}
-		                                      className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top"
-		                                    >
-		                                      {inv.invoice.status}
-		                                    </td>
-			                                    <td rowSpan={rowSpan} className="px-4 py-3 border border-outline-variant align-top">
-			                                      <SearchableSelect
-			                                        options={paymentStatusOptions}
-			                                        value={String(paymentStatusByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentStatus ?? '')}
-			                                        disabled={busy}
-			                                        onChange={(v) =>
-			                                          setPaymentStatusByInvoiceId((prev) => ({ ...prev, [inv.invoice.id]: String(v ?? '') }))
-			                                        }
-			                                        placeholder="Select"
-			                                        allowClear
-			                                      />
+			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+			                                      {adjustedAmount.toFixed(2)}
+			                                    </td>
+				                                    <td rowSpan={rowSpan} className="px-4 py-3 border border-outline-variant align-top">
+				                                      <input
+				                                        className={tableInputClass}
+				                                        inputMode="decimal"
+				                                        value={String(paymentAmountByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentAmount ?? '')}
+				                                        disabled={busy}
+				                                        onChange={(e) =>
+				                                          setPaymentAmountByInvoiceId((prev) => ({ ...prev, [inv.invoice.id]: e.target.value }))
+				                                        }
+				                                      />
+				                                    </td>
+			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
+			                                      {Number.isFinite(totalPaid) ? totalPaid.toFixed(2) : '-'}
+			                                    </td>
+			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
+			                                      {dueStatus}
 			                                    </td>
 		                                    <td rowSpan={rowSpan} className="px-4 py-3 border border-outline-variant align-top">
 		                                      <input
@@ -6495,27 +6512,27 @@ export default function PurchaseRequestDetailView({
 		                                        className="px-3 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
 		                                        disabled={busy}
 		                                        onClick={() => {
-		                                          const paymentStatus = String(
-		                                            paymentStatusByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentStatus ?? ''
-		                                          ).trim();
-		                                          const paymentDate = String(
-		                                            paymentDateByInvoiceId[inv.invoice.id] ??
-		                                              (inv.invoice.paymentDate ? String(inv.invoice.paymentDate).slice(0, 10) : '')
-		                                          ).trim();
-		                                          if (paymentStatus !== 'Partly Paid' && paymentStatus !== 'Full Paid') {
-		                                            setError('Select Payment Status (Partly Paid / Full Paid).');
-		                                            return;
-		                                          }
-		                                          if (!paymentDate) {
+			                                          const paymentDate = String(
+			                                            paymentDateByInvoiceId[inv.invoice.id] ??
+			                                              (inv.invoice.paymentDate ? String(inv.invoice.paymentDate).slice(0, 10) : '')
+			                                          ).trim();
+                                            const paymentAmount = Number(
+                                              String(paymentAmountByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentAmount ?? '0').trim() || '0'
+                                            );
+                                            if (!Number.isFinite(paymentAmount) || paymentAmount < 0) {
+			                                            setError('Enter valid Payment Amount.');
+			                                            return;
+			                                          }
+			                                          if (!paymentDate) {
 		                                            setError('Select Payment Date.');
 		                                            return;
 		                                          }
 		                                          run(() =>
-		                                            updateInvoicePayment(inv.invoice.id, {
-		                                              paymentStatus: paymentStatus as 'Partly Paid' | 'Full Paid',
-		                                              paymentDate,
-		                                              updatedBy: invoiceUpdatedBy || undefined,
-		                                            })
+			                                            updateInvoicePayment(inv.invoice.id, {
+			                                              paymentDate,
+			                                              paymentAmount,
+			                                              updatedBy: invoiceUpdatedBy || undefined,
+			                                            })
 		                                              .then((res) => {
 		                                                const updated = (res as any)?.invoice as InvoiceWithItems | undefined;
 		                                                if (updated) {
@@ -6581,27 +6598,33 @@ export default function PurchaseRequestDetailView({
 				                      <Field label="Created At">
 				                        <input className={inputClass} value={formatDateDDMMYYYYOnly(activeInvoiceDetails.invoice.createdAt)} disabled />
 				                      </Field>
-			                      {activeInvoiceReadyForPayment ? (
-			                        <>
-				                          <Field label="Payment Status">
-				                            <SearchableSelect
-				                              options={paymentStatusOptions}
-				                              value={String(
-				                                paymentStatusByInvoiceId[activeInvoiceDetails.invoice.id] ??
-				                                  activeInvoiceDetails.invoice.paymentStatus ??
-				                                  ''
-				                              )}
-				                              disabled={busy}
-				                              onChange={(v) =>
-				                                setPaymentStatusByInvoiceId((prev) => ({
-				                                  ...prev,
-				                                  [activeInvoiceDetails.invoice.id]: String(v ?? ''),
-				                                }))
-				                              }
-				                              placeholder="Select"
-				                              allowClear
-				                            />
-				                          </Field>
+				                      {activeInvoiceReadyForPayment ? (
+				                        <>
+					                          <Field label="Amount Adjusted">
+                              <input
+                                className={inputClass}
+                                value={Number(activeInvoiceDetails.invoice.adjustedAmount ?? 0).toFixed(2)}
+                                disabled
+                              />
+					                          </Field>
+                            <Field label="Payment Amount">
+                              <input
+                                className={inputClass}
+                                inputMode="decimal"
+                                value={String(
+                                  paymentAmountByInvoiceId[activeInvoiceDetails.invoice.id] ??
+                                    activeInvoiceDetails.invoice.paymentAmount ??
+                                    ''
+                                )}
+                                disabled={busy}
+                                onChange={(e) =>
+                                  setPaymentAmountByInvoiceId((prev) => ({
+                                    ...prev,
+                                    [activeInvoiceDetails.invoice.id]: e.target.value,
+                                  }))
+                                }
+                              />
+                            </Field>
 			                          <Field label="Payment Date">
 			                            <input
 			                              className={inputClass}
@@ -6630,29 +6653,29 @@ export default function PurchaseRequestDetailView({
 			                              disabled={busy}
 			                              onClick={() => {
 			                                const invoiceId = String(activeInvoiceDetails.invoice.id ?? '').trim();
-			                                const paymentStatus = String(
-			                                  paymentStatusByInvoiceId[invoiceId] ?? activeInvoiceDetails.invoice.paymentStatus ?? ''
-			                                ).trim();
-			                                const paymentDate = String(
-			                                  paymentDateByInvoiceId[invoiceId] ??
-			                                    (activeInvoiceDetails.invoice.paymentDate
-			                                      ? String(activeInvoiceDetails.invoice.paymentDate).slice(0, 10)
-			                                      : '')
-			                                ).trim();
-			                                if (paymentStatus !== 'Partly Paid' && paymentStatus !== 'Full Paid') {
-			                                  setInvoiceDetailsError('Select Payment Status (Partly Paid / Full Paid).');
-			                                  return;
-			                                }
-			                                if (!paymentDate) {
+				                                const paymentDate = String(
+				                                  paymentDateByInvoiceId[invoiceId] ??
+				                                    (activeInvoiceDetails.invoice.paymentDate
+				                                      ? String(activeInvoiceDetails.invoice.paymentDate).slice(0, 10)
+				                                      : '')
+				                                ).trim();
+                                const paymentAmount = Number(
+                                  String(paymentAmountByInvoiceId[invoiceId] ?? activeInvoiceDetails.invoice.paymentAmount ?? '0').trim() || '0'
+                                );
+                                if (!Number.isFinite(paymentAmount) || paymentAmount < 0) {
+				                                  setInvoiceDetailsError('Enter valid Payment Amount.');
+				                                  return;
+				                                }
+				                                if (!paymentDate) {
 			                                  setInvoiceDetailsError('Select Payment Date.');
 			                                  return;
 			                                }
 			                                run(() =>
-			                                  updateInvoicePayment(invoiceId, {
-			                                    paymentStatus: paymentStatus as 'Partly Paid' | 'Full Paid',
-			                                    paymentDate,
-			                                    updatedBy: invoiceUpdatedBy || undefined,
-			                                  })
+				                                  updateInvoicePayment(invoiceId, {
+				                                    paymentDate,
+                                    paymentAmount,
+				                                    updatedBy: invoiceUpdatedBy || undefined,
+				                                  })
 			                                    .then((res) => {
 			                                      const updated = (res as any)?.invoice as InvoiceWithItems | undefined;
 			                                      if (updated) {

@@ -9,6 +9,31 @@ import { ExportCsvButton, inputClass, labelClass, LoadingCard, QueueCard, useQue
 
 type StatusFilter = '' | 'created' | 'closed';
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function formatSpecificationText(raw: string) {
+  const txt = String(raw ?? '').trim();
+  if (!txt) return '-';
+  try {
+    const parsed = JSON.parse(txt);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const lines = Object.entries(parsed as Record<string, unknown>)
+        .map(([k, v]) => {
+          const key = String(k ?? '').trim();
+          const value = String(v ?? '').trim();
+          if (!value) return '';
+          if (isUuidLike(key)) return value;
+          return `${key}: ${value}`;
+        })
+        .filter(Boolean);
+      return lines.length ? lines.join(' - ') : '-';
+    }
+  } catch {}
+  return txt;
+}
+
 export default function QuotationMasterView() {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [filters, setFilters] = useState<RfqListFilters>({ q: '', firmId: '', projectId: '', status: '', from: '', to: '' });
@@ -247,9 +272,9 @@ export default function QuotationMasterView() {
                                     {(items.length ? items : [{ rfqItemId: '', itemId: '', itemName: '-', specification: '', quantity: 0 } as any]).map((it, idx) => (
                                       <tr key={`${String(it.rfqItemId ?? idx)}-${idx}`}>
                                         <td className="px-3 py-2 border border-outline-variant">{it.itemName || '-'}</td>
-                                        <td className="px-3 py-2 border border-outline-variant text-on-surface-variant whitespace-normal break-words">
-                                          {String(it.specification ?? '').trim() || '-'}
-                                        </td>
+	                                        <td className="px-3 py-2 border border-outline-variant text-on-surface-variant whitespace-normal break-words">
+	                                          {formatSpecificationText(String(it.specification ?? ''))}
+	                                        </td>
                                         <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0)}</td>
                                         <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{it.supplierName || '-'}</td>
                                         <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">

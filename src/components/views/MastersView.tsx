@@ -310,6 +310,11 @@ export default function MastersView({
 		  const [listQuery, setListQuery] = useState('');
 		  const [listField, setListField] = useState<string>('name');
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+      const [cityFilterQuery, setCityFilterQuery] = useState('');
+      const [cityNameFilterQuery, setCityNameFilterQuery] = useState('');
+      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
+      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
+      const [customerNameFilter, setCustomerNameFilter] = useState('');
 
 		  useEffect(() => {
 		    setListQuery('');
@@ -475,14 +480,23 @@ export default function MastersView({
 		    return states.filter((s) => matchesListQuery([s.name]));
 		  }, [states, listQueryKey]);
 
-		  const filteredCities = useMemo(() => {
-		    if (!listQueryKey) return cities;
-		    return cities.filter((c) => {
-		      if (listField === 'all') return matchesListQuery([c.state, c.name]);
-		      if (listField === 'state') return matchesListQuery([c.state]);
-		      return matchesListQuery([c.name]);
-		    });
-		  }, [cities, listQueryKey, listField]);
+			  const filteredCities = useMemo(() => {
+          let rows = cities;
+          if (cityStateFilters.length) {
+            const picked = new Set(cityStateFilters.map((x) => normalizeKey(x)));
+            rows = rows.filter((c) => picked.has(normalizeKey(c.state)));
+          }
+          if (cityNameFilters.length) {
+            const picked = new Set(cityNameFilters.map((x) => normalizeKey(x)));
+            rows = rows.filter((c) => picked.has(normalizeKey(c.name)));
+          }
+			    if (!listQueryKey) return rows;
+			    return rows.filter((c) => {
+			      if (listField === 'all') return matchesListQuery([c.state, c.name]);
+			      if (listField === 'state') return matchesListQuery([c.state]);
+			      return matchesListQuery([c.name]);
+			    });
+			  }, [cities, listQueryKey, listField, cityStateFilters, cityNameFilters]);
 
 		  const filteredStores = useMemo(() => {
 		    if (!listQueryKey) return stores;
@@ -546,15 +560,19 @@ export default function MastersView({
 		    });
 		  }, [suppliers, listQueryKey, listField]);
 
-		  const filteredCustomers = useMemo(() => {
-		    if (!listQueryKey) return customers;
-		    return customers.filter((c) => {
-		      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address]);
-		      if (listField === 'phone') return matchesListQuery([c.phone]);
-		      if (listField === 'address') return matchesListQuery([c.address]);
-		      return matchesListQuery([c.name]);
-		    });
-		  }, [customers, listQueryKey, listField]);
+			  const filteredCustomers = useMemo(() => {
+          let rows = customers;
+          if (customerNameFilter.trim()) {
+            rows = rows.filter((c) => normalizeKey(c.name) === normalizeKey(customerNameFilter));
+          }
+			    if (!listQueryKey) return rows;
+			    return rows.filter((c) => {
+			      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address]);
+			      if (listField === 'phone') return matchesListQuery([c.phone]);
+			      if (listField === 'address') return matchesListQuery([c.address]);
+			      return matchesListQuery([c.name]);
+			    });
+			  }, [customers, listQueryKey, listField, customerNameFilter]);
 
 		  const filteredTransporters = useMemo(() => {
 		    if (!listQueryKey) return transporters;
@@ -2343,7 +2361,10 @@ export default function MastersView({
 			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
 			                    <SearchableSelect
 			                      value={newCityState}
-			                      options={states.map((s) => ({ value: s.name, label: s.name }))}
+			                      options={states
+                                .slice()
+                                .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+                                .map((s) => ({ value: s.name, label: s.name }))}
 			                      onChange={(v) => {
 			                        setNewCityState(v);
 			                      }}
@@ -2788,41 +2809,17 @@ export default function MastersView({
                               pattern="[0-9]{10}"
                             />
                           </label>
-	                          <label className="space-y-1">
-		                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City <span className="text-red-600">*</span></div>
-	                            <SearchableSelect
-	                              value={newSupplierCity}
-	                              options={cities
-	                                .filter((c) => String(c.state ?? '').trim() && String(c.state ?? '').trim() === String(newSupplierState ?? '').trim())
-	                                .map((c) => ({ value: c.name, label: c.name }))}
-	                              onChange={setNewSupplierCity}
-	                              placeholder={newSupplierState.trim() ? 'Select city...' : 'Select state first'}
-	                              disabled={!newSupplierState.trim()}
-	                              onCreate={async (label) => {
-	                                const state = newSupplierState.trim();
-	                                const name = label.trim();
-	                                if (!state) {
-	                                  setError('Please select State first.');
-	                                  return null;
-	                                }
-	                                if (!name) return null;
-	                                const created = await createCity({ state, name, createdBy: 'system' });
-	                                const next = created.city;
-	                                if (!next?.id) return null;
-	                                await refreshCurrentTab('cities');
-	                                setNewSupplierCity(next.name);
-	                                return { value: next.name, label: next.name };
-	                              }}
-	                            />
-	                          </label>
-	                          <label className="space-y-1">
-		                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State <span className="text-red-600">*</span></div>
-	                            <SearchableSelect
-	                              value={newSupplierState}
-	                              options={states.map((s) => ({ value: s.name, label: s.name }))}
-	                              onChange={(v) => {
-	                                setNewSupplierState(v);
-	                                setNewSupplierCity('');
+		                          <label className="space-y-1">
+			                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State <span className="text-red-600">*</span></div>
+		                            <SearchableSelect
+		                              value={newSupplierState}
+		                              options={states
+                                    .slice()
+                                    .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+                                    .map((s) => ({ value: s.name, label: s.name }))}
+		                              onChange={(v) => {
+		                                setNewSupplierState(v);
+		                                setNewSupplierCity('');
 	                              }}
 	                              placeholder="Select state..."
 	                              onCreate={async (label) => {
@@ -2835,9 +2832,38 @@ export default function MastersView({
 	                                setNewSupplierState(next.name);
 	                                setNewSupplierCity('');
 	                                return { value: next.name, label: next.name };
-	                              }}
-	                            />
-	                          </label>
+		                              }}
+		                            />
+		                          </label>
+		                          <label className="space-y-1">
+			                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City <span className="text-red-600">*</span></div>
+		                            <SearchableSelect
+		                              value={newSupplierCity}
+		                              options={cities
+		                                .filter((c) => String(c.state ?? '').trim() && String(c.state ?? '').trim() === String(newSupplierState ?? '').trim())
+                                    .slice()
+                                    .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+		                                .map((c) => ({ value: c.name, label: c.name }))}
+		                              onChange={setNewSupplierCity}
+		                              placeholder={newSupplierState.trim() ? 'Select city...' : 'Select state first'}
+		                              disabled={!newSupplierState.trim()}
+		                              onCreate={async (label) => {
+		                                const state = newSupplierState.trim();
+		                                const name = label.trim();
+		                                if (!state) {
+		                                  setError('Please select State first.');
+		                                  return null;
+		                                }
+		                                if (!name) return null;
+		                                const created = await createCity({ state, name, createdBy: 'system' });
+		                                const next = created.city;
+		                                if (!next?.id) return null;
+		                                await refreshCurrentTab('cities');
+		                                setNewSupplierCity(next.name);
+		                                return { value: next.name, label: next.name };
+		                              }}
+		                            />
+		                          </label>
 
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
@@ -4402,26 +4428,14 @@ export default function MastersView({
 				        </div>
 				      ) : null}
 
-				      {tab === 'cities' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-				          <div className="flex flex-wrap items-center justify-between gap-2">
-				            <div className="flex flex-wrap items-center gap-2">
-				              <div className="text-sm text-on-surface-variant">Showing: {filteredCities.length} / {cities.length}</div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
-				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listQuery}
+					      {tab === 'cities' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+					          <div className="flex flex-wrap items-center justify-between gap-2">
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">Showing: {filteredCities.length} / {cities.length}</div>
+					              <input
+					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
 				              />
@@ -4429,27 +4443,73 @@ export default function MastersView({
 				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 				                  Clear
 				                </button>
-				              ) : null}
-				            </div>
-				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-				              Add
-				            </button>
-				          </div>
-				          <div className="overflow-auto">
-				            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
-				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-				                <tr>
-				                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-				                </tr>
-				              </thead>
-				              <tbody>
-				                {filteredCities.map((c) => (
-				                  <tr key={c.id}>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.state}</td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
-				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+					              ) : null}
+					            </div>
+					            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+					              Add
+					            </button>
+					          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State Filter (Multi Select)</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          placeholder="Search state..."
+                          value={cityFilterQuery}
+                          onChange={(e) => setCityFilterQuery(e.target.value)}
+                        />
+                        <select
+                          multiple
+                          className="w-full h-32 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={cityStateFilters}
+                          onChange={(e) => setCityStateFilters(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                        >
+                          {Array.from(new Set(cities.map((c) => String(c.state ?? '').trim()).filter(Boolean)))
+                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                            .filter((s) => !cityFilterQuery.trim() || normalizeKey(s).includes(normalizeKey(cityFilterQuery)))
+                            .map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City Filter (Multi Select)</div>
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          placeholder="Search city..."
+                          value={cityNameFilterQuery}
+                          onChange={(e) => setCityNameFilterQuery(e.target.value)}
+                        />
+                        <select
+                          multiple
+                          className="w-full h-32 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={cityNameFilters}
+                          onChange={(e) => setCityNameFilters(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                        >
+                          {Array.from(new Set(cities.map((c) => String(c.name ?? '').trim()).filter(Boolean)))
+                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                            .filter((s) => !cityNameFilterQuery.trim() || normalizeKey(s).includes(normalizeKey(cityNameFilterQuery)))
+                            .map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+					          <div className="overflow-auto">
+					            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+					              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+					                <tr>
+					                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+					                </tr>
+					              </thead>
+					              <tbody>
+					                {filteredCities.map((c) => (
+					                  <tr key={c.id}>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
+					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.state}</td>
+					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 				                      <div className="flex items-center gap-2">
 				                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
 				                          Edit
@@ -4910,34 +4970,37 @@ export default function MastersView({
 		        </div>
 			      ) : null}
 
-				      {tab === 'customers' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-				          <div className="flex flex-wrap items-center justify-between gap-2">
-				            <div className="flex flex-wrap items-center gap-2">
-				              <div className="text-sm text-on-surface-variant">
-				                Showing: {filteredCustomers.length} / {customers.length}
-				              </div>
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listField}
-				                onChange={(e) => setListField(e.target.value)}
-				                aria-label="Filter field"
-				              >
-				                {listFieldOptions.map((o) => (
-				                  <option key={o.value} value={o.value}>
-				                    {o.label}
-				                  </option>
-				                ))}
-				              </select>
-				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listQuery}
-				                onChange={(e) => setListQuery(e.target.value)}
-				                placeholder={searchPlaceholder}
-				              />
-				              {listQuery ? (
-				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-				                  Clear
+					      {tab === 'customers' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+					          <div className="flex flex-wrap items-center justify-between gap-2">
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">
+					                Showing: {filteredCustomers.length} / {customers.length}
+					              </div>
+					              <input
+					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listQuery}
+					                onChange={(e) => setListQuery(e.target.value)}
+					                placeholder="Search anything..."
+					              />
+                        <div className="w-full sm:w-64">
+                          <SearchableSelect
+                            value={customerNameFilter}
+                            options={[
+                              { value: '', label: 'All Customers' },
+                              ...customers
+                                .slice()
+                                .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+                                .map((c) => ({ value: c.name, label: c.name })),
+                            ]}
+                            onChange={(v) => setCustomerNameFilter(String(v ?? ''))}
+                            placeholder="Filter customer name"
+                            allowClear
+                          />
+                        </div>
+					              {listQuery ? (
+					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+					                  Clear
 				                </button>
 				              ) : null}
 				            </div>

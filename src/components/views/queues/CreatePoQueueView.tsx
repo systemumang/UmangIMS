@@ -84,9 +84,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const supplierOptions = useMemo(
-    () => masters.suppliers.map((s) => ({ value: s.id, label: s.name })),
+    () =>
+      masters.suppliers
+        .slice()
+        .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
+        .map((s) => ({ value: s.id, label: s.name })),
     [masters.suppliers]
   );
+  const gstPercentOptions = ['0', '0.25', '3', '5', '12', '18', '28', '40'];
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
@@ -647,26 +652,24 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                             />
                           </td>
                           <td className="px-3 py-2 border border-outline-variant">
-                            <input
+                            <select
                               className={cn(inputClass, 'py-1.5')}
-                              value={l.taxPercent}
+                              value={String(l.taxPercent ?? '')}
                               onChange={(e) =>
                                 setLines((prev) => {
                                   const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, taxPercent: sanitizePercentInput(e.target.value) };
+                                  next[idx] = { ...next[idx]!, taxPercent: clampPercentString(e.target.value) };
                                   return next;
                                 })
                               }
-                              onBlur={() =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, taxPercent: clampPercentString(next[idx]!.taxPercent) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
+                            >
+                              <option value="">Select</option>
+                              {gstPercentOptions.map((v) => (
+                                <option key={v} value={v}>
+                                  {v}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>

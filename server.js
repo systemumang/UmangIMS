@@ -213,6 +213,7 @@ function getMysqlPool() {
       `);
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
+      await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
       await ensureColumn('invoices', 'approved_by', 'VARCHAR(255) NULL');
       await ensureColumn('invoices', 'approved_at', 'DATETIME NULL');
@@ -3420,7 +3421,9 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       inv.payment_status AS paymentStatus,
       inv.payment_date AS paymentDate,
       inv.payment_mode AS paymentMode,
+      inv.payment_amount AS paymentAmount,
       inv.tally_entry_date AS tallyEntryDate,
+      COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
       inv.document_url AS documentUrl,
       inv.cn_copy_url AS cnCopyUrl,
       inv.eway_bill_number AS ewayBillNumber,
@@ -3433,6 +3436,11 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       inv.updated_by AS updatedBy,
       inv.updated_at AS updatedAt
     FROM invoices inv
+    LEFT JOIN (
+      SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+      FROM po_advance_invoice_adjustments
+      GROUP BY invoice_id
+    ) adj ON adj.invoiceId = inv.id
     WHERE inv.id = ?
     LIMIT 1
     `,
@@ -3475,6 +3483,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     paymentStatus: invRow.paymentStatus != null ? String(invRow.paymentStatus) : undefined,
     paymentDate: toIsoDate(invRow.paymentDate) || undefined,
     paymentMode: invRow.paymentMode != null ? String(invRow.paymentMode) : 'Credit',
+    paymentAmount: Number(invRow.paymentAmount ?? 0),
+    adjustedAmount: Number(invRow.adjustedAmount ?? 0),
     tallyEntryDate: toIsoDate(invRow.tallyEntryDate) || undefined,
     documentUrl: invRow.documentUrl != null ? String(invRow.documentUrl) : undefined,
     cnCopyUrl: invRow.cnCopyUrl != null ? String(invRow.cnCopyUrl) : undefined,
@@ -10702,18 +10712,38 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const invoiceId = String(req.params.id ?? '').trim();
     if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
-    const paymentStatus = String(req.body?.paymentStatus ?? '').trim();
     const paymentDate = String(req.body?.paymentDate ?? '').trim();
+    const paymentAmountRaw = req.body?.paymentAmount;
+    const paymentAmount = Number(paymentAmountRaw ?? 0);
     const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
-    if (!paymentStatus) return res.status(400).json({ error: 'paymentStatus is required' });
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
+    if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
+    const [[invMeta]] = await pool.query(
+      `
+      SELECT inv.total_amount AS invoiceAmount, COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
+      FROM invoices inv
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+        FROM po_advance_invoice_adjustments
+        GROUP BY invoice_id
+      ) adj ON adj.invoiceId = inv.id
+      WHERE inv.id = ?
+      LIMIT 1
+      `,
+      [invoiceId]
+    );
+    if (!invMeta) return res.status(404).json({ error: 'Invoice not found' });
+    const invoiceAmount = Number(invMeta.invoiceAmount ?? 0);
+    const adjustedAmount = Number(invMeta.adjustedAmount ?? 0);
+    const totalPaid = adjustedAmount + paymentAmount;
+    const paymentStatus = totalPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
     await pool.query(
       `UPDATE invoices
-       SET payment_status=?, payment_date=?, payment_mode=COALESCE(?, payment_mode), tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
+       SET payment_status=?, payment_date=?, payment_amount=?, payment_mode=COALESCE(?, payment_mode), tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
        WHERE id=?`,
-      [paymentStatus, paymentDate, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
+      [paymentStatus, paymentDate, paymentAmount, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
     );
     res.json({ ok: true });
   } catch (e) {

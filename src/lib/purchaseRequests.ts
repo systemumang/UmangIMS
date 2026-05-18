@@ -97,6 +97,8 @@ export type PoItem = {
 			  status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
 		  paymentStatus?: string;
 		  paymentDate?: string;
+      paymentAmount?: number;
+      adjustedAmount?: number;
       paymentMode?: 'Cash' | 'Credit' | string;
       tallyEntryDate?: string;
 		  holdReason?: string;
@@ -460,8 +462,8 @@ export async function updateInvoice(
 export async function updateInvoicePayment(
   invoiceId: string,
   input: {
-    paymentStatus: 'Partly Paid' | 'Full Paid';
     paymentDate: string;
+    paymentAmount: number;
     paymentMode?: 'Cash' | 'UPI' | 'Cheque' | 'NEFT' | 'RTGS' | 'IMPS' | 'Card' | string;
     tallyEntryDate?: string;
     updatedBy?: string;
