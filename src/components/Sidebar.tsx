@@ -180,8 +180,13 @@ export default function Sidebar({
 		    if (!hasAny) return true;
 		    if (allowed.has(`masters:${tab}`)) return true;
 		    // Backward compatibility: older users may have top-level Masters access
-		    // saved before newly added master tabs existed.
-		    if (tab === 'priorities' && allowed.has('masters')) return true;
+		    // or only legacy masters:* keys saved before newly added master tabs existed.
+		    if (tab === 'priorities' || tab === 'states' || tab === 'cities') {
+		      if (allowed.has('masters')) return true;
+		      for (const k of allowed) {
+		        if (k.startsWith('masters:')) return true;
+		      }
+		    }
 		    return false;
 		  };
 			  const hasPrefix = (prefix: string) => {

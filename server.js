@@ -419,6 +419,91 @@ function getMysqlPool() {
   return mysqlPool;
 }
 
+let geoMastersInitPromise = null;
+async function ensureGeoMastersTables(pool) {
+  if (geoMastersInitPromise) return geoMastersInitPromise;
+  geoMastersInitPromise = (async () => {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS states (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cities (
+        id VARCHAR(64) PRIMARY KEY,
+        state_name VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_state_city (state_name, name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    const indiaStates = [
+      'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
+      'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+      'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
+      'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
+      'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+    ];
+    const indiaCitiesByState = {
+      'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Tirupati'],
+      'Arunachal Pradesh': ['Itanagar', 'Naharlagun', 'Pasighat'],
+      'Assam': ['Guwahati', 'Dibrugarh', 'Silchar', 'Jorhat'],
+      'Bihar': ['Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur'],
+      'Chhattisgarh': ['Raipur', 'Bhilai', 'Bilaspur', 'Korba'],
+      Goa: ['Panaji', 'Margao', 'Vasco da Gama'],
+      Gujarat: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot'],
+      Haryana: ['Gurugram', 'Faridabad', 'Panipat', 'Ambala'],
+      'Himachal Pradesh': ['Shimla', 'Dharamshala', 'Solan'],
+      Jharkhand: ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro'],
+      Karnataka: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi'],
+      Kerala: ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur'],
+      'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior'],
+      Maharashtra: ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
+      Manipur: ['Imphal', 'Thoubal'],
+      Meghalaya: ['Shillong', 'Tura'],
+      Mizoram: ['Aizawl', 'Lunglei'],
+      Nagaland: ['Kohima', 'Dimapur'],
+      Odisha: ['Bhubaneswar', 'Cuttack', 'Rourkela'],
+      Punjab: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala'],
+      Rajasthan: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota'],
+      Sikkim: ['Gangtok', 'Namchi'],
+      'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli'],
+      Telangana: ['Hyderabad', 'Warangal', 'Nizamabad'],
+      Tripura: ['Agartala', 'Dharmanagar'],
+      'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Varanasi', 'Agra'],
+      Uttarakhand: ['Dehradun', 'Haridwar', 'Haldwani'],
+      'West Bengal': ['Kolkata', 'Howrah', 'Durgapur', 'Siliguri'],
+      'Andaman and Nicobar Islands': ['Port Blair'],
+      Chandigarh: ['Chandigarh'],
+      'Dadra and Nagar Haveli and Daman and Diu': ['Daman', 'Diu', 'Silvassa'],
+      Delhi: ['New Delhi', 'Delhi'],
+      'Jammu and Kashmir': ['Srinagar', 'Jammu'],
+      Ladakh: ['Leh', 'Kargil'],
+      Lakshadweep: ['Kavaratti'],
+      Puducherry: ['Puducherry', 'Karaikal'],
+    };
+
+    for (const stateName of indiaStates) {
+      await pool.query('INSERT IGNORE INTO states (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), stateName]);
+    }
+    for (const [stateName, cities] of Object.entries(indiaCitiesByState)) {
+      for (const cityName of cities) {
+        await pool.query('INSERT IGNORE INTO cities (id, state_name, name, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [
+          crypto.randomUUID(),
+          stateName,
+          cityName,
+        ]);
+      }
+    }
+  })();
+  return geoMastersInitPromise;
+}
+
 // Readiness check (includes DB connectivity when configured).
 app.get('/ready', async (_req, res) => {
   try {
@@ -7189,6 +7274,7 @@ app.get('/api/masters/states', async (_req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const [rows] = await pool.query('SELECT id, name FROM states ORDER BY name');
     const states = (Array.isArray(rows) ? rows : []).map((r) => ({ id: String(r.id ?? ''), name: String(r.name ?? '') }));
     res.json({ states });
@@ -7201,6 +7287,7 @@ app.post('/api/masters/states', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const name = String(req.body?.name ?? '').trim();
     if (!name) return res.status(400).json({ error: 'name is required' });
     const id = crypto.randomUUID();
@@ -7217,6 +7304,7 @@ app.put('/api/masters/states/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const id = String(req.params.id ?? '').trim();
     const name = String(req.body?.name ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
@@ -7234,6 +7322,7 @@ app.delete('/api/masters/states/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM states WHERE id=?', [id]);
@@ -7248,6 +7337,7 @@ app.get('/api/masters/cities', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const state = String(req.query?.state ?? '').trim();
     const [rows] = await pool.query(
       state ? 'SELECT id, state_name AS state, name FROM cities WHERE state_name=? ORDER BY name' : 'SELECT id, state_name AS state, name FROM cities ORDER BY state_name, name',
@@ -7268,6 +7358,7 @@ app.post('/api/masters/cities', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const state = String(req.body?.state ?? '').trim();
     const name = String(req.body?.name ?? '').trim();
     if (!state) return res.status(400).json({ error: 'state is required' });
@@ -7286,6 +7377,7 @@ app.put('/api/masters/cities/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const id = String(req.params.id ?? '').trim();
     const state = String(req.body?.state ?? '').trim();
     const name = String(req.body?.name ?? '').trim();
@@ -7305,6 +7397,7 @@ app.delete('/api/masters/cities/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
     const id = String(req.params.id ?? '').trim();
     if (!id) return res.status(400).json({ error: 'id is required' });
     await pool.query('DELETE FROM cities WHERE id=?', [id]);
