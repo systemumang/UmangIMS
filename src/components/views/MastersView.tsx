@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
@@ -166,18 +166,19 @@ function MultiSelectFilter({
     onChange(has ? active.filter((x) => x !== value) : [...active, value]);
   };
   return (
-    <div className={['relative w-full sm:w-40', controlClassName].filter(Boolean).join(' ')}>
+    <div className={['relative w-full sm:min-w-[180px]', controlClassName].filter(Boolean).join(' ')}>
       <button
         type="button"
-        className="w-full h-9 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-1.5 text-xs font-medium text-left text-on-surface-variant"
+        className="w-full h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm font-medium text-left text-on-surface-variant flex items-center justify-between gap-2"
         onClick={() => setOpen((v) => !v)}
       >
-        {title}
+        <span className="truncate flex-1">{title}</span>
+        <ChevronDown size={16} className={['transition-transform shrink-0', open ? 'rotate-180' : ''].join(' ')} />
       </button>
       {open ? (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-outline-variant/20 rounded-lg shadow-lg p-2 space-y-2">
+        <div className="absolute z-20 mt-1 w-full min-w-[220px] bg-white border border-outline-variant/20 rounded-lg shadow-lg p-2 space-y-2">
           <input
-            className="w-full h-9 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-1.5 text-xs outline-none"
+            className="w-full h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
             placeholder="Search..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -188,9 +189,9 @@ function MultiSelectFilter({
           </div>
           <div className="max-h-48 overflow-auto space-y-1">
             {filtered.map((o) => (
-              <label key={o.value} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={active.includes(o.value)} onChange={() => toggle(o.value)} />
-                <span>{o.label}</span>
+              <label key={o.value} className="flex items-center gap-2 text-sm p-1 hover:bg-surface-container-low rounded cursor-pointer">
+                <input type="checkbox" checked={active.includes(o.value)} onChange={() => toggle(o.value)} className="rounded border-outline-variant/20" />
+                <span className="flex-1">{o.label}</span>
               </label>
             ))}
           </div>
@@ -4216,7 +4217,7 @@ export default function MastersView({
 					              <div className="text-sm text-on-surface-variant">Showing: {filteredFirms.length} / {firms.length}</div>
 					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 					              <input
-					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
 					                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -4439,7 +4440,7 @@ export default function MastersView({
 					            <div className="flex flex-wrap items-center gap-2">
 					              <div className="text-sm text-on-surface-variant">Showing: {filteredCities.length} / {cities.length}</div>
 					              <input
-					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -4529,7 +4530,7 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredStores.length} / {stores.length}</div>
 				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -4609,7 +4610,7 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredProjects.length} / {projects.length}</div>
 				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -4695,22 +4696,24 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredUsers.length} / {users.length}</div>
 				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
 				              />
-				              <select
-				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listStatusFilter}
-				                onChange={(e) => setListStatusFilter(e.target.value as any)}
-				                aria-label="Filter users by status"
-				              >
-				                <option value="all">All</option>
-				                <option value="active">Active</option>
-				                <option value="inactive">Inactive</option>
-				              </select>
-				              {listQuery ? (
+				              <div className="relative w-full sm:w-40 h-10">
+				                <select
+				                  className="w-full h-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none appearance-none pr-10"
+				                  value={listStatusFilter}
+				                  onChange={(e) => setListStatusFilter(e.target.value as any)}
+				                  aria-label="Filter users by status"
+				                >
+				                  <option value="all">All</option>
+				                  <option value="active">Active</option>
+				                  <option value="inactive">Inactive</option>
+				                </select>
+				                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
+				              </div>				              {listQuery ? (
 				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 				                  Clear
 				                </button>
@@ -4797,7 +4800,7 @@ export default function MastersView({
 				              </div>
 				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -4915,7 +4918,7 @@ export default function MastersView({
 					                Showing: {filteredCustomers.length} / {customers.length}
 					              </div>
 					              <input
-					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
 					                onChange={(e) => setListQuery(e.target.value)}
 					                placeholder="Search anything..."
@@ -5002,7 +5005,7 @@ export default function MastersView({
 			              </div>
 			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 			              <input
-			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
 			                onChange={(e) => setListQuery(e.target.value)}
 			                placeholder={searchPlaceholder}
@@ -5243,7 +5246,7 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredItemNames.length} / {itemNames.length}</div>
 				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
@@ -5445,22 +5448,24 @@ export default function MastersView({
 			              </div>
 			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 			              <input
-			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
 			                onChange={(e) => setListQuery(e.target.value)}
 			                placeholder={searchPlaceholder}
 			              />
-			              <select
-			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                value={listStatusFilter}
-			                onChange={(e) => setListStatusFilter(e.target.value as any)}
-			                aria-label="Filter spec values by status"
-			              >
-			                <option value="all">All</option>
-			                <option value="active">Active</option>
-			                <option value="inactive">Inactive</option>
-			              </select>
-			              {listQuery ? (
+			              <div className="relative w-full sm:w-40 h-10">
+			                <select
+			                  className="w-full h-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none appearance-none pr-10"
+			                  value={listStatusFilter}
+			                  onChange={(e) => setListStatusFilter(e.target.value as any)}
+			                  aria-label="Filter spec values by status"
+			                >
+			                  <option value="all">All</option>
+			                  <option value="active">Active</option>
+			                  <option value="inactive">Inactive</option>
+			                </select>
+			                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
+			              </div>			              {listQuery ? (
 			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 			                  Clear
 			                </button>
@@ -5535,7 +5540,7 @@ export default function MastersView({
 	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
 	              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
 	              <input
-	                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                value={listQuery}
 	                onChange={(e) => setListQuery(e.target.value)}
 	                placeholder={searchPlaceholder}

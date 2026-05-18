@@ -22,12 +22,12 @@ import {
 import type { QueueFilters } from '@/src/lib/queues';
 
 export const inputClass =
-  'w-full bg-surface-container-low border border-black rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-black';
+  'w-full h-10 bg-surface-container-low border border-black rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-black';
 
 export const labelClass = 'text-[11px] font-bold text-on-surface-variant uppercase tracking-widest';
 
 const compactControlClass =
-  'w-full h-7 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-xs font-medium text-on-surface-variant outline-none focus:ring-0';
+  'w-full h-10 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-sm font-medium text-on-surface-variant outline-none focus:ring-0';
 
 export function Modal({
   open,

@@ -249,7 +249,7 @@ export default function TransferMasterView({ onAdd }: { onAdd?: () => void } = {
 	                placeholder="Search transfers..."
 	                value={q}
 	                onChange={(e) => setQ(e.target.value)}
-	                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+	                className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
 	              />
 	            </div>
 	          </div>

@@ -125,7 +125,7 @@ export default function QuotationMasterView() {
         <div className="min-w-[260px] flex-1">
           <div className={labelClass}>Search</div>
           <input
-            className={cn(inputClass, 'py-1.5')}
+            className={inputClass}
             value={filters.q ?? ''}
             onChange={(e) => setFilters((m) => ({ ...m, q: e.target.value }))}
             placeholder="RFQ no / Firm / Project"
@@ -134,41 +134,44 @@ export default function QuotationMasterView() {
 
         <div className="min-w-[200px]">
           <div className={labelClass}>Firm</div>
-          <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
+          <div className="mt-1 bg-surface-container-low px-3 py-1 rounded-lg border border-black">
             <SearchableSelect
               options={firmOptions}
               value={filters.firmId ?? ''}
               onChange={(v) => setFilters((m) => ({ ...m, firmId: v }))}
               placeholder="All Firms"
-              controlClassName="w-full h-7 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-xs font-medium text-on-surface-variant outline-none focus:ring-0"
+              controlClassName="w-full h-10 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-sm font-medium text-on-surface-variant outline-none focus:ring-0"
             />
           </div>
         </div>
 
         <div className="min-w-[220px]">
           <div className={labelClass}>Project</div>
-          <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
+          <div className="mt-1 bg-surface-container-low px-3 py-1 rounded-lg border border-black">
             <SearchableSelect
               options={projectOptions}
               value={filters.projectId ?? ''}
               onChange={(v) => setFilters((m) => ({ ...m, projectId: v }))}
               placeholder="All Projects"
-              controlClassName="w-full h-7 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-xs font-medium text-on-surface-variant outline-none focus:ring-0"
+              controlClassName="w-full h-10 bg-transparent border-none rounded-none pl-0 pr-8 py-0 text-sm font-medium text-on-surface-variant outline-none focus:ring-0"
             />
           </div>
         </div>
 
         <div className="min-w-[170px]">
           <div className={labelClass}>Status</div>
-          <select
-            className={cn(inputClass, 'py-1.5')}
-            value={(filters.status as StatusFilter) ?? ''}
-            onChange={(e) => setFilters((m) => ({ ...m, status: e.target.value }))}
-          >
-            <option value="">All</option>
-            <option value="created">Created</option>
-            <option value="closed">Closed</option>
-          </select>
+          <div className="relative mt-1">
+            <select
+              className={cn(inputClass, 'appearance-none pr-10')}
+              value={(filters.status as StatusFilter) ?? ''}
+              onChange={(e) => setFilters((m) => ({ ...m, status: e.target.value }))}
+            >
+              <option value="">All</option>
+              <option value="created">Created</option>
+              <option value="closed">Closed</option>
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
+          </div>
         </div>
 
         <div className="min-w-[230px]">
@@ -176,14 +179,14 @@ export default function QuotationMasterView() {
           <div className="mt-1 flex items-center gap-2">
             <input
               type="date"
-              className={cn(inputClass, 'py-1.5')}
+              className={inputClass}
               value={filters.from ?? ''}
               onChange={(e) => setFilters((m) => ({ ...m, from: e.target.value }))}
             />
             <span className="text-outline-variant text-sm">—</span>
             <input
               type="date"
-              className={cn(inputClass, 'py-1.5')}
+              className={inputClass}
               value={filters.to ?? ''}
               onChange={(e) => setFilters((m) => ({ ...m, to: e.target.value }))}
             />

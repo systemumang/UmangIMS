@@ -332,7 +332,7 @@ export default function DamageMasterView({ onAdd }: { onAdd?: () => void } = {})
                   <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
                   <input
                     type="date"
-                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+                    className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
                   />
@@ -341,7 +341,7 @@ export default function DamageMasterView({ onAdd }: { onAdd?: () => void } = {})
                   <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
                   <input
                     type="date"
-                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+                    className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
                   />
@@ -354,7 +354,7 @@ export default function DamageMasterView({ onAdd }: { onAdd?: () => void } = {})
 	                placeholder="Search damages..."
 	                value={q}
 	                onChange={(e) => setQ(e.target.value)}
-	                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
+	                className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
 	              />
 	            </div>
 	          </div>
