@@ -287,23 +287,179 @@ export default function MastersView({
   const [inlineUnitCreateBusy, setInlineUnitCreateBusy] = useState(false);
   const [inlineUnitCreateError, setInlineUnitCreateError] = useState<string | null>(null);
 
-  const [inlineCategoryCreateOpen, setInlineCategoryCreateOpen] = useState(false);
-  const [inlineCategoryCreateName, setInlineCategoryCreateName] = useState('');
-  const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
-  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
+	  const [inlineCategoryCreateOpen, setInlineCategoryCreateOpen] = useState(false);
+	  const [inlineCategoryCreateName, setInlineCategoryCreateName] = useState('');
+	  const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
+	  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
 
-  const activeTabLabel = useMemo(() => {
-    return MASTERS_TABS.find((t) => t.key === tab)?.label ?? 'Masters';
-  }, [tab]);
+	  const [listQuery, setListQuery] = useState('');
+	  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
-  const specNameLookup = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
-  const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
+	  useEffect(() => {
+	    setListQuery('');
+	    setListStatusFilter('all');
+	  }, [tab]);
 
-  const closeInlineUnitCreate = () => {
-    setInlineUnitCreateOpen(false);
-    setInlineUnitCreateName('');
-    setInlineUnitCreateError(null);
+	  const activeTabLabel = useMemo(() => {
+	    return MASTERS_TABS.find((t) => t.key === tab)?.label ?? 'Masters';
+	  }, [tab]);
+
+	  const specNameLookup = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+	  const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
+	  const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
+
+	  const listQueryKey = useMemo(() => normalizeKey(listQuery), [listQuery]);
+	  const firmNameLookup = useMemo(() => Object.fromEntries(firms.map((f) => [f.id, f.name])), [firms]);
+
+	  const matchesListQuery = (values: Array<unknown>) => {
+	    if (!listQueryKey) return true;
+	    return values.some((v) => normalizeKey(v).includes(listQueryKey));
+	  };
+
+	  const filteredFirms = useMemo(() => {
+	    if (!listQueryKey) return firms;
+	    return firms.filter((f) =>
+	      matchesListQuery([f.name, f.sortName, f.cin, f.gstNumber, f.address, f.phone, f.termsConditions])
+	    );
+	  }, [firms, listQueryKey]);
+
+	  const filteredDepartments = useMemo(() => {
+	    if (!listQueryKey) return departments;
+	    return departments.filter((d) => matchesListQuery([d.name]));
+	  }, [departments, listQueryKey]);
+
+	  const filteredStores = useMemo(() => {
+	    if (!listQueryKey) return stores;
+	    return stores.filter((s) => matchesListQuery([firmNameLookup[s.firmId], s.name, s.location]));
+	  }, [stores, listQueryKey, firmNameLookup]);
+
+	  const filteredProjects = useMemo(() => {
+	    if (!listQueryKey) return projects;
+	    return projects.filter((p) =>
+	      matchesListQuery([firmNameLookup[p.firmId], p.name, p.clientName, p.status, p.startDate, p.endDate])
+	    );
+	  }, [projects, listQueryKey, firmNameLookup]);
+
+	  const filteredUsers = useMemo(() => {
+	    let rows = users;
+	    if (listStatusFilter === 'active') rows = rows.filter((u) => (u as any).isActive !== false);
+	    if (listStatusFilter === 'inactive') rows = rows.filter((u) => (u as any).isActive === false);
+	    if (!listQueryKey) return rows;
+	    return rows.filter((u) =>
+	      matchesListQuery([u.name, (u as any).loginId, (u as any).role, u.designation, u.email, u.mobile])
+	    );
+	  }, [users, listQueryKey, listStatusFilter]);
+
+	  const filteredSuppliers = useMemo(() => {
+	    if (!listQueryKey) return suppliers;
+	    return suppliers.filter((s) =>
+	      matchesListQuery([
+	        s.name,
+	        s.gstNumber,
+	        s.gstType,
+	        s.address,
+	        s.phone,
+	        s.contactPerson,
+	        s.contactPersonMobile,
+	        s.city,
+	        s.state,
+	        (s as any).mobile2,
+	        (s as any).paymentTerms,
+	        (s as any).catalogueLink,
+	      ])
+	    );
+	  }, [suppliers, listQueryKey]);
+
+	  const filteredCustomers = useMemo(() => {
+	    if (!listQueryKey) return customers;
+	    return customers.filter((c) => matchesListQuery([c.name, c.phone, c.address]));
+	  }, [customers, listQueryKey]);
+
+	  const filteredTransporters = useMemo(() => {
+	    if (!listQueryKey) return transporters;
+	    return transporters.filter((t) => matchesListQuery([t.name, t.phone]));
+	  }, [transporters, listQueryKey]);
+
+	  const filteredUnits = useMemo(() => {
+	    if (!listQueryKey) return units;
+	    return units.filter((u) => matchesListQuery([u.name]));
+	  }, [units, listQueryKey]);
+
+	  const filteredPriorities = useMemo(() => {
+	    if (!listQueryKey) return priorities;
+	    return priorities.filter((p) => matchesListQuery([p.name]));
+	  }, [priorities, listQueryKey]);
+
+	  const filteredItemCategories = useMemo(() => {
+	    if (!listQueryKey) return itemCategories;
+	    return itemCategories.filter((c) => matchesListQuery([c.name]));
+	  }, [itemCategories, listQueryKey]);
+
+	  const filteredItemNames = useMemo(() => {
+	    if (!listQueryKey) return itemNames;
+	    return itemNames.filter((n) =>
+	      matchesListQuery([
+	        n.name,
+	        n.unitName,
+	        n.itemCategoryName,
+	        (n as any).catalogueLink,
+	        ...(Array.isArray(n.specificationIds) ? n.specificationIds.map((id) => specNameLookup[id]) : []),
+	      ])
+	    );
+	  }, [itemNames, listQueryKey, specNameLookup]);
+
+	  const filteredSpecs = useMemo(() => {
+	    if (!listQueryKey) return specs;
+	    return specs.filter((s) => matchesListQuery([s.name]));
+	  }, [specs, listQueryKey]);
+
+	  const filteredSpecValues = useMemo(() => {
+	    let rows = specValues;
+	    if (listStatusFilter === 'active') rows = rows.filter((v) => v.isActive);
+	    if (listStatusFilter === 'inactive') rows = rows.filter((v) => !v.isActive);
+	    if (!listQueryKey) return rows;
+	    return rows.filter((v) => matchesListQuery([specNameLookup[v.specificationId], v.itemName, v.value]));
+	  }, [specValues, listQueryKey, listStatusFilter, specNameLookup]);
+
+	  const filteredItems = useMemo(() => {
+	    if (!listQueryKey) return items;
+	    return items.filter((it) =>
+	      matchesListQuery([
+	        it.itemName,
+	        it.itemCode,
+	        it.uniqueKey,
+	        it.description,
+	        it.unit,
+	        (it as any).itemLink,
+	        (it as any).videoLink,
+	        formatItemInline(it.itemName, it.specificationsJson, specNameLookup),
+	      ])
+	    );
+	  }, [items, listQueryKey, specNameLookup]);
+
+	  const searchPlaceholder = useMemo(() => {
+	    if (tab === 'firms') return 'Search firms...';
+	    if (tab === 'stores') return 'Search stores...';
+	    if (tab === 'departments') return 'Search departments...';
+	    if (tab === 'users') return 'Search users...';
+	    if (tab === 'suppliers') return 'Search suppliers...';
+	    if (tab === 'customers') return 'Search customers...';
+	    if (tab === 'transporters') return 'Search transporters...';
+	    if (tab === 'projects') return 'Search projects...';
+	    if (tab === 'units') return 'Search units...';
+	    if (tab === 'priorities') return 'Search priorities...';
+	    if (tab === 'itemCategories') return 'Search item categories...';
+	    if (tab === 'itemNames') return 'Search item names...';
+	    if (tab === 'specs') return 'Search specifications...';
+	    if (tab === 'specValues') return 'Search spec values...';
+	    if (tab === 'items') return 'Search items...';
+	    return 'Search...';
+	  }, [tab]);
+
+	  const closeInlineUnitCreate = () => {
+	    setInlineUnitCreateOpen(false);
+	    setInlineUnitCreateName('');
+	    setInlineUnitCreateError(null);
   };
 
   const submitInlineUnitCreate = () => {
@@ -3579,14 +3735,27 @@ export default function MastersView({
         </div>
       ) : null}
 
-			      {tab === 'firms' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {firms.length}</div>
-	            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
+				      {tab === 'firms' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredFirms.length} / {firms.length}</div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
@@ -3605,10 +3774,10 @@ export default function MastersView({
 				                  <th className="text-left px-3 py-2 border border-blue-600">T&amp;C</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 				                </tr>
-				              </thead>
-				              <tbody>
-				                {firms.map((f) => (
-					                  <tr key={f.id}>
+					              </thead>
+					              <tbody>
+					                {filteredFirms.map((f) => (
+						                  <tr key={f.id}>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.sortName ?? '').trim() || '-'}</td>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.cin ?? '').trim() || '-'}</td>
@@ -3669,14 +3838,29 @@ export default function MastersView({
 		        </div>
 		      ) : null}
 
-			      {tab === 'departments' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {departments.length}</div>
-			            <button
-			              type="button"
-			              className="btn btn-primary disabled:opacity-50"
-			              onClick={openAddModal}
+				      {tab === 'departments' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">
+				                Showing: {filteredDepartments.length} / {departments.length}
+				              </div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button
+				              type="button"
+				              className="btn btn-primary disabled:opacity-50"
+				              onClick={openAddModal}
 			            >
 			              Add
 			            </button>
@@ -3688,10 +3872,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {departments.map((d) => (
-			                  <tr key={d.id}>
+				              </thead>
+				              <tbody>
+				                {filteredDepartments.map((d) => (
+				                  <tr key={d.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{d.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
@@ -3729,14 +3913,27 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-			      {tab === 'stores' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {stores.length}</div>
-	            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
+				      {tab === 'stores' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredStores.length} / {stores.length}</div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
@@ -3750,13 +3947,13 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Location</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {stores.map((s) => (
-			                  <tr key={s.id}>
-		                    <td className="px-3 py-2 text-on-surface border border-blue-600">
-		                      {firms.find((f) => f.id === s.firmId)?.name ?? s.firmId}
-			                    </td>
+				              </thead>
+				              <tbody>
+				                {filteredStores.map((s) => (
+				                  <tr key={s.id}>
+			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+			                      {firmNameLookup[s.firmId] ?? s.firmId}
+				                    </td>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.location ?? ''}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -3795,14 +3992,27 @@ export default function MastersView({
 		        </div>
 			      ) : null}
 
-			      {tab === 'projects' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {projects.length}</div>
-			            <button
-			              type="button"
-			              className="btn btn-primary disabled:opacity-50"
-			              onClick={openAddModal}
+				      {tab === 'projects' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredProjects.length} / {projects.length}</div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button
+				              type="button"
+				              className="btn btn-primary disabled:opacity-50"
+				              onClick={openAddModal}
 			            >
 			              Add
 			            </button>
@@ -3819,13 +4029,13 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Status</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {projects.map((p) => (
-			                  <tr key={p.id}>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
-			                      {firms.find((f) => f.id === p.firmId)?.name ?? p.firmId}
-			                    </td>
+				              </thead>
+				              <tbody>
+				                {filteredProjects.map((p) => (
+				                  <tr key={p.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">
+				                      {firmNameLookup[p.firmId] ?? p.firmId}
+				                    </td>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.clientName ?? ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.startDate ?? ''}</td>
@@ -3867,14 +4077,37 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-				      {tab === 'users' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {users.length}</div>
-			            <button
-			              type="button"
-			              className="btn btn-primary disabled:opacity-50"
-			              onClick={openAddModal}
+					      {tab === 'users' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredUsers.length} / {users.length}</div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listStatusFilter}
+				                onChange={(e) => setListStatusFilter(e.target.value as any)}
+				                aria-label="Filter users by status"
+				              >
+				                <option value="all">All</option>
+				                <option value="active">Active</option>
+				                <option value="inactive">Inactive</option>
+				              </select>
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button
+				              type="button"
+				              className="btn btn-primary disabled:opacity-50"
+				              onClick={openAddModal}
 			            >
 			              Add
 			            </button>
@@ -3893,10 +4126,10 @@ export default function MastersView({
 				                  <th className="text-left px-3 py-2 border border-blue-600">Mobile</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 				                </tr>
-				              </thead>
-				              <tbody>
-				                {users.map((u) => (
-				                  <tr key={u.id}>
+					              </thead>
+					              <tbody>
+					                {filteredUsers.map((u) => (
+					                  <tr key={u.id}>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).loginId ?? '')}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).role ?? u.designation ?? '')}</td>
@@ -3943,14 +4176,29 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-				      {tab === 'suppliers' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {suppliers.length}</div>
-		            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
+					      {tab === 'suppliers' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">
+				                Showing: {filteredSuppliers.length} / {suppliers.length}
+				              </div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+			            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
@@ -3974,10 +4222,10 @@ export default function MastersView({
                         <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 					                </tr>
-					              </thead>
-					              <tbody>
-					                {suppliers.map((s) => (
-					                  <tr key={s.id}>
+						              </thead>
+						              <tbody>
+						                {filteredSuppliers.map((s) => (
+						                  <tr key={s.id}>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
@@ -4046,13 +4294,28 @@ export default function MastersView({
 		        </div>
 			      ) : null}
 
-			      {tab === 'customers' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {customers.length}</div>
-			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-			              Add
-			            </button>
+				      {tab === 'customers' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">
+				                Showing: {filteredCustomers.length} / {customers.length}
+				              </div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+				              Add
+				            </button>
 			          </div>
 			          <div className="overflow-auto">
 			            <table className="min-w-[920px] w-full text-sm border-collapse border border-blue-600">
@@ -4063,10 +4326,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Address</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {customers.map((c) => (
-			                  <tr key={c.id}>
+				              </thead>
+				              <tbody>
+				                {filteredCustomers.map((c) => (
+				                  <tr key={c.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{c.phone ?? ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{c.address ?? ''}</td>
@@ -4102,14 +4365,29 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-				      {tab === 'transporters' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {transporters.length}</div>
-		            <button
-		              type="button"
-		              className="btn btn-primary disabled:opacity-50"
-		              onClick={openAddModal}
+					      {tab === 'transporters' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+			            <div className="flex flex-wrap items-center gap-2">
+			              <div className="text-sm text-on-surface-variant">
+			                Showing: {filteredTransporters.length} / {transporters.length}
+			              </div>
+			              <input
+			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listQuery}
+			                onChange={(e) => setListQuery(e.target.value)}
+			                placeholder={searchPlaceholder}
+			              />
+			              {listQuery ? (
+			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+			                  Clear
+			                </button>
+			              ) : null}
+			            </div>
+			            <button
+			              type="button"
+			              className="btn btn-primary disabled:opacity-50"
+			              onClick={openAddModal}
 		            >
 		              Add
 		            </button>
@@ -4122,10 +4400,10 @@ export default function MastersView({
 		                  <th className="text-left px-3 py-2 border border-blue-600">Phone</th>
 		                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 		                </tr>
-		              </thead>
-		              <tbody>
-		                {transporters.map((t) => (
-		                  <tr key={t.id}>
+			              </thead>
+			              <tbody>
+			                {filteredTransporters.map((t) => (
+			                  <tr key={t.id}>
 		                    <td className="px-3 py-2 text-on-surface border border-blue-600">{t.name}</td>
 		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{t.phone ?? ''}</td>
 		                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -4160,13 +4438,26 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-				      {tab === 'units' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-				          <div className="flex items-center justify-between gap-2">
-				            <div className="text-sm text-on-surface-variant">Total: {units.length}</div>
-				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-				              Add
-				            </button>
+					      {tab === 'units' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+					          <div className="flex flex-wrap items-center justify-between gap-2">
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">Showing: {filteredUnits.length} / {units.length}</div>
+					              <input
+					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listQuery}
+					                onChange={(e) => setListQuery(e.target.value)}
+					                placeholder={searchPlaceholder}
+					              />
+					              {listQuery ? (
+					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+					                  Clear
+					                </button>
+					              ) : null}
+					            </div>
+					            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+					              Add
+					            </button>
 				          </div>
 				          <div className="overflow-auto">
 				            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
@@ -4175,10 +4466,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {units.map((u) => (
-			                  <tr key={u.id}>
+				              </thead>
+				              <tbody>
+				                {filteredUnits.map((u) => (
+				                  <tr key={u.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
@@ -4212,13 +4503,28 @@ export default function MastersView({
 				        </div>
 				      ) : null}
 
-              {tab === 'priorities' ? (
-                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm text-on-surface-variant">Total: {priorities.length}</div>
-                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-                      Add
-                    </button>
+	              {tab === 'priorities' ? (
+	                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+	                  <div className="flex flex-wrap items-center justify-between gap-2">
+	                    <div className="flex flex-wrap items-center gap-2">
+	                      <div className="text-sm text-on-surface-variant">
+	                        Showing: {filteredPriorities.length} / {priorities.length}
+	                      </div>
+	                      <input
+	                        className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                        value={listQuery}
+	                        onChange={(e) => setListQuery(e.target.value)}
+	                        placeholder={searchPlaceholder}
+	                      />
+	                      {listQuery ? (
+	                        <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+	                          Clear
+	                        </button>
+	                      ) : null}
+	                    </div>
+	                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+	                      Add
+	                    </button>
                   </div>
                   <div className="overflow-auto">
                     <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
@@ -4227,10 +4533,10 @@ export default function MastersView({
                           <th className="text-left px-3 py-2 border border-blue-600">Priority</th>
                           <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {priorities.map((p) => (
-                          <tr key={p.id}>
+	                      </thead>
+	                      <tbody>
+	                        {filteredPriorities.map((p) => (
+	                          <tr key={p.id}>
                             <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
                             <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
                               <div className="flex items-center gap-2">
@@ -4264,13 +4570,28 @@ export default function MastersView({
                 </div>
               ) : null}
 	
-				      {tab === 'itemCategories' ? (
-				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-				          <div className="flex items-center justify-between gap-2">
-				            <div className="text-sm text-on-surface-variant">Total: {itemCategories.length}</div>
-			            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-			              Add
-			            </button>
+					      {tab === 'itemCategories' ? (
+					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+					          <div className="flex flex-wrap items-center justify-between gap-2">
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">
+					                Showing: {filteredItemCategories.length} / {itemCategories.length}
+					              </div>
+					              <input
+					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listQuery}
+					                onChange={(e) => setListQuery(e.target.value)}
+					                placeholder={searchPlaceholder}
+					              />
+					              {listQuery ? (
+					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+					                  Clear
+					                </button>
+					              ) : null}
+					            </div>
+				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+				              Add
+				            </button>
 			          </div>
 			          <div className="overflow-auto">
 			            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
@@ -4279,10 +4600,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {itemCategories.map((c) => (
-			                  <tr key={c.id}>
+				              </thead>
+				              <tbody>
+				                {filteredItemCategories.map((c) => (
+				                  <tr key={c.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
@@ -4316,14 +4637,27 @@ export default function MastersView({
 			        </div>
 			      ) : null}
 
-			      {tab === 'itemNames' ? (
-			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-			          <div className="flex items-center justify-between gap-2">
-			            <div className="text-sm text-on-surface-variant">Total: {itemNames.length}</div>
-	            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
+				      {tab === 'itemNames' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredItemNames.length} / {itemNames.length}</div>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
@@ -4339,10 +4673,10 @@ export default function MastersView({
                         <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 					                </tr>
-					              </thead>
-					              <tbody>
-					                {itemNames.map((n) => (
-					                  <tr key={n.id}>
+						              </thead>
+						              <tbody>
+						                {filteredItemNames.map((n) => (
+						                  <tr key={n.id}>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
@@ -4410,14 +4744,27 @@ export default function MastersView({
 	        </div>
 	      ) : null}
 
-		      {tab === 'specs' ? (
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-		          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {specs.length}</div>
-	            <button
-	              type="button"
-	              className="btn btn-primary disabled:opacity-50"
-	              onClick={openAddModal}
+			      {tab === 'specs' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+			          <div className="flex flex-wrap items-center justify-between gap-2">
+			            <div className="flex flex-wrap items-center gap-2">
+			              <div className="text-sm text-on-surface-variant">Showing: {filteredSpecs.length} / {specs.length}</div>
+			              <input
+			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listQuery}
+			                onChange={(e) => setListQuery(e.target.value)}
+			                placeholder={searchPlaceholder}
+			              />
+			              {listQuery ? (
+			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+			                  Clear
+			                </button>
+			              ) : null}
+			            </div>
+		            <button
+		              type="button"
+		              className="btn btn-primary disabled:opacity-50"
+		              onClick={openAddModal}
 	            >
 	              Add
 	            </button>
@@ -4429,10 +4776,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {specs.map((s) => (
-			                  <tr key={s.id}>
+				              </thead>
+				              <tbody>
+				                {filteredSpecs.map((s) => (
+				                  <tr key={s.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">
@@ -4501,12 +4848,37 @@ export default function MastersView({
 		            />
 			          </label>
 		
-		          <div className="flex items-center justify-between gap-2">
-		            <div className="text-sm text-on-surface-variant">Total: {specValues.length}</div>
-		            <button
-		              type="button"
-		              className="btn btn-primary disabled:opacity-50"
-		              onClick={openAddModal}
+			          <div className="flex flex-wrap items-center justify-between gap-2">
+			            <div className="flex flex-wrap items-center gap-2">
+			              <div className="text-sm text-on-surface-variant">
+			                Showing: {filteredSpecValues.length} / {specValues.length}
+			              </div>
+			              <input
+			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listQuery}
+			                onChange={(e) => setListQuery(e.target.value)}
+			                placeholder={searchPlaceholder}
+			              />
+			              <select
+			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listStatusFilter}
+			                onChange={(e) => setListStatusFilter(e.target.value as any)}
+			                aria-label="Filter spec values by status"
+			              >
+			                <option value="all">All</option>
+			                <option value="active">Active</option>
+			                <option value="inactive">Inactive</option>
+			              </select>
+			              {listQuery ? (
+			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+			                  Clear
+			                </button>
+			              ) : null}
+			            </div>
+			            <button
+			              type="button"
+			              className="btn btn-primary disabled:opacity-50"
+			              onClick={openAddModal}
 		            >
 		              Add
 		            </button>
@@ -4521,10 +4893,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Used</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-			              </thead>
-			              <tbody>
-			                {specValues.map((v) => (
-			                  <tr key={v.id}>
+				              </thead>
+				              <tbody>
+				                {filteredSpecValues.map((v) => (
+				                  <tr key={v.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((v as any).itemName ?? '')}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
 			                      {specNameLookup[v.specificationId] ?? v.specificationId}
@@ -4567,8 +4939,21 @@ export default function MastersView({
 
 	      {tab === 'items' ? (
 	        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-	          <div className="flex items-center justify-between gap-2">
-	            <div className="text-sm text-on-surface-variant">Total: {items.length}</div>
+	          <div className="flex flex-wrap items-center justify-between gap-2">
+	            <div className="flex flex-wrap items-center gap-2">
+	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
+	              <input
+	                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                value={listQuery}
+	                onChange={(e) => setListQuery(e.target.value)}
+	                placeholder={searchPlaceholder}
+	              />
+	              {listQuery ? (
+	                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+	                  Clear
+	                </button>
+	              ) : null}
+	            </div>
 	            <button
 	              type="button"
 	              className="btn btn-primary disabled:opacity-50"
@@ -4589,10 +4974,10 @@ export default function MastersView({
 			                  <th className="text-left px-3 py-2 border border-blue-600">Re-Order Level</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
-		              </thead>
-		              <tbody>
-			                {items.map((it) => (
-			                  <tr key={it.id} className="align-top">
+	              </thead>
+	              <tbody>
+	                {filteredItems.map((it) => (
+	                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
 					                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}

@@ -1,5 +1,13 @@
 import { MASTERS_TABS } from '@/src/lib/mastersTabs';
-import { materialMenuItems, pendingQueueItems, purchaseMastersMenuItems, settingsMenuItems, stockMenuItems, topLevelMenuItems } from '@/src/components/Sidebar';
+import {
+  materialMenuItems,
+  pendingQueueItems,
+  purchaseMastersMenuItems,
+  quotationMenuItems,
+  settingsMenuItems,
+  stockMenuItems,
+  topLevelMenuItems,
+} from '@/src/components/Sidebar';
 
 export type SidebarPermissionItem = { key: string; label: string };
 
@@ -34,6 +42,9 @@ export function getSidebarPermissionItems(): SidebarPermissionItem[] {
 
   // Purchase Masters submenu
   for (const p of purchaseMastersMenuItems) push(`purchase:${p.key}`, p.label);
+
+  // Quotation submenu
+  for (const q of quotationMenuItems) push(`quotation:${q.key}`, q.label);
 
   // Stable sort by label for consistent checkbox ordering.
   out.sort((a, b) => a.label.localeCompare(b.label));

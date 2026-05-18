@@ -73,7 +73,8 @@ import {
 import RequestMaterialView from './components/views/RequestMaterialView';
 import PendingIssueView from './components/views/PendingIssueView';
 import SettingsCatalogueView from './components/views/SettingsCatalogueView';
-import PendingSupplierRateView from './components/views/PendingSupplierRateView';
+	import PendingSupplierRateView from './components/views/PendingSupplierRateView';
+	import QuotationMasterView from './components/views/QuotationMasterView';
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
@@ -114,9 +115,10 @@ export default function App() {
 			  const [stockMasterTab, setStockMasterTab] = useState<StockMasterTab>('itemIssue');
 			  const [stockMasterExpanded, setStockMasterExpanded] = useState(false);
 			  const [materialExpanded, setMaterialExpanded] = useState(false);
-        const [settingsExpanded, setSettingsExpanded] = useState(false);
-        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
-        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
+	        const [settingsExpanded, setSettingsExpanded] = useState(false);
+	        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
+	        const [quotationExpanded, setQuotationExpanded] = useState(false);
+	        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
@@ -268,12 +270,13 @@ export default function App() {
     return () => ac.abort();
   }, [view]);
 
-			  const topBar = useMemo(() => {
-			    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
-			    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
-			    if (view === 'operations') return { title: 'Operations', showSearch: false };
-			    if (view === 'pendingSupplierRate') return { title: 'Pending Supplier Rate', showSearch: false };
-			    if (view === 'stockMaster') {
+				  const topBar = useMemo(() => {
+				    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
+				    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
+				    if (view === 'operations') return { title: 'Operations', showSearch: false };
+				    if (view === 'pendingSupplierRate') return { title: 'Pending Supplier Rate', showSearch: false };
+				    if (view === 'quotationMaster') return { title: 'Quotation Master', showSearch: false };
+				    if (view === 'stockMaster') {
 			      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
 			      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
 			      if (stockMasterTab === 'damage') return { title: 'Stock Master', subtitle: 'Damage', showSearch: false };
@@ -310,11 +313,12 @@ export default function App() {
 	    return { title: 'Purchase Requests', showSearch: true };
 	  }, [view, stockMasterTab]);
 
-	  const sidebarActive: NavView = useMemo(() => {
-	    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
-	    if (isPendingQueueView(view)) return 'pendingTasks';
-	    return view as NavView;
-	  }, [currentUser, view]);
+		  const sidebarActive: NavView = useMemo(() => {
+		    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
+		    if (isPendingQueueView(view)) return 'pendingTasks';
+		    if (view === 'pendingSupplierRate' || view === 'quotationMaster') return 'quotation';
+		    return view as NavView;
+		  }, [currentUser, view]);
 
 	  const activePendingQueue = isPendingQueueView(view) ? view : undefined;
 
@@ -433,22 +437,24 @@ export default function App() {
 		
 		  return (
 	    <div className="flex min-h-screen bg-surface">
-					      <Sidebar
-					        activeView={sidebarActive}
-					        activePendingQueue={activePendingQueue}
-                pendingQueueCounts={pendingQueueCounts}
-                mastersCounts={mastersCounts}
-                purchaseMastersCounts={purchaseMastersCounts}
-			        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
-			        mastersExpanded={mastersExpanded}
-			        pendingExpanded={pendingExpanded}
-			        stockMasterExpanded={stockMasterExpanded}
-			        materialExpanded={materialExpanded}
-              settingsExpanded={settingsExpanded}
-			        purchaseMastersExpanded={purchaseMastersExpanded}
-			        activeOperationsTab={operationsTab}
-			        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
-			        currentUserName={currentUser?.name || currentUser?.loginId || ''}
+						      <Sidebar
+						        activeView={sidebarActive}
+						        activePendingQueue={activePendingQueue}
+	                pendingQueueCounts={pendingQueueCounts}
+	                mastersCounts={mastersCounts}
+	                purchaseMastersCounts={purchaseMastersCounts}
+				        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
+				        mastersExpanded={mastersExpanded}
+				        pendingExpanded={pendingExpanded}
+				        stockMasterExpanded={stockMasterExpanded}
+				        materialExpanded={materialExpanded}
+	              settingsExpanded={settingsExpanded}
+				        purchaseMastersExpanded={purchaseMastersExpanded}
+				        quotationExpanded={quotationExpanded}
+				        activeQuotationView={view === 'pendingSupplierRate' || view === 'quotationMaster' ? view : undefined}
+				        activeOperationsTab={operationsTab}
+				        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
+				        currentUserName={currentUser?.name || currentUser?.loginId || ''}
 			        menuAccessKeys={currentUser?.menuAccess ?? []}
 			        onLogout={() => {
 			        sessionStorage.removeItem('ims.currentUser');
@@ -457,165 +463,191 @@ export default function App() {
 			        setLoginBusy(false);
 			        }}
 			        open={sidebarOpen}
-			        onNavigate={(next) => {
-			          if (next === 'masters') {
-			            setSelectedRequestId(null);
-			            setPendingExpanded(false);
-			            setStockMasterExpanded(false);
-			            setMaterialExpanded(false);
-                  setSettingsExpanded(false);
-			        setPurchaseMastersExpanded(false);
-			            setMastersExpanded((prev) => !prev);
-			            return;
-			          }
-
-				        if (next === 'pendingTasks') {
-				        setSelectedRequestId(null);
-				        setMastersExpanded(false);
-				        setStockMasterExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
+				        onNavigate={(next) => {
+				          if (next === 'masters') {
+				            setSelectedRequestId(null);
+				            setPendingExpanded(false);
+				            setStockMasterExpanded(false);
+				            setMaterialExpanded(false);
+	                  setSettingsExpanded(false);
 				        setPurchaseMastersExpanded(false);
-			        setPendingExpanded((prev) => !prev);
-			        return;
-			        }
+				        setQuotationExpanded(false);
+				            setMastersExpanded((prev) => !prev);
+				            return;
+				          }
 
-				        if (next === 'stockMaster') {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-			        setPendingExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-			        setStockMasterExpanded((prev) => !prev);
-			        return;
-			        }
-
-				        if (next === 'material') {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-			        setPendingExpanded(false);
-				        setStockMasterExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-				        setMaterialExpanded((prev) => !prev);
+					        if (next === 'pendingTasks') {
+					        setSelectedRequestId(null);
+					        setMastersExpanded(false);
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+				        setPendingExpanded((prev) => !prev);
 				        return;
 				        }
 
-                if (next === 'settings') {
-                setSelectedRequestId(null);
-                setMastersExpanded(false);
-                setPendingExpanded(false);
-                setStockMasterExpanded(false);
-                setMaterialExpanded(false);
-                setPurchaseMastersExpanded(false);
-                setSettingsExpanded((prev) => !prev);
-                return;
-                }
+					        if (next === 'stockMaster') {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+				        setPendingExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+				        setStockMasterExpanded((prev) => !prev);
+				        return;
+				        }
 
-				        if (next === 'operations') {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-			        setPendingExpanded(false);
-				        setStockMasterExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded((prev) => !prev);
-			        return;
-			        }
+					        if (next === 'material') {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+				        setPendingExpanded(false);
+					        setStockMasterExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+					        setMaterialExpanded((prev) => !prev);
+					        return;
+					        }
 
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-			        setPendingExpanded(false);
-				        setStockMasterExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-			        hideSidebarAfterViewChange();
-			        setView(next);
-			        }}
-			        onNavigatePendingQueue={(key) => {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-				        setStockMasterExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-			        setPendingExpanded(true);
-			        hideSidebarAfterViewChange();
-			        setView(key);
-			        }}
-			        onNavigateMastersTab={(tab) => {
-			        setMastersTab(tab);
-			        setSelectedRequestId(null);
-			        setMastersExpanded(true);
+	                if (next === 'settings') {
+	                setSelectedRequestId(null);
+	                setMastersExpanded(false);
+	                setPendingExpanded(false);
+	                setStockMasterExpanded(false);
+	                setMaterialExpanded(false);
+	                setPurchaseMastersExpanded(false);
+	                setQuotationExpanded(false);
+	                setSettingsExpanded((prev) => !prev);
+	                return;
+	                }
+
+					        if (next === 'operations') {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
 				        setPendingExpanded(false);
-				        setStockMasterExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-			        hideSidebarAfterViewChange();
-			        setView('masters');
-			        }}
-			        onNavigateStockView={(next) => {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-				        setPendingExpanded(false);
-				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(false);
-			        setStockMasterExpanded(true);
-			        hideSidebarAfterViewChange();
-			        setView(next);
-			        }}
-			        onNavigateMaterialView={(next) => {
-			        setSelectedRequestId(null);
-			        setMastersExpanded(false);
-				        setPendingExpanded(false);
-				        setStockMasterExpanded(false);
-				        setPurchaseMastersExpanded(false);
-                setSettingsExpanded(false);
-				        setMaterialExpanded(true);
-				        hideSidebarAfterViewChange();
-				        setView(next);
-				        }}
-                onNavigateSettingsView={(next) => {
-                setSelectedRequestId(null);
-                setMastersExpanded(false);
-                setPendingExpanded(false);
-                setStockMasterExpanded(false);
-                setMaterialExpanded(false);
-                setPurchaseMastersExpanded(false);
-                setSettingsExpanded(true);
-                hideSidebarAfterViewChange();
-                setView(next);
-                }}
-				        onNavigatePurchaseMasters={(tab) => {
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+	                setQuotationExpanded(false);
+					        setPurchaseMastersExpanded((prev) => !prev);
+				        return;
+				        }
+
+				        if (next === 'quotation') {
 				        setSelectedRequestId(null);
 				        setMastersExpanded(false);
 				        setPendingExpanded(false);
 				        setStockMasterExpanded(false);
 				        setMaterialExpanded(false);
-                setSettingsExpanded(false);
-				        setPurchaseMastersExpanded(true);
-			        setOperationsTab(tab);
-			        hideSidebarAfterViewChange();
-			        setView(tab === 'prs' ? 'purchasing' : 'operations');
-			        }}
+	              setSettingsExpanded(false);
+				        setPurchaseMastersExpanded(false);
+				        setQuotationExpanded((prev) => !prev);
+				        return;
+				        }
+
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+				        setPendingExpanded(false);
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(next === 'pendingSupplierRate' || next === 'quotationMaster');
+				        hideSidebarAfterViewChange();
+				        setView(next);
+				        }}
+				        onNavigatePendingQueue={(key) => {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+				        setPendingExpanded(true);
+				        hideSidebarAfterViewChange();
+				        setView(key);
+				        }}
+				        onNavigateMastersTab={(tab) => {
+				        setMastersTab(tab);
+				        setSelectedRequestId(null);
+				        setMastersExpanded(true);
+					        setPendingExpanded(false);
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+				        hideSidebarAfterViewChange();
+				        setView('masters');
+				        }}
+				        onNavigateStockView={(next) => {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+					        setPendingExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+					        setPurchaseMastersExpanded(false);
+					        setQuotationExpanded(false);
+				        setStockMasterExpanded(true);
+				        hideSidebarAfterViewChange();
+				        setView(next);
+				        }}
+				        onNavigateMaterialView={(next) => {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+					        setPendingExpanded(false);
+					        setStockMasterExpanded(false);
+					        setPurchaseMastersExpanded(false);
+	                setSettingsExpanded(false);
+					        setQuotationExpanded(false);
+					        setMaterialExpanded(true);
+					        hideSidebarAfterViewChange();
+					        setView(next);
+					        }}
+	                onNavigateSettingsView={(next) => {
+	                setSelectedRequestId(null);
+	                setMastersExpanded(false);
+	                setPendingExpanded(false);
+	                setStockMasterExpanded(false);
+	                setMaterialExpanded(false);
+	                setPurchaseMastersExpanded(false);
+	                setQuotationExpanded(false);
+	                setSettingsExpanded(true);
+	                hideSidebarAfterViewChange();
+	                setView(next);
+	                }}
+					        onNavigatePurchaseMasters={(tab) => {
+					        setSelectedRequestId(null);
+					        setMastersExpanded(false);
+					        setPendingExpanded(false);
+					        setStockMasterExpanded(false);
+					        setMaterialExpanded(false);
+	                setSettingsExpanded(false);
+	                setQuotationExpanded(false);
+					        setPurchaseMastersExpanded(true);
+				        setOperationsTab(tab);
+				        hideSidebarAfterViewChange();
+				        setView(tab === 'prs' ? 'purchasing' : 'operations');
+				        }}
 
 		        onNewPurchaseRequest={() => {
 		          setSelectedRequestId(null);
               hideSidebarAfterViewChange();
 		          setView('newPurchaseRequest');
 		        }}
-	        onDirectPo={() => {
-          setSelectedRequestId(null);
-          setMastersExpanded(false);
-	          setStockMasterExpanded(false);
-	          setPendingExpanded(false);
-            hideSidebarAfterViewChange();
-	          setView('directPo');
-	        }}
+		        onDirectPo={() => {
+	          setSelectedRequestId(null);
+	          setMastersExpanded(false);
+		          setStockMasterExpanded(false);
+		          setPendingExpanded(false);
+	            setQuotationExpanded(false);
+	            hideSidebarAfterViewChange();
+		          setView('directPo');
+		        }}
       />
       
 		      <main className={cn('flex-1 min-h-screen flex flex-col transition-all duration-200 border-l-2 border-[#1f2937]', sidebarOpen ? 'ml-72' : 'ml-0')}>
@@ -754,8 +786,9 @@ export default function App() {
 	              }}
 	            />
 	          ) : null}
-            {view === 'pendingSupplierRate' ? <PendingSupplierRateView /> : null}
-              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
+	            {view === 'pendingSupplierRate' ? <PendingSupplierRateView /> : null}
+	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
+	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
 
 		          {view === 'stockMaster' ? (
 		            <>

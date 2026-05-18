@@ -6253,7 +6253,6 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
     drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
     drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, topY - 54, { size: 8 });
-    if (String(poRow.projectName ?? '').trim()) drawAt(`Project: ${String(poRow.projectName).trim()}`, firmX + 8, topY - 68, { size: 8 });
     y = topY - 92;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
@@ -7791,7 +7790,144 @@ app.post('/api/requests/:id/rfq', async (req, res) => {
 	  } catch (e) {
 	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
 	  }
-	});
+		});
+
+// RFQ list (Quotation Master)
+app.get('/api/rfqs', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const q = String(req.query?.q ?? '').trim();
+    const firmId = String(req.query?.firmId ?? '').trim();
+    const projectId = String(req.query?.projectId ?? '').trim();
+    const status = String(req.query?.status ?? '').trim();
+    const from = String(req.query?.from ?? '').trim();
+    const to = String(req.query?.to ?? '').trim();
+
+    const where = [];
+    const params = [];
+
+    if (firmId) {
+      where.push('r.firm_id = ?');
+      params.push(firmId);
+    }
+    if (projectId) {
+      where.push('r.project_id = ?');
+      params.push(projectId);
+    }
+    if (status) {
+      where.push('r.status = ?');
+      params.push(status);
+    }
+    if (from) {
+      where.push('r.rfq_date >= ?');
+      params.push(from);
+    }
+    if (to) {
+      where.push('r.rfq_date <= ?');
+      params.push(to);
+    }
+    if (q) {
+      where.push('(r.rfq_number LIKE ? OR f.name LIKE ? OR p.name LIKE ?)');
+      const like = `%${q}%`;
+      params.push(like, like, like);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        r.id AS id,
+        r.rfq_number AS rfqNumber,
+        r.rfq_date AS rfqDate,
+        r.status AS status,
+        r.pr_id AS prId,
+        r.remarks AS remarks,
+        f.id AS firmId,
+        f.name AS firmName,
+        p.id AS projectId,
+        p.name AS projectName,
+        COUNT(ri.id) AS itemCount,
+        SUM(CASE WHEN ri.supplier_rate IS NULL OR ri.supplier_rate = 0 THEN 1 ELSE 0 END) AS pendingRateCount
+      FROM rfqs r
+      LEFT JOIN firms f ON f.id = r.firm_id
+      LEFT JOIN projects p ON p.id = r.project_id
+      LEFT JOIN rfq_items ri ON ri.rfq_id = r.id
+      ${whereSql}
+      GROUP BY r.id
+      ORDER BY r.rfq_date DESC, r.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      rfqNumber: String(r.rfqNumber ?? ''),
+      rfqDate: toIsoDate(r.rfqDate) || '',
+      status: String(r.status ?? 'created'),
+      prId: r.prId ? String(r.prId) : null,
+      remarks: r.remarks != null ? String(r.remarks) : null,
+      firmId: r.firmId ? String(r.firmId) : null,
+      firmName: r.firmName ? String(r.firmName) : null,
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      itemCount: Number(r.itemCount ?? 0),
+      pendingRateCount: Number(r.pendingRateCount ?? 0),
+    }));
+
+    res.json({ rfqs: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/rfqs/:id/items', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const rfqId = String(req.params.id ?? '').trim();
+    if (!rfqId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ri.id AS rfqItemId,
+        ri.item_id AS itemId,
+        iname.name AS itemName,
+        ri.specification AS specification,
+        ri.quantity AS quantity,
+        ri.supplier_id AS supplierId,
+        s.name AS supplierName,
+        ri.supplier_rate AS supplierRate
+      FROM rfq_items ri
+      LEFT JOIN items it ON it.id = ri.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN suppliers s ON s.id = ri.supplier_id
+      WHERE ri.rfq_id = ?
+      ORDER BY ri.created_at ASC
+      `,
+      [rfqId]
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      rfqItemId: String(r.rfqItemId ?? ''),
+      itemId: String(r.itemId ?? ''),
+      itemName: String(r.itemName ?? ''),
+      specification: String(r.specification ?? ''),
+      quantity: Number(r.quantity ?? 0),
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: r.supplierName ? String(r.supplierName) : null,
+      supplierRate: r.supplierRate != null ? Number(r.supplierRate) : null,
+    }));
+
+    res.json({ items: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // Pending Supplier Rate (RFQ Items)
 app.get('/api/rfq-items/pending-supplier-rate', async (_req, res) => {

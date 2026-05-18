@@ -29,7 +29,9 @@ export type NavView =
   | 'inventory'
   | 'masters'
   | 'pendingTasks'
+  | 'quotation'
   | 'pendingSupplierRate'
+  | 'quotationMaster'
   | 'stockMaster'
   | 'material'
   | 'materialRequest'
@@ -91,8 +93,13 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'stockMaster', label: 'Stock' },
   { key: 'material', label: 'Material' },
   { key: 'operations', label: 'Purchase Masters' },
-  { key: 'pendingSupplierRate', label: 'Pending Supplier Rate' },
+  { key: 'quotation', label: 'Quotation' },
   { key: 'settings', label: 'Settings' },
+];
+
+export const quotationMenuItems: Array<{ key: 'pendingSupplierRate' | 'quotationMaster'; label: string }> = [
+  { key: 'pendingSupplierRate', label: 'Pending Supplier Rate' },
+  { key: 'quotationMaster', label: 'Quotation Master' },
 ];
 
 export const materialMenuItems: Array<{ key: NavView; label: string }> = [
@@ -117,6 +124,8 @@ export default function Sidebar({
   materialExpanded,
   settingsExpanded,
   purchaseMastersExpanded,
+  quotationExpanded,
+  activeQuotationView,
   activeOperationsTab,
   purchaseMastersCounts,
   isNewPurchaseRequestActive,
@@ -146,9 +155,11 @@ export default function Sidebar({
       settingsExpanded?: boolean;
       purchaseMastersExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
-      purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
-	  isNewPurchaseRequestActive?: boolean;
-	  onNavigate: (view: NavView) => void;
+  purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
+  quotationExpanded?: boolean;
+  activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
+  isNewPurchaseRequestActive?: boolean;
+  onNavigate: (view: NavView) => void;
 	  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
 	  onNavigateMastersTab?: (tab: MastersTab) => void;
 	  onNavigateStockView?: (view: NavView) => void;
@@ -161,7 +172,7 @@ export default function Sidebar({
   menuAccessKeys?: string[];
   onLogout?: () => void;
   open?: boolean;
-		}) {
+			}) {
 		  const allowed = useMemo(() => new Set((menuAccessKeys ?? []).map((x) => String(x))), [menuAccessKeys]);
 		  const hasAny = allowed.size > 0;
 		  const isAllowed = (key: string) => (!hasAny ? true : allowed.has(String(key)));
@@ -173,11 +184,28 @@ export default function Sidebar({
 		    if (tab === 'priorities' && allowed.has('masters')) return true;
 		    return false;
 		  };
-		  const hasPrefix = (prefix: string) => {
-		    if (!hasAny) return true;
-		    for (const k of allowed) if (k.startsWith(prefix)) return true;
-		    return false;
-		  };
+			  const hasPrefix = (prefix: string) => {
+			    if (!hasAny) return true;
+			    for (const k of allowed) if (k.startsWith(prefix)) return true;
+			    return false;
+			  };
+
+			  const isQuotationAllowed = () => {
+			    if (!hasAny) return true;
+			    if (allowed.has('quotation')) return true;
+			    if (hasPrefix('quotation:')) return true;
+			    // Backward compatibility: older users may have this view access saved directly.
+			    if (allowed.has('pendingSupplierRate')) return true;
+			    return false;
+			  };
+
+			  const isQuotationViewAllowed = (k: 'pendingSupplierRate' | 'quotationMaster') => {
+			    if (!hasAny) return true;
+			    if (allowed.has(`quotation:${k}`)) return true;
+			    if (allowed.has('quotation')) return true;
+			    if (k === 'pendingSupplierRate' && allowed.has('pendingSupplierRate')) return true;
+			    return false;
+			  };
 
 	  const borderClass = 'border-2 border-[#1f2937]';
 	  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
@@ -214,7 +242,7 @@ export default function Sidebar({
 	            </motion.button>
 	          ) : null}
 
-          {isAllowed('settingsCatalogue') ? (
+	          {isAllowed('settingsCatalogue') ? (
             <motion.button
               whileHover={{ x: 4 }}
               type="button"
@@ -353,14 +381,14 @@ export default function Sidebar({
 	            </div>
 	          ) : null}
 
-	          {isAllowed('operations') || hasPrefix('purchase:') ? (
+		          {isAllowed('operations') || hasPrefix('purchase:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('operations')} className={cn(sectionRowClass, purchaseMastersExpanded ? activeRowClass : '')}>
 	              <ShoppingCart className="mr-3 text-white" size={18} />
 	              <span className="flex-1">Purchase Masters</span>
 	              <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', purchaseMastersExpanded ? 'rotate-180' : 'rotate-0')} />
 	            </motion.button>
 	          ) : null}
-			          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
+				          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
 			            <div className="ml-7 mr-1 space-y-1">
                   {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (
 	                    <button
@@ -390,19 +418,39 @@ export default function Sidebar({
                     </button>
                   ))}
 		            </div>
-			          ) : null}
+				          ) : null}
 
-          {isAllowed('pendingSupplierRate') ? (
-            <motion.button
-              whileHover={{ x: 4 }}
-              type="button"
-              onClick={() => onNavigate('pendingSupplierRate')}
-              className={cn(viewRowClass, activeView === 'pendingSupplierRate' ? activeRowClass : '')}
-            >
-              <IndianRupee className="mr-3 text-white" size={18} />
-              <span className="flex-1">Pending Supplier Rate</span>
-            </motion.button>
-          ) : null}
+	          {isQuotationAllowed() ? (
+	            <>
+	              <motion.button
+	                whileHover={{ x: 4 }}
+	                type="button"
+	                onClick={() => onNavigate('quotation')}
+	                className={cn(sectionRowClass, quotationExpanded || activeQuotationView ? activeRowClass : '')}
+	              >
+	                <FileText className="mr-3 text-white" size={18} />
+	                <span className="flex-1">Quotation</span>
+	                <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', quotationExpanded ? 'rotate-180' : 'rotate-0')} />
+	              </motion.button>
+	              {quotationExpanded ? (
+	                <div className="ml-7 mr-1 space-y-1">
+	                  {quotationMenuItems.filter((it) => isQuotationViewAllowed(it.key)).map((it) => (
+	                    <button
+	                      key={it.key}
+	                      type="button"
+	                      onClick={() => onNavigate(it.key)}
+	                      className={cn(subRowClass, activeQuotationView === it.key ? subActiveClass : subInactiveClass)}
+	                    >
+	                      <span className="inline-flex items-center gap-2">
+	                        {it.key === 'pendingSupplierRate' ? <IndianRupee size={14} /> : <ClipboardList size={14} />}
+	                        {it.label}
+	                      </span>
+	                    </button>
+	                  ))}
+	                </div>
+	              ) : null}
+	            </>
+	          ) : null}
 
 	          {isAllowed('settings') || hasPrefix('settings:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('settings')} className={cn(sectionRowClass, settingsExpanded ? activeRowClass : '')}>

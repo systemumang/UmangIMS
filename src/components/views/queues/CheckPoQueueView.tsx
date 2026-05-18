@@ -270,16 +270,16 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
 	                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                            <div className="flex items-center gap-2 flex-wrap">
-                              <a
-                                className="btn btn-sm inline-flex items-center gap-1"
-                                href={`/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Download PO PDF"
-                              >
-                                <Download size={14} />
-                                PO PDF
-                              </a>
+	                              <a
+	                                className="btn btn-sm inline-flex items-center justify-center w-9 h-9 p-0"
+	                                href={`/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf`}
+	                                target="_blank"
+	                                rel="noreferrer"
+	                                title="Download PO PDF"
+	                                aria-label="Download PO PDF"
+	                              >
+	                                <Download size={16} />
+	                              </a>
 	                              <button
 	                                type="button"
 	                                className="btn-primary btn-sm"
