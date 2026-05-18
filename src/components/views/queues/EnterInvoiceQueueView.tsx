@@ -99,6 +99,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [expandedPoId, setExpandedPoId] = useState('');
+  const [expandedItemsByPoId, setExpandedItemsByPoId] = useState<Record<string, PendingItem[]>>({});
+  const [expandedLoadingPoId, setExpandedLoadingPoId] = useState('');
+  const [expandedErrorByPoId, setExpandedErrorByPoId] = useState<Record<string, string>>({});
 
   function closeModal() {
     setModalOpen(false);
@@ -258,6 +262,27 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     return { ok: Object.keys(errors).length === 0, errors, firstError, items };
   }, [chargesGstAmount, courierCharge, invoiceDate, labourCharge, lines, otherCharge, packingCharge, supplierInvoiceNo, updatedBy]);
 
+  async function toggleExpandRow(row: EnterInvoiceQueueRow) {
+    const poId = String(row.poId ?? '').trim();
+    if (!poId) return;
+    if (expandedPoId === poId) {
+      setExpandedPoId('');
+      return;
+    }
+    setExpandedPoId(poId);
+    if (expandedItemsByPoId[poId] || expandedLoadingPoId === poId) return;
+    setExpandedLoadingPoId(poId);
+    setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: '' }));
+    try {
+      const items = await fetchPendingInvoiceItems(poId);
+      setExpandedItemsByPoId((prev) => ({ ...prev, [poId]: Array.isArray(items) ? items : [] }));
+    } catch (e) {
+      setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setExpandedLoadingPoId((prev) => (prev === poId ? '' : prev));
+    }
+  }
+
 	  return (
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
@@ -297,15 +322,22 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
               </thead>
               <tbody>
                 {pagedRows.length ? (
-                  pagedRows.map((r) => (
-                    <tr key={r.poId}>
+                  pagedRows.map((r) => {
+                    const poId = String(r.poId ?? '').trim();
+                    const isExpanded = expandedPoId === poId;
+                    const isExpandedLoading = expandedLoadingPoId === poId;
+                    const expandedItems = expandedItemsByPoId[poId] ?? [];
+                    const expandedError = expandedErrorByPoId[poId];
+                    return (
+                    <React.Fragment key={r.poId}>
+                    <tr onClick={() => toggleExpandRow(r)} className={cn('cursor-pointer', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40')}>
 	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingQty}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
+                      <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
                             type="button"
@@ -320,7 +352,46 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                         </div>
                       </td>
                     </tr>
-                  ))
+                    {isExpanded ? (
+                      <tr>
+                        <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                          {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO item details...</div> : null}
+                          {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
+                          {!isExpandedLoading && !expandedError ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[780px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                <thead>
+                                  <tr className="bg-surface-container-high">
+                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                    <th className="px-3 py-2 border border-outline-variant">Pending Qty</th>
+                                    <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {expandedItems.length ? (
+                                    expandedItems.map((it) => (
+                                      <tr key={it.itemId}>
+                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
+                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
+                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
+                                        No pending items.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ) : null}
+                    </React.Fragment>
+                  )})
                 ) : (
                   <tr>
                     <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>

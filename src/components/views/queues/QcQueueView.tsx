@@ -79,6 +79,10 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
   const [modalLoading, setModalLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [expandedGrnId, setExpandedGrnId] = useState('');
+  const [expandedItemsByGrnId, setExpandedItemsByGrnId] = useState<Record<string, Array<{ itemId: string; item: string; specificationsJson?: string; grnQty: number }>>>({});
+  const [expandedLoadingGrnId, setExpandedLoadingGrnId] = useState('');
+  const [expandedErrorByGrnId, setExpandedErrorByGrnId] = useState<Record<string, string>>({});
 
   const userOptions = useMemo(
     () => [{ value: '', label: 'Select user' }, ...masters.users.map((u) => ({ value: u.id, label: u.name }))],
@@ -146,6 +150,34 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
     return () => ac.abort();
   }, [active, modalOpen]);
 
+  async function toggleExpandRow(row: QcQueueRow) {
+    const grnId = String(row.grnId ?? '').trim();
+    if (!grnId) return;
+    if (expandedGrnId === grnId) {
+      setExpandedGrnId('');
+      return;
+    }
+    setExpandedGrnId(grnId);
+    if (expandedItemsByGrnId[grnId] || expandedLoadingGrnId === grnId) return;
+    setExpandedLoadingGrnId(grnId);
+    setExpandedErrorByGrnId((prev) => ({ ...prev, [grnId]: '' }));
+    try {
+      const grns = await fetchGrnsByPoId(row.poId);
+      const g = (grns ?? []).find((x) => String(x.grn.id ?? '').trim() === grnId);
+      const items = (g?.items ?? []).map((it) => ({
+        itemId: String(it.itemId ?? ''),
+        item: String(it.item ?? ''),
+        specificationsJson: it.specificationsJson,
+        grnQty: Number(it.quantityReceived ?? 0),
+      }));
+      setExpandedItemsByGrnId((prev) => ({ ...prev, [grnId]: items }));
+    } catch (e) {
+      setExpandedErrorByGrnId((prev) => ({ ...prev, [grnId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setExpandedLoadingGrnId((prev) => (prev === grnId ? '' : prev));
+    }
+  }
+
 	  return (
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
@@ -187,8 +219,15 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
               </thead>
               <tbody>
                 {pagedRows.length ? (
-                  pagedRows.map((r) => (
-                    <tr key={r.grnId}>
+                  pagedRows.map((r) => {
+                    const grnId = String(r.grnId ?? '').trim();
+                    const isExpanded = expandedGrnId === grnId;
+                    const isExpandedLoading = expandedLoadingGrnId === grnId;
+                    const expandedItems = expandedItemsByGrnId[grnId] ?? [];
+                    const expandedError = expandedErrorByGrnId[grnId];
+                    return (
+                    <React.Fragment key={r.grnId}>
+                    <tr onClick={() => toggleExpandRow(r)} className={cn('cursor-pointer', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40')}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.grnNumber ?? r.grnId}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
@@ -196,7 +235,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingItems}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
+                      <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
                             type="button"
@@ -211,7 +250,44 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                         </div>
                       </td>
                     </tr>
-                  ))
+                    {isExpanded ? (
+                      <tr>
+                        <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                          {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading GRN item details...</div> : null}
+                          {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
+                          {!isExpandedLoading && !expandedError ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[680px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                <thead>
+                                  <tr className="bg-surface-container-high">
+                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                    <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {expandedItems.length ? (
+                                    expandedItems.map((it) => (
+                                      <tr key={it.itemId}>
+                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.grnQty ?? 0)}</td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={2}>
+                                        No GRN items.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ) : null}
+                    </React.Fragment>
+                  )})
                 ) : (
                   <tr>
                     <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>

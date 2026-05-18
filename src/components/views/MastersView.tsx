@@ -237,6 +237,11 @@ export default function MastersView({
 				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
 				  const [newSupplierAddress, setNewSupplierAddress] = useState('');
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
+            const [newSupplierMobile2, setNewSupplierMobile2] = useState('');
+            const [newSupplierContactPerson, setNewSupplierContactPerson] = useState('');
+            const [newSupplierContactPersonMobile, setNewSupplierContactPersonMobile] = useState('');
+            const [newSupplierCity, setNewSupplierCity] = useState('');
+            const [newSupplierState, setNewSupplierState] = useState('');
 					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
 					  const [newSupplierIsVendor, setNewSupplierIsVendor] = useState(false);
             const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
@@ -598,6 +603,11 @@ export default function MastersView({
 				      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
 				      setNewSupplierAddress(row?.address ?? '');
 				      setNewSupplierPhone(row?.phone ?? '');
+              setNewSupplierMobile2((row as any)?.mobile2 ?? '');
+              setNewSupplierContactPerson((row as any)?.contactPerson ?? '');
+              setNewSupplierContactPersonMobile((row as any)?.contactPersonMobile ?? '');
+              setNewSupplierCity((row as any)?.city ?? '');
+              setNewSupplierState((row as any)?.state ?? '');
 				      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
 				      setNewSupplierIsVendor(Boolean(row?.isVendor));
               setNewSupplierCatalogueLink((row as any)?.catalogueLink ?? '');
@@ -2227,7 +2237,7 @@ export default function MastersView({
 			                    </label>
 
 				                    <label className="space-y-1">
-				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Phone Number</div>
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile 1</div>
 				                      <input
 				                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.supplierPhone ? 'border-error/60' : 'border-outline-variant/20'}`}
 				                        value={newSupplierPhone}
@@ -2242,6 +2252,57 @@ export default function MastersView({
 				                      />
 				                      {fieldErrors.supplierPhone ? <div className="text-xs text-error">{fieldErrors.supplierPhone}</div> : null}
 				                    </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile 2</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierMobile2}
+                              onChange={(e) => setNewSupplierMobile2(normalizeTenDigitPhoneInput(e.target.value))}
+                              placeholder="Mobile 2"
+                              inputMode="numeric"
+                              maxLength={10}
+                              pattern="[0-9]{10}"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Contact Person</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierContactPerson}
+                              onChange={(e) => setNewSupplierContactPerson(e.target.value)}
+                              placeholder="Contact person"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Contact Person Mobile</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierContactPersonMobile}
+                              onChange={(e) => setNewSupplierContactPersonMobile(normalizeTenDigitPhoneInput(e.target.value))}
+                              placeholder="Contact person mobile"
+                              inputMode="numeric"
+                              maxLength={10}
+                              pattern="[0-9]{10}"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierCity}
+                              onChange={(e) => setNewSupplierCity(e.target.value)}
+                              placeholder="City"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierState}
+                              onChange={(e) => setNewSupplierState(e.target.value)}
+                              placeholder="State"
+                            />
+                          </label>
 
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
@@ -2253,7 +2314,7 @@ export default function MastersView({
 			                      />
 			                    </label>
                           <label className="space-y-1">
-                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Upload Catalogue Link</div>
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Catalogue Link</div>
                             <input
                               className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
                               value={newSupplierCatalogueLink}
@@ -2282,6 +2343,11 @@ export default function MastersView({
 				                        setNewSupplierGstType('Intra-State');
 				                        setNewSupplierAddress('');
 				                        setNewSupplierPhone('');
+                                setNewSupplierMobile2('');
+                                setNewSupplierContactPerson('');
+                                setNewSupplierContactPersonMobile('');
+                                setNewSupplierCity('');
+                                setNewSupplierState('');
 				                        setNewSupplierPaymentTerms('');
 				                        setNewSupplierIsVendor(false);
                                 setNewSupplierCatalogueLink('');
@@ -2311,6 +2377,11 @@ export default function MastersView({
 				                              gstType: newSupplierGstType,
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
+                                  mobile2: newSupplierMobile2.trim() || undefined,
+                                  contactPerson: newSupplierContactPerson.trim() || undefined,
+                                  contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
+                                  city: newSupplierCity.trim() || undefined,
+                                  state: newSupplierState.trim() || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
@@ -2322,6 +2393,11 @@ export default function MastersView({
 				                              gstType: newSupplierGstType,
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
+                                  mobile2: newSupplierMobile2.trim() || undefined,
+                                  contactPerson: newSupplierContactPerson.trim() || undefined,
+                                  contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
+                                  city: newSupplierCity.trim() || undefined,
+                                  state: newSupplierState.trim() || undefined,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
@@ -2334,6 +2410,11 @@ export default function MastersView({
 			                            setNewSupplierGstType('Intra-State');
 				                            setNewSupplierAddress('');
 				                            setNewSupplierPhone('');
+                                setNewSupplierMobile2('');
+                                setNewSupplierContactPerson('');
+                                setNewSupplierContactPersonMobile('');
+                                setNewSupplierCity('');
+                                setNewSupplierState('');
 				                            setNewSupplierPaymentTerms('');
 				                            setNewSupplierIsVendor(false);
                                 setNewSupplierCatalogueLink('');
@@ -3882,7 +3963,12 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">GST</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">GST Type</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Phone Number</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Mobile 1</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Mobile 2</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Contact Person</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Contact Person Mobile</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">City</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">State</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Vendor</th>
                         <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
@@ -3897,6 +3983,11 @@ export default function MastersView({
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).city ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).state ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
 					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
 					                      {s.isVendor ? (

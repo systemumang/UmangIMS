@@ -326,6 +326,11 @@ function getMysqlPool() {
 	      `);
 	      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
 	      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
+        await ensureColumn('suppliers', 'contact_person', 'VARCHAR(255) NULL');
+        await ensureColumn('suppliers', 'contact_person_mobile', 'VARCHAR(32) NULL');
+        await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
+        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
+        await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
 	      await ensureColumn('rfq_items', 'supplier_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('rfq_items', 'supplier_rate', 'DOUBLE NULL');
 	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
@@ -2490,6 +2495,8 @@ app.get('/api/queues/payment', async (req, res) => {
         };
       })
       .filter((x) => x.remainingAmount > 1e-9)
+      // Invoice is due for payment only when fully linked against GRN qty.
+      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalLinkedQty) <= 1e-9)
       // Show only invoices where all invoice qty is QC-approved (invoice qty <= approved qty for each item).
       // `totalApprovedQty` is computed as SUM(LEAST(invoiceQty, approvedQty)) so equality means fully approved.
       .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalApprovedQty) <= 1e-9)
@@ -6582,15 +6589,16 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
       SELECT
         poi.item_id AS itemId,
         iname.name AS item,
-        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(invq.invQty, 0)) AS pendingQty,
+        GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(linkq.linkQty, 0)) AS pendingQty,
         poi.rate AS rate
       FROM purchase_order_items poi
       LEFT JOIN (
-        SELECT inv.po_id AS poId, ii.item_id AS itemId, SUM(ii.quantity) AS invQty
+        SELECT inv.po_id AS poId, ii.item_id AS itemId, SUM(COALESCE(gil.linked_qty, 0)) AS linkQty
         FROM invoices inv
         INNER JOIN invoice_items ii ON ii.invoice_id = inv.id
+        LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
         GROUP BY inv.po_id, ii.item_id
-      ) invq ON invq.poId = poi.po_id AND invq.itemId = poi.item_id
+      ) linkq ON linkq.poId = poi.po_id AND linkq.itemId = poi.item_id
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE poi.po_id = ?
@@ -6935,6 +6943,11 @@ app.get('/api/masters/suppliers', async (_req, res) => {
         gst_type AS gstType,
         address,
         phone,
+        contact_person AS contactPerson,
+        contact_person_mobile AS contactPersonMobile,
+        city,
+        state,
+        mobile_2 AS mobile2,
         payment_terms AS paymentTerms,
         is_vendor AS isVendor,
         catalogue_link AS catalogueLink
@@ -6967,6 +6980,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
       gstType: req.body?.gstType != null ? String(req.body.gstType).trim() : null,
       address: req.body?.address != null ? String(req.body.address).trim() : null,
       phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
+      contactPerson: req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null,
+      contactPersonMobile: req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null,
+      city: req.body?.city != null ? String(req.body.city).trim() : null,
+      state: req.body?.state != null ? String(req.body.state).trim() : null,
+      mobile2: req.body?.mobile2 != null ? String(req.body.mobile2).trim() : null,
       paymentTerms: req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null,
       isVendor: req.body?.isVendor ? 1 : 0,
       catalogueLink: req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null,
@@ -6975,8 +6993,8 @@ app.post('/api/masters/suppliers', async (req, res) => {
 
     await pool.query(
       `
-      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
       [
         supplier.id,
@@ -6985,6 +7003,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
         supplier.gstType,
         supplier.address,
         supplier.phone,
+        supplier.contactPerson,
+        supplier.contactPersonMobile,
+        supplier.city,
+        supplier.state,
+        supplier.mobile2,
         supplier.paymentTerms,
         supplier.isVendor,
         supplier.catalogueLink,
@@ -7000,6 +7023,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
         gstType: supplier.gstType ?? undefined,
         address: supplier.address ?? undefined,
         phone: supplier.phone ?? undefined,
+        contactPerson: supplier.contactPerson ?? undefined,
+        contactPersonMobile: supplier.contactPersonMobile ?? undefined,
+        city: supplier.city ?? undefined,
+        state: supplier.state ?? undefined,
+        mobile2: supplier.mobile2 ?? undefined,
         paymentTerms: supplier.paymentTerms ?? undefined,
         isVendor: Boolean(supplier.isVendor),
         catalogueLink: supplier.catalogueLink ?? undefined,
@@ -7029,6 +7057,11 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     const gstType = req.body?.gstType != null ? String(req.body.gstType).trim() : null;
     const address = req.body?.address != null ? String(req.body.address).trim() : null;
     const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
+    const contactPersonMobile = req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null;
+    const city = req.body?.city != null ? String(req.body.city).trim() : null;
+    const state = req.body?.state != null ? String(req.body.state).trim() : null;
+    const mobile2 = req.body?.mobile2 != null ? String(req.body.mobile2).trim() : null;
     const paymentTerms = req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null;
     const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
@@ -7036,15 +7069,15 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     await pool.query(
       `
       UPDATE suppliers
-      SET name=?, gst_number=?, gst_type=?, address=?, phone=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
+      SET name=?, gst_number=?, gst_type=?, address=?, phone=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
       WHERE id=?
       `,
-      [name, gstNumber, gstType, address, phone, paymentTerms, req.body?.isVendor ? 1 : 0, catalogueLink, updatedBy, id]
+      [name, gstNumber, gstType, address, phone, contactPerson, contactPersonMobile, city, state, mobile2, paymentTerms, req.body?.isVendor ? 1 : 0, catalogueLink, updatedBy, id]
     );
 
     const [rows] = await pool.query(
       `
-      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, address, phone, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
+      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, address, phone, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
       FROM suppliers WHERE id=?
       `,
       [id]
@@ -7688,6 +7721,19 @@ app.post('/api/settings/links', async (req, res) => {
       [id, name, link]
     );
     res.status(201).json({ link: { id, name, link } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/settings/links/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM settings_links WHERE id = ?', [id]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

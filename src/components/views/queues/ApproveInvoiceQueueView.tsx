@@ -230,7 +230,6 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                   <div><span className="font-semibold">Invoice No:</span> {invoiceDetail.invoice.supplierInvoiceNo || '-'}</div>
                   <div><span className="font-semibold">Invoice Date:</span> {invoiceDetail.invoice.invoiceDate ? formatDateDDMMYYYYOnly(invoiceDetail.invoice.invoiceDate) : '-'}</div>
                   <div><span className="font-semibold">Amount:</span> {Number(invoiceDetail.invoice.invoiceAmount ?? 0).toFixed(2)}</div>
-                  <div><span className="font-semibold">Payment Mode:</span> {invoiceDetail.invoice.paymentMode || '-'}</div>
                   <div><span className="font-semibold">Eway Bill:</span> {invoiceDetail.invoice.ewayBillNumber || '-'}</div>
                   <div><span className="font-semibold">CN/Courier:</span> {invoiceDetail.invoice.cnNumber || invoiceDetail.invoice.courierNumber || '-'}</div>
                 </div>
@@ -247,7 +246,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                     <tbody>
                       {invoiceDetail.items.map((it) => (
                         <tr key={it.id || `${it.itemId}-${it.item}`}>
-                          <td className="px-2 py-1 border border-outline-variant">{it.item || it.itemId}</td>
+                          <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
                           <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.quantity ?? 0).toFixed(2)}</td>
                           <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.rate ?? 0).toFixed(2)}</td>
                           <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.taxPercent ?? 0).toFixed(2)}</td>

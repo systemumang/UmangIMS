@@ -221,7 +221,7 @@ export default function Sidebar({
               onClick={() => onNavigate('settingsCatalogue')}
               className={cn(viewRowClass, activeView === 'settingsCatalogue' ? activeRowClass : '', 'mt-1')}
             >
-              <span className="ml-[30px] flex-1">Catalogue</span>
+              <span className="ml-[30px] flex-1">Links</span>
             </motion.button>
           ) : null}
 

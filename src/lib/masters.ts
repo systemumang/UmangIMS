@@ -17,6 +17,11 @@ export type Supplier = {
   gstType?: 'Intra-State' | 'Inter-State' | null;
   address?: string | null;
   phone?: string | null;
+  contactPerson?: string | null;
+  contactPersonMobile?: string | null;
+  city?: string | null;
+  state?: string | null;
+  mobile2?: string | null;
   paymentTerms?: string | null;
   isVendor?: boolean;
   catalogueLink?: string | null;
@@ -441,6 +446,11 @@ export async function createSupplier(input: {
   gstType?: 'Intra-State' | 'Inter-State';
   address?: string;
   phone?: string;
+  contactPerson?: string;
+  contactPersonMobile?: string;
+  city?: string;
+  state?: string;
+  mobile2?: string;
   paymentTerms?: string;
   isVendor?: boolean;
   catalogueLink?: string;
@@ -462,6 +472,11 @@ export async function updateSupplier(
     gstType?: 'Intra-State' | 'Inter-State';
     address?: string;
     phone?: string;
+    contactPerson?: string;
+    contactPersonMobile?: string;
+    city?: string;
+    state?: string;
+    mobile2?: string;
     paymentTerms?: string;
     isVendor?: boolean;
     catalogueLink?: string;

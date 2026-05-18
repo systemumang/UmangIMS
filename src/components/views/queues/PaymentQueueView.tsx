@@ -246,7 +246,7 @@ export default function PaymentQueueView({
                               <tbody>
                                 {expandedLines.map((l) => (
                                   <tr key={l.invoiceItemId}>
-                                    <td className="px-3 py-2 border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
+                                    <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
                                     <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.invoiceQty}</td>
                                     <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.linkedQty}</td>
                                   </tr>
@@ -372,7 +372,7 @@ export default function PaymentQueueView({
                   ) : (invoiceDetail?.invoice?.items?.length ?? 0) > 0 ? (
                     (invoiceDetail.invoice.items as any[]).map((it: any, idx: number) => (
                       <tr key={String(it.id ?? idx)}>
-                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                        <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
                           {Number(lines.find((x) => String(x.itemId) === String(it.itemId))?.linkedQty ?? 0).toFixed(2)}
