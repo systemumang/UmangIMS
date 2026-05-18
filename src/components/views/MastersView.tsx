@@ -18,8 +18,10 @@ import {
 	  createStore,
 	  createCustomer,
 	  createSupplier,
-		  createTransporter,
-		  createUser,
+	  createCity,
+	  createState,
+	  createTransporter,
+	  createUser,
   deleteDepartment,
   deleteFirm,
 	  deleteProject,
@@ -31,10 +33,12 @@ import {
 		  deleteSpecification,
 		  deleteSpecificationValue,
 			  deleteStore,
-		  deleteCustomer,
-		  deleteSupplier,
-		  deleteTransporter,
-		  deleteUser,
+	  deleteCustomer,
+	  deleteSupplier,
+	  deleteCity,
+	  deleteState,
+	  deleteTransporter,
+	  deleteUser,
   fetchDepartments,
   fetchFirms,
 	  fetchProjects,
@@ -47,11 +51,15 @@ import {
 		  fetchSpecificationValues,
 		  fetchStores,
 		  fetchSuppliers,
-		  fetchCustomers,
-		  fetchTransporters,
-		  fetchUsers,
-  type Department,
-  type Firm,
+	  fetchCustomers,
+	  fetchTransporters,
+	  fetchUsers,
+	  fetchCities,
+	  fetchStates,
+	  type Department,
+	  type City,
+	  type State,
+	  type Firm,
 	  type Project,
 	  type Item,
 		  type Unit,
@@ -76,11 +84,13 @@ import {
 		  updateSpecification,
 		  updateSpecificationValue,
 			  updateStore,
-		  updateCustomer,
-		  updateSupplier,
-		  updateTransporter,
-		  updateUser,
-			} from '@/src/lib/masters';
+	  updateCustomer,
+	  updateSupplier,
+	  updateCity,
+	  updateState,
+	  updateTransporter,
+	  updateUser,
+				} from '@/src/lib/masters';
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 
@@ -189,10 +199,12 @@ export default function MastersView({
 
 		  const [firms, setFirms] = useState<Firm[]>([]);
 		  const [stores, setStores] = useState<Store[]>([]);
-				  const [departments, setDepartments] = useState<Department[]>([]);
-				  const [users, setUsers] = useState<User[]>([]);
-				  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-				  const [customers, setCustomers] = useState<Customer[]>([]);
+			  const [departments, setDepartments] = useState<Department[]>([]);
+			  const [states, setStates] = useState<State[]>([]);
+			  const [cities, setCities] = useState<City[]>([]);
+					  const [users, setUsers] = useState<User[]>([]);
+					  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+					  const [customers, setCustomers] = useState<Customer[]>([]);
 				  const [transporters, setTransporters] = useState<Transporter[]>([]);
 				  const [projects, setProjects] = useState<Project[]>([]);
 			  const [units, setUnits] = useState<Unit[]>([]);
@@ -212,8 +224,11 @@ export default function MastersView({
 			  const [newFirmPhone, setNewFirmPhone] = useState('');
 			  const [newFirmLogoUrl, setNewFirmLogoUrl] = useState('');
 			  const [newFirmTermsConditions, setNewFirmTermsConditions] = useState('');
-				  const [newDepartmentName, setNewDepartmentName] = useState('');
-				  const [newStoreFirmId, setNewStoreFirmId] = useState('');
+					  const [newDepartmentName, setNewDepartmentName] = useState('');
+					  const [newStateName, setNewStateName] = useState('');
+					  const [newCityState, setNewCityState] = useState('');
+					  const [newCityName, setNewCityName] = useState('');
+					  const [newStoreFirmId, setNewStoreFirmId] = useState('');
 				  const [newStoreName, setNewStoreName] = useState('');
 				  const [newStoreLocation, setNewStoreLocation] = useState('');
 			  const [newProjectFirmId, setNewProjectFirmId] = useState('');
@@ -289,16 +304,37 @@ export default function MastersView({
 
 	  const [inlineCategoryCreateOpen, setInlineCategoryCreateOpen] = useState(false);
 	  const [inlineCategoryCreateName, setInlineCategoryCreateName] = useState('');
-	  const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
-	  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
+		  const [inlineCategoryCreateBusy, setInlineCategoryCreateBusy] = useState(false);
+		  const [inlineCategoryCreateError, setInlineCategoryCreateError] = useState<string | null>(null);
 
-	  const [listQuery, setListQuery] = useState('');
-	  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+		  const [listQuery, setListQuery] = useState('');
+		  const [listField, setListField] = useState<string>('name');
+		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-	  useEffect(() => {
-	    setListQuery('');
-	    setListStatusFilter('all');
-	  }, [tab]);
+		  useEffect(() => {
+		    setListQuery('');
+		    // Default filter field per tab (user asked for "like name")
+		    setListField(
+		      tab === 'firms' ||
+		        tab === 'departments' ||
+		        tab === 'stores' ||
+		        tab === 'projects' ||
+		        tab === 'users' ||
+		        tab === 'suppliers' ||
+		        tab === 'customers' ||
+		        tab === 'transporters' ||
+		        tab === 'units' ||
+		        tab === 'priorities' ||
+		        tab === 'itemCategories' ||
+		        tab === 'itemNames' ||
+		        tab === 'specs' ||
+		        tab === 'specValues' ||
+		        tab === 'items'
+		        ? 'name'
+		        : 'name'
+		    );
+		    setListStatusFilter('all');
+		  }, [tab]);
 
 	  const activeTabLabel = useMemo(() => {
 	    return MASTERS_TABS.find((t) => t.key === tab)?.label ?? 'Masters';
@@ -308,77 +344,226 @@ export default function MastersView({
 	  const specIdByName = useMemo(() => Object.fromEntries(specs.map((s) => [s.name, s.id])), [specs]);
 	  const selectedSpec = useMemo(() => specs.find((s) => s.id === specIdForValues) ?? null, [specIdForValues, specs]);
 
-	  const listQueryKey = useMemo(() => normalizeKey(listQuery), [listQuery]);
-	  const firmNameLookup = useMemo(() => Object.fromEntries(firms.map((f) => [f.id, f.name])), [firms]);
+		  const listQueryKey = useMemo(() => normalizeKey(listQuery), [listQuery]);
+		  const firmNameLookup = useMemo(() => Object.fromEntries(firms.map((f) => [f.id, f.name])), [firms]);
 
-	  const matchesListQuery = (values: Array<unknown>) => {
-	    if (!listQueryKey) return true;
-	    return values.some((v) => normalizeKey(v).includes(listQueryKey));
-	  };
+	  const listFieldOptions = useMemo((): Array<{ value: string; label: string }> => {
+	    if (tab === 'firms')
+	      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'gst', label: 'GST' },
+		        { value: 'cin', label: 'CIN' },
+		        { value: 'phone', label: 'Phone' },
+		        { value: 'address', label: 'Address' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'suppliers')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'gst', label: 'GST' },
+		        { value: 'city', label: 'City' },
+		        { value: 'state', label: 'State' },
+		        { value: 'phone', label: 'Mobile' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'customers')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'phone', label: 'Mobile' },
+		        { value: 'address', label: 'Address' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'transporters')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'phone', label: 'Phone' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'stores')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'firm', label: 'Firm' },
+		        { value: 'location', label: 'Location' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'projects')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'firm', label: 'Firm' },
+		        { value: 'client', label: 'Customer' },
+		        { value: 'status', label: 'Status' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'users')
+		      return [
+		        { value: 'name', label: 'Name' },
+		        { value: 'loginId', label: 'Login ID' },
+		        { value: 'role', label: 'Role' },
+		        { value: 'email', label: 'Email' },
+		        { value: 'mobile', label: 'Mobile' },
+		        { value: 'all', label: 'All' },
+		      ];
+	    if (tab === 'departments' || tab === 'units' || tab === 'priorities' || tab === 'itemCategories' || tab === 'specs')
+	      return [
+	        { value: 'name', label: 'Name' },
+	        { value: 'all', label: 'All' },
+	      ];
+	    if (tab === 'states')
+	      return [
+	        { value: 'name', label: 'Name' },
+	        { value: 'all', label: 'All' },
+	      ];
+	    if (tab === 'cities')
+	      return [
+	        { value: 'name', label: 'City' },
+	        { value: 'state', label: 'State' },
+	        { value: 'all', label: 'All' },
+	      ];
+	    if (tab === 'itemNames')
+	      return [
+	        { value: 'name', label: 'Name' },
+		        { value: 'unit', label: 'Unit' },
+		        { value: 'category', label: 'Category' },
+		        { value: 'spec', label: 'Specification' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'specValues')
+		      return [
+		        { value: 'name', label: 'Value' },
+		        { value: 'spec', label: 'Specification' },
+		        { value: 'itemName', label: 'Item Name' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    if (tab === 'items')
+		      return [
+		        { value: 'name', label: 'Item Name' },
+		        { value: 'desc', label: 'Description' },
+		        { value: 'link', label: 'Item Link' },
+		        { value: 'video', label: 'Video Link' },
+		        { value: 'all', label: 'All' },
+		      ];
+		    return [
+		      { value: 'name', label: 'Name' },
+		      { value: 'all', label: 'All' },
+		    ];
+		  }, [tab]);
 
-	  const filteredFirms = useMemo(() => {
-	    if (!listQueryKey) return firms;
-	    return firms.filter((f) =>
-	      matchesListQuery([f.name, f.sortName, f.cin, f.gstNumber, f.address, f.phone, f.termsConditions])
-	    );
-	  }, [firms, listQueryKey]);
+		  const matchesListQuery = (values: Array<unknown>) => {
+		    if (!listQueryKey) return true;
+		    return values.some((v) => normalizeKey(v).includes(listQueryKey));
+		  };
 
-	  const filteredDepartments = useMemo(() => {
-	    if (!listQueryKey) return departments;
-	    return departments.filter((d) => matchesListQuery([d.name]));
-	  }, [departments, listQueryKey]);
+		  const filteredFirms = useMemo(() => {
+		    if (!listQueryKey) return firms;
+		    return firms.filter((f) => {
+		      if (listField === 'all') return matchesListQuery([f.name, f.sortName, f.cin, f.gstNumber, f.address, f.phone, f.termsConditions]);
+		      if (listField === 'gst') return matchesListQuery([f.gstNumber]);
+		      if (listField === 'cin') return matchesListQuery([f.cin]);
+		      if (listField === 'phone') return matchesListQuery([f.phone]);
+		      if (listField === 'address') return matchesListQuery([f.address]);
+		      return matchesListQuery([f.name]);
+		    });
+		  }, [firms, listQueryKey, listField]);
 
-	  const filteredStores = useMemo(() => {
-	    if (!listQueryKey) return stores;
-	    return stores.filter((s) => matchesListQuery([firmNameLookup[s.firmId], s.name, s.location]));
-	  }, [stores, listQueryKey, firmNameLookup]);
+		  const filteredDepartments = useMemo(() => {
+		    if (!listQueryKey) return departments;
+		    return departments.filter((d) => matchesListQuery([d.name]));
+		  }, [departments, listQueryKey]);
 
-	  const filteredProjects = useMemo(() => {
-	    if (!listQueryKey) return projects;
-	    return projects.filter((p) =>
-	      matchesListQuery([firmNameLookup[p.firmId], p.name, p.clientName, p.status, p.startDate, p.endDate])
-	    );
-	  }, [projects, listQueryKey, firmNameLookup]);
+		  const filteredStates = useMemo(() => {
+		    if (!listQueryKey) return states;
+		    return states.filter((s) => matchesListQuery([s.name]));
+		  }, [states, listQueryKey]);
 
-	  const filteredUsers = useMemo(() => {
-	    let rows = users;
-	    if (listStatusFilter === 'active') rows = rows.filter((u) => (u as any).isActive !== false);
-	    if (listStatusFilter === 'inactive') rows = rows.filter((u) => (u as any).isActive === false);
-	    if (!listQueryKey) return rows;
-	    return rows.filter((u) =>
-	      matchesListQuery([u.name, (u as any).loginId, (u as any).role, u.designation, u.email, u.mobile])
-	    );
-	  }, [users, listQueryKey, listStatusFilter]);
+		  const filteredCities = useMemo(() => {
+		    if (!listQueryKey) return cities;
+		    return cities.filter((c) => {
+		      if (listField === 'all') return matchesListQuery([c.state, c.name]);
+		      if (listField === 'state') return matchesListQuery([c.state]);
+		      return matchesListQuery([c.name]);
+		    });
+		  }, [cities, listQueryKey, listField]);
 
-	  const filteredSuppliers = useMemo(() => {
-	    if (!listQueryKey) return suppliers;
-	    return suppliers.filter((s) =>
-	      matchesListQuery([
-	        s.name,
-	        s.gstNumber,
-	        s.gstType,
-	        s.address,
-	        s.phone,
-	        s.contactPerson,
-	        s.contactPersonMobile,
-	        s.city,
-	        s.state,
-	        (s as any).mobile2,
-	        (s as any).paymentTerms,
-	        (s as any).catalogueLink,
-	      ])
-	    );
-	  }, [suppliers, listQueryKey]);
+		  const filteredStores = useMemo(() => {
+		    if (!listQueryKey) return stores;
+		    return stores.filter((s) => {
+		      if (listField === 'all') return matchesListQuery([firmNameLookup[s.firmId], s.name, s.location]);
+		      if (listField === 'firm') return matchesListQuery([firmNameLookup[s.firmId]]);
+		      if (listField === 'location') return matchesListQuery([s.location]);
+		      return matchesListQuery([s.name]);
+		    });
+		  }, [stores, listQueryKey, firmNameLookup, listField]);
 
-	  const filteredCustomers = useMemo(() => {
-	    if (!listQueryKey) return customers;
-	    return customers.filter((c) => matchesListQuery([c.name, c.phone, c.address]));
-	  }, [customers, listQueryKey]);
+		  const filteredProjects = useMemo(() => {
+		    if (!listQueryKey) return projects;
+		    return projects.filter((p) => {
+		      if (listField === 'all') return matchesListQuery([firmNameLookup[p.firmId], p.name, p.clientName, p.status, p.startDate, p.endDate]);
+		      if (listField === 'firm') return matchesListQuery([firmNameLookup[p.firmId]]);
+		      if (listField === 'client') return matchesListQuery([p.clientName]);
+		      if (listField === 'status') return matchesListQuery([p.status]);
+		      return matchesListQuery([p.name]);
+		    });
+		  }, [projects, listQueryKey, firmNameLookup, listField]);
 
-	  const filteredTransporters = useMemo(() => {
-	    if (!listQueryKey) return transporters;
-	    return transporters.filter((t) => matchesListQuery([t.name, t.phone]));
-	  }, [transporters, listQueryKey]);
+		  const filteredUsers = useMemo(() => {
+		    let rows = users;
+		    if (listStatusFilter === 'active') rows = rows.filter((u) => (u as any).isActive !== false);
+		    if (listStatusFilter === 'inactive') rows = rows.filter((u) => (u as any).isActive === false);
+		    if (!listQueryKey) return rows;
+		    return rows.filter((u) => {
+		      if (listField === 'all') return matchesListQuery([u.name, (u as any).loginId, (u as any).role, u.designation, u.email, u.mobile]);
+		      if (listField === 'loginId') return matchesListQuery([(u as any).loginId]);
+		      if (listField === 'role') return matchesListQuery([(u as any).role, u.designation]);
+		      if (listField === 'email') return matchesListQuery([u.email]);
+		      if (listField === 'mobile') return matchesListQuery([u.mobile]);
+		      return matchesListQuery([u.name]);
+		    });
+		  }, [users, listQueryKey, listStatusFilter, listField]);
+
+		  const filteredSuppliers = useMemo(() => {
+		    if (!listQueryKey) return suppliers;
+		    return suppliers.filter((s) => {
+		      if (listField === 'all')
+		        return matchesListQuery([
+		          s.name,
+		          s.gstNumber,
+		          s.gstType,
+		          s.address,
+		          s.phone,
+		          s.contactPerson,
+		          s.contactPersonMobile,
+		          s.city,
+		          s.state,
+		          (s as any).mobile2,
+		          (s as any).paymentTerms,
+		          (s as any).catalogueLink,
+		        ]);
+		      if (listField === 'gst') return matchesListQuery([s.gstNumber]);
+		      if (listField === 'city') return matchesListQuery([s.city]);
+		      if (listField === 'state') return matchesListQuery([s.state]);
+		      if (listField === 'phone') return matchesListQuery([s.phone, (s as any).mobile2]);
+		      return matchesListQuery([s.name]);
+		    });
+		  }, [suppliers, listQueryKey, listField]);
+
+		  const filteredCustomers = useMemo(() => {
+		    if (!listQueryKey) return customers;
+		    return customers.filter((c) => {
+		      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address]);
+		      if (listField === 'phone') return matchesListQuery([c.phone]);
+		      if (listField === 'address') return matchesListQuery([c.address]);
+		      return matchesListQuery([c.name]);
+		    });
+		  }, [customers, listQueryKey, listField]);
+
+		  const filteredTransporters = useMemo(() => {
+		    if (!listQueryKey) return transporters;
+		    return transporters.filter((t) => {
+		      if (listField === 'all') return matchesListQuery([t.name, t.phone]);
+		      if (listField === 'phone') return matchesListQuery([t.phone]);
+		      return matchesListQuery([t.name]);
+		    });
+		  }, [transporters, listQueryKey, listField]);
 
 	  const filteredUnits = useMemo(() => {
 	    if (!listQueryKey) return units;
@@ -395,52 +580,71 @@ export default function MastersView({
 	    return itemCategories.filter((c) => matchesListQuery([c.name]));
 	  }, [itemCategories, listQueryKey]);
 
-	  const filteredItemNames = useMemo(() => {
-	    if (!listQueryKey) return itemNames;
-	    return itemNames.filter((n) =>
-	      matchesListQuery([
-	        n.name,
-	        n.unitName,
-	        n.itemCategoryName,
-	        (n as any).catalogueLink,
-	        ...(Array.isArray(n.specificationIds) ? n.specificationIds.map((id) => specNameLookup[id]) : []),
-	      ])
-	    );
-	  }, [itemNames, listQueryKey, specNameLookup]);
+		  const filteredItemNames = useMemo(() => {
+		    if (!listQueryKey) return itemNames;
+		    return itemNames.filter((n) => {
+		      if (listField === 'all')
+		        return matchesListQuery([
+		          n.name,
+		          n.unitName,
+		          n.itemCategoryName,
+		          (n as any).catalogueLink,
+		          ...(Array.isArray(n.specificationIds) ? n.specificationIds.map((id) => specNameLookup[id]) : []),
+		        ]);
+		      if (listField === 'unit') return matchesListQuery([n.unitName]);
+		      if (listField === 'category') return matchesListQuery([n.itemCategoryName]);
+		      if (listField === 'spec')
+		        return matchesListQuery([...(Array.isArray(n.specificationIds) ? n.specificationIds.map((id) => specNameLookup[id]) : [])]);
+		      return matchesListQuery([n.name]);
+		    });
+		  }, [itemNames, listQueryKey, specNameLookup, listField]);
 
 	  const filteredSpecs = useMemo(() => {
 	    if (!listQueryKey) return specs;
 	    return specs.filter((s) => matchesListQuery([s.name]));
 	  }, [specs, listQueryKey]);
 
-	  const filteredSpecValues = useMemo(() => {
-	    let rows = specValues;
-	    if (listStatusFilter === 'active') rows = rows.filter((v) => v.isActive);
-	    if (listStatusFilter === 'inactive') rows = rows.filter((v) => !v.isActive);
-	    if (!listQueryKey) return rows;
-	    return rows.filter((v) => matchesListQuery([specNameLookup[v.specificationId], v.itemName, v.value]));
-	  }, [specValues, listQueryKey, listStatusFilter, specNameLookup]);
+		  const filteredSpecValues = useMemo(() => {
+		    let rows = specValues;
+		    if (listStatusFilter === 'active') rows = rows.filter((v) => v.isActive);
+		    if (listStatusFilter === 'inactive') rows = rows.filter((v) => !v.isActive);
+		    if (!listQueryKey) return rows;
+		    return rows.filter((v) => {
+		      if (listField === 'all') return matchesListQuery([specNameLookup[v.specificationId], v.itemName, v.value]);
+		      if (listField === 'spec') return matchesListQuery([specNameLookup[v.specificationId], v.specificationId]);
+		      if (listField === 'itemName') return matchesListQuery([v.itemName]);
+		      return matchesListQuery([v.value]);
+		    });
+		  }, [specValues, listQueryKey, listStatusFilter, specNameLookup, listField]);
 
-	  const filteredItems = useMemo(() => {
-	    if (!listQueryKey) return items;
-	    return items.filter((it) =>
-	      matchesListQuery([
-	        it.itemName,
-	        it.itemCode,
-	        it.uniqueKey,
-	        it.description,
-	        it.unit,
-	        (it as any).itemLink,
-	        (it as any).videoLink,
-	        formatItemInline(it.itemName, it.specificationsJson, specNameLookup),
-	      ])
-	    );
-	  }, [items, listQueryKey, specNameLookup]);
+		  const filteredItems = useMemo(() => {
+		    if (!listQueryKey) return items;
+		    return items.filter((it) => {
+		      const full = formatItemInline(it.itemName, it.specificationsJson, specNameLookup);
+		      if (listField === 'all')
+		        return matchesListQuery([
+		          it.itemName,
+		          it.itemCode,
+		          it.uniqueKey,
+		          it.description,
+		          it.unit,
+		          (it as any).itemLink,
+		          (it as any).videoLink,
+		          full,
+		        ]);
+		      if (listField === 'desc') return matchesListQuery([it.description]);
+		      if (listField === 'link') return matchesListQuery([(it as any).itemLink]);
+		      if (listField === 'video') return matchesListQuery([(it as any).videoLink]);
+		      return matchesListQuery([it.itemName, full]);
+		    });
+		  }, [items, listQueryKey, specNameLookup, listField]);
 
 	  const searchPlaceholder = useMemo(() => {
 	    if (tab === 'firms') return 'Search firms...';
 	    if (tab === 'stores') return 'Search stores...';
 	    if (tab === 'departments') return 'Search departments...';
+	    if (tab === 'states') return 'Search states...';
+	    if (tab === 'cities') return 'Search cities...';
 	    if (tab === 'users') return 'Search users...';
 	    if (tab === 'suppliers') return 'Search suppliers...';
 	    if (tab === 'customers') return 'Search customers...';
@@ -627,13 +831,18 @@ export default function MastersView({
 					      setNewFirmPhone('');
 					      setNewFirmLogoUrl('');
 					      setNewFirmTermsConditions('');
-						    }
-						    if (tab === 'departments') setNewDepartmentName('');
-						    if (tab === 'stores') {
-						      setNewStoreFirmId('');
-						      setNewStoreName('');
-						      setNewStoreLocation('');
-						    }
+							    }
+							    if (tab === 'departments') setNewDepartmentName('');
+							    if (tab === 'states') setNewStateName('');
+							    if (tab === 'cities') {
+							      setNewCityState('');
+							      setNewCityName('');
+							    }
+							    if (tab === 'stores') {
+							      setNewStoreFirmId('');
+							      setNewStoreName('');
+							      setNewStoreLocation('');
+							    }
 					    if (tab === 'projects') {
 					      setNewProjectFirmId('');
 					      setNewProjectName('');
@@ -715,13 +924,22 @@ export default function MastersView({
 					      setNewFirmLogoUrl(row?.logoUrl ?? '');
 					      setNewFirmTermsConditions(row?.termsConditions ?? '');
 					    }
-			    if (tab === 'departments') {
-			      const row = departments.find((d) => d.id === id);
-			      setNewDepartmentName(row?.name ?? '');
-			    }
-					    if (tab === 'stores') {
-					      const row = stores.find((s) => s.id === id);
-					      if (row) {
+				    if (tab === 'departments') {
+				      const row = departments.find((d) => d.id === id);
+				      setNewDepartmentName(row?.name ?? '');
+				    }
+				    if (tab === 'states') {
+				      const row = states.find((s) => s.id === id);
+				      setNewStateName(row?.name ?? '');
+				    }
+				    if (tab === 'cities') {
+				      const row = cities.find((c) => c.id === id);
+				      setNewCityState((row as any)?.state ?? '');
+				      setNewCityName((row as any)?.name ?? '');
+				    }
+						    if (tab === 'stores') {
+						      const row = stores.find((s) => s.id === id);
+						      if (row) {
 				        setNewStoreFirmId(row.firmId);
 				        setNewStoreName(row.name);
 				        setNewStoreLocation(String(row.location ?? ''));
@@ -853,13 +1071,17 @@ export default function MastersView({
 
 			  const addTitle = useMemo(() => {
 			    const verb = editCtx?.tab === tab ? 'Edit' : 'Add';
-				    switch (tab) {
-				      case 'firms':
-				        return `${verb} Firm`;
-				      case 'departments':
-				        return `${verb} Department`;
-				      case 'stores':
-				        return `${verb} Store`;
+					    switch (tab) {
+					      case 'firms':
+					        return `${verb} Firm`;
+					      case 'departments':
+					        return `${verb} Department`;
+					      case 'states':
+					        return `${verb} State`;
+					      case 'cities':
+					        return `${verb} City`;
+					      case 'stores':
+					        return `${verb} Store`;
 				      case 'projects':
 				        return `${verb} Project`;
 					      case 'units':
@@ -891,16 +1113,18 @@ export default function MastersView({
 
 	  const isEditing = editCtx?.tab === tab && Boolean(editCtx?.id);
 
-						  function loadAll(signal?: AbortSignal) {
-						    setError(null);
-								    return Promise.all([
-								      fetchDepartments(signal),
-								      fetchFirms(signal),
-								      fetchProjects(signal),
-								      fetchStores(signal),
-								      fetchUsers({ signal, includeInactive: tab === 'users' }),
-							      fetchSuppliers(signal),
-							      fetchCustomers(signal),
+							  function loadAll(signal?: AbortSignal) {
+							    setError(null);
+									    return Promise.all([
+									      fetchDepartments(signal),
+									      fetchFirms(signal),
+									      fetchStates(signal),
+									      fetchCities(signal),
+									      fetchProjects(signal),
+									      fetchStores(signal),
+									      fetchUsers({ signal, includeInactive: tab === 'users' }),
+								      fetchSuppliers(signal),
+								      fetchCustomers(signal),
 							      fetchTransporters(signal),
 								      fetchUnits(signal),
                       fetchPriorities(signal),
@@ -908,13 +1132,15 @@ export default function MastersView({
 						      fetchItemNames(signal),
 						      fetchSpecifications(signal),
 						      fetchItems(signal),
-							    ]).then(([deps, f, prj, st, u, sup, cus, trn, unt, pri, cats, inames, sp, it]) => {
-						      setDepartments(deps);
-						      setFirms(f);
-						      setProjects(prj);
-						      setStores(st);
-							      setUsers(u);
-							      setSuppliers(sup);
+								    ]).then(([deps, f, stt, cty, prj, st, u, sup, cus, trn, unt, pri, cats, inames, sp, it]) => {
+							      setDepartments(deps);
+							      setFirms(f);
+							      setStates(stt);
+							      setCities(cty);
+							      setProjects(prj);
+							      setStores(st);
+								      setUsers(u);
+								      setSuppliers(sup);
 							      setCustomers(cus);
 							      setTransporters(trn);
 								      setUnits(unt);
@@ -985,14 +1211,16 @@ export default function MastersView({
           return t;
         };
 
-        async function refreshCurrentTab(t: MastersTab) {
-          if (t === 'firms') return fetchFirms().then(setFirms);
-          if (t === 'stores') return fetchStores().then(setStores);
-          if (t === 'departments') return fetchDepartments().then(setDepartments);
-	          if (t === 'users') return fetchUsers({ includeInactive: true }).then(setUsers);
-          if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
-          if (t === 'customers') return fetchCustomers().then(setCustomers);
-          if (t === 'transporters') return fetchTransporters().then(setTransporters);
+	        async function refreshCurrentTab(t: MastersTab) {
+	          if (t === 'firms') return fetchFirms().then(setFirms);
+	          if (t === 'stores') return fetchStores().then(setStores);
+	          if (t === 'departments') return fetchDepartments().then(setDepartments);
+	          if (t === 'states') return fetchStates().then(setStates);
+	          if (t === 'cities') return fetchCities().then(setCities);
+		          if (t === 'users') return fetchUsers({ includeInactive: true }).then(setUsers);
+	          if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
+	          if (t === 'customers') return fetchCustomers().then(setCustomers);
+	          if (t === 'transporters') return fetchTransporters().then(setTransporters);
 	          if (t === 'projects') return fetchProjects().then(setProjects);
 	          if (t === 'units') return fetchUnits().then(setUnits);
             if (t === 'priorities') return fetchPriorities().then(setPriorities);
@@ -2013,8 +2241,8 @@ export default function MastersView({
 		                </div>
 		              ) : null}
 
-			              {tab === 'departments' ? (
-		                <div className="space-y-2">
+				              {tab === 'departments' ? (
+			                <div className="space-y-2">
 		                  <label className="space-y-1">
 		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department name</div>
 		                    <input
@@ -2058,12 +2286,131 @@ export default function MastersView({
 		                      {isEditing ? 'Save' : 'Add'}
 		                    </button>
 		                  </div>
-		                </div>
-			      ) : null}
+			                </div>
+				      ) : null}
+
+				              {tab === 'states' ? (
+			                <div className="space-y-2">
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+			                    <input
+			                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                      value={newStateName}
+			                      onChange={(e) => setNewStateName(e.target.value)}
+			                      placeholder="Assam"
+			                    />
+			                  </label>
+			                  <div className="flex justify-end gap-2">
+			                    <button
+			                      type="button"
+			                      className="btn btn-sm"
+			                      onClick={() => {
+			                        setNewStateName('');
+			                        closeModal();
+			                      }}
+			                    >
+			                      Cancel
+			                    </button>
+			                    <button
+			                      type="button"
+			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+			                      disabled={!newStateName.trim() || busy}
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        const fn = isEditing
+			                          ? updateState(editCtx?.id ?? '', { name: newStateName.trim(), updatedBy: 'system' })
+			                          : createState({ name: newStateName.trim(), createdBy: 'system' });
+			                        fn
+			                          .then(() => refreshCurrentTab('states'))
+			                          .then(() => {
+			                            setNewStateName('');
+			                            closeModal();
+			                          })
+			                          .catch(handleMasterError)
+			                          .finally(() => setBusy(false));
+			                      }}
+			                    >
+			                      {isEditing ? 'Save' : 'Add'}
+			                    </button>
+			                  </div>
+			                </div>
+				      ) : null}
+
+				              {tab === 'cities' ? (
+			                <div className="space-y-2">
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+			                    <SearchableSelect
+			                      value={newCityState}
+			                      options={states.map((s) => ({ value: s.name, label: s.name }))}
+			                      onChange={(v) => {
+			                        setNewCityState(v);
+			                      }}
+			                      placeholder="Select state..."
+			                      onCreate={async (label) => {
+			                        const name = label.trim();
+			                        if (!name) return null;
+			                        const created = await createState({ name, createdBy: 'system' });
+			                        const next = created.state;
+			                        if (!next?.id) return null;
+			                        await refreshCurrentTab('states');
+			                        setNewCityState(next.name);
+			                        return { value: next.name, label: next.name };
+			                      }}
+			                    />
+			                  </label>
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
+			                    <input
+			                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                      value={newCityName}
+			                      onChange={(e) => setNewCityName(e.target.value)}
+			                      placeholder="Guwahati"
+			                    />
+			                  </label>
+			                  <div className="flex justify-end gap-2">
+			                    <button
+			                      type="button"
+			                      className="btn btn-sm"
+			                      onClick={() => {
+			                        setNewCityState('');
+			                        setNewCityName('');
+			                        closeModal();
+			                      }}
+			                    >
+			                      Cancel
+			                    </button>
+			                    <button
+			                      type="button"
+			                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+			                      disabled={!newCityState.trim() || !newCityName.trim() || busy}
+			                      onClick={() => {
+			                        setBusy(true);
+			                        setError(null);
+			                        const fn = isEditing
+			                          ? updateCity(editCtx?.id ?? '', { state: newCityState.trim(), name: newCityName.trim(), updatedBy: 'system' })
+			                          : createCity({ state: newCityState.trim(), name: newCityName.trim(), createdBy: 'system' });
+			                        fn
+			                          .then(() => refreshCurrentTab('cities'))
+			                          .then(() => {
+			                            setNewCityState('');
+			                            setNewCityName('');
+			                            closeModal();
+			                          })
+			                          .catch(handleMasterError)
+			                          .finally(() => setBusy(false));
+			                      }}
+			                    >
+			                      {isEditing ? 'Save' : 'Add'}
+			                    </button>
+			                  </div>
+			                </div>
+				      ) : null}
 
 
-				      {tab === 'users' ? (
-	                <div className="space-y-3">
+					      {tab === 'users' ? (
+		                <div className="space-y-3">
 	                  <div className="grid grid-cols-1 gap-3">
 	                    <label className="space-y-1">
 	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Name</div>
@@ -2441,24 +2788,56 @@ export default function MastersView({
                               pattern="[0-9]{10}"
                             />
                           </label>
-                          <label className="space-y-1">
-                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
-                            <input
-                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                              value={newSupplierCity}
-                              onChange={(e) => setNewSupplierCity(e.target.value)}
-                              placeholder="City"
-                            />
-                          </label>
-                          <label className="space-y-1">
-                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
-                            <input
-                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                              value={newSupplierState}
-                              onChange={(e) => setNewSupplierState(e.target.value)}
-                              placeholder="State"
-                            />
-                          </label>
+	                          <label className="space-y-1">
+	                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
+	                            <SearchableSelect
+	                              value={newSupplierCity}
+	                              options={cities
+	                                .filter((c) => String(c.state ?? '').trim() && String(c.state ?? '').trim() === String(newSupplierState ?? '').trim())
+	                                .map((c) => ({ value: c.name, label: c.name }))}
+	                              onChange={setNewSupplierCity}
+	                              placeholder={newSupplierState.trim() ? 'Select city...' : 'Select state first'}
+	                              disabled={!newSupplierState.trim()}
+	                              onCreate={async (label) => {
+	                                const state = newSupplierState.trim();
+	                                const name = label.trim();
+	                                if (!state) {
+	                                  setError('Please select State first.');
+	                                  return null;
+	                                }
+	                                if (!name) return null;
+	                                const created = await createCity({ state, name, createdBy: 'system' });
+	                                const next = created.city;
+	                                if (!next?.id) return null;
+	                                await refreshCurrentTab('cities');
+	                                setNewSupplierCity(next.name);
+	                                return { value: next.name, label: next.name };
+	                              }}
+	                            />
+	                          </label>
+	                          <label className="space-y-1">
+	                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+	                            <SearchableSelect
+	                              value={newSupplierState}
+	                              options={states.map((s) => ({ value: s.name, label: s.name }))}
+	                              onChange={(v) => {
+	                                setNewSupplierState(v);
+	                                setNewSupplierCity('');
+	                              }}
+	                              placeholder="Select state..."
+	                              onCreate={async (label) => {
+	                                const name = label.trim();
+	                                if (!name) return null;
+	                                const created = await createState({ name, createdBy: 'system' });
+	                                const next = created.state;
+	                                if (!next?.id) return null;
+	                                await refreshCurrentTab('states');
+	                                setNewSupplierState(next.name);
+	                                setNewSupplierCity('');
+	                                return { value: next.name, label: next.name };
+	                              }}
+	                            />
+	                          </label>
 
 			                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
@@ -3737,13 +4116,25 @@ export default function MastersView({
 
 				      {tab === 'firms' ? (
 				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-				          <div className="flex flex-wrap items-center justify-between gap-2">
-				            <div className="flex flex-wrap items-center gap-2">
-				              <div className="text-sm text-on-surface-variant">Showing: {filteredFirms.length} / {firms.length}</div>
-				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listQuery}
-				                onChange={(e) => setListQuery(e.target.value)}
+					          <div className="flex flex-wrap items-center justify-between gap-2">
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">Showing: {filteredFirms.length} / {firms.length}</div>
+					              <select
+					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listField}
+					                onChange={(e) => setListField(e.target.value)}
+					                aria-label="Filter field"
+					              >
+					                {listFieldOptions.map((o) => (
+					                  <option key={o.value} value={o.value}>
+					                    {o.label}
+					                  </option>
+					                ))}
+					              </select>
+					              <input
+					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listQuery}
+					                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
 				              />
 				              {listQuery ? (
@@ -3845,6 +4236,18 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">
 				                Showing: {filteredDepartments.length} / {departments.length}
 				              </div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -3910,14 +4313,182 @@ export default function MastersView({
 			              </tbody>
 			            </table>
 			          </div>
-			        </div>
-			      ) : null}
+				        </div>
+				      ) : null}
+
+				      {tab === 'states' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredStates.length} / {states.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+				              Add
+				            </button>
+				          </div>
+				          <div className="overflow-auto">
+				            <table className="min-w-[520px] w-full text-sm border-collapse border border-blue-600">
+				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+				                </tr>
+				              </thead>
+				              <tbody>
+				                {filteredStates.map((s) => (
+				                  <tr key={s.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
+				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+				                      <div className="flex items-center gap-2">
+				                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(s.id)}>
+				                          Edit
+				                        </button>
+				                        <button
+				                          type="button"
+				                          title="Delete"
+				                          aria-label="Delete"
+				                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+				                          onClick={() => {
+				                            if (!window.confirm(`Delete state "${s.name}"?`)) return;
+				                            setBusy(true);
+				                            setError(null);
+				                            deleteState(s.id, { deletedBy: 'system' })
+				                              .then(() => loadAll())
+				                              .catch(handleMasterError)
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+				                      </div>
+				                    </td>
+				                  </tr>
+				                ))}
+				              </tbody>
+				            </table>
+				          </div>
+				        </div>
+				      ) : null}
+
+				      {tab === 'cities' ? (
+				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
+				          <div className="flex flex-wrap items-center justify-between gap-2">
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredCities.length} / {cities.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
+				              <input
+				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listQuery}
+				                onChange={(e) => setListQuery(e.target.value)}
+				                placeholder={searchPlaceholder}
+				              />
+				              {listQuery ? (
+				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
+				                  Clear
+				                </button>
+				              ) : null}
+				            </div>
+				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
+				              Add
+				            </button>
+				          </div>
+				          <div className="overflow-auto">
+				            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+				              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+				                <tr>
+				                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+				                </tr>
+				              </thead>
+				              <tbody>
+				                {filteredCities.map((c) => (
+				                  <tr key={c.id}>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.state}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
+				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+				                      <div className="flex items-center gap-2">
+				                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
+				                          Edit
+				                        </button>
+				                        <button
+				                          type="button"
+				                          title="Delete"
+				                          aria-label="Delete"
+				                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+				                          onClick={() => {
+				                            if (!window.confirm(`Delete city "${c.name}"?`)) return;
+				                            setBusy(true);
+				                            setError(null);
+				                            deleteCity(c.id, { deletedBy: 'system' })
+				                              .then(() => loadAll())
+				                              .catch(handleMasterError)
+				                              .finally(() => setBusy(false));
+				                          }}
+				                        >
+				                          <Trash2 size={16} />
+				                        </button>
+				                      </div>
+				                    </td>
+				                  </tr>
+				                ))}
+				              </tbody>
+				            </table>
+				          </div>
+				        </div>
+				      ) : null}
 
 				      {tab === 'stores' ? (
 				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredStores.length} / {stores.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -3997,6 +4568,18 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredProjects.length} / {projects.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4082,6 +4665,18 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredUsers.length} / {users.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4183,6 +4778,18 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">
 				                Showing: {filteredSuppliers.length} / {suppliers.length}
 				              </div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4301,6 +4908,18 @@ export default function MastersView({
 				              <div className="text-sm text-on-surface-variant">
 				                Showing: {filteredCustomers.length} / {customers.length}
 				              </div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4372,6 +4991,18 @@ export default function MastersView({
 			              <div className="text-sm text-on-surface-variant">
 			                Showing: {filteredTransporters.length} / {transporters.length}
 			              </div>
+			              <select
+			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listField}
+			                onChange={(e) => setListField(e.target.value)}
+			                aria-label="Filter field"
+			              >
+			                {listFieldOptions.map((o) => (
+			                  <option key={o.value} value={o.value}>
+			                    {o.label}
+			                  </option>
+			                ))}
+			              </select>
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -4443,6 +5074,18 @@ export default function MastersView({
 					          <div className="flex flex-wrap items-center justify-between gap-2">
 					            <div className="flex flex-wrap items-center gap-2">
 					              <div className="text-sm text-on-surface-variant">Showing: {filteredUnits.length} / {units.length}</div>
+					              <select
+					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listField}
+					                onChange={(e) => setListField(e.target.value)}
+					                aria-label="Filter field"
+					              >
+					                {listFieldOptions.map((o) => (
+					                  <option key={o.value} value={o.value}>
+					                    {o.label}
+					                  </option>
+					                ))}
+					              </select>
 					              <input
 					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
@@ -4510,6 +5153,18 @@ export default function MastersView({
 	                      <div className="text-sm text-on-surface-variant">
 	                        Showing: {filteredPriorities.length} / {priorities.length}
 	                      </div>
+	                      <select
+	                        className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                        value={listField}
+	                        onChange={(e) => setListField(e.target.value)}
+	                        aria-label="Filter field"
+	                      >
+	                        {listFieldOptions.map((o) => (
+	                          <option key={o.value} value={o.value}>
+	                            {o.label}
+	                          </option>
+	                        ))}
+	                      </select>
 	                      <input
 	                        className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                        value={listQuery}
@@ -4577,6 +5232,18 @@ export default function MastersView({
 					              <div className="text-sm text-on-surface-variant">
 					                Showing: {filteredItemCategories.length} / {itemCategories.length}
 					              </div>
+					              <select
+					                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+					                value={listField}
+					                onChange={(e) => setListField(e.target.value)}
+					                aria-label="Filter field"
+					              >
+					                {listFieldOptions.map((o) => (
+					                  <option key={o.value} value={o.value}>
+					                    {o.label}
+					                  </option>
+					                ))}
+					              </select>
 					              <input
 					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 					                value={listQuery}
@@ -4642,6 +5309,18 @@ export default function MastersView({
 				          <div className="flex flex-wrap items-center justify-between gap-2">
 				            <div className="flex flex-wrap items-center gap-2">
 				              <div className="text-sm text-on-surface-variant">Showing: {filteredItemNames.length} / {itemNames.length}</div>
+				              <select
+				                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+				                value={listField}
+				                onChange={(e) => setListField(e.target.value)}
+				                aria-label="Filter field"
+				              >
+				                {listFieldOptions.map((o) => (
+				                  <option key={o.value} value={o.value}>
+				                    {o.label}
+				                  </option>
+				                ))}
+				              </select>
 				              <input
 				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 				                value={listQuery}
@@ -4749,6 +5428,18 @@ export default function MastersView({
 			          <div className="flex flex-wrap items-center justify-between gap-2">
 			            <div className="flex flex-wrap items-center gap-2">
 			              <div className="text-sm text-on-surface-variant">Showing: {filteredSpecs.length} / {specs.length}</div>
+			              <select
+			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listField}
+			                onChange={(e) => setListField(e.target.value)}
+			                aria-label="Filter field"
+			              >
+			                {listFieldOptions.map((o) => (
+			                  <option key={o.value} value={o.value}>
+			                    {o.label}
+			                  </option>
+			                ))}
+			              </select>
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -4853,6 +5544,18 @@ export default function MastersView({
 			              <div className="text-sm text-on-surface-variant">
 			                Showing: {filteredSpecValues.length} / {specValues.length}
 			              </div>
+			              <select
+			                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+			                value={listField}
+			                onChange={(e) => setListField(e.target.value)}
+			                aria-label="Filter field"
+			              >
+			                {listFieldOptions.map((o) => (
+			                  <option key={o.value} value={o.value}>
+			                    {o.label}
+			                  </option>
+			                ))}
+			              </select>
 			              <input
 			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                value={listQuery}
@@ -4942,6 +5645,18 @@ export default function MastersView({
 	          <div className="flex flex-wrap items-center justify-between gap-2">
 	            <div className="flex flex-wrap items-center gap-2">
 	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
+	              <select
+	                className="w-full sm:w-40 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                value={listField}
+	                onChange={(e) => setListField(e.target.value)}
+	                aria-label="Filter field"
+	              >
+	                {listFieldOptions.map((o) => (
+	                  <option key={o.value} value={o.value}>
+	                    {o.label}
+	                  </option>
+	                ))}
+	              </select>
 	              <input
 	                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                value={listQuery}

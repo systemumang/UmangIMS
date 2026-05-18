@@ -32,15 +32,17 @@ import DirectPoView from './components/views/DirectPoView';
 import { type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
-import {
-  fetchCustomers,
-  fetchDepartments,
-  fetchFirms,
-  fetchItemCategories,
-  fetchItemNames,
-  fetchItems,
-  fetchPriorities,
-  fetchProjects,
+	import {
+	  fetchCustomers,
+	  fetchDepartments,
+	  fetchFirms,
+	  fetchCities,
+	  fetchStates,
+	  fetchItemCategories,
+	  fetchItemNames,
+	  fetchItems,
+	  fetchPriorities,
+	  fetchProjects,
   fetchSpecificationValues,
   fetchSpecifications,
   fetchStores,
@@ -222,20 +224,22 @@ export default function App() {
     return () => ac.abort();
 	  }, [currentUser, view]);
 
-	  useEffect(() => {
-	    if (!currentUser) return;
-	    const ac = new AbortController();
-	    Promise.all([
-	      fetchFirms(ac.signal).then((r) => ['firms', r.length] as const),
-      fetchStores(ac.signal).then((r) => ['stores', r.length] as const),
-      fetchDepartments(ac.signal).then((r) => ['departments', r.length] as const),
-      fetchUsers(ac.signal).then((r) => ['users', r.length] as const),
-      fetchSuppliers(ac.signal).then((r) => ['suppliers', r.length] as const),
-      fetchCustomers(ac.signal).then((r) => ['customers', r.length] as const),
-	      fetchTransporters(ac.signal).then((r) => ['transporters', r.length] as const),
-	      fetchProjects(ac.signal).then((r) => ['projects', r.length] as const),
-	      fetchUnits(ac.signal).then((r) => ['units', r.length] as const),
-	      fetchPriorities(ac.signal).then((r) => ['priorities', r.length] as const),
+		  useEffect(() => {
+		    if (!currentUser) return;
+		    const ac = new AbortController();
+		    Promise.all([
+		      fetchFirms(ac.signal).then((r) => ['firms', r.length] as const),
+	      fetchStores(ac.signal).then((r) => ['stores', r.length] as const),
+	      fetchDepartments(ac.signal).then((r) => ['departments', r.length] as const),
+	      fetchUsers(ac.signal).then((r) => ['users', r.length] as const),
+	      fetchSuppliers(ac.signal).then((r) => ['suppliers', r.length] as const),
+	      fetchStates(ac.signal).then((r) => ['states', r.length] as const),
+	      fetchCities(ac.signal).then((r) => ['cities', r.length] as const),
+	      fetchCustomers(ac.signal).then((r) => ['customers', r.length] as const),
+		      fetchTransporters(ac.signal).then((r) => ['transporters', r.length] as const),
+		      fetchProjects(ac.signal).then((r) => ['projects', r.length] as const),
+		      fetchUnits(ac.signal).then((r) => ['units', r.length] as const),
+		      fetchPriorities(ac.signal).then((r) => ['priorities', r.length] as const),
 	      fetchItemCategories(ac.signal).then((r) => ['itemCategories', r.length] as const),
 	      fetchItemNames(ac.signal).then((r) => ['itemNames', r.length] as const),
 	      fetchSpecifications(ac.signal).then((r) => ['specs', r] as const),

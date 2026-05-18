@@ -29,6 +29,8 @@ export type Supplier = {
 export type Transporter = { id: string; name: string; phone?: string | null };
 export type Customer = { id: string; name: string; phone?: string | null; address?: string | null };
 export type Department = { id: string; name: string };
+export type State = { id: string; name: string };
+export type City = { id: string; state: string; name: string };
 export type Project = {
   id: string;
   firmId: string;
@@ -431,6 +433,78 @@ export async function deleteCustomer(id: string, input?: { deletedBy?: string })
     body: JSON.stringify(input ?? {}),
   });
   return requireOk<{ ok: boolean }>(res, 'Failed to delete customer');
+}
+
+export async function fetchStates(signal?: AbortSignal): Promise<State[]> {
+  const res = await fetch('/api/masters/states', { signal });
+  const data = await requireOk<{ states?: State[] }>(res, 'Failed to load states');
+  const rows = Array.isArray(data.states) ? data.states : [];
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createState(input: { name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/states', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ state?: State }>(res, 'Failed to create state');
+}
+
+export async function updateState(id: string, input: { name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/states/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ state?: State }>(res, 'Failed to update state');
+}
+
+export async function deleteState(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/states/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete state');
+}
+
+export async function fetchCities(arg?: AbortSignal | { signal?: AbortSignal; state?: string }): Promise<City[]> {
+  const signal = (arg as any)?.aborted !== undefined ? (arg as AbortSignal) : (arg as any)?.signal;
+  const state = (arg as any)?.state ? String((arg as any).state) : '';
+  const qs = new URLSearchParams();
+  if (state) qs.set('state', state);
+  const res = await fetch(`/api/masters/cities${qs.toString() ? `?${qs.toString()}` : ''}`, { signal });
+  const data = await requireOk<{ cities?: City[] }>(res, 'Failed to load cities');
+  const rows = Array.isArray(data.cities) ? data.cities : [];
+  return rows.slice().sort((a, b) => (a.state || '').localeCompare(b.state || '') || a.name.localeCompare(b.name));
+}
+
+export async function createCity(input: { state: string; name: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/cities', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ city?: City }>(res, 'Failed to create city');
+}
+
+export async function updateCity(id: string, input: { state: string; name: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/cities/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ city?: City }>(res, 'Failed to update city');
+}
+
+export async function deleteCity(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/cities/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete city');
 }
 
 export async function fetchSuppliers(signal?: AbortSignal): Promise<Supplier[]> {

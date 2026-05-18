@@ -243,15 +243,16 @@ export default function Sidebar({
 	          ) : null}
 
 	          {isAllowed('settingsCatalogue') ? (
-            <motion.button
-              whileHover={{ x: 4 }}
-              type="button"
-              onClick={() => onNavigate('settingsCatalogue')}
-              className={cn(viewRowClass, activeView === 'settingsCatalogue' ? activeRowClass : '', 'mt-1')}
-            >
-              <span className="ml-[30px] flex-1">Links</span>
-            </motion.button>
-          ) : null}
+	            <motion.button
+	              whileHover={{ x: 4 }}
+	              type="button"
+	              onClick={() => onNavigate('settingsCatalogue')}
+	              className={cn(viewRowClass, activeView === 'settingsCatalogue' ? activeRowClass : '', 'mt-1')}
+	            >
+	              <FileText className="mr-3 text-white" size={18} />
+	              <span className="flex-1">Links</span>
+	            </motion.button>
+	          ) : null}
 
 	          {isAllowed('masters') || hasPrefix('masters:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>

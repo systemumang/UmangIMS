@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Spinner from '@/src/components/common/Spinner';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 type CatalogueRow = {
   id: string;
@@ -15,6 +15,7 @@ export default function SettingsCatalogueView() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [rows, setRows] = useState<CatalogueRow[]>([]);
   const [search, setSearch] = useState('');
 
@@ -28,14 +29,12 @@ export default function SettingsCatalogueView() {
 	      const next = Array.isArray(data?.links) ? (data.links as CatalogueRow[]) : [];
 	      setRows(next);
 	      try {
-	        const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
-	        const isCatalogueName = (name: unknown) => {
-	          const n = norm(name);
-	          return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
-	        };
-	        const found = next.find((r) => isCatalogueName((r as any)?.name));
+	        const found = next.find((r) => String((r as any)?.name ?? '').trim().toLowerCase() === 'catalogue');
 	        const url = String(found?.link ?? '').trim();
-	        if (url) localStorage.setItem('ims.settings.catelougeLink', url);
+	        if (url) {
+            localStorage.setItem('ims.settings.catalogueLink', url);
+            localStorage.setItem('ims.settings.catelougeLink', url);
+          }
 	      } catch {}
 	    } catch (e) {
 	      setError(e instanceof Error ? e.message : String(e));
@@ -52,13 +51,16 @@ export default function SettingsCatalogueView() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/settings/links', {
-        method: 'POST',
+      const isEditing = Boolean(editingId);
+      const endpoint = isEditing ? `/api/settings/links/${encodeURIComponent(String(editingId))}` : '/api/settings/links';
+      const res = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), link: link.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(String(data?.error ?? 'Failed to save catalogue'));
+      setEditingId(null);
       setName('');
       setLink('');
       await load();
@@ -67,6 +69,19 @@ export default function SettingsCatalogueView() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const onEdit = (row: CatalogueRow) => {
+    setError(null);
+    setEditingId(String(row.id ?? ''));
+    setName(String(row.name ?? ''));
+    setLink(String(row.link ?? ''));
+  };
+
+  const onCancelEdit = () => {
+    setEditingId(null);
+    setName('');
+    setLink('');
   };
 
   const onDelete = async (id: string) => {
@@ -111,9 +126,16 @@ export default function SettingsCatalogueView() {
             disabled={saving || !name.trim() || !link.trim()}
             onClick={onSave}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
           </button>
         </div>
+        {editingId ? (
+          <div className="mt-2">
+            <button type="button" className="btn btn-sm" onClick={onCancelEdit} disabled={saving}>
+              Cancel Edit
+            </button>
+          </div>
+        ) : null}
         {error ? <div className="text-xs text-error mt-2">{error}</div> : null}
       </div>
 
@@ -138,26 +160,36 @@ export default function SettingsCatalogueView() {
             </thead>
             <tbody>
               {filteredRows.length ? (
-                filteredRows.map((row) => (
-                  <tr key={row.id}>
+	                filteredRows.map((row) => (
+	                  <tr key={row.id}>
                     <td className="px-3 py-2 border border-blue-600">{row.name}</td>
                     <td className="px-3 py-2 border border-blue-600">
                       <a href={row.link} target="_blank" rel="noreferrer" className="text-primary underline break-all">
                         {row.link}
                       </a>
                     </td>
-                    <td className="px-3 py-2 border border-blue-600">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-white hover:bg-red-700"
-                        title="Delete link"
-                        onClick={() => onDelete(row.id)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+	                    <td className="px-3 py-2 border border-blue-600">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded bg-blue-600 text-white hover:bg-blue-700"
+                            title="Edit link"
+                            onClick={() => onEdit(row)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+	                      <button
+	                        type="button"
+	                        className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-white hover:bg-red-700"
+	                        title="Delete link"
+	                        onClick={() => onDelete(row.id)}
+	                      >
+	                        <Trash2 size={14} />
+	                      </button>
+                        </div>
+	                    </td>
+	                  </tr>
+	                ))
               ) : (
                 <tr>
                   <td className="px-3 py-2 border border-blue-600 text-on-surface-variant" colSpan={3}>No link uploaded.</td>

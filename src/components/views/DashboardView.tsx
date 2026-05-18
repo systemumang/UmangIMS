@@ -29,21 +29,21 @@ export default function DashboardView({
             onClick={async () => {
               if (catLoading) return;
               setCatLoading(true);
-              try {
-                const fromCache = String(localStorage.getItem('ims.settings.catelougeLink') ?? '').trim();
-                let url = fromCache;
-                if (!url) {
-                  const res = await fetch('/api/settings/links');
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue link'));
-                  const links = Array.isArray(data?.links) ? data.links : [];
-                  const found = links.find((r: any) => {
-                    const n = String(r?.name ?? '').trim().toLowerCase();
-                    return n === 'catelouge' || n === 'catelogue' || n === 'catalogue' || n === 'catalog';
-                  });
-                  url = String(found?.link ?? '').trim();
-                  if (url) localStorage.setItem('ims.settings.catelougeLink', url);
-                }
+	              try {
+	                const fromCache = String(localStorage.getItem('ims.settings.catalogueLink') ?? localStorage.getItem('ims.settings.catelougeLink') ?? '').trim();
+	                let url = fromCache;
+	                if (!url) {
+	                  const res = await fetch('/api/settings/links');
+	                  const data = await res.json();
+	                  if (!res.ok) throw new Error(String(data?.error ?? 'Failed to load catalogue link'));
+	                  const links = Array.isArray(data?.links) ? data.links : [];
+	                  const found = links.find((r: any) => String(r?.name ?? '').trim().toLowerCase() === 'catalogue');
+	                  url = String(found?.link ?? '').trim();
+	                  if (url) {
+	                    localStorage.setItem('ims.settings.catalogueLink', url);
+	                    localStorage.setItem('ims.settings.catelougeLink', url);
+	                  }
+	                }
                 if (!url) {
                   window.alert('Catalogue link not set. Go to Settings → Links and add name "Catalogue".');
                   return;
