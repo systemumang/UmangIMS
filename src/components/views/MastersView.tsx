@@ -166,7 +166,7 @@ function MultiSelectFilter({
     onChange(has ? active.filter((x) => x !== value) : [...active, value]);
   };
   return (
-    <div className={cn('relative w-full sm:w-40', controlClassName)}>
+    <div className={['relative w-full sm:w-40', controlClassName].filter(Boolean).join(' ')}>
       <button
         type="button"
         className="w-full h-9 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-1.5 text-xs font-medium text-left text-on-surface-variant"
@@ -372,10 +372,8 @@ export default function MastersView({
         return listFields[0] ?? 'all';
       }, [listFields]);
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-      const [cityFilterQuery, setCityFilterQuery] = useState('');
-      const [cityNameFilterQuery, setCityNameFilterQuery] = useState('');
-      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
-      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
+	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
+	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
       const [customerNameFilter, setCustomerNameFilter] = useState('');
 
 		  useEffect(() => {
@@ -4318,23 +4316,12 @@ export default function MastersView({
 				      {tab === 'departments' ? (
 				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 				          <div className="flex flex-wrap items-center justify-between gap-2">
-				            <div className="flex flex-wrap items-center gap-2">
-				              <div className="text-sm text-on-surface-variant">
-				                Showing: {filteredDepartments.length} / {departments.length}
-				              </div>
-				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listQuery}
-				                onChange={(e) => setListQuery(e.target.value)}
-				                placeholder={searchPlaceholder}
-				              />
-				              {listQuery ? (
-				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-				                  Clear
-				                </button>
-				              ) : null}
-				            </div>
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">
+					                Showing: {filteredDepartments.length} / {departments.length}
+					              </div>
+					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+					            </div>
 				            <button
 				              type="button"
 				              className="btn btn-primary disabled:opacity-50"
@@ -4394,21 +4381,10 @@ export default function MastersView({
 				      {tab === 'states' ? (
 				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 				          <div className="flex flex-wrap items-center justify-between gap-2">
-				            <div className="flex flex-wrap items-center gap-2">
-				              <div className="text-sm text-on-surface-variant">Showing: {filteredStates.length} / {states.length}</div>
-				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-				              <input
-				                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-				                value={listQuery}
-				                onChange={(e) => setListQuery(e.target.value)}
-				                placeholder={searchPlaceholder}
-				              />
-				              {listQuery ? (
-				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-				                  Clear
-				                </button>
-				              ) : null}
-				            </div>
+					            <div className="flex flex-wrap items-center gap-2">
+					              <div className="text-sm text-on-surface-variant">Showing: {filteredStates.length} / {states.length}</div>
+					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+					            </div>
 				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
 				              Add
 				            </button>
@@ -5094,21 +5070,10 @@ export default function MastersView({
 					      {tab === 'units' ? (
 					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 					          <div className="flex flex-wrap items-center justify-between gap-2">
-					            <div className="flex flex-wrap items-center gap-2">
-					              <div className="text-sm text-on-surface-variant">Showing: {filteredUnits.length} / {units.length}</div>
-					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-					              <input
-					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-					                value={listQuery}
-					                onChange={(e) => setListQuery(e.target.value)}
-					                placeholder={searchPlaceholder}
-					              />
-					              {listQuery ? (
-					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-					                  Clear
-					                </button>
-					              ) : null}
-					            </div>
+						            <div className="flex flex-wrap items-center gap-2">
+						              <div className="text-sm text-on-surface-variant">Showing: {filteredUnits.length} / {units.length}</div>
+						              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+						            </div>
 					            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
 					              Add
 					            </button>
@@ -5161,22 +5126,11 @@ export default function MastersView({
 	                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 	                  <div className="flex flex-wrap items-center justify-between gap-2">
 	                    <div className="flex flex-wrap items-center gap-2">
-	                      <div className="text-sm text-on-surface-variant">
-	                        Showing: {filteredPriorities.length} / {priorities.length}
-	                      </div>
-	                      <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-	                      <input
-	                        className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                        value={listQuery}
-	                        onChange={(e) => setListQuery(e.target.value)}
-	                        placeholder={searchPlaceholder}
-	                      />
-	                      {listQuery ? (
-	                        <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-	                          Clear
-	                        </button>
-	                      ) : null}
-	                    </div>
+		                      <div className="text-sm text-on-surface-variant">
+		                        Showing: {filteredPriorities.length} / {priorities.length}
+		                      </div>
+		                      <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+		                    </div>
 	                    <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
 	                      Add
 	                    </button>
@@ -5228,23 +5182,12 @@ export default function MastersView({
 					      {tab === 'itemCategories' ? (
 					        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 					          <div className="flex flex-wrap items-center justify-between gap-2">
-					            <div className="flex flex-wrap items-center gap-2">
-					              <div className="text-sm text-on-surface-variant">
-					                Showing: {filteredItemCategories.length} / {itemCategories.length}
-					              </div>
-					              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-					              <input
-					                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-					                value={listQuery}
-					                onChange={(e) => setListQuery(e.target.value)}
-					                placeholder={searchPlaceholder}
-					              />
-					              {listQuery ? (
-					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-					                  Clear
-					                </button>
-					              ) : null}
-					            </div>
+						            <div className="flex flex-wrap items-center gap-2">
+						              <div className="text-sm text-on-surface-variant">
+						                Showing: {filteredItemCategories.length} / {itemCategories.length}
+						              </div>
+						              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+						            </div>
 				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
 				              Add
 				            </button>
@@ -5404,21 +5347,10 @@ export default function MastersView({
 			      {tab === 'specs' ? (
 			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 			          <div className="flex flex-wrap items-center justify-between gap-2">
-			            <div className="flex flex-wrap items-center gap-2">
-			              <div className="text-sm text-on-surface-variant">Showing: {filteredSpecs.length} / {specs.length}</div>
-			              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-			              <input
-			                className="w-full sm:w-72 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-			                value={listQuery}
-			                onChange={(e) => setListQuery(e.target.value)}
-			                placeholder={searchPlaceholder}
-			              />
-			              {listQuery ? (
-			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
-			                  Clear
-			                </button>
-			              ) : null}
-			            </div>
+				            <div className="flex flex-wrap items-center gap-2">
+				              <div className="text-sm text-on-surface-variant">Showing: {filteredSpecs.length} / {specs.length}</div>
+				              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+				            </div>
 		            <button
 		              type="button"
 		              className="btn btn-primary disabled:opacity-50"
