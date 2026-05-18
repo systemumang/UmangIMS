@@ -2891,9 +2891,32 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
       [grnId]
     );
 
+    const grnItemIds = Array.from(
+      new Set((Array.isArray(grnItemRows) ? grnItemRows : []).map((r) => String(r.grnItemId ?? '')).filter(Boolean))
+    );
     const itemIds = Array.from(
       new Set((Array.isArray(grnItemRows) ? grnItemRows : []).map((r) => String(r.itemId ?? '')).filter(Boolean))
     );
+    const usedInvoiceItemIdsByGrnItemId = new Map();
+    if (grnItemIds.length) {
+      const placeholders = grnItemIds.map(() => '?').join(',');
+      const [usedRows] = await pool.query(
+        `
+        SELECT grn_item_id AS grnItemId, invoice_item_id AS invoiceItemId
+        FROM grn_invoice_item_links
+        WHERE grn_item_id IN (${placeholders})
+        `,
+        grnItemIds
+      );
+      for (const row of Array.isArray(usedRows) ? usedRows : []) {
+        const grnItemId = String(row.grnItemId ?? '').trim();
+        const invoiceItemId = String(row.invoiceItemId ?? '').trim();
+        if (!grnItemId || !invoiceItemId) continue;
+        const bucket = usedInvoiceItemIdsByGrnItemId.get(grnItemId) ?? new Set();
+        bucket.add(invoiceItemId);
+        usedInvoiceItemIdsByGrnItemId.set(grnItemId, bucket);
+      }
+    }
 
     let invoiceItemRows = [];
     if (itemIds.length) {
@@ -2962,7 +2985,10 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
           approvedQty,
           alreadyLinkQty,
           pendingLinkingQty,
-          candidates: invCandidatesByItemId.get(String(r.itemId ?? '')) ?? [],
+          candidates: (invCandidatesByItemId.get(String(r.itemId ?? '')) ?? []).filter((candidate) => {
+            const used = usedInvoiceItemIdsByGrnItemId.get(String(r.grnItemId ?? '').trim());
+            return !used || !used.has(String(candidate.invoiceItemId ?? '').trim());
+          }),
         };
       })
       .filter((x) => x.pendingLinkingQty > 1e-9);

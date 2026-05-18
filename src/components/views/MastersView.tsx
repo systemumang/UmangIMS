@@ -2696,7 +2696,7 @@ export default function MastersView({
 			              {tab === 'suppliers' ? (
 			                <div className="space-y-2">
 				                  <label className="space-y-1">
-				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Supplier name</div>
+					                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Supplier name <span className="text-red-600">*</span></div>
 				                    <input
 			                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                      value={newSupplierName}
@@ -2717,7 +2717,7 @@ export default function MastersView({
 			                    </label>
 
 				                    <label className="space-y-1">
-				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type</div>
+					                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type <span className="text-red-600">*</span></div>
 				                      <SearchableSelect
 				                        options={[
 				                          { value: 'Intra-State', label: 'Intra-State' },
@@ -2789,7 +2789,7 @@ export default function MastersView({
                             />
                           </label>
 	                          <label className="space-y-1">
-	                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
+		                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City <span className="text-red-600">*</span></div>
 	                            <SearchableSelect
 	                              value={newSupplierCity}
 	                              options={cities
@@ -2816,7 +2816,7 @@ export default function MastersView({
 	                            />
 	                          </label>
 	                          <label className="space-y-1">
-	                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+		                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State <span className="text-red-600">*</span></div>
 	                            <SearchableSelect
 	                              value={newSupplierState}
 	                              options={states.map((s) => ({ value: s.name, label: s.name }))}
@@ -2894,45 +2894,54 @@ export default function MastersView({
 	                    <button
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-		                      disabled={!newSupplierName.trim() || busy}
+		                      disabled={!newSupplierName.trim() || !newSupplierGstType.trim() || !newSupplierCity.trim() || !newSupplierState.trim() || busy}
 				                      onClick={() => {
 				                        setBusy(true);
 				                        setError(null);
 				                        setFieldErrors({});
-				                        const phone = newSupplierPhone.trim();
-				                        if (phone && !isValidTenDigitPhone(phone)) {
+					                        const phone = newSupplierPhone.trim();
+					                        const supplierName = newSupplierName.trim();
+					                        const gstType = newSupplierGstType.trim();
+					                        const city = newSupplierCity.trim();
+					                        const state = newSupplierState.trim();
+					                        if (!supplierName || !gstType || !city || !state) {
+					                          setBusy(false);
+					                          setError('Please fill all required fields: Supplier Name, GST Type, City, State.');
+					                          return;
+					                        }
+					                        if (phone && !isValidTenDigitPhone(phone)) {
 				                          setBusy(false);
 				                          setFieldError('supplierPhone', 'Must be a 10 digit number.');
 				                          return;
 				                        }
 					                        const fn = isEditing
 				                          ? updateSupplier(editCtx?.id ?? '', {
-				                              name: newSupplierName.trim(),
+					                              name: supplierName,
 				                              gstNumber: newSupplierGstNumber.trim() || undefined,
-				                              gstType: newSupplierGstType,
+					                              gstType,
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
                                   mobile2: newSupplierMobile2.trim() || undefined,
                                   contactPerson: newSupplierContactPerson.trim() || undefined,
                                   contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
-                                  city: newSupplierCity.trim() || undefined,
-                                  state: newSupplierState.trim() || undefined,
+	                                  city,
+	                                  state,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              updatedBy: 'system',
 				                            })
 				                          : createSupplier({
-				                              name: newSupplierName.trim(),
+					                              name: supplierName,
 				                              gstNumber: newSupplierGstNumber.trim() || undefined,
-				                              gstType: newSupplierGstType,
+					                              gstType,
 				                              address: newSupplierAddress.trim() || undefined,
 				                              phone: phone || undefined,
                                   mobile2: newSupplierMobile2.trim() || undefined,
                                   contactPerson: newSupplierContactPerson.trim() || undefined,
                                   contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
-                                  city: newSupplierCity.trim() || undefined,
-                                  state: newSupplierState.trim() || undefined,
+	                                  city,
+	                                  state,
 				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
 				                              isVendor: newSupplierIsVendor,
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
