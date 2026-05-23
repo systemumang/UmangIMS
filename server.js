@@ -4456,6 +4456,9 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    try {
+      await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+    } catch {}
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'po id is required' });
 
@@ -10928,6 +10931,9 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    try {
+      await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+    } catch {}
     const invoiceId = String(req.params.id ?? '').trim();
     if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
     const paymentDate = String(req.body?.paymentDate ?? '').trim();
