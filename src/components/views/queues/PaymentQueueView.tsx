@@ -181,7 +181,7 @@ export default function PaymentQueueView({
       ) : (
 	        <QueueCard title={queueLabel} subtitle={`${rows.length} pending`}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1340px] table-fixed text-left border-collapse border border-outline-variant">
+            <table className="w-full min-w-[1580px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>
                 <col className="w-[180px]" />
                 <col className="w-[140px]" />
@@ -189,7 +189,9 @@ export default function PaymentQueueView({
                 <col className="w-[210px]" />
                 <col className="w-[220px]" />
 		                <col className="w-[140px]" />
-		                  {mode !== 'tally' ? <col className="w-[120px]" /> : null}
+		                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
+	                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
+	                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
 	                  {mode !== 'tally' ? <col className="w-[130px]" /> : null}
 		                {mode !== 'tally' ? <col className="w-[140px]" /> : null}
 		                <col className="w-[260px]" />
@@ -202,10 +204,11 @@ export default function PaymentQueueView({
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Amount</th>
-		                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
-		                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Paid</th> : null}
-	                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining</th> : null}
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Advance</th> : null}
+			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Payment</th> : null}
+			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Balance</th> : null}
+			                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,11 +227,12 @@ export default function PaymentQueueView({
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+			                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{(Number(r.invoiceAmount ?? 0) - Number(r.paidAmount ?? 0) - Number(r.remainingAmount ?? 0)).toFixed(2)}</td> : null}
+			                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
+	                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
-		                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
-                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
-                      <td className="px-3 py-2 border border-outline-variant">
+	                      <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
 	                          <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
                             {mode === 'tally' ? 'Update Tally' : 'Payment'}
@@ -270,7 +274,7 @@ export default function PaymentQueueView({
                   ))
                 ) : (
                   <tr>
-			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={mode === 'tally' ? 8 : 10}>
+				                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={mode === 'tally' ? 8 : 11}>
 		                      No records.
 		                    </td>
                   </tr>

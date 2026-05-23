@@ -1018,10 +1018,11 @@ export default function OperationsView({
 		                      <SortTh label="Date" colKey="invoiceDate" />
                           <SortTh label="GRN Qty" colKey="grnQty" />
                           <SortTh label="Approved Qty" colKey="approvedQty" />
-                          <SortTh label="Adjusted" colKey="adjustedAmount" />
-                          <SortTh label="Actual" colKey="actualReceiptAmount" />
-		                      <SortTh label="Status" colKey="status" />
-		                      <SortTh label="Amount" colKey="invoiceAmount" />
+                          <SortTh label="Advance" colKey="adjustedAmount" />
+                          <SortTh label="Payment" colKey="actualReceiptAmount" />
+                          <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Balance</th>
+                          <SortTh label="Status" colKey="status" />
+                          <SortTh label="Amount" colKey="invoiceAmount" />
 		                    </>
                       )
 		                ) : (
@@ -1040,13 +1041,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 11) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 12) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 11) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 12) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -1191,8 +1192,11 @@ export default function OperationsView({
                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td>
                               <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(2)}</td>
-			                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-			                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                {(Number(r.invoiceAmount ?? 0) - Number(r.adjustedAmount ?? 0) - Number(r.actualReceiptAmount ?? 0)).toFixed(2)}
+                              </td>
+				                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+				                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
 			                      </>
                             )
 				                    ) : (
@@ -1311,7 +1315,7 @@ export default function OperationsView({
 			                      ) : null}
                           {tab === 'invoices' && invoiceSubTab === 'receipts' && isInvoiceReceiptExpanded ? (
                             <tr>
-                              <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                              <td colSpan={12} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
                                 {inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] ? (
                                   <div className="text-sm text-on-surface-variant">Loading receipts...</div>
                                 ) : null}
@@ -1321,7 +1325,7 @@ export default function OperationsView({
                                 {!inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] && !inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')] ? (
                                   <div className="space-y-2">
                                     <div className="text-xs text-on-surface-variant">
-                                      Adjusted: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Actual:{' '}
+                                      Advance: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Payment:{' '}
                                       {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}
                                     </div>
                                     <div className="overflow-x-auto">
@@ -1340,7 +1344,7 @@ export default function OperationsView({
                                             (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).map((x) => (
                                               <tr key={x.id}>
                                                 <td className="px-3 py-2 border border-outline-variant">
-                                                  {x.receiptType === 'DIRECT_PAYMENT' ? 'Actual' : 'Adjusted'}
+                                                  {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Advance'}
                                                 </td>
                                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
                                                 <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
