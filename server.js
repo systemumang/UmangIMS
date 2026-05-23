@@ -4339,6 +4339,9 @@ app.get('/api/operations/advances', async (req, res) => {
       .map((r) => {
         const rawStatus = String(r.status ?? '').toLowerCase();
         const mappedStatus = rawStatus === 'closed' ? 'Closed' : rawStatus === 'partial' ? 'Partial' : 'Open';
+        const advanceAmount = Number(r.advanceAmount ?? 0);
+        const amountAdjusted = Number(r.amountAdjusted ?? 0);
+        const advanceRemaining = Math.max(0, advanceAmount - amountAdjusted);
         return {
           poId: String(r.poId ?? ''),
           poNumber: String(r.poNumber ?? r.poId ?? ''),
@@ -4354,12 +4357,13 @@ app.get('/api/operations/advances', async (req, res) => {
           orderDate: toIsoDate(r.orderDate) || null,
           createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
           status: mappedStatus,
-          advanceAmount: Number(r.advanceAmount ?? 0),
+          advanceAmount,
           advanceDate: toIsoDate(r.advanceDate) || null,
-          amountAdjusted: Number(r.amountAdjusted ?? 0),
+          amountAdjusted,
+          advanceRemaining,
         };
       })
-      .filter((x) => x.advanceAmount > 1e-9);
+      .filter((x) => x.advanceRemaining > 1e-9);
 
     res.json({ rows: out });
   } catch (e) {
