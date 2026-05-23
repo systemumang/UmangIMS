@@ -159,9 +159,7 @@ export default function PaymentQueueView({
 
   useEffect(() => {
     if (!modalOpen || !active || mode !== 'payment') return;
-    const adjustedAmount = Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0);
-    const invAmount = Number(active.invoiceAmount ?? 0);
-    const suggested = Math.max(0, invAmount - adjustedAmount);
+    const suggested = Math.max(0, Number(active.remainingAmount ?? 0));
     setPaymentAmountInput(suggested > 0 ? String(suggested) : '');
   }, [active, invoiceDetail, modalOpen, mode]);
 
