@@ -1018,7 +1018,7 @@ export default function OperationsView({
                           <SortTh label="GRN Qty" colKey="grnQty" />
                           <SortTh label="Approved Qty" colKey="approvedQty" />
                           <SortTh label="Adjusted" colKey="adjustedAmount" />
-                          <SortTh label="Actual Payment" colKey="actualReceiptAmount" />
+                          <SortTh label="Actual" colKey="actualReceiptAmount" />
 		                      <SortTh label="Status" colKey="status" />
 		                      <SortTh label="Amount" colKey="invoiceAmount" />
 		                    </>
@@ -1320,14 +1320,13 @@ export default function OperationsView({
                                 {!inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] && !inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')] ? (
                                   <div className="space-y-2">
                                     <div className="text-xs text-on-surface-variant">
-                                      Adjusted: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Actual Payment:{' '}
+                                      Adjusted: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Actual:{' '}
                                       {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}
                                     </div>
                                     <div className="overflow-x-auto">
                                       <table className="w-full min-w-[760px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                                         <thead>
                                           <tr className="bg-primary text-on-primary">
-                                            <th className="px-3 py-2 border border-outline-variant">Receipt ID</th>
                                             <th className="px-3 py-2 border border-outline-variant">Type</th>
                                             <th className="px-3 py-2 border border-outline-variant">Amount</th>
                                             <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
@@ -1338,9 +1337,8 @@ export default function OperationsView({
                                           {(inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).length ? (
                                             (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).map((x) => (
                                               <tr key={x.id}>
-                                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{x.id}</td>
                                                 <td className="px-3 py-2 border border-outline-variant">
-                                                  {x.receiptType === 'DIRECT_PAYMENT' ? 'Actual Payment' : 'Adjusted'}
+                                                  {x.receiptType === 'DIRECT_PAYMENT' ? 'Actual' : 'Adjusted'}
                                                 </td>
                                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
                                                 <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
@@ -1349,7 +1347,7 @@ export default function OperationsView({
                                             ))
                                           ) : (
                                             <tr>
-                                              <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                              <td colSpan={4} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
                                                 No receipt rows found.
                                               </td>
                                             </tr>
