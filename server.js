@@ -188,6 +188,8 @@ function getMysqlPool() {
           po_id VARCHAR(255) NOT NULL,
           advance_date DATE NOT NULL,
           advance_amount DOUBLE NOT NULL DEFAULT 0,
+          payment_mode VARCHAR(32) NULL,
+          payment_copy TEXT NULL,
           created_by VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -201,6 +203,8 @@ function getMysqlPool() {
           po_id VARCHAR(255) NOT NULL,
           invoice_id VARCHAR(255) NOT NULL,
           adjusted_amount DOUBLE NOT NULL DEFAULT 0,
+          payment_mode VARCHAR(32) NULL,
+          payment_copy TEXT NULL,
           created_by VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_by VARCHAR(255) NULL,
@@ -211,6 +215,11 @@ function getMysqlPool() {
           FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+
+      await ensureColumn('po_advances', 'payment_mode', 'VARCHAR(32) NULL');
+      await ensureColumn('po_advances', 'payment_copy', 'TEXT NULL');
+      await ensureColumn('po_advance_invoice_adjustments', 'payment_mode', 'VARCHAR(32) NULL');
+      await ensureColumn('po_advance_invoice_adjustments', 'payment_copy', 'TEXT NULL');
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');

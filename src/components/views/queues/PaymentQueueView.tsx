@@ -82,7 +82,7 @@ export default function PaymentQueueView({
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<PaymentQueueRow | null>(null);
   const [paymentDate, setPaymentDate] = useState(todayIsoDate());
-  const [paymentStatus, setPaymentStatus] = useState<'' | 'Partly Paid' | 'Full Paid'>('');
+  const [paymentAmountInput, setPaymentAmountInput] = useState('');
   const [paymentModeInput, setPaymentModeInput] = useState('Cash');
   const [tallyEntryDate, setTallyEntryDate] = useState('');
   const [lines, setLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
@@ -100,7 +100,7 @@ export default function PaymentQueueView({
     setModalOpen(false);
     setActive(null);
     setPaymentDate(todayIsoDate());
-    setPaymentStatus('');
+    setPaymentAmountInput('');
     setPaymentModeInput('Cash');
     setTallyEntryDate('');
     setTallyDateInput('');
@@ -130,7 +130,6 @@ export default function PaymentQueueView({
   useEffect(() => {
     if (!modalOpen || !active) return;
     setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
-    setPaymentStatus((active.paymentStatus as any) || '');
     setPaymentModeInput(String((active as any)?.paymentMode ?? 'Cash') || 'Cash');
     setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
     setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
@@ -147,7 +146,7 @@ export default function PaymentQueueView({
   }, [active, modalOpen]);
 
   useEffect(() => {
-    if (!modalOpen || !active || mode !== 'tally') return;
+    if (!modalOpen || !active) return;
     const ac = new AbortController();
     setInvoiceDetailLoading(true);
     setInvoiceDetail(null);
@@ -156,7 +155,15 @@ export default function PaymentQueueView({
       .catch(() => setInvoiceDetail(null))
       .finally(() => setInvoiceDetailLoading(false));
     return () => ac.abort();
-  }, [active, modalOpen, mode]);
+  }, [active, modalOpen]);
+
+  useEffect(() => {
+    if (!modalOpen || !active || mode !== 'payment') return;
+    const adjustedAmount = Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0);
+    const invAmount = Number(active.invoiceAmount ?? 0);
+    const suggested = Math.max(0, invAmount - adjustedAmount);
+    setPaymentAmountInput(suggested > 0 ? String(suggested) : '');
+  }, [active, invoiceDetail, modalOpen, mode]);
 
 	  return (
 	    <div className="space-y-6">
@@ -292,21 +299,27 @@ export default function PaymentQueueView({
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={saving || modalLoading || !active || (mode === 'payment' ? (!paymentStatus || !paymentDate) : !tallyDateInput)}
+              disabled={saving || modalLoading || !active || (mode === 'payment' ? !paymentDate : !tallyDateInput)}
               onClick={() => {
                 if (!active) return;
                 setSaving(true);
                 setModalError(null);
+                const paymentAmount = Number(String(paymentAmountInput ?? '').trim() || '0');
+                if (mode === 'payment' && (!Number.isFinite(paymentAmount) || paymentAmount < 0)) {
+                  setModalError('Enter valid Payment Amount.');
+                  setSaving(false);
+                  return;
+                }
                 const savePromise =
                   mode === 'tally'
                     ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
-	                    : updateInvoicePayment(active.invoiceId, {
-	                        paymentDate,
-	                        paymentAmount: paymentStatus === 'Full Paid' ? Number(active.invoiceAmount ?? 0) : 0,
-	                        paymentMode: paymentModeInput || undefined,
-	                        updatedBy: 'Accounts Team',
-	                        tallyEntryDate: tallyEntryDate || undefined,
-	                      });
+                    : updateInvoicePayment(active.invoiceId, {
+                        paymentDate,
+                        paymentAmount,
+                        paymentMode: paymentModeInput || undefined,
+                        updatedBy: 'Accounts Team',
+                        tallyEntryDate: tallyEntryDate || undefined,
+                      });
                 savePromise
                   .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())
@@ -330,7 +343,16 @@ export default function PaymentQueueView({
               <div><span className="font-semibold">Supplier:</span> {active?.supplierName || '-'}</div>
               <div><span className="font-semibold">Amount:</span> {Number(active?.invoiceAmount ?? 0).toFixed(2)}</div>
               <div><span className="font-semibold">Payment Mode:</span> {String(invoiceDetail?.invoice?.invoice?.paymentMode ?? active?.paymentMode ?? 'Credit')}</div>
-              <div><span className="font-semibold">Payment Status:</span> {String(invoiceDetail?.invoice?.invoice?.paymentStatus ?? '-')}</div>
+              <div><span className="font-semibold">Amount Adjusted:</span> {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}</div>
+              <div>
+                <span className="font-semibold">Balance Payment:</span>{' '}
+                {Math.max(
+                  0,
+                  Number(active?.invoiceAmount ?? 0) -
+                    Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
+                    Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
+                ).toFixed(2)}
+              </div>
               <div><span className="font-semibold">E-way Bill No:</span> {String(invoiceDetail?.invoice?.invoice?.ewayBillNumber ?? '-')}</div>
               <div><span className="font-semibold">CN/Courier No:</span> {String(invoiceDetail?.invoice?.invoice?.cnNumber ?? invoiceDetail?.invoice?.invoice?.courierNumber ?? '-')}</div>
               <div><span className="font-semibold">Transporter:</span> {String(invoiceDetail?.invoice?.invoice?.transporterName ?? '-')}</div>
@@ -391,24 +413,25 @@ export default function PaymentQueueView({
         ) : modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
         ) : (
-	          <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1220px] table-auto text-left border-collapse border border-outline-variant">
-	              <thead>
-	                <tr className="bg-primary text-on-primary">
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Status</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Status</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
-                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
-	                </tr>
-	              </thead>
+		          <div className="overflow-x-auto">
+		            <table className="w-full min-w-[1220px] table-auto text-left border-collapse border border-outline-variant">
+		              <thead>
+		                <tr className="bg-primary text-on-primary">
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount Adjusted</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Balance Payment</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Amount</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
+	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
+		                </tr>
+		              </thead>
 	              <tbody>
                 {active && lines.length ? (
                   lines.map((l, idx) => (
@@ -424,19 +447,28 @@ export default function PaymentQueueView({
                           <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
                             {active.invoiceDate ? formatDateDDMMYYYYOnly(active.invoiceDate) : '-'}
                           </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-                            {Number(active.invoiceAmount ?? 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
-                            {active.status ?? '-'}
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-                            <select className={cn(inputClass, 'py-1.5')} value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as any)}>
-                              <option value="">Select</option>
-                              <option value="Partly Paid">Partly Paid</option>
-                              <option value="Full Paid">Full Paid</option>
-                            </select>
-                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Number(active.invoiceAmount ?? 0).toFixed(2)}
+	                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}
+	                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Math.max(
+	                              0,
+	                              Number(active.invoiceAmount ?? 0) -
+	                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
+	                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
+	                            ).toFixed(2)}
+	                          </td>
+	                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+	                            <input
+	                              className={cn(inputClass, 'py-1.5')}
+	                              inputMode="decimal"
+	                              value={paymentAmountInput}
+	                              onChange={(e) => setPaymentAmountInput(e.target.value)}
+	                            />
+	                          </td>
 		                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
 		                            <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
 		                          </td>
@@ -462,11 +494,11 @@ export default function PaymentQueueView({
 		                    </tr>
 		                  ))
 	                ) : (
-	                  <tr>
-			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={12}>
-		                      No records.
-		                    </td>
-	                  </tr>
+		                  <tr>
+				                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
+			                      No records.
+			                    </td>
+		                  </tr>
 	                )}
 	              </tbody>
             </table>
