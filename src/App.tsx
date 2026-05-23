@@ -126,10 +126,12 @@ export default function App() {
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
       const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<'prs' | 'pos' | 'grns' | 'invoices' | 'payments', number>>>({});
 
-		  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
+  const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
+  const [countsRefreshTick, setCountsRefreshTick] = useState(0);
   const inFlightRef = useRef(0);
   const mountedRef = useRef(true);
   const hideTimerRef = useRef<number | null>(null);
+  const prevWriteFlowActiveRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -180,6 +182,14 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const wasActive = prevWriteFlowActiveRef.current;
+    if (wasActive && !writeFlowActive) {
+      setCountsRefreshTick((x) => x + 1);
+    }
+    prevWriteFlowActiveRef.current = writeFlowActive;
+  }, [writeFlowActive]);
+
 	  useEffect(() => {
 	    if (!currentUser) return;
 	    const ac = new AbortController();
@@ -203,7 +213,7 @@ export default function App() {
       })
       .catch(() => {});
     return () => ac.abort();
-	  }, [currentUser, view]);
+	  }, [currentUser, view, countsRefreshTick]);
 
 	  useEffect(() => {
 	    if (!currentUser) return;
@@ -222,7 +232,7 @@ export default function App() {
       })
       .catch(() => {});
     return () => ac.abort();
-	  }, [currentUser, view]);
+	  }, [currentUser, view, countsRefreshTick]);
 
 		  useEffect(() => {
 		    if (!currentUser) return;
@@ -272,7 +282,7 @@ export default function App() {
       })
       .catch(() => {});
     return () => ac.abort();
-  }, [view]);
+  }, [currentUser, view, countsRefreshTick]);
 
 				  const topBar = useMemo(() => {
 				    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
