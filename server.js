@@ -234,8 +234,56 @@ function getMysqlPool() {
       try {
         const [idxRows] = await pool.query('SHOW INDEX FROM po_advance_invoice_adjustments');
         const indexNames = new Set((Array.isArray(idxRows) ? idxRows : []).map((r) => String(r.Key_name ?? '')));
+        // Some MySQL installs require a supporting index for the invoice_id foreign key.
+        // If uniq_invoice exists and is used for that FK, drop FK first, then replace with a non-unique index.
         if (indexNames.has('uniq_invoice')) {
-          await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+          try {
+            const [fkRows] = await pool.query(
+              `
+              SELECT CONSTRAINT_NAME AS name
+              FROM information_schema.KEY_COLUMN_USAGE
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'po_advance_invoice_adjustments'
+                AND COLUMN_NAME = 'invoice_id'
+                AND REFERENCED_TABLE_NAME IS NOT NULL
+              `,
+            );
+            const fkName = Array.isArray(fkRows) && fkRows.length ? String(fkRows[0].name ?? '') : '';
+            if (fkName) {
+              await pool.query(`ALTER TABLE po_advance_invoice_adjustments DROP FOREIGN KEY ${fkName}`);
+            }
+          } catch (e) {
+            console.error('Unable to drop invoice_id FK before dropping uniq_invoice:', e);
+          }
+
+          try {
+            await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+          } catch (e) {
+            console.error('Unable to drop uniq_invoice index:', e);
+          }
+
+          // Ensure a non-unique index exists for the FK.
+          try {
+            await pool.query('ALTER TABLE po_advance_invoice_adjustments ADD KEY idx_invoice_id (invoice_id)');
+          } catch {}
+
+          // Re-add the invoice_id foreign key with a stable name.
+          try {
+            await pool.query(
+              `
+              ALTER TABLE po_advance_invoice_adjustments
+              ADD CONSTRAINT fk_pai_invoice_id
+              FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+              ON DELETE CASCADE
+              `,
+            );
+          } catch (e) {
+            // If it already exists (or host disallows FK DDL), ignore.
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!msg.toLowerCase().includes('duplicate') && !msg.toLowerCase().includes('already exists')) {
+              console.error('Unable to re-add invoice_id FK:', e);
+            }
+          }
         }
         if (indexNames.has('uniq_invoice_receipt_type')) {
           await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice_receipt_type');
@@ -11137,6 +11185,26 @@ app.get('/api/invoices/:id/receipts', async (req, res) => {
     );
 
     res.json({ receipts, totals });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/receipts/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+
+    const [[row]] = await pool.query(
+      'SELECT id, invoice_id AS invoiceId FROM po_advance_invoice_adjustments WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (!row?.id) return res.status(404).json({ error: 'Receipt row not found' });
+
+    await pool.query('DELETE FROM po_advance_invoice_adjustments WHERE id = ? LIMIT 1', [id]);
+    res.json({ ok: true, invoiceId: String(row.invoiceId ?? '') });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

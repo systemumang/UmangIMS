@@ -13,6 +13,7 @@ import {
 				  fetchOperationsGrns,
       fetchOperationsInvoiceDetail,
       fetchInvoiceReceipts,
+      deleteReceiptRow,
       fetchOperationsAdvances,
 	  fetchOperationsInvoices,
 	  fetchOperationsPaymentDetail,
@@ -1331,6 +1332,7 @@ export default function OperationsView({
                                             <th className="px-3 py-2 border border-outline-variant">Amount</th>
                                             <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
                                             <th className="px-3 py-2 border border-outline-variant">Created At</th>
+                                            <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
                                           </tr>
                                         </thead>
                                         <tbody>
@@ -1343,11 +1345,31 @@ export default function OperationsView({
                                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
                                                 <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
                                                 <td className="px-3 py-2 border border-outline-variant">{x.createdAt ? formatDateShort(x.createdAt) : '-'}</td>
+                                                <td className="px-3 py-2 border border-outline-variant">
+                                                  <button
+                                                    type="button"
+                                                    className="text-error hover:text-error/80 transition-colors"
+                                                    title="Delete"
+                                                    aria-label="Delete"
+                                                    onClick={async (e) => {
+                                                      e.stopPropagation();
+                                                      const id = String(x.id ?? '').trim();
+                                                      if (!id) return;
+                                                      await deleteReceiptRow(id);
+                                                      // Refresh this invoice's receipt list.
+                                                      const payload = await fetchInvoiceReceipts(String(r.invoiceId ?? '').trim());
+                                                      setInlineInvoiceReceiptsById((prev) => ({ ...prev, [String(r.invoiceId ?? '')]: payload.receipts ?? [] }));
+                                                      setInlineInvoiceReceiptTotalsById((prev) => ({ ...prev, [String(r.invoiceId ?? '')]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 } }));
+                                                    }}
+                                                  >
+                                                    <Trash2 size={16} />
+                                                  </button>
+                                                </td>
                                               </tr>
                                             ))
                                           ) : (
                                             <tr>
-                                              <td colSpan={4} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                              <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
                                                 No receipt rows found.
                                               </td>
                                             </tr>

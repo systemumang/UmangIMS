@@ -357,6 +357,11 @@ export async function fetchInvoiceReceipts(
   };
 }
 
+export async function deleteReceiptRow(receiptId: string): Promise<{ ok: boolean; invoiceId?: string }> {
+  const res = await fetch(`/api/receipts/${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
+  return requireOk<{ ok: boolean; invoiceId?: string }>(res, 'Failed to delete receipt row');
+}
+
 export async function fetchOperationsPaymentDetail(paymentId: string, signal?: AbortSignal): Promise<OperationsPaymentDetail> {
   const res = await fetch(`/api/operations/payments/${encodeURIComponent(paymentId)}`, { signal });
   const data = await requireOk<{ detail?: OperationsPaymentDetail }>(res, 'Failed to load payment detail');
