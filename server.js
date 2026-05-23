@@ -235,8 +235,14 @@ function getMysqlPool() {
         if (indexNames.has('uniq_invoice')) {
           await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
         }
-        if (!indexNames.has('uniq_invoice_receipt_type')) {
-          await pool.query('ALTER TABLE po_advance_invoice_adjustments ADD UNIQUE KEY uniq_invoice_receipt_type (invoice_id, receipt_type)');
+        if (indexNames.has('uniq_invoice_receipt_type')) {
+          await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice_receipt_type');
+        }
+        if (!indexNames.has('idx_invoice_id')) {
+          await pool.query('ALTER TABLE po_advance_invoice_adjustments ADD KEY idx_invoice_id (invoice_id)');
+        }
+        if (!indexNames.has('idx_invoice_receipt_type')) {
+          await pool.query('ALTER TABLE po_advance_invoice_adjustments ADD KEY idx_invoice_receipt_type (invoice_id, receipt_type)');
         }
       } catch (e) {
         console.error('Unable to update po_advance_invoice_adjustments indexes:', e);
@@ -4403,9 +4409,12 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
       [poId]
     );
 
-    const adjustedByInvoiceId = Object.fromEntries(
-      (Array.isArray(adjRows) ? adjRows : []).map((r) => [String(r.invoiceId ?? ''), Number(r.adjustedAmount ?? 0)])
-    );
+    const adjustedByInvoiceId = (Array.isArray(adjRows) ? adjRows : []).reduce((acc, r) => {
+      const id = String(r.invoiceId ?? '');
+      if (!id) return acc;
+      acc[id] = Number(acc[id] ?? 0) + Number(r.adjustedAmount ?? 0);
+      return acc;
+    }, {});
 
     const invoices = (Array.isArray(invoiceRows) ? invoiceRows : []).map((r) => {
       const invoiceId = String(r.invoiceId ?? '');
@@ -4444,13 +4453,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
       .map((r) => ({ ...r, adjustedAmount: Number.isFinite(r.adjustedAmount) ? Math.max(0, r.adjustedAmount) : 0 }));
 
     const invoiceIds = Array.from(new Set(rows.map((r) => r.invoiceId)));
-    if (!invoiceIds.length) {
-      await pool.query(
-        "DELETE FROM po_advance_invoice_adjustments WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)",
-        [poId]
-      );
-      return res.json({ ok: true });
-    }
+    if (!invoiceIds.length) return res.json({ ok: true });
 
     const placeholders = invoiceIds.map(() => '?').join(',');
     const [invRows] = await pool.query(`SELECT id, po_id AS poId FROM invoices WHERE id IN (${placeholders})`, invoiceIds);
@@ -4462,17 +4465,30 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.query(
-        "DELETE FROM po_advance_invoice_adjustments WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)",
+      const [currentRows] = await conn.query(
+        `
+        SELECT invoice_id AS invoiceId, COALESCE(SUM(adjusted_amount), 0) AS adjustedAmount
+        FROM po_advance_invoice_adjustments
+        WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)
+        GROUP BY invoice_id
+        `,
         [poId]
       );
+      const currentByInvoiceId = Object.fromEntries(
+        (Array.isArray(currentRows) ? currentRows : []).map((r) => [String(r.invoiceId ?? ''), Number(r.adjustedAmount ?? 0)])
+      );
       for (const r of rows) {
-        if (!(r.adjustedAmount > 1e-9)) continue;
+        const current = Number(currentByInvoiceId[r.invoiceId] ?? 0);
+        if (r.adjustedAmount + 1e-9 < current) {
+          throw new Error(`Adjusted amount cannot be reduced for invoice ${r.invoiceId}. Historical receipt rows are append-only.`);
+        }
+        const delta = Math.max(0, r.adjustedAmount - current);
+        if (!(delta > 1e-9)) continue;
         await conn.query(
           `INSERT INTO po_advance_invoice_adjustments
            (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
            VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)`,
-          [crypto.randomUUID(), poId, r.invoiceId, r.adjustedAmount, updatedBy, updatedBy]
+          [crypto.randomUUID(), poId, r.invoiceId, delta, updatedBy, updatedBy]
         );
       }
       await conn.commit();
@@ -10932,24 +10948,23 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       [paymentStatus, paymentDate, paymentAmount, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
     );
 
-    // If the client provided an adjusted amount, ensure an advance-adjustment receipt row exists.
+    // If client provided adjusted total, append only the positive delta as a new ledger row.
     if (adjustedAmountInput != null) {
       const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
       const poId = poRow?.poId != null ? String(poRow.poId) : '';
-      if (poId && adjustedAmount > 1e-9) {
+      const currentAdjusted = Number(invMeta.adjustedAmount ?? 0);
+      if (adjustedAmount + 1e-9 < currentAdjusted) {
+        return res.status(400).json({ error: 'Adjusted amount cannot be reduced. Ledger rows are append-only.' });
+      }
+      const deltaAdjusted = Math.max(0, adjustedAmount - currentAdjusted);
+      if (poId && deltaAdjusted > 1e-9) {
         await pool.query(
           `
           INSERT INTO po_advance_invoice_adjustments
             (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
           VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)
-          ON DUPLICATE KEY UPDATE
-            adjusted_amount = VALUES(adjusted_amount),
-            receipt_type = VALUES(receipt_type),
-            reference_type = VALUES(reference_type),
-            updated_by = VALUES(updated_by),
-            updated_at = NOW()
           `,
-          [crypto.randomUUID(), poId, invoiceId, adjustedAmount, updatedBy || 'system', updatedBy || 'system']
+          [crypto.randomUUID(), poId, invoiceId, deltaAdjusted, updatedBy || 'system', updatedBy || 'system']
         );
       }
     }
@@ -10962,13 +10977,6 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
           INSERT INTO po_advance_invoice_adjustments
             (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, created_by, updated_by)
           VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?)
-          ON DUPLICATE KEY UPDATE
-            po_id = VALUES(po_id),
-            adjusted_amount = VALUES(adjusted_amount),
-            payment_mode = VALUES(payment_mode),
-            reference_type = VALUES(reference_type),
-            updated_by = VALUES(updated_by),
-            updated_at = NOW()
           `,
           [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, updatedBy || 'system', updatedBy || 'system']
         );
