@@ -5928,37 +5928,43 @@ app.get('/api/pos/:id/advances', async (req, res) => {
     );
     if (!poRow) return res.status(404).json({ error: 'PO not found' });
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        id,
-        po_id AS poId,
-        advance_date AS advanceDate,
-        advance_amount AS advanceAmount
-      FROM po_advances
-      WHERE po_id = ?
-      ORDER BY advance_date ASC, created_at ASC
-      `,
-      [poId]
-    );
+	    const [rows] = await pool.query(
+	      `
+	      SELECT
+	        id,
+	        po_id AS poId,
+	        advance_date AS advanceDate,
+	        advance_amount AS advanceAmount,
+	        payment_mode AS paymentMode,
+	        payment_copy AS paymentCopy
+	      FROM po_advances
+	      WHERE po_id = ?
+	      ORDER BY advance_date ASC, created_at ASC
+	      `,
+	      [poId]
+	    );
 
-    let advances = (Array.isArray(rows) ? rows : []).map((r) => ({
-      id: String(r.id ?? ''),
-      poId: String(r.poId ?? poId),
-      advanceDate: toIsoDate(r.advanceDate) || '',
-      advanceAmount: Number(r.advanceAmount ?? 0),
-    }));
+	    let advances = (Array.isArray(rows) ? rows : []).map((r) => ({
+	      id: String(r.id ?? ''),
+	      poId: String(r.poId ?? poId),
+	      advanceDate: toIsoDate(r.advanceDate) || '',
+	      advanceAmount: Number(r.advanceAmount ?? 0),
+	      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
+	      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+	    }));
 
     if (!advances.length && Number(poRow.advanceAmount ?? 0) > 0) {
-      advances = [
-        {
-          id: `legacy-${poId}`,
-          poId,
-          advanceDate: toIsoDate(poRow.advanceDate) || toIsoDate(poRow.orderDate) || new Date().toISOString().slice(0, 10),
-          advanceAmount: Number(poRow.advanceAmount ?? 0),
-        },
-      ];
-    }
+	      advances = [
+	        {
+	          id: `legacy-${poId}`,
+	          poId,
+	          advanceDate: toIsoDate(poRow.advanceDate) || toIsoDate(poRow.orderDate) || new Date().toISOString().slice(0, 10),
+	          advanceAmount: Number(poRow.advanceAmount ?? 0),
+	          paymentMode: '',
+	          paymentCopy: '',
+	        },
+	      ];
+	    }
 
     res.json({ advances });
   } catch (e) {
@@ -5974,19 +5980,23 @@ app.put('/api/pos/:id/advances', async (req, res) => {
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'id is required' });
 
-    const input = Array.isArray(req.body?.advances) ? req.body.advances : [];
-    const normalized = [];
-    for (const raw of input) {
-      const advanceDate = toIsoDate(String(raw?.advanceDate ?? '').trim());
-      const advanceAmount = Math.max(0, num(raw?.advanceAmount, 0));
-      if (!advanceDate) continue;
-      if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) continue;
-      normalized.push({
-        id: String(raw?.id ?? '').trim(),
-        advanceDate,
-        advanceAmount,
-      });
-    }
+	    const input = Array.isArray(req.body?.advances) ? req.body.advances : [];
+	    const normalized = [];
+	    for (const raw of input) {
+	      const advanceDate = toIsoDate(String(raw?.advanceDate ?? '').trim());
+	      const advanceAmount = Math.max(0, num(raw?.advanceAmount, 0));
+	      const paymentMode = raw?.paymentMode != null ? String(raw.paymentMode).trim() : '';
+	      const paymentCopy = raw?.paymentCopy != null ? String(raw.paymentCopy).trim() : '';
+	      if (!advanceDate) continue;
+	      if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) continue;
+	      normalized.push({
+	        id: String(raw?.id ?? '').trim(),
+	        advanceDate,
+	        advanceAmount,
+	        paymentMode,
+	        paymentCopy,
+	      });
+	    }
 
     conn = await pool.getConnection();
     await conn.beginTransaction();
@@ -5997,39 +6007,43 @@ app.put('/api/pos/:id/advances', async (req, res) => {
       return res.status(404).json({ error: 'PO not found' });
     }
 
-    await conn.query('DELETE FROM po_advances WHERE po_id = ?', [poId]);
-    for (const row of normalized) {
-      await conn.query(
-        `
-        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-        `,
-        [row.id || crypto.randomUUID(), poId, row.advanceDate, row.advanceAmount, 'Purchase Team']
-      );
-    }
+	    await conn.query('DELETE FROM po_advances WHERE po_id = ?', [poId]);
+	    for (const row of normalized) {
+	      await conn.query(
+	        `
+	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, created_by, created_at, updated_at)
+	        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	        `,
+	        [row.id || crypto.randomUUID(), poId, row.advanceDate, row.advanceAmount, row.paymentMode || null, row.paymentCopy || null, 'Purchase Team']
+	      );
+	    }
 
     const summary = await syncPoAdvanceSummary(conn, poId);
     await conn.commit();
 
-    const [savedRows] = await pool.query(
-      `
-      SELECT
-        id,
-        po_id AS poId,
-        advance_date AS advanceDate,
-        advance_amount AS advanceAmount
-      FROM po_advances
-      WHERE po_id = ?
-      ORDER BY advance_date ASC, created_at ASC
-      `,
-      [poId]
-    );
-    const advances = (Array.isArray(savedRows) ? savedRows : []).map((r) => ({
-      id: String(r.id ?? ''),
-      poId: String(r.poId ?? poId),
-      advanceDate: toIsoDate(r.advanceDate) || '',
-      advanceAmount: Number(r.advanceAmount ?? 0),
-    }));
+	    const [savedRows] = await pool.query(
+	      `
+	      SELECT
+	        id,
+	        po_id AS poId,
+	        advance_date AS advanceDate,
+	        advance_amount AS advanceAmount,
+	        payment_mode AS paymentMode,
+	        payment_copy AS paymentCopy
+	      FROM po_advances
+	      WHERE po_id = ?
+	      ORDER BY advance_date ASC, created_at ASC
+	      `,
+	      [poId]
+	    );
+	    const advances = (Array.isArray(savedRows) ? savedRows : []).map((r) => ({
+	      id: String(r.id ?? ''),
+	      poId: String(r.poId ?? poId),
+	      advanceDate: toIsoDate(r.advanceDate) || '',
+	      advanceAmount: Number(r.advanceAmount ?? 0),
+	      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
+	      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+	    }));
 
     res.json({ ok: true, advances, summary });
   } catch (e) {

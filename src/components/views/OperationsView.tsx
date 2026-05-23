@@ -127,7 +127,9 @@ export default function OperationsView({
   const [advanceModalError, setAdvanceModalError] = useState<string | null>(null);
   const [advanceModalPoId, setAdvanceModalPoId] = useState('');
   const [advanceModalPoNumber, setAdvanceModalPoNumber] = useState('');
-  const [advanceLines, setAdvanceLines] = useState<Array<{ id?: string; advanceDate: string; advanceAmount: string }>>([]);
+  const [advanceLines, setAdvanceLines] = useState<
+    Array<{ id?: string; advanceDate: string; advanceAmount: string; paymentMode?: string; paymentCopy?: string }>
+  >([]);
 
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [adjustModalBusy, setAdjustModalBusy] = useState(false);
@@ -530,7 +532,7 @@ export default function OperationsView({
     setAdvanceModalOpen(true);
     setAdvanceModalError(null);
     setAdvanceModalBusy(false);
-    setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }]);
+    setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '', paymentMode: '', paymentCopy: '' }]);
   };
 
   const openAdjustModal = async (row: OperationsAdvanceListRow) => {
@@ -714,6 +716,8 @@ export default function OperationsView({
         id: String(line.id ?? '').trim() || undefined,
         advanceDate: String(line.advanceDate ?? '').trim(),
         advanceAmount: Number(line.advanceAmount ?? 0),
+        paymentMode: String((line as any).paymentMode ?? '').trim() || undefined,
+        paymentCopy: String((line as any).paymentCopy ?? '').trim() || undefined,
       }))
       .filter((line) => line.advanceDate && Number.isFinite(line.advanceAmount) && line.advanceAmount > 0);
     setAdvanceModalBusy(true);
@@ -725,6 +729,8 @@ export default function OperationsView({
           id: x.id,
           advanceDate: String(x.advanceDate ?? '').slice(0, 10),
           advanceAmount: Number(x.advanceAmount ?? 0),
+          paymentMode: String((x as any).paymentMode ?? '').trim() || undefined,
+          paymentCopy: String((x as any).paymentCopy ?? '').trim() || undefined,
         })),
         ...normalized,
       ];
@@ -1218,24 +1224,36 @@ export default function OperationsView({
 		                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
 		                            {!advanceLoading && advanceError ? <div className="text-sm text-error">{advanceError}</div> : null}
 		                            {!advanceLoading && !advanceError && advanceRows.length ? (
-		                              <div className="overflow-x-auto">
-		                                <table className="w-full min-w-[480px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-		                                  <thead>
-		                                    <tr className="bg-primary text-on-primary">
-		                                      <th className="px-3 py-2 border border-outline-variant">Adv Date</th>
-		                                      <th className="px-3 py-2 border border-outline-variant">Advance</th>
-		                                    </tr>
-		                                  </thead>
-		                                  <tbody>
-		                                    {advanceRows.map((a) => (
-		                                      <tr key={String(a.id)}>
-		                                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
-		                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
-		                                      </tr>
-		                                    ))}
-		                                  </tbody>
-		                                </table>
-		                              </div>
+	                              <div className="overflow-x-auto">
+	                                <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                  <thead>
+	                                    <tr className="bg-primary text-on-primary">
+	                                      <th className="px-3 py-2 border border-outline-variant">Adv Date</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Advance</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Payment Copy</th>
+	                                    </tr>
+	                                  </thead>
+	                                  <tbody>
+	                                    {advanceRows.map((a) => (
+	                                      <tr key={String(a.id)}>
+	                                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant">{String((a as any).paymentMode ?? '').trim() || '-'}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant">
+	                                          {String((a as any).paymentCopy ?? '').trim() ? (
+	                                            <a className="text-primary underline" href={String((a as any).paymentCopy)} target="_blank" rel="noreferrer">
+	                                              View
+	                                            </a>
+	                                          ) : (
+	                                            '-'
+	                                          )}
+	                                        </td>
+	                                      </tr>
+	                                    ))}
+	                                  </tbody>
+	                                </table>
+	                              </div>
 		                            ) : null}
 		                          </td>
 		                        </tr>
@@ -1259,17 +1277,19 @@ export default function OperationsView({
         <div className="space-y-3">
           {advanceModalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{advanceModalError}</div> : null}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-              <thead>
-                <tr className="bg-surface-container-high">
-                  <th className="px-3 py-2 border border-outline-variant">Advance Date</th>
-                  <th className="px-3 py-2 border border-outline-variant">Advance Amount</th>
-                  <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
-                </tr>
-              </thead>
-              <tbody>
-                {advanceLines.map((line, idx) => (
-                  <tr key={`${line.id ?? 'new'}-${idx}`}>
+	            <table className="w-full min-w-[820px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	              <thead>
+	                <tr className="bg-surface-container-high">
+	                  <th className="px-3 py-2 border border-outline-variant">Advance Date</th>
+	                  <th className="px-3 py-2 border border-outline-variant">Advance Amount</th>
+	                  <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+	                  <th className="px-3 py-2 border border-outline-variant">Payment Copy</th>
+	                  <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
+	                </tr>
+	              </thead>
+	              <tbody>
+	                {advanceLines.map((line, idx) => (
+	                  <tr key={`${line.id ?? 'new'}-${idx}`}>
                     <td className="px-3 py-2 border border-outline-variant">
                       <input
                         type="date"
@@ -1281,21 +1301,51 @@ export default function OperationsView({
                         disabled={advanceModalBusy}
                       />
                     </td>
-                    <td className="px-3 py-2 border border-outline-variant">
-                      <input
-                        className={cn(inputClass, 'py-1.5')}
-                        value={line.advanceAmount}
+	                    <td className="px-3 py-2 border border-outline-variant">
+	                      <input
+	                        className={cn(inputClass, 'py-1.5')}
+	                        value={line.advanceAmount}
                         onChange={(e) =>
                           setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, advanceAmount: sanitizeDecimalInput(e.target.value) } : x)))
                         }
                         inputMode="decimal"
                         placeholder="0"
-                        disabled={advanceModalBusy}
-                      />
-                    </td>
-                    <td className="px-3 py-2 border border-outline-variant">
-                      <button
-                        type="button"
+	                        disabled={advanceModalBusy}
+	                      />
+	                    </td>
+	                    <td className="px-3 py-2 border border-outline-variant">
+	                      <select
+	                        className={cn(inputClass, 'py-1.5')}
+	                        value={String((line as any).paymentMode ?? '')}
+	                        onChange={(e) =>
+	                          setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentMode: e.target.value } : x)))
+	                        }
+	                        disabled={advanceModalBusy}
+	                      >
+	                        <option value="">Select</option>
+	                        <option value="Cash">Cash</option>
+	                        <option value="UPI">UPI</option>
+	                        <option value="Cheque">Cheque</option>
+	                        <option value="NEFT">NEFT</option>
+	                        <option value="RTGS">RTGS</option>
+	                        <option value="IMPS">IMPS</option>
+	                        <option value="Card">Card</option>
+	                      </select>
+	                    </td>
+	                    <td className="px-3 py-2 border border-outline-variant">
+	                      <input
+	                        className={cn(inputClass, 'py-1.5')}
+	                        value={String((line as any).paymentCopy ?? '')}
+	                        onChange={(e) =>
+	                          setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: e.target.value } : x)))
+	                        }
+	                        placeholder="Paste link / URL"
+	                        disabled={advanceModalBusy}
+	                      />
+	                    </td>
+	                    <td className="px-3 py-2 border border-outline-variant">
+	                      <button
+	                        type="button"
                         className="text-error hover:text-error/80 transition-colors"
                         title="Delete"
                         aria-label="Delete"
@@ -1315,8 +1365,8 @@ export default function OperationsView({
               type="button"
               className="btn btn-sm"
               onClick={() => setAdvanceLines((prev) => [...prev, { advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '' }])}
-              disabled={advanceModalBusy}
-            >
+	                        disabled={advanceModalBusy}
+	                      >
               <Plus size={14} /> Add Row
             </button>
             <div className="flex items-center gap-2">

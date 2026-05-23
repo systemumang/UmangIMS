@@ -98,6 +98,8 @@ export type PoAdvanceRow = {
   poId: string;
   advanceDate: string;
   advanceAmount: number;
+  paymentMode?: string;
+  paymentCopy?: string;
 };
 
 export type OperationsGrnListRow = {
@@ -281,7 +283,7 @@ export async function fetchPoAdvances(poId: string, signal?: AbortSignal): Promi
 
 export async function updatePoAdvances(
   poId: string,
-  advances: Array<{ id?: string; advanceDate: string; advanceAmount: number }>
+  advances: Array<{ id?: string; advanceDate: string; advanceAmount: number; paymentMode?: string; paymentCopy?: string }>
 ): Promise<{ ok: boolean; advances: PoAdvanceRow[]; summary: { advanceAmount: number; advanceDate: string | null } }> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advances`, {
     method: 'PUT',
