@@ -136,10 +136,26 @@ export type OperationsInvoiceListRow = {
   supplierName: string;
   approvedBy?: string;
   tallyEntryDate?: string;
+  adjustedAmount?: number;
+  actualReceiptAmount?: number;
   status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
   paymentStatus?: string;
   paymentDate?: string;
   createdAt: string;
+};
+
+export type InvoiceReceiptRow = {
+  id: string;
+  poId: string;
+  invoiceId: string;
+  amount: number;
+  paymentMode?: string;
+  receiptType: string;
+  referenceType?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
 };
 
 export type OperationsPaymentListRow = {
@@ -321,6 +337,24 @@ export async function fetchOperationsInvoiceDetail(invoiceId: string, signal?: A
   const data = await requireOk<{ detail?: any }>(res, 'Failed to load invoice detail');
   if (!data.detail) throw new Error('Invoice detail not found');
   return data.detail;
+}
+
+export async function fetchInvoiceReceipts(
+  invoiceId: string,
+  signal?: AbortSignal
+): Promise<{ receipts: InvoiceReceiptRow[]; totals: { adjustedAmount: number; actualReceiptAmount: number } }> {
+  const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/receipts`, { signal });
+  const data = await requireOk<{
+    receipts?: InvoiceReceiptRow[];
+    totals?: { adjustedAmount?: number; actualReceiptAmount?: number };
+  }>(res, 'Failed to load invoice receipts');
+  return {
+    receipts: Array.isArray(data.receipts) ? data.receipts : [],
+    totals: {
+      adjustedAmount: Number(data.totals?.adjustedAmount ?? 0),
+      actualReceiptAmount: Number(data.totals?.actualReceiptAmount ?? 0),
+    },
+  };
 }
 
 export async function fetchOperationsPaymentDetail(paymentId: string, signal?: AbortSignal): Promise<OperationsPaymentDetail> {

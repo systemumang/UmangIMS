@@ -11,7 +11,8 @@ import { updatePo } from '@/src/lib/purchaseRequests';
 import {
 				  fetchOperationsGrnDetail,
 				  fetchOperationsGrns,
-				  fetchOperationsInvoiceDetail,
+      fetchOperationsInvoiceDetail,
+      fetchInvoiceReceipts,
       fetchOperationsAdvances,
 	  fetchOperationsInvoices,
 	  fetchOperationsPaymentDetail,
@@ -27,7 +28,8 @@ import {
 		  type OperationsFilters,
       type OperationsAdvanceListRow,
 		  type OperationsGrnListRow,
-		  type OperationsInvoiceListRow,
+      type OperationsInvoiceListRow,
+      type InvoiceReceiptRow,
 		  type OperationsPaymentListRow,
 		  type OperationsPoListRow,
       type PoReceiptInvoiceRow,
@@ -37,7 +39,7 @@ import {
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
 type OpsTab = 'prs' | 'pos' | 'grns' | 'invoices' | 'payments';
-type PaymentsSubTab = 'payments' | 'advances';
+type InvoiceSubTab = 'pendingAdjustments' | 'receipts';
 
 const TAB_LABEL: Record<OpsTab, string> = {
   prs: 'Purchase Requisitions',
@@ -75,7 +77,7 @@ export default function OperationsView({
 }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [tab, setTab] = useState<OpsTab>(initialTab);
-  const [paymentsSubTab, setPaymentsSubTab] = useState<PaymentsSubTab>('payments');
+  const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
 
   useEffect(() => {
     setTab(initialTab);
@@ -83,8 +85,8 @@ export default function OperationsView({
   }, [initialTab]);
 
   useEffect(() => {
-    if (tab !== 'payments') return;
-    setPaymentsSubTab('payments');
+    if (tab !== 'invoices') return;
+    setInvoiceSubTab('receipts');
   }, [tab]);
 
   const [filters, setFilters] = useState<OperationsFilters>(() => ({ ...emptyOperationsFilters }));
@@ -92,10 +94,10 @@ export default function OperationsView({
 	  const statusOptions = useMemo(() => {
 	    if (tab === 'prs') return ['', 'Pending Approval', 'Approved', 'Rejected'];
 	    if (tab === 'pos') return ['', 'Open', 'Partial', 'Closed'];
-	    if (tab === 'invoices') return ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
+	    if (tab === 'invoices') return invoiceSubTab === 'pendingAdjustments' ? ['', 'Open', 'Partial', 'Closed'] : ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
 	    if (tab === 'payments') return ['', 'Full Paid', 'Partly Paid'];
 	    return [''];
-	  }, [tab]);
+	  }, [tab, invoiceSubTab]);
 
 	  useEffect(() => {
 	    if (tab !== 'payments') return;
@@ -114,6 +116,13 @@ export default function OperationsView({
 	  const [invoices, setInvoices] = useState<OperationsInvoiceListRow[]>([]);
   const [payments, setPayments] = useState<OperationsPaymentListRow[]>([]);
   const [advancePos, setAdvancePos] = useState<OperationsAdvanceListRow[]>([]);
+  const [expandedInvoiceReceiptIds, setExpandedInvoiceReceiptIds] = useState<string[]>([]);
+  const [inlineInvoiceReceiptsById, setInlineInvoiceReceiptsById] = useState<Record<string, InvoiceReceiptRow[]>>({});
+  const [inlineInvoiceReceiptTotalsById, setInlineInvoiceReceiptTotalsById] = useState<
+    Record<string, { adjustedAmount: number; actualReceiptAmount: number }>
+  >({});
+  const [inlineInvoiceReceiptsLoadingById, setInlineInvoiceReceiptsLoadingById] = useState<Record<string, boolean>>({});
+  const [inlineInvoiceReceiptsErrorById, setInlineInvoiceReceiptsErrorById] = useState<Record<string, string>>({});
   const [expandedPoIds, setExpandedPoIds] = useState<string[]>([]);
   const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
   const [inlinePoLoadingById, setInlinePoLoadingById] = useState<Record<string, boolean>>({});
@@ -176,17 +185,17 @@ export default function OperationsView({
 
 	  const sortedRows = useMemo(() => {
 	    const list: any[] =
-        tab === 'prs'
-          ? prs
-          : tab === 'pos'
-            ? pos
-            : tab === 'grns'
-              ? grns
-              : tab === 'invoices'
-                ? invoices
-                : tab === 'payments' && paymentsSubTab === 'advances'
-                  ? advancePos
-                  : payments;
+	        tab === 'prs'
+	          ? prs
+	          : tab === 'pos'
+	            ? pos
+	            : tab === 'grns'
+	              ? grns
+	              : tab === 'invoices'
+	                ? invoiceSubTab === 'pendingAdjustments'
+	                  ? advancePos
+	                  : invoices
+	                : payments;
 	    const out = [...(list ?? [])];
 	    const key = String(sort.key ?? '');
 	    const dir = sort.dir === 'asc' ? 1 : -1;
@@ -230,7 +239,7 @@ export default function OperationsView({
 
 	    out.sort((ra, rb) => cmp(ra?.[key], rb?.[key]) * dir);
 	    return out;
-	  }, [advancePos, grns, invoices, payments, paymentsSubTab, pos, prs, sort.dir, sort.key, tab]);
+	  }, [advancePos, grns, invoiceSubTab, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
 
 	  const rowsCount = sortedRows.length;
 
@@ -254,6 +263,11 @@ export default function OperationsView({
     setInlinePoAdvancesLoadingById({});
     setInlinePoAdvancesErrorById({});
     setExpandedPoAdvanceIds([]);
+    setExpandedInvoiceReceiptIds([]);
+    setInlineInvoiceReceiptsById({});
+    setInlineInvoiceReceiptTotalsById({});
+    setInlineInvoiceReceiptsLoadingById({});
+    setInlineInvoiceReceiptsErrorById({});
     setDetailOpen(false);
   }, [tab]);
 
@@ -279,12 +293,12 @@ export default function OperationsView({
         ? fetchOperationsPrs(filters, ac.signal).then(setPrs)
         : tab === 'pos'
           ? fetchOperationsPos(filters, ac.signal).then(setPos)
-          : tab === 'grns'
-            ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
-            : tab === 'invoices'
-              ? fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
-              : paymentsSubTab === 'advances'
-                ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
+            : tab === 'grns'
+              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
+              : tab === 'invoices'
+                ? invoiceSubTab === 'pendingAdjustments'
+                  ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
+                  : fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
                 : fetchOperationsPayments(filters, ac.signal).then(setPayments);
 
     p.catch((e) => {
@@ -296,7 +310,7 @@ export default function OperationsView({
     });
 
     return () => ac.abort();
-  }, [filters, paymentsSubTab, tab]);
+  }, [filters, invoiceSubTab, tab]);
 
 	  const firmOptions = useMemo(
 	    () => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))],
@@ -786,10 +800,41 @@ export default function OperationsView({
     }
   };
 
+  const toggleInlineInvoiceReceipts = async (row: OperationsInvoiceListRow) => {
+    const invoiceId = String(row?.invoiceId ?? '').trim();
+    if (!invoiceId) return;
+    const isOpen = expandedInvoiceReceiptIds.includes(invoiceId);
+    if (isOpen) {
+      setExpandedInvoiceReceiptIds((prev) => prev.filter((x) => x !== invoiceId));
+      return;
+    }
+    if (inlineInvoiceReceiptsById[invoiceId]) {
+      setExpandedInvoiceReceiptIds((prev) => (prev.includes(invoiceId) ? prev : [...prev, invoiceId]));
+      return;
+    }
+    if (inlineInvoiceReceiptsLoadingById[invoiceId]) return;
+    setInlineInvoiceReceiptsLoadingById((prev) => ({ ...prev, [invoiceId]: true }));
+    setInlineInvoiceReceiptsErrorById((prev) => {
+      const next = { ...prev };
+      delete next[invoiceId];
+      return next;
+    });
+    try {
+      const payload = await fetchInvoiceReceipts(invoiceId);
+      setInlineInvoiceReceiptsById((prev) => ({ ...prev, [invoiceId]: payload.receipts ?? [] }));
+      setInlineInvoiceReceiptTotalsById((prev) => ({ ...prev, [invoiceId]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 } }));
+      setExpandedInvoiceReceiptIds((prev) => (prev.includes(invoiceId) ? prev : [...prev, invoiceId]));
+    } catch (e) {
+      setInlineInvoiceReceiptsErrorById((prev) => ({ ...prev, [invoiceId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setInlineInvoiceReceiptsLoadingById((prev) => ({ ...prev, [invoiceId]: false }));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-	        {(Object.keys(TAB_LABEL) as OpsTab[]).map((k) => (
+	        {(['prs', 'pos', 'grns', 'invoices'] as OpsTab[]).map((k) => (
 	          <button
 	            key={k}
 	            type="button"
@@ -802,24 +847,24 @@ export default function OperationsView({
             {TAB_LABEL[k]}
           </button>
         ))}
-        {tab === 'payments' ? (
-          <div className="inline-flex items-center gap-2 ml-2">
-            <button
-              type="button"
-              className={paymentsSubTab === 'payments' ? 'btn-danger btn-sm' : 'btn btn-sm'}
-              onClick={() => setPaymentsSubTab('payments')}
-            >
-              Payments
-            </button>
-            <button
-              type="button"
-              className={paymentsSubTab === 'advances' ? 'btn-danger btn-sm' : 'btn btn-sm'}
-              onClick={() => setPaymentsSubTab('advances')}
-            >
-              Advances
-            </button>
-          </div>
-        ) : null}
+	        {tab === 'invoices' ? (
+	          <div className="inline-flex items-center gap-2 ml-2">
+	            <button
+	              type="button"
+	              className={invoiceSubTab === 'pendingAdjustments' ? 'btn-danger btn-sm' : 'btn btn-sm'}
+	              onClick={() => setInvoiceSubTab('pendingAdjustments')}
+	            >
+	              Pending Advance Adjustment
+	            </button>
+	            <button
+	              type="button"
+	              className={invoiceSubTab === 'receipts' ? 'btn-danger btn-sm' : 'btn btn-sm'}
+	              onClick={() => setInvoiceSubTab('receipts')}
+	            >
+	              Receipt
+	            </button>
+	          </div>
+	        ) : null}
         <div className="flex-1" />
 		        <button
 		          type="button"
@@ -953,21 +998,7 @@ export default function OperationsView({
 	                    <SortTh label="Qty" colKey="totalQty" />
 	                  </>
 		                ) : tab === 'invoices' ? (
-		                  <>
-		                    <SortTh label="Invoice" colKey="invoiceNo" />
-		                    <SortTh label="PO" colKey="poNumber" />
-		                    <SortTh label="Firm" colKey="firmName" />
-		                    <SortTh label="Supplier" colKey="supplierName" />
-		                    <SortTh label="Date" colKey="invoiceDate" />
-                        <SortTh label="GRN Qty" colKey="grnQty" />
-                        <SortTh label="Approved Qty" colKey="approvedQty" />
-                        <SortTh label="Approved By" colKey="approvedBy" />
-                        <SortTh label="Tally Entry Date" colKey="tallyEntryDate" />
-		                    <SortTh label="Status" colKey="status" />
-		                    <SortTh label="Amount" colKey="invoiceAmount" />
-		                  </>
-		                ) : (
-		                  paymentsSubTab === 'advances' ? (
+		                  invoiceSubTab === 'pendingAdjustments' ? (
                         <>
                           <SortTh label="PO" colKey="poNumber" />
                           <SortTh label="Firm" colKey="firmName" />
@@ -978,47 +1009,65 @@ export default function OperationsView({
                           <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
                         </>
                       ) : (
-                        <>
-                          <SortTh label="Invoice" colKey="invoiceNo" />
-                          <SortTh label="PO" colKey="poNumber" />
-                          <SortTh label="Firm" colKey="firmName" />
-                          <SortTh label="Supplier" colKey="supplierName" />
-                          <SortTh label="Date" colKey="paymentDate" />
-                          <SortTh label="Amount" colKey="amount" />
-                          <SortTh label="Payment Status" colKey="status" />
-                        </>
+		                    <>
+		                      <SortTh label="Invoice" colKey="invoiceNo" />
+		                      <SortTh label="PO" colKey="poNumber" />
+		                      <SortTh label="Firm" colKey="firmName" />
+		                      <SortTh label="Supplier" colKey="supplierName" />
+		                      <SortTh label="Date" colKey="invoiceDate" />
+                          <SortTh label="GRN Qty" colKey="grnQty" />
+                          <SortTh label="Approved Qty" colKey="approvedQty" />
+                          <SortTh label="Adjusted" colKey="adjustedAmount" />
+                          <SortTh label="Actual Receipt" colKey="actualReceiptAmount" />
+		                      <SortTh label="Status" colKey="status" />
+		                      <SortTh label="Amount" colKey="invoiceAmount" />
+		                    </>
                       )
+		                ) : (
+                      <>
+                        <SortTh label="Invoice" colKey="invoiceNo" />
+                        <SortTh label="PO" colKey="poNumber" />
+                        <SortTh label="Firm" colKey="firmName" />
+                        <SortTh label="Supplier" colKey="supplierName" />
+                        <SortTh label="Date" colKey="paymentDate" />
+                        <SortTh label="Amount" colKey="amount" />
+                        <SortTh label="Payment Status" colKey="status" />
+                      </>
 		                )}
 	              </tr>
 	            </thead>
             <tbody>
 		              {loading ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 11 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 11) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? 11 : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 11) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
 		              ) : (
                 (paged as any[]).map((r) => {
-                  const rowId =
+	                  const rowId =
                     tab === 'prs'
                       ? String(r.prId)
                       : tab === 'pos'
                         ? String(r.poId)
                         : tab === 'grns'
                           ? String(r.grnId)
-                          : tab === 'invoices'
-                            ? String(r.invoiceId)
-                            : paymentsSubTab === 'advances'
-                              ? String(r.poId)
-                              : String(r.paymentId);
-	                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+	                          : tab === 'invoices'
+	                            ? invoiceSubTab === 'pendingAdjustments'
+                                ? String(r.poId)
+                                : String(r.invoiceId)
+	                            : String(r.paymentId);
+		                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+                      const isInvoiceReceiptExpanded =
+                        tab === 'invoices' && invoiceSubTab === 'receipts'
+                          ? expandedInvoiceReceiptIds.includes(String(r.invoiceId ?? ''))
+                          : false;
 	                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
 	                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
 	                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
@@ -1031,8 +1080,9 @@ export default function OperationsView({
                       <tr
                         className="hover:bg-surface-container-high/40 cursor-pointer"
                         onClick={() => {
-                          if (tab === 'payments' && paymentsSubTab === 'advances') return openAdjustModal(r as any);
-                          openDetailForRow(r);
+	                          if (tab === 'invoices' && invoiceSubTab === 'pendingAdjustments') return openAdjustModal(r as any);
+                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
+	                          openDetailForRow(r);
                         }}
                       >
                     {tab === 'prs' ? (
@@ -1114,47 +1164,47 @@ export default function OperationsView({
 	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.receivedDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalQty ?? 0)}</td>
 	                      </>
-		                    ) : tab === 'invoices' ? (
-		                      <>
-	                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.approvedBy || '-'}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.tallyEntryDate ? formatDateShort(r.tallyEntryDate) : '-'}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-		                      </>
-		                    ) : (
-	                      paymentsSubTab === 'advances' ? (
-                          <>
-                            <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant">
-                              <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
-                                Receipt
-                              </button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
-                          </>
-                        )
-                    )}
+			                    ) : tab === 'invoices' ? (
+                            invoiceSubTab === 'pendingAdjustments' ? (
+                              <>
+                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
+                                <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+                                <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+                                <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
+                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 border border-outline-variant">
+                                  <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
+                                    Receipt
+                                  </button>
+                                </td>
+                              </>
+                            ) : (
+			                      <>
+		                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
+			                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+			                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+			                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+			                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(2)}</td>
+			                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+			                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+			                      </>
+                            )
+				                    ) : (
+                        <>
+                          <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
+			                      <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+			                      <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+			                      <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+			                      <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
+			                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
+                        </>
+	                    )}
                       </tr>
 	                      {tab === 'pos' && isExpanded ? (
 	                        <tr>
@@ -1218,7 +1268,7 @@ export default function OperationsView({
                           </td>
                         </tr>
 	                      ) : null}
-		                      {tab === 'pos' && isAdvanceExpanded && (advanceLoading || Boolean(advanceError) || advanceRows.length > 0) ? (
+			                      {tab === 'pos' && isAdvanceExpanded && (advanceLoading || Boolean(advanceError) || advanceRows.length > 0) ? (
 		                        <tr>
 		                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
 		                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
@@ -1257,7 +1307,59 @@ export default function OperationsView({
 		                            ) : null}
 		                          </td>
 		                        </tr>
-		                      ) : null}
+			                      ) : null}
+                          {tab === 'invoices' && invoiceSubTab === 'receipts' && isInvoiceReceiptExpanded ? (
+                            <tr>
+                              <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                                {inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] ? (
+                                  <div className="text-sm text-on-surface-variant">Loading receipts...</div>
+                                ) : null}
+                                {!inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] && inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')] ? (
+                                  <div className="text-sm text-error">{inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')]}</div>
+                                ) : null}
+                                {!inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] && !inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')] ? (
+                                  <div className="space-y-2">
+                                    <div className="text-xs text-on-surface-variant">
+                                      Adjusted: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Actual Receipt:{' '}
+                                      {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full min-w-[760px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                        <thead>
+                                          <tr className="bg-primary text-on-primary">
+                                            <th className="px-3 py-2 border border-outline-variant">Type</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Amount</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Created At</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).length ? (
+                                            (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).map((x) => (
+                                              <tr key={x.id}>
+                                                <td className="px-3 py-2 border border-outline-variant">
+                                                  {x.receiptType === 'DIRECT_PAYMENT' ? 'Actual Receipt' : 'Adjusted'}
+                                                </td>
+                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
+                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
+                                                <td className="px-3 py-2 border border-outline-variant">{x.createdAt ? formatDateShort(x.createdAt) : '-'}</td>
+                                              </tr>
+                                            ))
+                                          ) : (
+                                            <tr>
+                                              <td colSpan={4} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                                No receipt rows found.
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ) : null}
 	                    </React.Fragment>
 	                  );
 	                })

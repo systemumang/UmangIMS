@@ -4092,7 +4092,9 @@ app.get('/api/operations/invoices', async (req, res) => {
         po.supplier_id AS supplierId,
         s.name AS supplierName,
         COALESCE(qtyq.grnQty, 0) AS grnQty,
-        COALESCE(qtyq.approvedQty, 0) AS approvedQty
+        COALESCE(qtyq.approvedQty, 0) AS approvedQty,
+        COALESCE(adjq.adjustedAmount, 0) AS adjustedAmount,
+        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
@@ -4119,6 +4121,18 @@ app.get('/api/operations/invoices', async (req, res) => {
         ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
         GROUP BY ii.invoice_id
       ) qtyq ON qtyq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+        FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
+        GROUP BY invoice_id
+      ) adjq ON adjq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS actualReceiptAmount
+        FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'DIRECT_PAYMENT'
+        GROUP BY invoice_id
+      ) recq ON recq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.created_at DESC
       `,
@@ -4140,6 +4154,8 @@ app.get('/api/operations/invoices', async (req, res) => {
       supplierName: String(r.supplierName ?? ''),
       grnQty: Number(r.grnQty ?? 0),
       approvedQty: Number(r.approvedQty ?? 0),
+      adjustedAmount: Number(r.adjustedAmount ?? 0),
+      actualReceiptAmount: Number(r.actualReceiptAmount ?? 0),
       approvedBy: r.approvedBy != null ? String(r.approvedBy) : undefined,
       tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
       status: mapInvoiceStatus(r),
@@ -10945,6 +10961,63 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       }
     }
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/invoices/:id/receipts', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const invoiceId = String(req.params.id ?? '').trim();
+    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        po_id AS poId,
+        invoice_id AS invoiceId,
+        adjusted_amount AS amount,
+        payment_mode AS paymentMode,
+        receipt_type AS receiptType,
+        reference_type AS referenceType,
+        created_by AS createdBy,
+        created_at AS createdAt,
+        updated_by AS updatedBy,
+        updated_at AS updatedAt
+      FROM po_advance_invoice_adjustments
+      WHERE invoice_id = ?
+      ORDER BY created_at DESC, updated_at DESC
+      `,
+      [invoiceId]
+    );
+
+    const receipts = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      poId: String(r.poId ?? ''),
+      invoiceId: String(r.invoiceId ?? ''),
+      amount: Number(r.amount ?? 0),
+      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
+      receiptType: r.receiptType != null ? String(r.receiptType) : 'ADVANCE_ADJUSTMENT',
+      referenceType: r.referenceType != null ? String(r.referenceType) : '',
+      createdBy: r.createdBy != null ? String(r.createdBy) : '',
+      createdAt: toIsoDateTime(r.createdAt) || '',
+      updatedBy: r.updatedBy != null ? String(r.updatedBy) : '',
+      updatedAt: toIsoDateTime(r.updatedAt) || '',
+    }));
+
+    const totals = receipts.reduce(
+      (acc, x) => {
+        if (String(x.receiptType) === 'DIRECT_PAYMENT') acc.actualReceiptAmount += Number(x.amount ?? 0);
+        else acc.adjustedAmount += Number(x.amount ?? 0);
+        return acc;
+      },
+      { adjustedAmount: 0, actualReceiptAmount: 0 }
+    );
+
+    res.json({ receipts, totals });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
