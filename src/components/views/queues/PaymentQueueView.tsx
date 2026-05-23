@@ -310,16 +310,17 @@ export default function PaymentQueueView({
                   setSaving(false);
                   return;
                 }
-                const savePromise =
-                  mode === 'tally'
-                    ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
-                    : updateInvoicePayment(active.invoiceId, {
-                        paymentDate,
-                        paymentAmount,
-                        paymentMode: paymentModeInput || undefined,
-                        updatedBy: 'Accounts Team',
-                        tallyEntryDate: tallyEntryDate || undefined,
-                      });
+	                const savePromise =
+	                  mode === 'tally'
+	                    ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
+		                    : updateInvoicePayment(active.invoiceId, {
+		                        paymentDate,
+		                        paymentAmount,
+		                        adjustedAmount: Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0),
+		                        paymentMode: paymentModeInput || undefined,
+		                        updatedBy: 'Accounts Team',
+		                        tallyEntryDate: tallyEntryDate || undefined,
+		                      });
                 savePromise
                   .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())

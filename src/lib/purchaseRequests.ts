@@ -464,6 +464,7 @@ export async function updateInvoicePayment(
   input: {
     paymentDate: string;
     paymentAmount: number;
+    adjustedAmount?: number;
     paymentMode?: 'Cash' | 'UPI' | 'Cheque' | 'NEFT' | 'RTGS' | 'IMPS' | 'Card' | string;
     tallyEntryDate?: string;
     updatedBy?: string;

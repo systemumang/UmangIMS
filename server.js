@@ -10738,11 +10738,15 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     const paymentDate = String(req.body?.paymentDate ?? '').trim();
     const paymentAmountRaw = req.body?.paymentAmount;
     const paymentAmount = Number(paymentAmountRaw ?? 0);
+    const adjustedAmountRaw = req.body?.adjustedAmount;
+    const adjustedAmountInput = adjustedAmountRaw == null ? null : Number(adjustedAmountRaw);
     const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
     if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
+    if (adjustedAmountInput != null && (!Number.isFinite(adjustedAmountInput) || adjustedAmountInput < 0))
+      return res.status(400).json({ error: 'adjustedAmount must be 0 or more' });
     const [[invMeta]] = await pool.query(
       `
       SELECT inv.total_amount AS invoiceAmount, COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
@@ -10759,7 +10763,8 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     );
     if (!invMeta) return res.status(404).json({ error: 'Invoice not found' });
     const invoiceAmount = Number(invMeta.invoiceAmount ?? 0);
-    const adjustedAmount = Number(invMeta.adjustedAmount ?? 0);
+    const adjustedAmount =
+      adjustedAmountInput != null ? Math.max(0, adjustedAmountInput) : Number(invMeta.adjustedAmount ?? 0);
     const totalPaid = adjustedAmount + paymentAmount;
     const paymentStatus = totalPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
     await pool.query(
@@ -10768,6 +10773,25 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
        WHERE id=?`,
       [paymentStatus, paymentDate, paymentAmount, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
     );
+
+    // If the client provided an adjusted amount, ensure an adjustment row exists for this invoice.
+    if (adjustedAmountInput != null) {
+      const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
+      const poId = poRow?.poId != null ? String(poRow.poId) : '';
+      if (poId && adjustedAmount > 1e-9) {
+        await pool.query(
+          `
+          INSERT INTO po_advance_invoice_adjustments (id, po_id, invoice_id, adjusted_amount, created_by, updated_by)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            adjusted_amount = VALUES(adjusted_amount),
+            updated_by = VALUES(updated_by),
+            updated_at = NOW()
+          `,
+          [crypto.randomUUID(), poId, invoiceId, adjustedAmount, updatedBy || 'system', updatedBy || 'system']
+        );
+      }
+    }
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
