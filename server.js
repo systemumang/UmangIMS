@@ -227,6 +227,18 @@ function getMysqlPool() {
       } catch (e) {
         console.error('Unable to modify po_advance_invoice_adjustments.invoice_id:', e);
       }
+      try {
+        const [idxRows] = await pool.query('SHOW INDEX FROM po_advance_invoice_adjustments');
+        const indexNames = new Set((Array.isArray(idxRows) ? idxRows : []).map((r) => String(r.Key_name ?? '')));
+        if (indexNames.has('uniq_invoice')) {
+          await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+        }
+        if (!indexNames.has('uniq_invoice_receipt_type')) {
+          await pool.query('ALTER TABLE po_advance_invoice_adjustments ADD UNIQUE KEY uniq_invoice_receipt_type (invoice_id, receipt_type)');
+        }
+      } catch (e) {
+        console.error('Unable to update po_advance_invoice_adjustments indexes:', e);
+      }
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');
@@ -10920,6 +10932,13 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
           INSERT INTO po_advance_invoice_adjustments
             (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, created_by, updated_by)
           VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?)
+          ON DUPLICATE KEY UPDATE
+            po_id = VALUES(po_id),
+            adjusted_amount = VALUES(adjusted_amount),
+            payment_mode = VALUES(payment_mode),
+            reference_type = VALUES(reference_type),
+            updated_by = VALUES(updated_by),
+            updated_at = NOW()
           `,
           [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, updatedBy || 'system', updatedBy || 'system']
         );
