@@ -175,6 +175,8 @@ function getMysqlPool() {
 
       await ensureColumn('purchase_orders', 'advance_amount', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('purchase_orders', 'advance_date', 'DATE NULL');
+      await ensureColumn('purchase_orders', 'payment_type', 'VARCHAR(32) NULL');
+      await ensureColumn('purchase_orders', 'payment_mode', 'VARCHAR(32) NULL');
       await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
       await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
@@ -5506,6 +5508,8 @@ app.post('/api/requests/:id/po', async (req, res) => {
 
 	    const supplierName = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
+      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
       const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
       const advanceDateInput = req.body?.advanceDate;
       const normalizedAdvanceDateInput =
@@ -5536,9 +5540,9 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    await pool.query(
 	      `
 	      INSERT INTO purchase_orders
-	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
 	      VALUES
-	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
 	      `,
 	      [
 	        poId,
@@ -5549,6 +5553,8 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	        supplierId,
 	        prId,
 	        paymentTerms,
+          paymentType,
+          paymentMode,
 	        advanceAmount,
           advanceDate,
 	        'system',
@@ -5744,6 +5750,8 @@ app.post('/api/pos', async (req, res) => {
 	    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
 	    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
+      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
 	    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
 	    const advanceDateInput = req.body?.advanceDate;
 	    const normalizedAdvanceDateInput =
@@ -5816,25 +5824,27 @@ app.post('/api/pos', async (req, res) => {
       ]
     );
 
-	    await pool.query(
-	      `
-		      INSERT INTO purchase_orders
-		        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-		      VALUES
-		        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
-	      `,
-	      [
+		    await pool.query(
+		      `
+			      INSERT INTO purchase_orders
+			        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+			      VALUES
+			        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+		      `,
+		      [
 	        poId,
 	        poNumber,
 	        firmId,
 	        effectiveStoreId,
 	        projectId ? projectId : null,
-	        supplierId,
-		        directPrId,
-		        paymentTerms,
-	          advanceAmount,
-	          advanceDate,
-		        'system',
+		        supplierId,
+			        directPrId,
+			        paymentTerms,
+              paymentType,
+              paymentMode,
+		          advanceAmount,
+		          advanceDate,
+			        'system',
 	        shippingAddress,
 	        termsConditions,
 	      ]

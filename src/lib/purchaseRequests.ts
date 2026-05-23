@@ -331,6 +331,8 @@ export async function createPo(
   input: {
     supplier: string;
     paymentTerms: string;
+    paymentType?: string | null;
+    paymentMode?: string | null;
     advanceAmount?: number;
     advanceDate?: string | null;
     shippingAddress?: string;
@@ -394,6 +396,8 @@ export async function createDirectPo(input: {
   projectId?: string | null;
   supplierId: string;
   paymentTerms: string;
+  paymentType?: string | null;
+  paymentMode?: string | null;
   advanceAmount?: number;
   advanceDate?: string | null;
   shippingAddress?: string;
