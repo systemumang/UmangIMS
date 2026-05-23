@@ -861,7 +861,7 @@ export default function OperationsView({
 	              className={invoiceSubTab === 'receipts' ? 'btn-danger btn-sm' : 'btn btn-sm'}
 	              onClick={() => setInvoiceSubTab('receipts')}
 	            >
-	              Receipt
+	                                Payment
 	            </button>
 	          </div>
 	        ) : null}
@@ -1175,7 +1175,7 @@ export default function OperationsView({
                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
                                 <td className="px-3 py-2 border border-outline-variant">
                                   <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
-                                    Receipt
+                                Payment
                                   </button>
                                 </td>
                               </>
@@ -1487,7 +1487,7 @@ export default function OperationsView({
 
       <Modal
         open={adjustModalOpen}
-        title={`Receipt Entry: ${adjustModalPoNumber || '-'}`}
+        title={`Payment Entry: ${adjustModalPoNumber || '-'}`}
         onClose={() => (adjustModalBusy ? null : closeAdjustModal())}
         maxWidthClass="max-w-5xl"
         closeButtonLabel="Close"
@@ -1523,7 +1523,7 @@ export default function OperationsView({
                   <th className="px-3 py-2 border border-outline-variant">Invoice No.</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
-                  <th className="px-3 py-2 border border-outline-variant">Receipt Amount</th>
+                  <th className="px-3 py-2 border border-outline-variant">Payment Amount</th>
                 </tr>
               </thead>
               <tbody>

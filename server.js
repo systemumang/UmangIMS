@@ -205,14 +205,15 @@ function getMysqlPool() {
           po_id VARCHAR(255) NOT NULL,
           invoice_id VARCHAR(255) NOT NULL,
           adjusted_amount DOUBLE NOT NULL DEFAULT 0,
+          entry_key VARCHAR(64) NULL,
           payment_mode VARCHAR(32) NULL,
           payment_copy TEXT NULL,
           created_by VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_by VARCHAR(255) NULL,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY uniq_invoice (invoice_id),
           KEY idx_po (po_id),
+          KEY idx_invoice_id (invoice_id),
           FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
           FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -224,6 +225,7 @@ function getMysqlPool() {
       await ensureColumn('po_advance_invoice_adjustments', 'payment_copy', 'TEXT NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'receipt_type', "VARCHAR(32) NOT NULL DEFAULT 'ADVANCE_ADJUSTMENT'");
       await ensureColumn('po_advance_invoice_adjustments', 'reference_type', "VARCHAR(32) NULL");
+      await ensureColumn('po_advance_invoice_adjustments', 'entry_key', 'VARCHAR(64) NULL');
       try {
         await pool.query('ALTER TABLE po_advance_invoice_adjustments MODIFY COLUMN invoice_id VARCHAR(255) NULL');
       } catch (e) {
@@ -4509,12 +4511,34 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
         }
         const delta = Math.max(0, r.adjustedAmount - current);
         if (!(delta > 1e-9)) continue;
-        await conn.query(
-          `INSERT INTO po_advance_invoice_adjustments
-           (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
-           VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)`,
-          [crypto.randomUUID(), poId, r.invoiceId, delta, updatedBy, updatedBy]
-        );
+        try {
+          await conn.query(
+            `INSERT INTO po_advance_invoice_adjustments
+             (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, entry_key, created_by, updated_by)
+             VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?, ?)`,
+            [crypto.randomUUID(), poId, r.invoiceId, delta, crypto.randomUUID(), updatedBy, updatedBy]
+          );
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          // Fallback for legacy DBs that still have UNIQUE(invoice_id).
+          if (msg.toLowerCase().includes('uniq_invoice') || msg.toLowerCase().includes('duplicate entry')) {
+            await conn.query(
+              `
+              UPDATE po_advance_invoice_adjustments
+              SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
+                  receipt_type = 'ADVANCE_ADJUSTMENT',
+                  reference_type = 'INVOICE',
+                  updated_by = ?,
+                  updated_at = NOW()
+              WHERE po_id = ? AND invoice_id = ?
+              LIMIT 1
+              `,
+              [delta, updatedBy, poId, r.invoiceId]
+            );
+          } else {
+            throw e;
+          }
+        }
       }
       await conn.commit();
     } catch (e) {
@@ -10987,28 +11011,72 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       }
       const deltaAdjusted = Math.max(0, adjustedAmount - currentAdjusted);
       if (poId && deltaAdjusted > 1e-9) {
-        await pool.query(
-          `
-          INSERT INTO po_advance_invoice_adjustments
-            (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
-          VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)
-          `,
-          [crypto.randomUUID(), poId, invoiceId, deltaAdjusted, updatedBy || 'system', updatedBy || 'system']
-        );
+        try {
+          await pool.query(
+            `
+            INSERT INTO po_advance_invoice_adjustments
+              (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, entry_key, created_by, updated_by)
+            VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?, ?)
+            `,
+            [crypto.randomUUID(), poId, invoiceId, deltaAdjusted, crypto.randomUUID(), updatedBy || 'system', updatedBy || 'system']
+          );
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.toLowerCase().includes('uniq_invoice') || msg.toLowerCase().includes('duplicate entry')) {
+            await pool.query(
+              `
+              UPDATE po_advance_invoice_adjustments
+              SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
+                  receipt_type = 'ADVANCE_ADJUSTMENT',
+                  reference_type = 'INVOICE',
+                  updated_by = ?,
+                  updated_at = NOW()
+              WHERE po_id = ? AND invoice_id = ?
+              LIMIT 1
+              `,
+              [deltaAdjusted, updatedBy || 'system', poId, invoiceId]
+            );
+          } else {
+            throw e;
+          }
+        }
       }
     }
     if (paymentAmount > 1e-9) {
       const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
       const poId = poRow?.poId != null ? String(poRow.poId) : '';
       if (poId) {
-        await pool.query(
-          `
-          INSERT INTO po_advance_invoice_adjustments
-            (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, created_by, updated_by)
-          VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?)
-          `,
-          [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, updatedBy || 'system', updatedBy || 'system']
-        );
+        try {
+          await pool.query(
+            `
+            INSERT INTO po_advance_invoice_adjustments
+              (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?, ?)
+            `,
+            [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, crypto.randomUUID(), updatedBy || 'system', updatedBy || 'system']
+          );
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.toLowerCase().includes('uniq_invoice') || msg.toLowerCase().includes('duplicate entry')) {
+            // Legacy DB: merge direct payments into the single existing row.
+            await pool.query(
+              `
+              UPDATE po_advance_invoice_adjustments
+              SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
+                  payment_mode = COALESCE(?, payment_mode),
+                  receipt_type = 'DIRECT_PAYMENT',
+                  reference_type = 'INVOICE',
+                  updated_by = ?,
+                  updated_at = NOW()
+              WHERE po_id = ? AND invoice_id = ?
+              LIMIT 1
+              `,
+              [paymentAmount, paymentMode || null, updatedBy || 'system', poId, invoiceId]
+            );
+          } else {
+            throw e;
+          }
+        }
       }
     }
     res.json({ ok: true });
