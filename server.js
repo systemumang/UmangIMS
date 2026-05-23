@@ -2655,6 +2655,7 @@ app.get('/api/queues/payment', async (req, res) => {
         inv.total_amount AS invoiceAmount,
         inv.payment_status AS paymentStatus,
         inv.payment_date AS paymentDate,
+        inv.payment_amount AS paymentAmount,
         ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
         ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
         po.id AS poId,
@@ -2670,7 +2671,8 @@ app.get('/api/queues/payment', async (req, res) => {
         s.name AS supplierName,
         COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
         COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
-        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
+        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
+        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
       FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
@@ -2705,6 +2707,13 @@ app.get('/api/queues/payment', async (req, res) => {
         ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
         GROUP BY ii.invoice_id
       ) qcq ON qcq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+        FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
+        GROUP BY invoice_id
+      ) adj ON adj.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
       `,
@@ -2714,6 +2723,8 @@ app.get('/api/queues/payment', async (req, res) => {
     let out = (Array.isArray(rows) ? rows : [])
       .map((r) => {
         const invoiceAmount = Number(r.invoiceAmount ?? 0);
+        const adjustedAmount = Number(r.adjustedAmount ?? 0);
+        const paymentAmount = Number(r.paymentAmount ?? 0);
         const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
         const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
         const paymentModeLower = paymentMode.trim().toLowerCase();
@@ -2722,8 +2733,8 @@ app.get('/api/queues/payment', async (req, res) => {
         // Cash invoices are treated as fully paid and should not show in pending payment.
         const isCash = paymentModeLower === 'cash';
         const isFull = paymentStatus.includes('full') || isCash;
-        const paidAmount = isFull ? invoiceAmount : 0;
-        const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+        const paidAmount = isCash ? invoiceAmount : Math.max(0, paymentAmount);
+        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
         return {
           invoiceId: String(r.invoiceId ?? ''),
           invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
@@ -2747,6 +2758,7 @@ app.get('/api/queues/payment', async (req, res) => {
           totalLinkedQty: Number(r.totalLinkedQty ?? 0),
           totalApprovedQty: Number(r.totalApprovedQty ?? 0),
           invoiceAmount,
+          adjustedAmount,
           paidAmount,
           remainingAmount,
           pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
