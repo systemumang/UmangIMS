@@ -220,6 +220,13 @@ function getMysqlPool() {
       await ensureColumn('po_advances', 'payment_copy', 'TEXT NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'payment_mode', 'VARCHAR(32) NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'payment_copy', 'TEXT NULL');
+      await ensureColumn('po_advance_invoice_adjustments', 'receipt_type', "VARCHAR(32) NOT NULL DEFAULT 'ADVANCE_ADJUSTMENT'");
+      await ensureColumn('po_advance_invoice_adjustments', 'reference_type', "VARCHAR(32) NULL");
+      try {
+        await pool.query('ALTER TABLE po_advance_invoice_adjustments MODIFY COLUMN invoice_id VARCHAR(255) NULL');
+      } catch (e) {
+        console.error('Unable to modify po_advance_invoice_adjustments.invoice_id:', e);
+      }
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');
@@ -3448,6 +3455,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     LEFT JOIN (
       SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
       FROM po_advance_invoice_adjustments
+      WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
       GROUP BY invoice_id
     ) adj ON adj.invoiceId = inv.id
     WHERE inv.id = ?
@@ -4288,6 +4296,7 @@ app.get('/api/operations/advances', async (req, res) => {
       LEFT JOIN (
         SELECT po_id AS poId, SUM(adjusted_amount) AS amountAdjusted
         FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
         GROUP BY po_id
       ) adj ON adj.poId = po.id
       WHERE ${where.join(' AND ')}
@@ -4355,6 +4364,7 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
       SELECT invoice_id AS invoiceId, adjusted_amount AS adjustedAmount
       FROM po_advance_invoice_adjustments
       WHERE po_id = ?
+        AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)
       `,
       [poId]
     );
@@ -4401,7 +4411,10 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
 
     const invoiceIds = Array.from(new Set(rows.map((r) => r.invoiceId)));
     if (!invoiceIds.length) {
-      await pool.query('DELETE FROM po_advance_invoice_adjustments WHERE po_id = ?', [poId]);
+      await pool.query(
+        "DELETE FROM po_advance_invoice_adjustments WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)",
+        [poId]
+      );
       return res.json({ ok: true });
     }
 
@@ -4415,12 +4428,16 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.query('DELETE FROM po_advance_invoice_adjustments WHERE po_id = ?', [poId]);
+      await conn.query(
+        "DELETE FROM po_advance_invoice_adjustments WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)",
+        [poId]
+      );
       for (const r of rows) {
         if (!(r.adjustedAmount > 1e-9)) continue;
         await conn.query(
-          `INSERT INTO po_advance_invoice_adjustments (id, po_id, invoice_id, adjusted_amount, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO po_advance_invoice_adjustments
+           (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
+           VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)`,
           [crypto.randomUUID(), poId, r.invoiceId, r.adjustedAmount, updatedBy, updatedBy]
         );
       }
@@ -4439,6 +4456,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
+
 
 // Invoices for a PR
 app.get('/api/requests/:id/invoices', async (req, res) => {
@@ -9283,6 +9301,78 @@ app.post('/api/masters/departments/import', async (req, res) => {
   }
 });
 
+// States
+app.get('/api/masters/states/template', async (_req, res) => {
+  csvTemplateResponse(res, 'states-template.csv', 'name');
+});
+app.post('/api/masters/states/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'states', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate state names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO states (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Cities
+app.get('/api/masters/cities/template', async (_req, res) => {
+  csvTemplateResponse(res, 'cities-template.csv', 'state,name');
+});
+app.post('/api/masters/cities/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensureGeoMastersTables(pool);
+    const rows = requireRows(req.body);
+
+    const pairs = rows
+      .map((r) => ({
+        state: String(r.state ?? '').trim(),
+        name: String(r.name ?? '').trim(),
+      }))
+      .filter((r) => r.state && r.name);
+
+    const pairKeys = pairs.map((r) => `${normalizeKey(r.state)}||${normalizeKey(r.name)}`);
+    const dupInFile = findDuplicates(pairKeys);
+    if (dupInFile.length) return res.status(409).json({ error: 'Duplicate city/state combinations found in file', duplicates: dupInFile });
+
+    if (pairs.length) {
+      const [existingRows] = await pool.query('SELECT state_name AS state, name FROM cities');
+      const existingSet = new Set(
+        (Array.isArray(existingRows) ? existingRows : []).map((r) => `${normalizeKey(r.state)}||${normalizeKey(r.name)}`)
+      );
+      const dupExisting = pairKeys.filter((k) => existingSet.has(k));
+      if (dupExisting.length) {
+        return res.status(409).json({ error: 'Duplicate city/state combinations found', duplicates: Array.from(new Set(dupExisting)) });
+      }
+    }
+
+    for (const r of pairs) {
+      await pool.query('INSERT INTO cities (id, state_name, name, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [
+        crypto.randomUUID(),
+        r.state,
+        r.name,
+      ]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // Units
 app.get('/api/masters/units/template', async (_req, res) => {
   csvTemplateResponse(res, 'units-template.csv', 'name');
@@ -9301,6 +9391,31 @@ app.post('/api/masters/units/import', async (req, res) => {
       const name = String(r.name ?? '').trim();
       if (!name) continue;
       await pool.query('INSERT INTO units (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Priorities
+app.get('/api/masters/priorities/template', async (_req, res) => {
+  csvTemplateResponse(res, 'priorities-template.csv', 'name');
+});
+app.post('/api/masters/priorities/import', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = requireRows(req.body);
+    const names = rows.map((r) => String(r.name ?? '').trim()).filter(Boolean);
+    const dupInFile = findDuplicates(names);
+    const existing = await selectExistingNames(pool, 'priorities', names);
+    const dupAll = Array.from(new Set([...dupInFile, ...existing]));
+    if (dupAll.length) return res.status(409).json({ error: 'Duplicate priority names found', duplicates: dupAll });
+    for (const r of rows) {
+      const name = String(r.name ?? '').trim();
+      if (!name) continue;
+      await pool.query('INSERT INTO priorities (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
     }
     res.json({ ok: true });
   } catch (e) {
@@ -10754,6 +10869,7 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       LEFT JOIN (
         SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
         FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
         GROUP BY invoice_id
       ) adj ON adj.invoiceId = inv.id
       WHERE inv.id = ?
@@ -10774,21 +10890,38 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       [paymentStatus, paymentDate, paymentAmount, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
     );
 
-    // If the client provided an adjusted amount, ensure an adjustment row exists for this invoice.
+    // If the client provided an adjusted amount, ensure an advance-adjustment receipt row exists.
     if (adjustedAmountInput != null) {
       const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
       const poId = poRow?.poId != null ? String(poRow.poId) : '';
       if (poId && adjustedAmount > 1e-9) {
         await pool.query(
           `
-          INSERT INTO po_advance_invoice_adjustments (id, po_id, invoice_id, adjusted_amount, created_by, updated_by)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO po_advance_invoice_adjustments
+            (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, created_by, updated_by)
+          VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?)
           ON DUPLICATE KEY UPDATE
             adjusted_amount = VALUES(adjusted_amount),
+            receipt_type = VALUES(receipt_type),
+            reference_type = VALUES(reference_type),
             updated_by = VALUES(updated_by),
             updated_at = NOW()
           `,
           [crypto.randomUUID(), poId, invoiceId, adjustedAmount, updatedBy || 'system', updatedBy || 'system']
+        );
+      }
+    }
+    if (paymentAmount > 1e-9) {
+      const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
+      const poId = poRow?.poId != null ? String(poRow.poId) : '';
+      if (poId) {
+        await pool.query(
+          `
+          INSERT INTO po_advance_invoice_adjustments
+            (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, created_by, updated_by)
+          VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?)
+          `,
+          [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, updatedBy || 'system', updatedBy || 'system']
         );
       }
     }

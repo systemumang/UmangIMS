@@ -190,6 +190,7 @@ export type PoAdvanceAdjustmentInvoiceRow = {
   adjustedAmount: number;
   createdAt: string;
 };
+export type PoReceiptInvoiceRow = PoAdvanceAdjustmentInvoiceRow;
 
 export type OperationsPrDetail = {
   pr: any;
@@ -244,8 +245,12 @@ export async function fetchOperationsAdvances(filters?: OperationsFilters, signa
 
 export async function fetchPoAdvanceAdjustments(poId: string, signal?: AbortSignal): Promise<PoAdvanceAdjustmentInvoiceRow[]> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advance-adjustments`, { signal });
-  const data = await requireOk<{ invoices?: PoAdvanceAdjustmentInvoiceRow[] }>(res, 'Failed to load advance adjustments');
+  const data = await requireOk<{ invoices?: PoAdvanceAdjustmentInvoiceRow[] }>(res, 'Failed to load receipt entries');
   return Array.isArray(data.invoices) ? data.invoices : [];
+}
+
+export async function fetchPoReceipts(poId: string, signal?: AbortSignal): Promise<PoReceiptInvoiceRow[]> {
+  return fetchPoAdvanceAdjustments(poId, signal);
 }
 
 export async function updatePoAdvanceAdjustments(
@@ -258,7 +263,15 @@ export async function updatePoAdvanceAdjustments(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rows, updatedBy }),
   });
-  return requireOk<{ ok: boolean }>(res, 'Failed to save advance adjustments');
+  return requireOk<{ ok: boolean }>(res, 'Failed to save receipt entries');
+}
+
+export async function updatePoReceipts(
+  poId: string,
+  rows: Array<{ invoiceId: string; adjustedAmount: number }>,
+  updatedBy?: string
+): Promise<{ ok: boolean }> {
+  return updatePoAdvanceAdjustments(poId, rows, updatedBy);
 }
 
 export async function fetchOperationsPrDetail(prId: string, signal?: AbortSignal): Promise<OperationsPrDetail> {

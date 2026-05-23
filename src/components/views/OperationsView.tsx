@@ -18,11 +18,11 @@ import {
 	  fetchOperationsPayments,
 		  fetchOperationsPoDetail,
 		  fetchPoAdvances,
-      fetchPoAdvanceAdjustments,
+      fetchPoReceipts,
 		  fetchOperationsPos,
 		  fetchOperationsPrDetail,
 		  fetchOperationsPrs,
-      updatePoAdvanceAdjustments,
+      updatePoReceipts,
 		  updatePoAdvances,
 		  type OperationsFilters,
       type OperationsAdvanceListRow,
@@ -30,7 +30,7 @@ import {
 		  type OperationsInvoiceListRow,
 		  type OperationsPaymentListRow,
 		  type OperationsPoListRow,
-      type PoAdvanceAdjustmentInvoiceRow,
+      type PoReceiptInvoiceRow,
 	  type PoAdvanceRow,
 	  type OperationsPrListRow,
 } from '@/src/lib/operations';
@@ -137,7 +137,7 @@ export default function OperationsView({
   const [adjustModalPoId, setAdjustModalPoId] = useState('');
   const [adjustModalPoNumber, setAdjustModalPoNumber] = useState('');
   const [adjustModalAdvanceAmount, setAdjustModalAdvanceAmount] = useState(0);
-  const [adjustInvoices, setAdjustInvoices] = useState<PoAdvanceAdjustmentInvoiceRow[]>([]);
+  const [adjustInvoices, setAdjustInvoices] = useState<PoReceiptInvoiceRow[]>([]);
   const [adjustInvoiceAmounts, setAdjustInvoiceAmounts] = useState<Record<string, string>>({});
 
   const [editPoOpen, setEditPoOpen] = useState(false);
@@ -547,7 +547,7 @@ export default function OperationsView({
     setAdjustInvoices([]);
     setAdjustInvoiceAmounts({});
     try {
-      const inv = await fetchPoAdvanceAdjustments(poId);
+      const inv = await fetchPoReceipts(poId);
       const list = Array.isArray(inv) ? inv : [];
       setAdjustInvoices(list);
       setAdjustInvoiceAmounts(Object.fromEntries(list.map((x) => [x.invoiceId, String(Number(x.adjustedAmount ?? 0) || '')])));
@@ -578,7 +578,7 @@ export default function OperationsView({
         invoiceId,
         adjustedAmount: String(v ?? '').trim() ? Number(v) : 0,
       }));
-      await updatePoAdvanceAdjustments(adjustModalPoId, rows, 'Accounts Team');
+      await updatePoReceipts(adjustModalPoId, rows, 'Accounts Team');
       const refreshed = await fetchOperationsAdvances(filters);
       setAdvancePos(refreshed ?? []);
       closeAdjustModal();
@@ -1139,7 +1139,7 @@ export default function OperationsView({
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
                             <td className="px-3 py-2 border border-outline-variant">
                               <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
-                                Adjust
+                                Receipt
                               </button>
                             </td>
                           </>
@@ -1273,7 +1273,7 @@ export default function OperationsView({
         </div>
       </div>
 
-      <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} maxWidthClass="max-w-3xl">
+      <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} fullScreen>
         <div className="space-y-3">
           {advanceModalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{advanceModalError}</div> : null}
           <div className="overflow-x-auto">
@@ -1383,7 +1383,7 @@ export default function OperationsView({
 
       <Modal
         open={adjustModalOpen}
-        title={`Advance Adjustment: ${adjustModalPoNumber || '-'}`}
+        title={`Receipt Entry: ${adjustModalPoNumber || '-'}`}
         onClose={() => (adjustModalBusy ? null : closeAdjustModal())}
         maxWidthClass="max-w-5xl"
         closeButtonLabel="Close"
@@ -1419,7 +1419,7 @@ export default function OperationsView({
                   <th className="px-3 py-2 border border-outline-variant">Invoice No.</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
-                  <th className="px-3 py-2 border border-outline-variant">Advance Adjusted Now</th>
+                  <th className="px-3 py-2 border border-outline-variant">Receipt Amount</th>
                 </tr>
               </thead>
               <tbody>
