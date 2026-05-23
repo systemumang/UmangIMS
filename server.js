@@ -4468,6 +4468,7 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
         inv.invoice_number AS invoiceNo,
         inv.invoice_date AS invoiceDate,
         inv.total_amount AS invoiceAmount,
+        inv.payment_mode AS paymentMode,
         inv.created_at AS createdAt
       FROM invoices inv
       WHERE inv.po_id = ?
@@ -4504,6 +4505,7 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
         invoiceDate: toIsoDate(r.invoiceDate) || '',
         invoiceAmount: Number(r.invoiceAmount ?? 0),
         adjustedAmount: Number(adjustedByInvoiceId[invoiceId] ?? 0),
+        paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
       };
     });
@@ -4531,6 +4533,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
       .map((r) => ({
         invoiceId: String(r?.invoiceId ?? '').trim(),
         adjustedAmount: Number(r?.adjustedAmount ?? 0),
+        paymentMode: String(r?.paymentMode ?? '').trim() || 'Credit',
       }))
       .filter((r) => r.invoiceId)
       .map((r) => ({ ...r, adjustedAmount: Number.isFinite(r.adjustedAmount) ? Math.max(0, r.adjustedAmount) : 0 }));
@@ -4574,9 +4577,9 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
         try {
           await conn.query(
             `INSERT INTO po_advance_invoice_adjustments
-             (id, po_id, invoice_id, adjusted_amount, receipt_type, reference_type, entry_key, created_by, updated_by)
-             VALUES (?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?, ?)`,
-            [crypto.randomUUID(), poId, r.invoiceId, delta, crypto.randomUUID(), updatedBy, updatedBy]
+             (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
+             VALUES (?, ?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?, ?)`,
+            [crypto.randomUUID(), poId, r.invoiceId, delta, r.paymentMode || null, crypto.randomUUID(), updatedBy, updatedBy]
           );
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -4586,6 +4589,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
               `
               UPDATE po_advance_invoice_adjustments
               SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
+                  payment_mode = COALESCE(?, payment_mode),
                   receipt_type = 'ADVANCE_ADJUSTMENT',
                   reference_type = 'INVOICE',
                   updated_by = ?,
@@ -4593,7 +4597,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
               WHERE po_id = ? AND invoice_id = ?
               LIMIT 1
               `,
-              [delta, updatedBy, poId, r.invoiceId]
+              [delta, r.paymentMode || null, updatedBy, poId, r.invoiceId]
             );
           } else {
             throw e;

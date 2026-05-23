@@ -149,6 +149,7 @@ export default function OperationsView({
   const [adjustModalAdvanceAmount, setAdjustModalAdvanceAmount] = useState(0);
   const [adjustInvoices, setAdjustInvoices] = useState<PoReceiptInvoiceRow[]>([]);
   const [adjustInvoiceAmounts, setAdjustInvoiceAmounts] = useState<Record<string, string>>({});
+  const [adjustInvoicePaymentModes, setAdjustInvoicePaymentModes] = useState<Record<string, string>>({});
 
   const [editPoOpen, setEditPoOpen] = useState(false);
   const [editPoBusy, setEditPoBusy] = useState(false);
@@ -561,11 +562,13 @@ export default function OperationsView({
     setAdjustModalError(null);
     setAdjustInvoices([]);
     setAdjustInvoiceAmounts({});
+    setAdjustInvoicePaymentModes({});
     try {
       const inv = await fetchPoReceipts(poId);
       const list = Array.isArray(inv) ? inv : [];
       setAdjustInvoices(list);
       setAdjustInvoiceAmounts(Object.fromEntries(list.map((x) => [x.invoiceId, String(Number(x.adjustedAmount ?? 0) || '')])));
+      setAdjustInvoicePaymentModes(Object.fromEntries(list.map((x) => [x.invoiceId, String((x as any).paymentMode ?? 'Credit') || 'Credit'])));
     } catch (e) {
       setAdjustModalError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -582,6 +585,7 @@ export default function OperationsView({
     setAdjustModalAdvanceAmount(0);
     setAdjustInvoices([]);
     setAdjustInvoiceAmounts({});
+    setAdjustInvoicePaymentModes({});
   };
 
   const saveAdjustments = async () => {
@@ -592,6 +596,7 @@ export default function OperationsView({
       const rows = Object.entries(adjustInvoiceAmounts).map(([invoiceId, v]) => ({
         invoiceId,
         adjustedAmount: String(v ?? '').trim() ? Number(v) : 0,
+        paymentMode: String(adjustInvoicePaymentModes[invoiceId] ?? '').trim() || 'Credit',
       }));
       await updatePoReceipts(adjustModalPoId, rows, 'Accounts Team');
       const refreshed = await fetchOperationsAdvances(filters);
@@ -1535,31 +1540,33 @@ export default function OperationsView({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-              <colgroup>
-                <col className="w-[180px]" />
-                <col className="w-[140px]" />
-                <col className="w-[160px]" />
-                <col className="w-[180px]" />
-              </colgroup>
+              <table className="w-full min-w-[1040px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                <colgroup>
+                  <col className="w-[180px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[180px]" />
+                  <col className="w-[180px]" />
+                </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 border border-outline-variant">Invoice No.</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
                   <th className="px-3 py-2 border border-outline-variant">Payment Amount</th>
+                  <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
                 </tr>
               </thead>
               <tbody>
                 {adjustModalBusy ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    <td colSpan={5} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
                       Loading...
                     </td>
                   </tr>
                 ) : !adjustInvoices.length ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    <td colSpan={5} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
                       No invoices found for this PO.
                     </td>
                   </tr>
@@ -1583,6 +1590,28 @@ export default function OperationsView({
                           placeholder="0"
                           disabled={adjustModalBusy}
                         />
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant">
+                        <select
+                          className={cn(inputClass, 'py-1.5')}
+                          value={adjustInvoicePaymentModes[inv.invoiceId] ?? 'Credit'}
+                          onChange={(e) =>
+                            setAdjustInvoicePaymentModes((prev) => ({
+                              ...prev,
+                              [inv.invoiceId]: e.target.value,
+                            }))
+                          }
+                          disabled={adjustModalBusy}
+                        >
+                          <option value="Credit">Credit</option>
+                          <option value="Cash">Cash</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Cheque">Cheque</option>
+                          <option value="NEFT">NEFT</option>
+                          <option value="RTGS">RTGS</option>
+                          <option value="IMPS">IMPS</option>
+                          <option value="Card">Card</option>
+                        </select>
                       </td>
                     </tr>
                   ))

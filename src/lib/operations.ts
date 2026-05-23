@@ -204,6 +204,7 @@ export type PoAdvanceAdjustmentInvoiceRow = {
   invoiceDate: string;
   invoiceAmount: number;
   adjustedAmount: number;
+  paymentMode?: string;
   createdAt: string;
 };
 export type PoReceiptInvoiceRow = PoAdvanceAdjustmentInvoiceRow;
@@ -271,7 +272,7 @@ export async function fetchPoReceipts(poId: string, signal?: AbortSignal): Promi
 
 export async function updatePoAdvanceAdjustments(
   poId: string,
-  rows: Array<{ invoiceId: string; adjustedAmount: number }>,
+  rows: Array<{ invoiceId: string; adjustedAmount: number; paymentMode?: string }>,
   updatedBy?: string
 ): Promise<{ ok: boolean }> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/advance-adjustments`, {
@@ -284,7 +285,7 @@ export async function updatePoAdvanceAdjustments(
 
 export async function updatePoReceipts(
   poId: string,
-  rows: Array<{ invoiceId: string; adjustedAmount: number }>,
+  rows: Array<{ invoiceId: string; adjustedAmount: number; paymentMode?: string }>,
   updatedBy?: string
 ): Promise<{ ok: boolean }> {
   return updatePoAdvanceAdjustments(poId, rows, updatedBy);
