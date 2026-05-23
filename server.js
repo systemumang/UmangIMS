@@ -4468,7 +4468,15 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
         inv.invoice_number AS invoiceNo,
         inv.invoice_date AS invoiceDate,
         inv.total_amount AS invoiceAmount,
-        inv.payment_mode AS paymentMode,
+        (
+          SELECT pa.payment_mode
+          FROM po_advances pa
+          WHERE pa.po_id = inv.po_id
+            AND pa.payment_mode IS NOT NULL
+            AND TRIM(pa.payment_mode) <> ''
+          ORDER BY pa.advance_date DESC, pa.created_at DESC
+          LIMIT 1
+        ) AS paymentMode,
         inv.created_at AS createdAt
       FROM invoices inv
       WHERE inv.po_id = ?

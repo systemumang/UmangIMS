@@ -1592,26 +1592,12 @@ export default function OperationsView({
                         />
                       </td>
                       <td className="px-3 py-2 border border-outline-variant">
-                        <select
+                        <input
                           className={cn(inputClass, 'py-1.5')}
                           value={adjustInvoicePaymentModes[inv.invoiceId] ?? 'Credit'}
-                          onChange={(e) =>
-                            setAdjustInvoicePaymentModes((prev) => ({
-                              ...prev,
-                              [inv.invoiceId]: e.target.value,
-                            }))
-                          }
-                          disabled={adjustModalBusy}
-                        >
-                          <option value="Credit">Credit</option>
-                          <option value="Cash">Cash</option>
-                          <option value="UPI">UPI</option>
-                          <option value="Cheque">Cheque</option>
-                          <option value="NEFT">NEFT</option>
-                          <option value="RTGS">RTGS</option>
-                          <option value="IMPS">IMPS</option>
-                          <option value="Card">Card</option>
-                        </select>
+                          readOnly
+                          disabled
+                        />
                       </td>
                     </tr>
                   ))
