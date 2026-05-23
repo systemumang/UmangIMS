@@ -247,6 +247,17 @@ function getMysqlPool() {
       } catch (e) {
         console.error('Unable to update po_advance_invoice_adjustments indexes:', e);
       }
+      try {
+        await pool.query(`
+          UPDATE po_advance_invoice_adjustments a
+          INNER JOIN purchase_orders po ON po.id = a.po_id
+          SET a.receipt_type = 'DIRECT_PAYMENT'
+          WHERE a.receipt_type = 'ADVANCE_ADJUSTMENT'
+            AND COALESCE(a.adjusted_amount, 0) > COALESCE(po.advance_amount, 0)
+        `);
+      } catch (e) {
+        console.error('Unable to normalize oversized advance adjustments:', e);
+      }
 
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');
@@ -3475,7 +3486,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     LEFT JOIN (
       SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
       FROM po_advance_invoice_adjustments
-      WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
+      WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+         OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
       GROUP BY invoice_id
     ) adj ON adj.invoiceId = inv.id
     WHERE inv.id = ?
@@ -4132,13 +4144,15 @@ app.get('/api/operations/invoices', async (req, res) => {
       LEFT JOIN (
         SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
         FROM po_advance_invoice_adjustments
-        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
         GROUP BY invoice_id
       ) adjq ON adjq.invoiceId = inv.id
       LEFT JOIN (
         SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS actualReceiptAmount
         FROM po_advance_invoice_adjustments
         WHERE receipt_type = 'DIRECT_PAYMENT'
+           OR (receipt_type IS NULL AND payment_mode IS NOT NULL AND TRIM(payment_mode) <> '')
         GROUP BY invoice_id
       ) recq ON recq.invoiceId = inv.id
       WHERE ${where.join(' AND ')}
@@ -4332,7 +4346,8 @@ app.get('/api/operations/advances', async (req, res) => {
       LEFT JOIN (
         SELECT po_id AS poId, SUM(adjusted_amount) AS amountAdjusted
         FROM po_advance_invoice_adjustments
-        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
         GROUP BY po_id
       ) adj ON adj.poId = po.id
       WHERE ${where.join(' AND ')}
@@ -4404,7 +4419,10 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
       SELECT invoice_id AS invoiceId, adjusted_amount AS adjustedAmount
       FROM po_advance_invoice_adjustments
       WHERE po_id = ?
-        AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)
+        AND (
+          receipt_type = 'ADVANCE_ADJUSTMENT'
+          OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
+        )
       `,
       [poId]
     );
@@ -4469,7 +4487,11 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
         `
         SELECT invoice_id AS invoiceId, COALESCE(SUM(adjusted_amount), 0) AS adjustedAmount
         FROM po_advance_invoice_adjustments
-        WHERE po_id = ? AND (receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL)
+        WHERE po_id = ?
+          AND (
+            receipt_type = 'ADVANCE_ADJUSTMENT'
+            OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
+          )
         GROUP BY invoice_id
         `,
         [poId]
@@ -10927,7 +10949,8 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       LEFT JOIN (
         SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
         FROM po_advance_invoice_adjustments
-        WHERE receipt_type = 'ADVANCE_ADJUSTMENT' OR receipt_type IS NULL
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
         GROUP BY invoice_id
       ) adj ON adj.invoiceId = inv.id
       WHERE inv.id = ?

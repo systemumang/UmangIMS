@@ -316,7 +316,6 @@ export default function PaymentQueueView({
 		                    : updateInvoicePayment(active.invoiceId, {
 		                        paymentDate,
 		                        paymentAmount,
-		                        adjustedAmount: Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0),
 		                        paymentMode: paymentModeInput || undefined,
 		                        updatedBy: 'Accounts Team',
 		                        tallyEntryDate: tallyEntryDate || undefined,
