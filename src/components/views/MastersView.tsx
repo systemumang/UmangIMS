@@ -4071,35 +4071,45 @@ export default function MastersView({
 		                    </label>
 		                  </div>
 	
-	                  <div className="space-y-2">
-	                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
-	                    {newItemSpecs.map((row, idx) => (
-	                      <div
-	                        key={idx}
-	                        className="bg-surface-container-low rounded-lg border border-outline-variant/10 p-3 space-y-2"
-	                      >
-	                        <div className="flex items-center justify-between gap-2">
-	                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-	                            Spec Row {idx + 1}
-	                          </div>
-	                          <button
-	                            type="button"
-	                            className="btn btn-sm disabled:opacity-50"
-	                            disabled={newItemSpecs.length === 1}
-	                            onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
-	                            title={newItemSpecs.length === 1 ? 'At least one specification required' : 'Remove'}
-	                          >
-	                            Remove
-	                          </button>
-	                        </div>
-	
-		                        <label className="space-y-1">
-		                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Spec</div>
-			                          <SearchableSelect
-			                            value={row.specificationId}
-			                            options={specs.map((s) => ({ value: s.id, label: s.name }))}
-		                            onChange={(specId) => {
-		                              setNewItemSpecs((prev) =>
+			                  <div className="space-y-2">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
+			                    {newItemSpecs.map((row, idx) => (
+		                      <div
+		                        key={idx}
+		                        className="bg-surface-container-low rounded-lg border border-outline-variant/10 p-3 space-y-2"
+		                      >
+		                        <div className="flex items-center justify-between gap-2">
+		                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+		                            Spec Row {idx + 1}
+		                          </div>
+                              {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
+		                            <button
+		                              type="button"
+		                              className="btn btn-sm disabled:opacity-50"
+		                              disabled={newItemSpecs.length === 1}
+		                              onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
+		                              title={newItemSpecs.length === 1 ? 'At least one specification required' : 'Remove'}
+		                            >
+		                              Remove
+		                            </button>
+                              ) : null}
+		                        </div>
+		
+			                        <label className="space-y-1">
+			                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Spec</div>
+                                  {Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId) ? (
+                                    <input
+                                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none opacity-80"
+                                      value={specNameLookup[row.specificationId] ?? ''}
+                                      readOnly
+                                      disabled
+                                    />
+                                  ) : (
+				                          <SearchableSelect
+				                            value={row.specificationId}
+				                            options={specs.map((s) => ({ value: s.id, label: s.name }))}
+			                            onChange={(specId) => {
+			                              setNewItemSpecs((prev) =>
 		                                prev.map((p, i) =>
 		                                  i === idx ? { ...p, specificationId: specId, value: '', useCustom: false } : p
 		                                )
@@ -4111,17 +4121,18 @@ export default function MastersView({
 			                            }}
 			                            placeholder="Search specification..."
 			                            createLabel={(q) => `+ Create Specification "${q}"`}
-			                            onCreate={async (label) => {
-			                              const name = label.trim();
-			                              if (!name) return null;
-			                              const created = await createSpecification({ name, createdBy: 'system' });
-		                              const next = created.specification;
+				                            onCreate={async (label) => {
+				                              const name = label.trim();
+				                              if (!name) return null;
+				                              const created = await createSpecification({ name, createdBy: 'system' });
+			                              const next = created.specification;
 		                              if (!next?.id) return null;
 		                              await loadAll();
-		                              return { value: next.id, label: next.name };
-		                            }}
-		                          />
-		                        </label>
+				                              return { value: next.id, label: next.name };
+			                            }}
+			                          />
+                                  )}
+			                        </label>
 	
 		                        <label className="space-y-1">
 		                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Value</div>
@@ -4179,16 +4190,18 @@ export default function MastersView({
 			                          />
 			                        </label>
 	                      </div>
-	                    ))}
+			                    ))}
 
-	                    <button
-	                      type="button"
-	                      className="btn btn-sm"
-	                      onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
-	                    >
-	                      + Add Spec Row
-	                    </button>
-	                  </div>
+                          {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
+		                      <button
+		                        type="button"
+		                        className="btn btn-sm"
+		                        onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
+		                      >
+		                        + Add Spec Row
+		                      </button>
+                          ) : null}
+			                  </div>
 
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
