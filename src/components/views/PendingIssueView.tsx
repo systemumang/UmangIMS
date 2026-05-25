@@ -23,11 +23,12 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
     load();
   }, []);
 
-  const filtered = requests.filter(r => 
-    r.requestNo.toLowerCase().includes(search.toLowerCase()) ||
-    (r.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (r.projectName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (r.userName || r.supplierName || '').toLowerCase().includes(search.toLowerCase())
+  const needle = String(search ?? '').toLowerCase();
+  const filtered = requests.filter((r) =>
+    String(r.requestNo ?? '').toLowerCase().includes(needle) ||
+    String(r.customerName ?? '').toLowerCase().includes(needle) ||
+    String(r.projectName ?? '').toLowerCase().includes(needle) ||
+    String(r.userName ?? r.supplierName ?? '').toLowerCase().includes(needle)
   );
 
   if (loading) return <div className="p-8 flex justify-center"><Spinner /></div>;
