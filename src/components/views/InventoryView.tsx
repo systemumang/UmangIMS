@@ -21,6 +21,7 @@ export default function InventoryView() {
   const [pendingOrderOnly, setPendingOrderOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [photoModal, setPhotoModal] = useState<{ title: string; photos: string[] } | null>(null);
   const [issueRows, setIssueRows] = useState<StockTransaction[]>([]);
   const [returnRows, setReturnRows] = useState<StockTransaction[]>([]);
   const [damageRows, setDamageRows] = useState<StockTransaction[]>([]);
@@ -532,25 +533,21 @@ export default function InventoryView() {
                     </button>
                   </th>
 	                  <th className="p-0 border-b border-black text-center">
-	                    <button type="button" onClick={() => onSort('unit')} className="w-full px-3 py-3 flex items-center justify-center gap-1">
-	                      <span>Unit</span><ArrowUpDown size={12} />
-	                    </button>
-	                  </th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 1</th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 2</th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 3</th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 4</th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo 5</th>
-                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Item Link</th>
-                    <th className="px-3 py-2 border-b border-black text-center">Video Link</th>
-	                </tr>
-	              </thead>
+		                    <button type="button" onClick={() => onSort('unit')} className="w-full px-3 py-3 flex items-center justify-center gap-1">
+		                      <span>Unit</span><ArrowUpDown size={12} />
+		                    </button>
+		                  </th>
+	                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Photo</th>
+	                    <th className="px-3 py-2 border-b border-black border-r border-black text-center">Item Link</th>
+	                    <th className="px-3 py-2 border-b border-black text-center">Video Link</th>
+		                </tr>
+		              </thead>
 	              <tbody className="divide-y divide-outline-variant">
-	                {filteredRows.length === 0 ? (
-	                  <tr>
-				                    <td colSpan={20} className="p-8 text-center text-on-surface-variant italic">No items found</td>
-		                  </tr>
-		                ) : (
+		                {filteredRows.length === 0 ? (
+		                  <tr>
+					                    <td colSpan={16} className="p-8 text-center text-on-surface-variant italic">No items found</td>
+			                  </tr>
+			                ) : (
 			                  sortedRows.map((r, idx) => (
 			                    (() => {
 			                      const reorderLevel = Number((r as any).reorderLevel ?? 0);
@@ -580,33 +577,38 @@ export default function InventoryView() {
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).transferIn ?? 0)}</td>
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).transferOut ?? 0)}</td>
 		                      <td className="p-3 border-r border-black text-on-surface font-bold text-right text-primary">{r.balance}</td>
-		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).reorderLevel ?? 0)}</td>
-			                      <td className="p-3 border-r border-black text-on-surface-variant text-center">{r.unit || '-'}</td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String(r.photo1 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo1))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String(r.photo2 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo2))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String(r.photo3 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo3))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String(r.photo4 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo4))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String(r.photo5 ?? '').trim() ? <a href={normalizeViewUrl(String(r.photo5))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 border-r border-black text-center">
-                              {String((r as any).itemLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).itemLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-                            <td className="p-3 text-center">
-                              {String((r as any).videoLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).videoLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
-                            </td>
-		                    </tr>
-	                  );
-			                })()
-			              ))
+				                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).reorderLevel ?? 0)}</td>
+				                      <td className="p-3 border-r border-black text-on-surface-variant text-center">{r.unit || '-'}</td>
+	                            <td className="p-3 border-r border-black text-center">
+	                              {(() => {
+	                                const photos = [r.photo1, r.photo2, r.photo3, r.photo4, r.photo5].map((p) => String(p ?? '').trim()).filter(Boolean);
+	                                if (!photos.length) return <span className="text-on-surface-variant">-</span>;
+	                                return (
+	                                  <button
+	                                    type="button"
+	                                    className="text-primary underline text-xs"
+	                                    onClick={() =>
+	                                      setPhotoModal({
+	                                        title: getFullSheetItemLabel(r, specNameById),
+	                                        photos,
+	                                      })
+	                                    }
+	                                  >
+	                                    View ({photos.length})
+	                                  </button>
+	                                );
+	                              })()}
+	                            </td>
+	                            <td className="p-3 border-r border-black text-center">
+	                              {String((r as any).itemLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).itemLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+	                            </td>
+	                            <td className="p-3 text-center">
+	                              {String((r as any).videoLink ?? '').trim() ? <a href={normalizeViewUrl(String((r as any).videoLink))} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open</a> : <span className="text-on-surface-variant">-</span>}
+	                            </td>
+			                    </tr>
+		                  );
+				                })()
+				              ))
 	                )}
 	              </tbody>
 		            </table>
@@ -620,10 +622,41 @@ export default function InventoryView() {
 	            Pdf
 	          </button>
 	        </div>
-	      </div>
+		      </div>
 
-    </div>
-  );
+		      {photoModal ? (
+		        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+		          <div className="w-full max-w-5xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl overflow-hidden">
+		            <div className="px-4 py-3 border-b border-outline-variant flex items-center justify-between gap-3">
+		              <div className="font-semibold text-sm text-on-surface truncate" title={photoModal.title}>
+		                Photos — {photoModal.title}
+		              </div>
+		              <button type="button" className="btn btn-sm" onClick={() => setPhotoModal(null)}>
+		                Close
+		              </button>
+		            </div>
+		            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+		              {photoModal.photos.map((p) => (
+		                <a
+		                  key={p}
+		                  href={normalizeViewUrl(p)}
+		                  target="_blank"
+		                  rel="noreferrer"
+		                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden hover:bg-surface-container-high transition-colors"
+		                >
+		                  <div className="aspect-video bg-black/5 flex items-center justify-center">
+		                    <img src={normalizeViewUrl(p)} alt="Photo" className="max-h-full max-w-full object-contain" />
+		                  </div>
+		                  <div className="px-3 py-2 text-xs text-primary underline break-all">Open</div>
+		                </a>
+		              ))}
+		            </div>
+		          </div>
+		        </div>
+		      ) : null}
+
+	    </div>
+	  );
 }
 
 function OpeningStockModal({
