@@ -320,6 +320,13 @@ export default function MastersView({
 					  const [newCustomerName, setNewCustomerName] = useState('');
 					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+	          const [newCustomerCategoryName, setNewCustomerCategoryName] = useState('');
+	          const [newCustomerSubCategoryName, setNewCustomerSubCategoryName] = useState('');
+	          const [newCustomerCity, setNewCustomerCity] = useState('');
+	          const [newCustomerState, setNewCustomerState] = useState('');
+	          const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
+	          const [newCustomerContactNumber, setNewCustomerContactNumber] = useState('');
+	          const [newCustomerEmailId, setNewCustomerEmailId] = useState('');
 					  const [newTransporterName, setNewTransporterName] = useState('');
 					  const [newTransporterPhone, setNewTransporterPhone] = useState('');
 					  const [newUnitName, setNewUnitName] = useState('');
@@ -435,6 +442,13 @@ export default function MastersView({
 		    if (tab === 'customers')
 		      return [
 		        { value: 'name', label: 'Name' },
+		        { value: 'categoryName', label: 'Category Name' },
+		        { value: 'subCategoryName', label: 'Sub-Category Name' },
+		        { value: 'city', label: 'City' },
+		        { value: 'state', label: 'State' },
+		        { value: 'contactPerson', label: 'Contact Person' },
+		        { value: 'contactNumber', label: 'Contact Number' },
+		        { value: 'emailId', label: 'Email ID' },
 		        { value: 'phone', label: 'Mobile' },
 		        { value: 'address', label: 'Address' },
 		        { value: 'all', label: 'All' },
@@ -628,7 +642,14 @@ export default function MastersView({
           }
 			    if (!listQueryKey) return rows;
 			    return rows.filter((c) => {
-			      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address]);
+			      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address, (c as any).categoryName, (c as any).subCategoryName, (c as any).city, (c as any).state, (c as any).contactPerson, (c as any).contactNumber, (c as any).emailId]);
+			      if (listField === 'categoryName') return matchesListQuery([(c as any).categoryName]);
+			      if (listField === 'subCategoryName') return matchesListQuery([(c as any).subCategoryName]);
+			      if (listField === 'city') return matchesListQuery([(c as any).city]);
+			      if (listField === 'state') return matchesListQuery([(c as any).state]);
+			      if (listField === 'contactPerson') return matchesListQuery([(c as any).contactPerson]);
+			      if (listField === 'contactNumber') return matchesListQuery([(c as any).contactNumber]);
+			      if (listField === 'emailId') return matchesListQuery([(c as any).emailId]);
 			      if (listField === 'phone') return matchesListQuery([c.phone]);
 			      if (listField === 'address') return matchesListQuery([c.address]);
 			      return matchesListQuery([c.name]);
@@ -955,6 +976,13 @@ export default function MastersView({
 						      setNewCustomerName('');
 						      setNewCustomerMobile('');
 						      setNewCustomerAddress('');
+	                setNewCustomerCategoryName('');
+	                setNewCustomerSubCategoryName('');
+	                setNewCustomerCity('');
+	                setNewCustomerState('');
+	                setNewCustomerContactPerson('');
+	                setNewCustomerContactNumber('');
+	                setNewCustomerEmailId('');
 						    }
 					    if (tab === 'transporters') {
 					      setNewTransporterName('');
@@ -1070,6 +1098,13 @@ export default function MastersView({
 				      setNewCustomerName(row?.name ?? '');
 				      setNewCustomerMobile(row?.phone ?? '');
 				      setNewCustomerAddress(row?.address ?? '');
+	            setNewCustomerCategoryName((row as any)?.categoryName ?? '');
+	            setNewCustomerSubCategoryName((row as any)?.subCategoryName ?? '');
+	            setNewCustomerCity((row as any)?.city ?? '');
+	            setNewCustomerState((row as any)?.state ?? '');
+	            setNewCustomerContactPerson((row as any)?.contactPerson ?? '');
+	            setNewCustomerContactNumber((row as any)?.contactNumber ?? '');
+	            setNewCustomerEmailId((row as any)?.emailId ?? '');
 				    }
 					    if (tab === 'transporters') {
 					      const row = transporters.find((t) => t.id === id);
@@ -1693,8 +1728,17 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'customers') {
-            const header = ['name', 'phone', 'address'];
-            const rows = customers.map((c) => ({ name: c.name, phone: c.phone ?? '', address: c.address ?? '' }));
+            const header = ['name', 'categoryName', 'subCategoryName', 'city', 'state', 'contactPerson', 'contactNumber', 'emailId'];
+            const rows = customers.map((c) => ({
+              name: c.name,
+              categoryName: (c as any).categoryName ?? '',
+              subCategoryName: (c as any).subCategoryName ?? '',
+              city: (c as any).city ?? '',
+              state: (c as any).state ?? '',
+              contactPerson: (c as any).contactPerson ?? '',
+              contactNumber: (c as any).contactNumber ?? '',
+              emailId: (c as any).emailId ?? '',
+            }));
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'transporters') {
@@ -1946,8 +1990,8 @@ export default function MastersView({
 			                    />
 			                  </label>
 
-<div className="grid grid-cols-1 gap-3">
-			                    <label className="space-y-1">
+				                  <div className="grid grid-cols-1 gap-3">
+				                    <label className="space-y-1">
 			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sort Name</div>
 			                      <input
 			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
@@ -3072,9 +3116,38 @@ export default function MastersView({
 		                      placeholder="Customer name"
 		                    />
 		                  </label>
-			                  <div className="grid grid-cols-1 gap-3">
-			                    <label className="space-y-1">
-			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
+				                  <div className="grid grid-cols-1 gap-3">
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category Name</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerCategoryName} onChange={(e) => setNewCustomerCategoryName(e.target.value)} placeholder="Category name" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sub-Category Name</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerSubCategoryName} onChange={(e) => setNewCustomerSubCategoryName(e.target.value)} placeholder="Sub-category name" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerCity} onChange={(e) => setNewCustomerCity(e.target.value)} placeholder="City" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerState} onChange={(e) => setNewCustomerState(e.target.value)} placeholder="State" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Contact Person</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerContactPerson} onChange={(e) => setNewCustomerContactPerson(e.target.value)} placeholder="Contact person" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Contact Number</div>
+				                      <input className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.customerContactNumber ? 'border-error/60' : 'border-outline-variant/20'}`} value={newCustomerContactNumber} onChange={(e) => { clearFieldError('customerContactNumber'); setNewCustomerContactNumber(normalizeTenDigitPhoneInput(e.target.value)); }} placeholder="Contact number" inputMode="numeric" maxLength={10} pattern="[0-9]{10}" />
+				                      {fieldErrors.customerContactNumber ? <div className="text-xs text-error">{fieldErrors.customerContactNumber}</div> : null}
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email ID</div>
+				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerEmailId} onChange={(e) => setNewCustomerEmailId(e.target.value)} placeholder="Email ID" type="email" />
+				                    </label>
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Customer Mobile</div>
 			                      <input
 			                        className={`w-full bg-surface-container-low border rounded-lg px-3 py-2 text-sm outline-none ${fieldErrors.customerMobile ? 'border-error/60' : 'border-outline-variant/20'}`}
 			                        value={newCustomerMobile}
@@ -3111,31 +3184,58 @@ export default function MastersView({
 				                        setBusy(true);
 				                        setError(null);
 				                        setFieldErrors({});
-				                        const phone = newCustomerMobile.trim();
-				                        if (phone && !isValidTenDigitPhone(phone)) {
+					                        const phone = newCustomerMobile.trim();
+					                        if (phone && !isValidTenDigitPhone(phone)) {
 				                          setBusy(false);
 				                          setFieldError('customerMobile', 'Must be a 10 digit number.');
 				                          return;
 				                        }
-				                        const fn = isEditing
-			                          ? updateCustomer(editCtx?.id ?? '', {
-			                              name: newCustomerName.trim(),
-			                              phone: phone || undefined,
-			                              address: newCustomerAddress.trim() || undefined,
-			                              updatedBy: 'system',
-			                            })
-			                          : createCustomer({
-			                              name: newCustomerName.trim(),
-			                              phone: phone || undefined,
-			                              address: newCustomerAddress.trim() || undefined,
-			                              createdBy: 'system',
-			                            });
+					                        const contactNumber = newCustomerContactNumber.trim();
+					                        if (contactNumber && !isValidTenDigitPhone(contactNumber)) {
+					                          setBusy(false);
+					                          setFieldError('customerContactNumber', 'Must be a 10 digit number.');
+					                          return;
+					                        }
+					                        const fn = isEditing
+				                          ? updateCustomer(editCtx?.id ?? '', {
+				                              name: newCustomerName.trim(),
+				                              phone: phone || undefined,
+				                              address: newCustomerAddress.trim() || undefined,
+				                              categoryName: newCustomerCategoryName.trim() || undefined,
+				                              subCategoryName: newCustomerSubCategoryName.trim() || undefined,
+				                              city: newCustomerCity.trim() || undefined,
+				                              state: newCustomerState.trim() || undefined,
+				                              contactPerson: newCustomerContactPerson.trim() || undefined,
+				                              contactNumber: contactNumber || undefined,
+				                              emailId: newCustomerEmailId.trim() || undefined,
+				                              updatedBy: 'system',
+				                            })
+				                          : createCustomer({
+				                              name: newCustomerName.trim(),
+				                              phone: phone || undefined,
+				                              address: newCustomerAddress.trim() || undefined,
+				                              categoryName: newCustomerCategoryName.trim() || undefined,
+				                              subCategoryName: newCustomerSubCategoryName.trim() || undefined,
+				                              city: newCustomerCity.trim() || undefined,
+				                              state: newCustomerState.trim() || undefined,
+				                              contactPerson: newCustomerContactPerson.trim() || undefined,
+				                              contactNumber: contactNumber || undefined,
+				                              emailId: newCustomerEmailId.trim() || undefined,
+				                              createdBy: 'system',
+				                            });
 		                        fn.then(() => loadAll())
 		                          .then(() => {
-		                            setNewCustomerName('');
-		                            setNewCustomerMobile('');
-		                            setNewCustomerAddress('');
-		                            closeModal();
+			                            setNewCustomerName('');
+			                            setNewCustomerMobile('');
+			                            setNewCustomerAddress('');
+			                            setNewCustomerCategoryName('');
+			                            setNewCustomerSubCategoryName('');
+			                            setNewCustomerCity('');
+			                            setNewCustomerState('');
+			                            setNewCustomerContactPerson('');
+			                            setNewCustomerContactNumber('');
+			                            setNewCustomerEmailId('');
+			                            closeModal();
 		                          })
 		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
@@ -4949,20 +5049,34 @@ export default function MastersView({
 				            </button>
 			          </div>
 			          <div className="overflow-auto">
-			            <table className="min-w-[920px] w-full text-sm border-collapse border border-blue-600">
+				            <table className="min-w-[1600px] w-full text-sm border-collapse border border-blue-600">
 			              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
 			                <tr>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Name</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Mobile</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Customer Address</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Customer Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Category Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Sub-Category Name</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Contact Person</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Contact Number</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Email ID</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Customer Mobile</th>
+				                  <th className="text-left px-3 py-2 border border-blue-600">Customer Address</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
 				              </thead>
 				              <tbody>
 				                {filteredCustomers.map((c) => (
 				                  <tr key={c.id}>
-			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{c.phone ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).categoryName ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).subCategoryName ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).city ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).state ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).contactPerson ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).contactNumber ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).emailId ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{c.phone ?? ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{c.address ?? ''}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">

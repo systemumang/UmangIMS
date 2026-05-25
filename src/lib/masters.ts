@@ -27,7 +27,19 @@ export type Supplier = {
   catalogueLink?: string | null;
 };
 export type Transporter = { id: string; name: string; phone?: string | null };
-export type Customer = { id: string; name: string; phone?: string | null; address?: string | null };
+export type Customer = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  categoryName?: string | null;
+  subCategoryName?: string | null;
+  city?: string | null;
+  state?: string | null;
+  contactPerson?: string | null;
+  contactNumber?: string | null;
+  emailId?: string | null;
+};
 export type Department = { id: string; name: string };
 export type State = { id: string; name: string };
 export type City = { id: string; state: string; name: string };
@@ -405,7 +417,19 @@ export async function fetchCustomers(signal?: AbortSignal): Promise<Customer[]> 
   return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createCustomer(input: { name: string; phone?: string | null; address?: string | null; createdBy?: string }) {
+export async function createCustomer(input: {
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  categoryName?: string | null;
+  subCategoryName?: string | null;
+  city?: string | null;
+  state?: string | null;
+  contactPerson?: string | null;
+  contactNumber?: string | null;
+  emailId?: string | null;
+  createdBy?: string;
+}) {
   const res = await fetch('/api/masters/customers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -416,7 +440,19 @@ export async function createCustomer(input: { name: string; phone?: string | nul
 
 export async function updateCustomer(
   id: string,
-  input: { name: string; phone?: string | null; address?: string | null; updatedBy?: string }
+  input: {
+    name: string;
+    phone?: string | null;
+    address?: string | null;
+    categoryName?: string | null;
+    subCategoryName?: string | null;
+    city?: string | null;
+    state?: string | null;
+    contactPerson?: string | null;
+    contactNumber?: string | null;
+    emailId?: string | null;
+    updatedBy?: string;
+  }
 ) {
   const res = await fetch(`/api/masters/customers/${encodeURIComponent(id)}`, {
     method: 'PUT',

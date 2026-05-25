@@ -503,7 +503,14 @@ function getMysqlPool() {
         await ensureColumn('suppliers', 'contact_person_mobile', 'VARCHAR(32) NULL');
         await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
         await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
-        await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
+	      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
+	      await ensureColumn('customers', 'category_name', 'VARCHAR(255) NULL');
+	      await ensureColumn('customers', 'sub_category_name', 'VARCHAR(255) NULL');
+	      await ensureColumn('customers', 'city', 'VARCHAR(255) NULL');
+	      await ensureColumn('customers', 'state', 'VARCHAR(255) NULL');
+	      await ensureColumn('customers', 'contact_person', 'VARCHAR(255) NULL');
+	      await ensureColumn('customers', 'contact_number', 'VARCHAR(32) NULL');
+	      await ensureColumn('customers', 'email_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('rfq_items', 'supplier_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('rfq_items', 'supplier_rate', 'DOUBLE NULL');
 	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
@@ -7924,7 +7931,7 @@ app.get('/api/masters/customers', async (_req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const [rows] = await pool.query(
-      'SELECT id, name, phone, address FROM customers ORDER BY name'
+      'SELECT id, name, phone, address, category_name AS categoryName, sub_category_name AS subCategoryName, city, state, contact_person AS contactPerson, contact_number AS contactNumber, email_id AS emailId FROM customers ORDER BY name'
     );
     res.json({ customers: rows });
   } catch (e) {
@@ -7941,12 +7948,19 @@ app.post('/api/masters/customers', async (req, res) => {
     const id = crypto.randomUUID();
     const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
     const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const categoryName = req.body?.categoryName != null ? String(req.body.categoryName).trim() : null;
+    const subCategoryName = req.body?.subCategoryName != null ? String(req.body.subCategoryName).trim() : null;
+    const city = req.body?.city != null ? String(req.body.city).trim() : null;
+    const state = req.body?.state != null ? String(req.body.state).trim() : null;
+    const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
+    const contactNumber = req.body?.contactNumber != null ? String(req.body.contactNumber).trim() : null;
+    const emailId = req.body?.emailId != null ? String(req.body.emailId).trim() : null;
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
     await pool.query(
-      'INSERT INTO customers (id, name, phone, address, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, name, phone, address, createdBy]
+      'INSERT INTO customers (id, name, phone, address, category_name, sub_category_name, city, state, contact_person, contact_number, email_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [id, name, phone, address, categoryName, subCategoryName, city, state, contactPerson, contactNumber, emailId, createdBy]
     );
-    res.status(201).json({ customer: { id, name, phone, address } });
+    res.status(201).json({ customer: { id, name, phone, address, categoryName, subCategoryName, city, state, contactPerson, contactNumber, emailId } });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
@@ -7966,12 +7980,19 @@ app.put('/api/masters/customers/:id', async (req, res) => {
     if (!name) return res.status(400).json({ error: 'name is required' });
     const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
     const address = req.body?.address != null ? String(req.body.address).trim() : null;
+    const categoryName = req.body?.categoryName != null ? String(req.body.categoryName).trim() : null;
+    const subCategoryName = req.body?.subCategoryName != null ? String(req.body.subCategoryName).trim() : null;
+    const city = req.body?.city != null ? String(req.body.city).trim() : null;
+    const state = req.body?.state != null ? String(req.body.state).trim() : null;
+    const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
+    const contactNumber = req.body?.contactNumber != null ? String(req.body.contactNumber).trim() : null;
+    const emailId = req.body?.emailId != null ? String(req.body.emailId).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     await pool.query(
-      'UPDATE customers SET name=?, phone=?, address=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [name, phone, address, updatedBy, id]
+      'UPDATE customers SET name=?, phone=?, address=?, category_name=?, sub_category_name=?, city=?, state=?, contact_person=?, contact_number=?, email_id=?, updated_by=?, updated_at=NOW() WHERE id=?',
+      [name, phone, address, categoryName, subCategoryName, city, state, contactPerson, contactNumber, emailId, updatedBy, id]
     );
-    res.json({ customer: { id, name, phone, address } });
+    res.json({ customer: { id, name, phone, address, categoryName, subCategoryName, city, state, contactPerson, contactNumber, emailId } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -9697,7 +9718,7 @@ app.post('/api/masters/suppliers/import', async (req, res) => {
 
 // Customers
 app.get('/api/masters/customers/template', async (_req, res) => {
-  csvTemplateResponse(res, 'customers-template.csv', 'name,phone,address');
+  csvTemplateResponse(res, 'customers-template.csv', 'name,categoryName,subCategoryName,city,state,contactPerson,contactNumber,emailId');
 });
 app.post('/api/masters/customers/import', async (req, res) => {
   try {
@@ -9714,12 +9735,19 @@ app.post('/api/masters/customers/import', async (req, res) => {
       const name = String(r.name ?? '').trim();
       if (!name) continue;
       await pool.query(
-        `INSERT INTO customers (id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())`,
+        `INSERT INTO customers (id, name, phone, address, category_name, sub_category_name, city, state, contact_person, contact_number, email_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           crypto.randomUUID(),
           name,
           r.phone != null ? String(r.phone).trim() || null : null,
           r.address != null ? String(r.address).trim() || null : null,
+          r.categoryName != null ? String(r.categoryName).trim() || null : null,
+          r.subCategoryName != null ? String(r.subCategoryName).trim() || null : null,
+          r.city != null ? String(r.city).trim() || null : null,
+          r.state != null ? String(r.state).trim() || null : null,
+          r.contactPerson != null ? String(r.contactPerson).trim() || null : null,
+          r.contactNumber != null ? String(r.contactNumber).trim() || null : null,
+          r.emailId != null ? String(r.emailId).trim() || null : null,
         ]
       );
     }
