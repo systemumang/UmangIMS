@@ -9045,6 +9045,77 @@ app.delete('/api/masters/item-names/:id', async (req, res) => {
   }
 });
 
+app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+
+    const [[itemNameRow]] = await pool.query(
+      `
+      SELECT
+        n.id,
+        n.name,
+        u.name AS unitName,
+        c.name AS itemCategoryName
+      FROM item_names n
+      LEFT JOIN units u ON u.id = n.unit_id
+      LEFT JOIN item_categories c ON c.id = n.item_category_id
+      WHERE n.id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (!itemNameRow) return res.status(404).json({ error: 'Item name not found' });
+
+    const [specRows] = await pool.query(
+      `
+      SELECT s.name
+      FROM item_name_specifications ins
+      INNER JOIN specifications s ON s.id = ins.specification_id
+      WHERE ins.item_name_id = ?
+      ORDER BY s.name
+      `,
+      [id]
+    );
+
+    const toCsvCell = (value) => {
+      const raw = String(value ?? '');
+      const escaped = raw.replace(/"/g, '""');
+      return /[",\r\n]/.test(raw) ? `"${escaped}"` : escaped;
+    };
+
+    const specColumns = (Array.isArray(specRows) ? specRows : [])
+      .map((r) => String(r.name ?? '').trim())
+      .filter(Boolean);
+    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns];
+    const lines = [header.map(toCsvCell).join(',')];
+
+    for (let i = 0; i < 25; i += 1) {
+      const row = [
+        String(itemNameRow.name ?? ''),
+        '',
+        String(itemNameRow.unitName ?? ''),
+        String(itemNameRow.itemCategoryName ?? ''),
+        ...specColumns.map(() => ''),
+      ];
+      lines.push(row.map(toCsvCell).join(','));
+    }
+
+    const safeName = String(itemNameRow.name ?? 'item')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'item';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}-items-template.csv"`);
+    res.send(`${lines.join('\n')}\n`);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // --- Masters: Specifications ---
 app.get('/api/masters/specifications', async (_req, res) => {
   try {

@@ -1581,6 +1581,28 @@ export default function MastersView({
           }
         }
 
+        async function downloadItemNameItemsTemplate(itemNameId: string, itemNameLabel: string) {
+          try {
+            setTemplateBusy(true);
+            setTemplateError(null);
+            setTemplateInfo(null);
+            const res = await fetch(`/api/masters/item-names/${encodeURIComponent(itemNameId)}/items-template`);
+            const text = await res.text();
+            if (!res.ok) throw new Error(text || `Failed to download template (${res.status})`);
+            const safe = String(itemNameLabel ?? 'item-name')
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '') || 'item-name';
+            downloadTextFile(`${safe}-items-template.csv`, text, 'text/csv; charset=utf-8');
+            setTemplateInfo(`Template downloaded for "${itemNameLabel}".`);
+          } catch (e) {
+            setTemplateError(e instanceof Error ? e.message : String(e));
+          } finally {
+            setTemplateBusy(false);
+          }
+        }
+
         async function uploadTemplateFile(file: File) {
           try {
             setTemplateBusy(true);
@@ -4428,11 +4450,19 @@ export default function MastersView({
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">
 				                      {String(f.termsConditions ?? '').trim() ? 'Yes' : '-'}
 				                    </td>
-				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-				                      <div className="flex items-center gap-2">
-					                        <button
-				                          type="button"
-				                          className="btn-primary btn-sm"
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+						                      <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    disabled={templateBusy}
+                                    onClick={() => downloadItemNameItemsTemplate(n.id, n.name)}
+                                  >
+                                    Download Template
+                                  </button>
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(f.id)}
 				                        >
 				                          Edit
