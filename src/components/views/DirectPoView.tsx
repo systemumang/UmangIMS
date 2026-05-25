@@ -204,16 +204,27 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     );
   };
 
-	  const canSave = useMemo(() => {
-	    if (!firmId || !supplierId) return false;
+		  const canSave = useMemo(() => {
+		    if (!firmId || !supplierId) return false;
       if (!departmentId) return false;
       if (!requestedByUserId) return false;
       if (!String(requiredDate ?? '').trim()) return false;
-	    if (!storeId && !projectId) return false;
-	    if (!String(paymentTerms ?? '').trim()) return false;
-	    const hasLine = lines.some((l) => String(l.itemId ?? '').trim() && Number(l.quantity) > 0 && Number(l.rate) > 0);
-	    return hasLine;
-	  }, [departmentId, firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines]);
+		    if (!storeId && !projectId) return false;
+		    if (!String(paymentTerms ?? '').trim()) return false;
+		    const hasLine = lines.some((l) => {
+          const qtyOk = Number(l.quantity) > 0;
+          const rateOk = Number(l.rate) > 0;
+          if (!qtyOk || !rateOk) return false;
+          if (String(l.itemId ?? '').trim()) return true;
+          const itemNameId = String(l.itemNameId ?? '').trim();
+          if (!itemNameId) return false;
+          const specIds = getItemNameSpecIds(itemNameId);
+          if (!specIds.length) return false;
+          if (specIds.some((sid) => !String(l.specs?.[sid] ?? '').trim())) return false;
+          return true;
+        });
+		    return hasLine;
+		  }, [departmentId, firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -242,14 +253,16 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	      if (!requiredDateIso) throw new Error('Required Date is required.');
 
 	      const picked = lines
-	        .filter((l) => String(l.itemId ?? '').trim() && Number(l.quantity) > 0 && Number(l.rate) > 0)
+	        .filter((l) => (String(l.itemId ?? '').trim() || String(l.itemNameId ?? '').trim()) && Number(l.quantity) > 0 && Number(l.rate) > 0)
 	        .map((l) => ({
-	          itemId: String(l.itemId).trim(),
-          quantity: Number(l.quantity),
-          rate: Number(l.rate),
-          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
-          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
-        }));
+	          itemId: String(l.itemId ?? '').trim(),
+            itemNameId: String(l.itemNameId ?? '').trim(),
+            specs: l.specs ?? {},
+	          quantity: Number(l.quantity),
+	          rate: Number(l.rate),
+	          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
+	          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
+	        }));
 
 	      await createDirectPo({
 	        firmId,

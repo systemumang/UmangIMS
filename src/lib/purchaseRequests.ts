@@ -405,7 +405,15 @@ export async function createDirectPo(input: {
   advanceDate?: string | null;
   shippingAddress?: string;
   termsConditions?: string;
-  items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
+  items: Array<{
+    itemId?: string;
+    itemNameId?: string;
+    specs?: Record<string, string>;
+    quantity: number;
+    rate: number;
+    discountPercent?: number;
+    taxPercent?: number;
+  }>;
 }) {
   const res = await fetch('/api/pos', {
     method: 'POST',

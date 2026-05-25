@@ -5936,8 +5936,25 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
 	    const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
 	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
-	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+		    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+		    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+        const normalizeSpecsObject = (raw) => {
+          if (!raw || typeof raw !== 'object') return {};
+          const out = {};
+          for (const [k, v] of Object.entries(raw)) {
+            const sid = String(k ?? '').trim();
+            const sval = String(v ?? '').trim();
+            if (!sid || !sval) continue;
+            out[sid] = sval;
+          }
+          return out;
+        };
+
+        const stableJsonStringify = (obj) => {
+          const entries = Object.entries(obj || {}).sort(([a], [b]) => String(a).localeCompare(String(b)));
+          return JSON.stringify(Object.fromEntries(entries));
+        };
 
 	    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
 	    if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
@@ -6039,16 +6056,52 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      );
 	    }
 
-    const outItems = [];
-    for (const row of items) {
-      const itemId = String(row?.itemId ?? '').trim();
-      const quantity = Number(row?.quantity ?? 0);
-      const rate = Number(row?.rate ?? 0);
-      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
-      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
-      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
-      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+	    const outItems = [];
+	    for (const row of items) {
+	      let itemId = String(row?.itemId ?? '').trim();
+        if (!itemId) {
+          const itemNameId = String(row?.itemNameId ?? '').trim();
+          const specsObj = normalizeSpecsObject(row?.specs);
+          const specIds = Object.keys(specsObj);
+          if (!itemNameId || !specIds.length) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+          const specificationsJson = stableJsonStringify(specsObj);
+          const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+
+          const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
+          if (found?.id) {
+            itemId = String(found.id);
+          } else {
+            const newId = crypto.randomUUID();
+            const itemCode = `IT-${newId.slice(0, 8).toUpperCase()}`;
+            const [[meta]] = await pool.query(
+              `
+              SELECT u.name AS unitName
+              FROM item_names n
+              LEFT JOIN units u ON u.id = n.unit_id
+              WHERE n.id = ?
+              LIMIT 1
+              `,
+              [itemNameId]
+            );
+            const unitName = meta?.unitName != null ? String(meta.unitName) : null;
+            await pool.query(
+              `
+              INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, NOW(), NOW())
+              `,
+              [newId, itemNameId, itemCode, specificationsJson, uniqueKey, unitName, 'system']
+            );
+            itemId = newId;
+          }
+        }
+
+	      const quantity = Number(row?.quantity ?? 0);
+	      const rate = Number(row?.rate ?? 0);
+	      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
+	      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
+	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+	      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
 
       const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
       const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
