@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
-import { Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Download } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
@@ -4465,15 +4465,7 @@ export default function MastersView({
 				                    </td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 						                      <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    disabled={templateBusy}
-                                    onClick={() => downloadItemNameItemsTemplate(n.id, n.name)}
-                                  >
-                                    Download Template
-                                  </button>
-							                        <button
+								                        <button
 						                          type="button"
 					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(f.id)}
@@ -4536,11 +4528,21 @@ export default function MastersView({
 				                {filteredDepartments.map((d) => (
 				                  <tr key={d.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{d.name}</td>
-			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-			                      <div className="flex items-center gap-2">
-				                        <button
-				                          type="button"
-				                          className="btn-primary btn-sm"
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+						                      <div className="flex items-center gap-2">
+						                        <button
+						                          type="button"
+						                          title="Download Template"
+						                          aria-label={`Download template for ${n.name}`}
+						                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-sky-500 text-white shadow-sm hover:bg-sky-600 transition-colors disabled:opacity-50"
+						                          disabled={templateBusy}
+						                          onClick={() => downloadItemNameItemsTemplate(n.id, n.name)}
+						                        >
+						                          <Download size={16} />
+						                        </button>
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(d.id)}
 				                        >
 				                          Edit
