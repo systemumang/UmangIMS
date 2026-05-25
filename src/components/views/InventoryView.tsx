@@ -111,16 +111,19 @@ export default function InventoryView() {
       if (!rowStores.length || rowStores.includes('-')) return true;
       return rowStores.includes(wanted);
     };
-    const qtyForRow = (tx: StockTransaction, row: InventorySheetRow) =>
-      (tx.items ?? [])
-        .filter((it) => {
-          const txItem = normalize(it.item);
-          if (!txItem) return false;
-          const rowInline = normalize(getFullSheetItemLabel(row, specNameById));
-          const rowName = normalize(row.itemName);
-          return txItem === rowInline || txItem === rowName || txItem.includes(rowName) || rowInline.includes(txItem);
-        })
-        .reduce((sum, it) => sum + Number(it.quantity ?? 0), 0);
+	    const qtyForRow = (tx: StockTransaction, row: InventorySheetRow) =>
+	      (tx.items ?? [])
+	        .filter((it) => {
+	          const txItemId = String(it.itemId ?? '').trim();
+	          if (txItemId && txItemId === String(row.itemId ?? '').trim()) return true;
+
+	          const txItem = normalize(it.item);
+	          if (!txItem) return false;
+	          const rowInline = normalize(getFullSheetItemLabel(row, specNameById));
+	          const rowName = normalize(row.itemName);
+	          return txItem === rowInline || txItem === rowName || txItem.includes(rowName) || rowInline.includes(txItem);
+	        })
+	        .reduce((sum, it) => sum + Number(it.quantity ?? 0), 0);
 
     return rows.map((row) => {
       const rowFirmId = resolveFirmId(getFirmLabel(row));
