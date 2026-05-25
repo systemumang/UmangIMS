@@ -79,10 +79,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 	  const [modalLoading, setModalLoading] = useState(false);
-  const [advanceBySupplierId, setAdvanceBySupplierId] = useState<Record<string, string>>({});
-  const [advanceDateBySupplierId, setAdvanceDateBySupplierId] = useState<Record<string, string>>({});
-  const [paymentTypeBySupplierId, setPaymentTypeBySupplierId] = useState<Record<string, string>>({});
-  const [paymentModeBySupplierId, setPaymentModeBySupplierId] = useState<Record<string, string>>({});
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
   const supplierOptions = useMemo(
@@ -94,8 +90,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     [masters.suppliers]
   );
   const gstPercentOptions = ['0', '0.25', '3', '5', '12', '18', '28', '40'];
-  const paymentTypeOptions = ['Credit', 'Cash'];
-  const paymentModeOptions = ['', 'Cash', 'UPI', 'Cheque', 'NEFT', 'RTGS', 'IMPS', 'Card', 'Bank Transfer'];
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
@@ -113,10 +107,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	    setModalError(null);
 	    setSaving(false);
 	    setModalLoading(false);
-    setAdvanceBySupplierId({});
-    setAdvanceDateBySupplierId({});
-    setPaymentTypeBySupplierId({});
-    setPaymentModeBySupplierId({});
     setAvailableStockByItemId({});
   }
 
@@ -422,20 +412,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		                Promise.resolve()
 		                  .then(async () => {
 			                    for (const [, g] of groups.entries()) {
-			                      const advRaw = String(advanceBySupplierId[g.supplierId] ?? '').trim();
-			                      const adv = advRaw ? Number(advRaw) : 0;
-			                      const advDateRaw = String(advanceDateBySupplierId[g.supplierId] ?? '').trim();
-			                      const advDate = adv > 0 ? (advDateRaw || new Date().toISOString().slice(0, 10)) : null;
                       await createPo(activePrId, {
                         supplier: g.supplierName,
                         paymentTerms: g.paymentTerms,
-                        paymentType: String(paymentTypeBySupplierId[g.supplierId] ?? '').trim() || null,
-                        paymentMode: String(paymentModeBySupplierId[g.supplierId] ?? '').trim() || null,
-                        advanceAmount: Number.isFinite(adv) && adv > 0 ? adv : 0,
-                        advanceDate: advDate,
+                        paymentType: null,
+                        paymentMode: null,
+                        advanceAmount: 0,
+                        advanceDate: null,
                         items: g.items,
-			                      });
-			                    }
+				                      });
+				                    }
 			                  })
 	                  .then(() => fetchQueueCreatePo(filters).then(setRows))
 	                  .then(() => closeModal())
@@ -454,94 +440,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           <div className="text-sm text-on-surface-variant">Loading PR items...</div>
         ) : (
           <div className="space-y-3">
-            {modalKind === 'po' ? (() => {
-              const selectedSupplierIds = Array.from(new Set(lines.map((l) => String(l.supplierId ?? '').trim()).filter(Boolean)));
-              if (!selectedSupplierIds.length) {
-                return (
-                  <div className="max-w-xs">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance</label>
-                    <input className={cn(inputClass, 'py-1.5')} value="" placeholder="Select supplier first" disabled />
-                  </div>
-                );
-              }
-	              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedSupplierIds.map((sid) => {
-                    const supplierName = String(masters.suppliers.find((s) => s.id === sid)?.name ?? sid);
-                    const today = new Date().toISOString().slice(0, 10);
-                    return (
-                      <label key={sid} className="space-y-1">
-	                        <div className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">PO Advance - {supplierName}</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-	                          <input
-	                            className={cn(inputClass, 'py-1.5')}
-	                            value={advanceBySupplierId[sid] ?? ''}
-	                            onChange={(e) =>
-	                              setAdvanceBySupplierId((prev) => ({
-	                                ...prev,
-	                                [sid]: sanitizeDecimalInput(e.target.value),
-	                              }))
-	                            }
-	                            placeholder="0"
-	                            inputMode="decimal"
-	                          />
-	                          <input
-	                            type="date"
-	                            className={cn(inputClass, 'py-1.5')}
-	                            value={advanceDateBySupplierId[sid] ?? today}
-	                            onChange={(e) =>
-	                              setAdvanceDateBySupplierId((prev) => ({
-	                                ...prev,
-	                                [sid]: String(e.target.value ?? '').slice(0, 10),
-	                              }))
-	                            }
-	                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <select
-                            className={cn(inputClass, 'py-1.5')}
-                            value={paymentTypeBySupplierId[sid] ?? 'Credit'}
-                            onChange={(e) =>
-                              setPaymentTypeBySupplierId((prev) => ({
-                                ...prev,
-                                [sid]: e.target.value,
-                              }))
-                            }
-                          >
-                            {paymentTypeOptions.map((v) => (
-                              <option key={v} value={v}>
-                                {v}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className={cn(inputClass, 'py-1.5')}
-                            value={paymentModeBySupplierId[sid] ?? ''}
-                            onChange={(e) =>
-                              setPaymentModeBySupplierId((prev) => ({
-                                ...prev,
-                                [sid]: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value="">Select Payment Mode</option>
-                            {paymentModeOptions
-                              .filter((v) => v)
-                              .map((v) => (
-                                <option key={v} value={v}>
-                                  {v}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-	              );
-            })() : null}
-          <div className="overflow-x-auto">
-	            <table
+	          <div className="overflow-x-auto">
+		            <table
 	              className={cn(
 		                'w-full table-fixed text-left border-collapse border border-outline-variant',
 		                modalKind === 'rfq' ? 'min-w-[1060px]' : 'min-w-[1620px]'
@@ -563,10 +463,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     <col className="w-[90px]" />
 	                    <col className="w-[220px]" />
 	                    <col className="w-[140px]" />
-                      <col className="w-[140px]" />
-                      <col className="w-[160px]" />
-		                  </>
-	                ) : (
+			                  </>
+		                ) : (
 	                  <>
 	                    <col className="w-[160px]" />
 	                    <col className="w-[220px]" />
@@ -595,10 +493,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Rate</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
-                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Payment Type</th>
-                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Payment Mode</th>
-	                    </>
-                  )}
+		                    </>
+		                  )}
                 </tr>
               </thead>
               <tbody>
@@ -761,50 +657,13 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               }
 	                            />
 	                          </td>
-                              <td className="px-3 py-2 border border-outline-variant">
-                                <select
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={paymentTypeBySupplierId[String(l.supplierId ?? '').trim()] ?? 'Credit'}
-                                  onChange={(e) => {
-                                    const sid = String(l.supplierId ?? '').trim();
-                                    if (!sid) return;
-                                    setPaymentTypeBySupplierId((prev) => ({ ...prev, [sid]: e.target.value }));
-                                  }}
-                                >
-                                  {paymentTypeOptions.map((v) => (
-                                    <option key={v} value={v}>
-                                      {v}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-3 py-2 border border-outline-variant">
-                                <select
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={paymentModeBySupplierId[String(l.supplierId ?? '').trim()] ?? ''}
-                                  onChange={(e) => {
-                                    const sid = String(l.supplierId ?? '').trim();
-                                    if (!sid) return;
-                                    setPaymentModeBySupplierId((prev) => ({ ...prev, [sid]: e.target.value }));
-                                  }}
-                                >
-                                  <option value="">Select</option>
-                                  {paymentModeOptions
-                                    .filter((v) => v)
-                                    .map((v) => (
-                                      <option key={v} value={v}>
-                                        {v}
-                                      </option>
-                                    ))}
-                                </select>
-                              </td>
-	                        </>
-	                      )}
+		                        </>
+		                      )}
 	                    </tr>
                   ))
 			                ) : (
 			                  <tr>
-				                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 15}>
+					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 13}>
 				                      No remaining items to order.
 				                    </td>
 			                  </tr>
