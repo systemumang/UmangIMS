@@ -230,22 +230,33 @@ export default function ItemIssueView({
 			  }, []);
 
 		  useEffect(() => {
-		    if (materialRequest) {
-		      setProjectId(materialRequest.projectId || '');
-		      setIssueType('Project');
-          setIssuedTo(materialRequest.userName || materialRequest.supplierName || '');
-		      if (materialRequest.items && materialRequest.items.length > 0) {
-		        setItems(materialRequest.items.map((it: any) => ({
-		          itemId: it.itemId,
-		          itemNameId: '', // We don't necessarily have itemNameId from MR items
-		          item: it.itemName || '',
-		          quantity: String(it.quantity - (it.issuedQuantity || 0)),
-		          specification: it.specification || '',
-		          specs: {}
-		        })));
+		    if (!materialRequest) return;
+		    setProjectId(String(materialRequest.projectId ?? ''));
+		    setIssueType(materialRequest.projectId ? 'Project' : 'Sales');
+          setIssuedTo(String(materialRequest.userName ?? materialRequest.supplierName ?? ''));
+          setRequiredDate(String(materialRequest.date ?? new Date().toISOString().slice(0, 10)).slice(0, 10));
+          setRequestedByUserId(String(materialRequest.requestByUserId ?? ''));
+		      if (Array.isArray(materialRequest.items) && materialRequest.items.length > 0) {
+            const nextRows = materialRequest.items
+              .map((it: any) => {
+                const pendingQty = Math.max(0, Number(it.quantity ?? 0) - Number(it.issuedQuantity ?? 0));
+                if (pendingQty <= 0) return null;
+                const matched = masterItems.find((m) => String(m.id ?? '') === String(it.itemId ?? ''));
+                const itemNameId = String((matched as any)?.itemNameId ?? '');
+                const specs = matched?.specificationsJson ? parseSpecObject(matched.specificationsJson) : {};
+                return {
+                  itemId: String(it.itemId ?? ''),
+                  itemNameId,
+                  item: String((matched as any)?.itemName ?? it.itemName ?? ''),
+                  quantity: String(pendingQty),
+                  specification: matched ? formatSpecsLines(matched.specificationsJson, specNameById).join('\n').trim() : String(it.specification ?? ''),
+                  specs,
+                };
+              })
+              .filter(Boolean) as ItemDraft[];
+            if (nextRows.length) setItems(nextRows);
 		      }
-		    }
-		  }, [materialRequest]);
+		  }, [materialRequest, masterItems, specNameById]);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
