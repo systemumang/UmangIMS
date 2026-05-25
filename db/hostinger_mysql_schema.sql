@@ -291,6 +291,7 @@ CREATE TABLE items (
   photo_5 TEXT,
   item_link TEXT,
   video_link TEXT,
+  opening_stock DOUBLE NOT NULL DEFAULT 0,
   reorder_level DOUBLE,
   is_active INT NOT NULL DEFAULT 1,
   created_by VARCHAR(255),

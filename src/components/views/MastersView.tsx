@@ -350,9 +350,11 @@ export default function MastersView({
   const [newItemLink, setNewItemLink] = useState('');
   const [newItemVideoLink, setNewItemVideoLink] = useState('');
   const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
+  const [newItemOpeningStock, setNewItemOpeningStock] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string; useCustom?: boolean }>>([
     { specificationId: '', value: '', useCustom: false },
   ]);
+  const [inlineCreatedItemNameIds, setInlineCreatedItemNameIds] = useState<string[]>([]);
   const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
   const [inlineItemNameOpen, setInlineItemNameOpen] = useState(false);
@@ -1011,6 +1013,7 @@ export default function MastersView({
       setNewItemLink('');
       setNewItemVideoLink('');
       setNewItemReorderLevel('');
+      setNewItemOpeningStock('');
       setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
     }
 	    setAddOpen(true);
@@ -1159,6 +1162,7 @@ export default function MastersView({
             setNewItemLink(String((row as any).itemLink ?? ''));
             setNewItemVideoLink(String((row as any).videoLink ?? ''));
             setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
+            setNewItemOpeningStock((row as any).openingStock == null ? '' : String((row as any).openingStock));
 		        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
 		          const next = Object.entries(obj)
@@ -1792,7 +1796,7 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
           if (tab === 'items') {
-	            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Re-Order Level'];
+	            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Opening Stock', 'Re-Order Level'];
             const rows = items.map((it) => {
               const specObj = (() => {
                 try {
@@ -1811,8 +1815,9 @@ export default function MastersView({
                 unit: it.unit ?? '',
 	                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
 	                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
-                  'Re-Order Level': it.reorderLevel ?? '',
-	              };
+	                  'Opening Stock': (it as any).openingStock ?? 0,
+	                  'Re-Order Level': it.reorderLevel ?? '',
+		              };
             });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
@@ -3127,11 +3132,21 @@ export default function MastersView({
 				                    </label>
 				                    <label className="space-y-1">
 				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City</div>
-				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerCity} onChange={(e) => setNewCustomerCity(e.target.value)} placeholder="City" />
+				                      <SearchableSelect
+				                        value={newCustomerCity}
+				                        options={cities.map((c) => ({ value: c.name, label: c.name }))}
+				                        onChange={setNewCustomerCity}
+				                        placeholder="Select city..."
+				                      />
 				                    </label>
 				                    <label className="space-y-1">
 				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State</div>
-				                      <input className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none" value={newCustomerState} onChange={(e) => setNewCustomerState(e.target.value)} placeholder="State" />
+				                      <SearchableSelect
+				                        value={newCustomerState}
+				                        options={states.map((s) => ({ value: s.name, label: s.name }))}
+				                        onChange={setNewCustomerState}
+				                        placeholder="Select state..."
+				                      />
 				                    </label>
 				                    <label className="space-y-1">
 				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Contact Person</div>
@@ -3827,11 +3842,28 @@ export default function MastersView({
 	                  <div className="space-y-2">
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
-			                      <SearchableSelect
-			                        value={newItemItemNameId}
-			                        options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
-			                        onChange={setNewItemItemNameId}
-			                        placeholder="Search item name..."
+				                      <SearchableSelect
+				                        value={newItemItemNameId}
+				                        options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+				                        onChange={(itemNameId) => {
+                                      setNewItemItemNameId(itemNameId);
+                                      if (!itemNameId || inlineCreatedItemNameIds.includes(itemNameId)) return;
+                                      const selected = itemNames.find((n) => n.id === itemNameId);
+                                      const mappedSpecIds = Array.isArray((selected as any)?.specificationIds)
+                                        ? ((selected as any).specificationIds as any[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+                                        : [];
+                                      setNewItemSpecs(
+                                        mappedSpecIds.length
+                                          ? mappedSpecIds.map((specId) => ({ specificationId: specId, value: '', useCustom: false }))
+                                          : [{ specificationId: '', value: '', useCustom: false }]
+                                      );
+                                      mappedSpecIds.forEach((specId) => {
+                                        fetchSpecificationValues(specId, { itemNameId })
+                                          .then((vals) => setSpecValueOptions((m) => ({ ...m, [specId]: vals })))
+                                          .catch(() => {});
+                                      });
+                                    }}
+				                        placeholder="Search item name..."
                                   alwaysShowCreate
                                   showCreateWhenEmpty
                                   allowEmptyCreate
@@ -3956,7 +3988,10 @@ export default function MastersView({
                                         .then(async (created) => {
                                           const next = created.itemName;
                                           await loadAll();
-                                          if (next?.id) setNewItemItemNameId(next.id);
+	                                          if (next?.id) {
+                                              setInlineCreatedItemNameIds((prev) => (prev.includes(next.id) ? prev : [...prev, next.id]));
+                                              setNewItemItemNameId(next.id);
+                                            }
                                           setInlineItemNameOpen(false);
                                         })
                                         .catch((e) => setInlineItemNameError(e instanceof Error ? e.message : String(e)))
@@ -4133,17 +4168,28 @@ export default function MastersView({
 	                    </button>
 	                  </div>
 
-	                    <label className="space-y-1">
-	                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
-	                      <input
-	                        type="number"
-	                        min="0"
-                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                        value={newItemReorderLevel}
-                        onChange={(e) => setNewItemReorderLevel(e.target.value)}
-	                        placeholder="0.00"
-	                      />
-	                    </label>
+		                    <label className="space-y-1">
+		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
+		                      <input
+		                        type="number"
+		                        min="0"
+	                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                        value={newItemReorderLevel}
+	                        onChange={(e) => setNewItemReorderLevel(e.target.value)}
+		                        placeholder="0.00"
+		                      />
+		                    </label>
+                      <label className="space-y-1">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Opening Stock</div>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                          value={newItemOpeningStock}
+                          onChange={(e) => setNewItemOpeningStock(e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </label>
                       <label className="space-y-1">
                         <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
                         <input
@@ -4232,10 +4278,11 @@ export default function MastersView({
 		                        setNewItemUnit('');
 			                        setNewItemDescription('');
                             setNewItemPhotos(['', '', '', '', '']);
-                            setNewItemLink('');
-                            setNewItemVideoLink('');
-                            setNewItemReorderLevel('');
-			                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+	                            setNewItemLink('');
+	                            setNewItemVideoLink('');
+	                            setNewItemReorderLevel('');
+	                            setNewItemOpeningStock('');
+				                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
 		                        closeModal();
 	                      }}
 	                    >
@@ -4263,10 +4310,11 @@ export default function MastersView({
                               photo3: String(newItemPhotos[2] ?? '').trim() || null,
                               photo4: String(newItemPhotos[3] ?? '').trim() || null,
                               photo5: String(newItemPhotos[4] ?? '').trim() || null,
-                              itemLink: newItemLink.trim() || null,
-                              videoLink: newItemVideoLink.trim() || null,
-                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
-		                              specs: newItemSpecs,
+	                              itemLink: newItemLink.trim() || null,
+	                              videoLink: newItemVideoLink.trim() || null,
+	                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                                openingStock: newItemOpeningStock.trim() ? Number(newItemOpeningStock) : 0,
+			                              specs: newItemSpecs,
 	                              updatedBy: 'system',
 	                            })
 	                          : createItem({
@@ -4278,10 +4326,11 @@ export default function MastersView({
                               photo3: String(newItemPhotos[2] ?? '').trim() || null,
                               photo4: String(newItemPhotos[3] ?? '').trim() || null,
                               photo5: String(newItemPhotos[4] ?? '').trim() || null,
-                              itemLink: newItemLink.trim() || null,
-                              videoLink: newItemVideoLink.trim() || null,
-                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
-		                              specs: newItemSpecs,
+	                              itemLink: newItemLink.trim() || null,
+	                              videoLink: newItemVideoLink.trim() || null,
+	                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                                openingStock: newItemOpeningStock.trim() ? Number(newItemOpeningStock) : 0,
+			                              specs: newItemSpecs,
 	                              createdBy: 'system',
 	                            });
 	                        fn
@@ -4290,10 +4339,11 @@ export default function MastersView({
 			                            setNewItemUnit('');
 			                            setNewItemDescription('');
                                 setNewItemPhotos(['', '', '', '', '']);
-                                setNewItemLink('');
-                                setNewItemVideoLink('');
-                                setNewItemReorderLevel('');
-			                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+	                                setNewItemLink('');
+	                                setNewItemVideoLink('');
+	                                setNewItemReorderLevel('');
+                                  setNewItemOpeningStock('');
+				                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
 		                            closeModal();
 	                          })
 	                          .catch(handleMasterError)
@@ -5674,11 +5724,12 @@ export default function MastersView({
 	            </button>
 		          </div>
 		          <div className="overflow-auto">
-		            <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
-		              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-				                <tr>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
-				                  <th className="text-left px-3 py-2 border border-blue-600">Item</th>
+			                    <table className="min-w-[980px] w-full text-sm border-collapse border border-blue-600">
+			                      <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+					                <tr>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
+					                  <th className="text-left px-3 py-2 border border-blue-600">Item</th>
+                            <th className="text-left px-3 py-2 border border-blue-600">Opening Stock</th>
                           <th className="text-left px-3 py-2 border border-blue-600">Photo</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Item Link</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Video Link</th>
@@ -5690,9 +5741,17 @@ export default function MastersView({
 	                {filteredItems.map((it) => (
 	                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
-					                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
-					                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
-					                    </td>
+						                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
+						                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
+						                    </td>
+                            <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
+                              {(() => {
+                                const raw = (it as any).openingStock;
+                                if (raw == null || String(raw).trim() === '') return '0';
+                                const n = Number(raw);
+                                return Number.isFinite(n) ? n : String(raw);
+                              })()}
+                            </td>
                           <td className="px-3 py-2 text-on-surface border border-blue-600">
                             {(() => {
                               const photos = [

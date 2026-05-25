@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Settings, Save, ArrowUpDown } from 'lucide-react';
+import { Search, Save, ArrowUpDown } from 'lucide-react';
 import { fetchFirms, fetchStores, fetchItems, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
@@ -21,7 +21,6 @@ export default function InventoryView() {
   const [pendingOrderOnly, setPendingOrderOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [showOpeningModal, setShowOpeningModal] = useState(false);
   const [issueRows, setIssueRows] = useState<StockTransaction[]>([]);
   const [returnRows, setReturnRows] = useState<StockTransaction[]>([]);
   const [damageRows, setDamageRows] = useState<StockTransaction[]>([]);
@@ -455,13 +454,6 @@ export default function InventoryView() {
 			            </div>
 			          </div>
 		        </div>
-        <button
-          onClick={() => setShowOpeningModal(true)}
-          className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dim transition-colors mt-5"
-        >
-          <Settings size={16} />
-          Manage Opening Stock
-        </button>
       </div>
 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
@@ -627,35 +619,6 @@ export default function InventoryView() {
 	        </div>
 	      </div>
 
-	      {showOpeningModal && (
-	        <OpeningStockModal 
-	          onClose={() => {
-	            setShowOpeningModal(false);
-	            // Refresh main list
-	            const includeEmpty = !selectedStoreFilterId;
-	            if (selectedFirmId && selectedFirmId !== ALL_FIRMS_VALUE) {
-	              fetchInventorySheet(selectedFirmId, undefined, undefined, { includeEmpty }).then((list) => {
-	                const selectedFirm = firms.find((f) => f.id === selectedFirmId);
-	                const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
-	                setRows(list.map((r) => ({ ...r, firm: firmName })));
-	              });
-	            } else if (selectedFirmId === ALL_FIRMS_VALUE) {
-	              Promise.all(firms.map((f) => fetchInventorySheet(f.id, undefined, undefined, { includeEmpty }))).then((all) =>
-	                setRows(
-	                  all.flatMap((list, idx) =>
-	                    list.map((r) => ({
-	                      ...r,
-	                      firm: String(firms[idx]?.sortName ?? '').trim() || firms[idx]?.name || '',
-	                    }))
-	                  )
-	                )
-	              );
-	            }
-	          }} 
-	          firms={firms}
-	          specNameById={specNameById}
-	        />
-	      )}
     </div>
   );
 }

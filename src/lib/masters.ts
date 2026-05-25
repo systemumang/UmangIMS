@@ -107,6 +107,7 @@ export type Item = {
   itemLink?: string | null;
   videoLink?: string | null;
   reorderLevel?: number | null;
+  openingStock?: number | null;
 };
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
@@ -892,6 +893,7 @@ export async function createItem(input: {
   itemLink?: string | null;
   videoLink?: string | null;
   reorderLevel?: number | null;
+  openingStock?: number | null;
   specs: Array<{ specificationId: string; value: string }>;
   createdBy?: string;
 }) {
@@ -917,6 +919,7 @@ export async function updateItem(
     itemLink?: string | null;
     videoLink?: string | null;
     reorderLevel?: number | null;
+    openingStock?: number | null;
     specs: Array<{ specificationId: string; value: string }>;
     updatedBy?: string;
   }

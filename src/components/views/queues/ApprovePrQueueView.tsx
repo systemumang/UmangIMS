@@ -218,7 +218,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	      ) : (
 	        <QueueCard title="Approve PR" subtitle={`${rows.length} pending`}>
 	          <div className="overflow-x-auto">
-		            <table className="w-full min-w-[1020px] table-fixed text-left border-collapse border border-outline-variant">
+			            <table className="w-full min-w-[1140px] table-fixed text-left border-collapse border border-outline-variant">
 		              <colgroup>
 		                <col className="w-[120px]" />
 		                <col className="w-[170px]" />
@@ -226,8 +226,9 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 		                <col className="w-[140px]" />
 		                <col className="w-[160px]" />
 		                <col className="w-[140px]" />
-		                <col className="w-[120px]" />
-		                <col className="w-[220px]" />
+			                <col className="w-[120px]" />
+			                <col className="w-[140px]" />
+			                <col className="w-[220px]" />
 	              </colgroup>
 	              <thead>
 	                <tr className="bg-surface-container-high">
@@ -237,8 +238,9 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested By</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
               <tbody>
@@ -255,8 +257,9 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
-		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
+			                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+			                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
+	                      <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
 	                          <button
                             type="button"
@@ -285,7 +288,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                     </tr>
                     {expandedPrId === r.prId ? (
                       <tr>
-                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={8}>
+	                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={9}>
                           {expandedLoading ? (
                             <div className="text-sm text-on-surface-variant">Loading items...</div>
                           ) : (
@@ -326,7 +329,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                   ))
                 ) : (
 	                  <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={9}>
 	                      No records.
 	                    </td>
 	                  </tr>

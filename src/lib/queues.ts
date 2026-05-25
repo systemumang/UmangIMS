@@ -68,6 +68,7 @@ export type ApprovePrQueueRow = {
   requiredDate: string;
   status: 'Pending Approval';
   pendingReason: string;
+  priority?: string | null;
 };
 
 export async function fetchQueueApprovePr(filters?: QueueFilters, signal?: AbortSignal): Promise<ApprovePrQueueRow[]> {
@@ -88,6 +89,7 @@ export type CreatePoQueueRow = {
   remainingQty: number;
   poCount: number;
   pendingReason: string;
+  priority?: string | null;
 };
 
 export async function fetchQueueCreatePo(filters?: QueueFilters, signal?: AbortSignal): Promise<CreatePoQueueRow[]> {
@@ -110,6 +112,7 @@ export type CheckPoQueueRow = {
   orderDate?: string | null;
   createdAt: string;
   pendingReason: string;
+  priority?: string | null;
 };
 
 export async function fetchQueueCheckPo(filters?: QueueFilters, signal?: AbortSignal): Promise<CheckPoQueueRow[]> {
@@ -140,6 +143,7 @@ export type CreateGrnQueueRow = {
   pendingQty: number;
   createdAt: string;
   pendingReason: string;
+  priority?: string | null;
 };
 
 export async function fetchQueueCreateGrn(filters?: QueueFilters, signal?: AbortSignal): Promise<CreateGrnQueueRow[]> {

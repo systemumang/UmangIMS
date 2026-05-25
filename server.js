@@ -516,6 +516,7 @@ function getMysqlPool() {
 	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
 	      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
+	      await ensureColumn('items', 'opening_stock', 'DOUBLE NOT NULL DEFAULT 0');
 	    } catch (err) {
 	      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
 	    }
@@ -1671,9 +1672,9 @@ app.get('/api/queues/approve-pr', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT
-        pr.id AS prId,
-        pr.pr_number AS prNumber,
+	      SELECT
+	        pr.id AS prId,
+	        pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
         f.name AS firmName,
         pr.request_type AS requestType,
@@ -1681,10 +1682,12 @@ app.get('/api/queues/approve-pr', async (req, res) => {
         proj.name AS projectName,
         pr.requested_by AS requestedBy,
         pr.created_at AS requisitionDate,
-        pr.remarks AS remarks,
-        MIN(pri.required_date) AS requiredDate
-      FROM purchase_requisitions pr
-      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	        pr.remarks AS remarks,
+	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
+	        MIN(pri.required_date) AS requiredDate
+	      FROM purchase_requisitions pr
+	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN priorities p ON p.id = pri.priority_id
       LEFT JOIN firms f ON f.id = pr.firm_id
       LEFT JOIN projects proj ON proj.id = pr.project_id
       WHERE ${where.join(' AND ')}
@@ -1707,8 +1710,9 @@ app.get('/api/queues/approve-pr', async (req, res) => {
       requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
       requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || toIsoDate(new Date()) || '',
       status: 'Pending Approval',
-      pendingReason: 'Pending approval',
-    }));
+	      pendingReason: 'Pending approval',
+	      priority: r.priority ? String(r.priority) : null,
+	    }));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
 
@@ -1750,16 +1754,17 @@ app.get('/api/queues/create-po', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT
-        pr.id AS prId,
+	      SELECT
+	        pr.id AS prId,
         pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
         f.name AS firmName,
         pr.project_id AS projectId,
         proj.name AS projectName,
         pr.created_at AS requisitionDate,
-        pr.remarks AS remarks,
-        COUNT(DISTINCT po.id) AS poCount,
+	        pr.remarks AS remarks,
+	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
+	        COUNT(DISTINCT po.id) AS poCount,
         COALESCE(
           SUM(
             GREATEST(
@@ -1770,7 +1775,8 @@ app.get('/api/queues/create-po', async (req, res) => {
           0
         ) AS remainingQty
       FROM purchase_requisitions pr
-      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN priorities p ON p.id = pri.priority_id
       LEFT JOIN firms f ON f.id = pr.firm_id
       LEFT JOIN projects proj ON proj.id = pr.project_id
       LEFT JOIN purchase_orders po ON po.pr_id = pr.id
@@ -1804,8 +1810,9 @@ app.get('/api/queues/create-po', async (req, res) => {
         requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
         remainingQty,
         poCount: Number(r.poCount ?? 0),
-        pendingReason: remainingQty > 0 ? 'Pending PO' : 'No pending qty',
-      };
+	        pendingReason: remainingQty > 0 ? 'Pending PO' : 'No pending qty',
+	        priority: r.priority ? String(r.priority) : null,
+	      };
     });
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
@@ -1850,8 +1857,8 @@ app.get('/api/queues/check-po', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT
-        po.id AS poId,
+	      SELECT
+	        po.id AS poId,
         po.po_number AS poNumber,
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
@@ -1862,15 +1869,19 @@ app.get('/api/queues/check-po', async (req, res) => {
         proj.name AS projectName,
         po.supplier_id AS supplierId,
         s.name AS supplierName,
-        po.order_date AS orderDate,
-        po.created_at AS createdAt
-      FROM purchase_orders po
-      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	        po.order_date AS orderDate,
+	        po.created_at AS createdAt,
+	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority
+	      FROM purchase_orders po
+	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN priorities p ON p.id = pri.priority_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
-      ORDER BY po.created_at DESC
+	      GROUP BY po.id
+	      ORDER BY po.created_at DESC
       `,
       params
     );
@@ -1889,8 +1900,9 @@ app.get('/api/queues/check-po', async (req, res) => {
       supplierName: String(r.supplierName ?? ''),
       orderDate: toIsoDate(r.orderDate) || null,
       createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
-      pendingReason: 'Pending check',
-    }));
+	      pendingReason: 'Pending check',
+	      priority: r.priority ? String(r.priority) : null,
+	    }));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -1934,8 +1946,8 @@ app.get('/api/queues/send-po', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT
-        po.id AS poId,
+	      SELECT
+	        po.id AS poId,
         po.po_number AS poNumber,
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
@@ -1946,15 +1958,19 @@ app.get('/api/queues/send-po', async (req, res) => {
         proj.name AS projectName,
         po.supplier_id AS supplierId,
         s.name AS supplierName,
-        po.order_date AS orderDate,
-        po.created_at AS createdAt
-      FROM purchase_orders po
-      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	        po.order_date AS orderDate,
+	        po.created_at AS createdAt,
+	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority
+	      FROM purchase_orders po
+	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN priorities p ON p.id = pri.priority_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
-      ORDER BY po.created_at DESC
+	      GROUP BY po.id
+	      ORDER BY po.created_at DESC
       `,
       params
     );
@@ -1973,8 +1989,9 @@ app.get('/api/queues/send-po', async (req, res) => {
       supplierName: String(r.supplierName ?? ''),
       orderDate: toIsoDate(r.orderDate) || null,
       createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
-      pendingReason: 'Pending send',
-    }));
+	      pendingReason: 'Pending send',
+	      priority: r.priority ? String(r.priority) : null,
+	    }));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -2018,8 +2035,8 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT
-        po.id AS poId,
+	      SELECT
+	        po.id AS poId,
         po.po_number AS poNumber,
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
@@ -2119,13 +2136,16 @@ app.get('/api/queues/create-grn', async (req, res) => {
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
-        po.supplier_id AS supplierId,
-        s.name AS supplierName,
-        po.created_at AS createdAt,
-        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
-      FROM purchase_orders po
-      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
-      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+	        po.supplier_id AS supplierId,
+	        s.name AS supplierName,
+	        po.created_at AS createdAt,
+	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
+	        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
+	      FROM purchase_orders po
+	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
+	      LEFT JOIN priorities p ON p.id = pri.priority_id
+	      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
       LEFT JOIN (
         SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
         FROM grns g
@@ -2159,8 +2179,9 @@ app.get('/api/queues/create-grn', async (req, res) => {
         supplierName: String(r.supplierName ?? ''),
         pendingQty,
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
-        pendingReason: 'Pending GRN',
-      };
+	        pendingReason: 'Pending GRN',
+	        priority: r.priority ? String(r.priority) : null,
+	      };
     });
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
@@ -9262,8 +9283,9 @@ app.get('/api/masters/items', async (_req, res) => {
         it.photo_4 AS photo4,
         it.photo_5 AS photo5,
         it.item_link AS itemLink,
-        it.video_link AS videoLink,
-        it.reorder_level AS reorderLevel
+	        it.video_link AS videoLink,
+	        it.reorder_level AS reorderLevel,
+	        it.opening_stock AS openingStock
       FROM items it
       JOIN item_names n ON n.id = it.item_name_id
       ORDER BY it.item_code
@@ -9290,14 +9312,22 @@ app.post('/api/masters/items', async (req, res) => {
     const photo5 = req.body?.photo5 != null ? String(req.body.photo5).trim() : null;
     const itemLink = req.body?.itemLink != null ? String(req.body.itemLink).trim() : null;
     const videoLink = req.body?.videoLink != null ? String(req.body.videoLink).trim() : null;
-    const reorderLevelRaw = req.body?.reorderLevel;
+	    const reorderLevelRaw = req.body?.reorderLevel;
     const reorderLevel =
       reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
         ? null
         : Math.max(0, Number(reorderLevelRaw));
-    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
-      return res.status(400).json({ error: 'reorderLevel must be a number' });
-    }
+	    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
+	      return res.status(400).json({ error: 'reorderLevel must be a number' });
+	    }
+	    const openingStockRaw = req.body?.openingStock;
+	    const openingStock =
+	      openingStockRaw === null || openingStockRaw === undefined || String(openingStockRaw).trim() === ''
+	        ? 0
+	        : Math.max(0, Number(openingStockRaw));
+	    if (openingStockRaw !== null && openingStockRaw !== undefined && String(openingStockRaw).trim() !== '' && !Number.isFinite(openingStock)) {
+	      return res.status(400).json({ error: 'openingStock must be a number' });
+	    }
     const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
 
@@ -9308,16 +9338,16 @@ app.post('/api/masters/items', async (req, res) => {
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
     await pool.query(
-      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, createdBy]
-    );
+	      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+	      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
+	    );
 
     const [rows] = await pool.query(
       `
 		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
 		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
                  it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
-		             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.opening_stock AS openingStock
 		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
@@ -9347,28 +9377,36 @@ app.put('/api/masters/items/:id', async (req, res) => {
     const photo5 = req.body?.photo5 != null ? String(req.body.photo5).trim() : null;
     const itemLink = req.body?.itemLink != null ? String(req.body.itemLink).trim() : null;
     const videoLink = req.body?.videoLink != null ? String(req.body.videoLink).trim() : null;
-    const reorderLevelRaw = req.body?.reorderLevel;
+	    const reorderLevelRaw = req.body?.reorderLevel;
     const reorderLevel =
       reorderLevelRaw === null || reorderLevelRaw === undefined || String(reorderLevelRaw).trim() === ''
         ? null
         : Math.max(0, Number(reorderLevelRaw));
-    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
-      return res.status(400).json({ error: 'reorderLevel must be a number' });
-    }
+	    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
+	      return res.status(400).json({ error: 'reorderLevel must be a number' });
+	    }
+	    const openingStockRaw = req.body?.openingStock;
+	    const openingStock =
+	      openingStockRaw === null || openingStockRaw === undefined || String(openingStockRaw).trim() === ''
+	        ? 0
+	        : Math.max(0, Number(openingStockRaw));
+	    if (openingStockRaw !== null && openingStockRaw !== undefined && String(openingStockRaw).trim() !== '' && !Number.isFinite(openingStock)) {
+	      return res.status(400).json({ error: 'openingStock must be a number' });
+	    }
     const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
     const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
     await pool.query(
-      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, updatedBy, id]
-    );
+	      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, opening_stock=?, updated_by=?, updated_at=NOW() WHERE id=?',
+	      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, updatedBy, id]
+	    );
     const [rows] = await pool.query(
       `
 		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
 		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
                  it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
-		             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel
+			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.opening_stock AS openingStock
 		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
@@ -10522,7 +10560,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
 	        it.specifications_json AS specificationsJson,
 	        it.unit AS unit,
 	        it.reorder_level AS reorderLevel,
-          it.photo_1 AS photo1,
+	        it.opening_stock AS openingStock,
+	          it.photo_1 AS photo1,
           it.photo_2 AS photo2,
           it.photo_3 AS photo3,
           it.photo_4 AS photo4,
@@ -10542,7 +10581,8 @@ app.get('/api/inventory/sheet', async (req, res) => {
 	          itemName: String(r.itemName ?? ''),
 	          specificationsJson: r.specificationsJson,
 		          unit: String(r.unit ?? ''),
-		          reorderLevel: num(r.reorderLevel, 0),
+			          reorderLevel: num(r.reorderLevel, 0),
+	              openingStock: num(r.openingStock, 0),
               photo1: r.photo1 != null ? String(r.photo1) : '',
               photo2: r.photo2 != null ? String(r.photo2) : '',
               photo3: r.photo3 != null ? String(r.photo3) : '',
@@ -10703,7 +10743,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
     const itemIds = Array.from(itemById.keys());
 
     const makeRow = (storeId, itemId) => {
-	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', itemLink: '', videoLink: '' };
+	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, openingStock: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', itemLink: '', videoLink: '' };
 	      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
 	        opening: 0,
 	        purchase: 0,
@@ -10712,7 +10752,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         transferIn: 0,
         transferOut: 0,
 	      };
-	      const opening = num(agg.opening, 0);
+	      const opening = num(meta.openingStock, 0);
 	      const reorderLevel = num(meta.reorderLevel, 0);
       const purchase = num(agg.purchase, 0);
       const issue = num(agg.issue, 0);

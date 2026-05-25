@@ -207,15 +207,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
       ) : (
         <QueueCard title="Create PO" subtitle={`${rows.length} pending`}>
           <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1060px] table-fixed text-left border-collapse border border-outline-variant">
+		            <table className="w-full min-w-[1180px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>
 	                <col className="w-[130px]" />
 	                <col className="w-[180px]" />
 	                <col className="w-[140px]" />
 	                <col className="w-[200px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[160px]" />
-	                <col className="w-[240px]" />
+		                <col className="w-[140px]" />
+		                <col className="w-[160px]" />
+		                <col className="w-[140px]" />
+		                <col className="w-[240px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
@@ -223,8 +224,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining Qty</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
@@ -236,8 +238,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
 	                      <td className="px-3 py-2 border border-outline-variant">
 		                        <div className="flex items-center gap-2 flex-wrap">
 		                        <button
@@ -268,7 +271,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                 ))
               ) : (
 	                  <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
 	                      No records.
 	                    </td>
 	                  </tr>

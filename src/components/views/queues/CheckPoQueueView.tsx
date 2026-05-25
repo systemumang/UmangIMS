@@ -217,15 +217,16 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
       ) : (
         <QueueCard title="Check PO" subtitle={`${rows.length} pending`}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse border border-outline-variant">
+	            <table className="w-full min-w-[1240px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>
 	                <col className="w-[150px]" />
 	                <col className="w-[150px]" />
 	                <col className="w-[190px]" />
 	                <col className="w-[160px]" />
 	                <col className="w-[200px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[260px]" />
+		                <col className="w-[140px]" />
+		                <col className="w-[140px]" />
+		                <col className="w-[260px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
@@ -234,8 +235,9 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Order Date</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Order Date</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
               <tbody>
@@ -267,8 +269,9 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
-	                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+		                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
+		                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
+		                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                            <div className="flex items-center gap-2 flex-wrap">
 	                              <a
 	                                className="btn btn-sm inline-flex items-center justify-center w-9 h-9 p-0"
@@ -295,7 +298,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                         </tr>
                         {isExpanded ? (
                           <tr>
-                            <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+	                            <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                               {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO details...</div> : null}
                               {!isExpandedLoading && expandedError ? (
                                 <div className="text-sm text-error">Failed to load details: {expandedError}</div>
@@ -349,7 +352,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                   })
                 ) : (
                   <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
 	                      No records.
 	                    </td>
                   </tr>
