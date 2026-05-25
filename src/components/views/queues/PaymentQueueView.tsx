@@ -518,25 +518,37 @@ export default function PaymentQueueView({
                                 </select>
                               </td>
 	                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                                <input
-	                                  type="file"
-	                                  disabled={saving || paymentCopyUploading}
-	                                  onChange={async (e) => {
-	                                    const inputEl = e.currentTarget;
-	                                    const f = inputEl.files?.[0];
-	                                    if (!f) return;
-	                                    try {
-	                                      setPaymentCopyUploading(true);
-	                                      const { url } = await uploadFileToServer(f);
-	                                      setPaymentCopyInput(url);
-	                                    } catch (err) {
-	                                      setModalError(err instanceof Error ? err.message : String(err));
-	                                    } finally {
-	                                      setPaymentCopyUploading(false);
-	                                      if (inputEl?.isConnected) inputEl.value = '';
-	                                    }
-	                                  }}
-	                                />
+	                                <div className="flex flex-col items-start gap-1">
+	                                  <label
+	                                    className={cn(
+	                                      'btn btn-sm cursor-pointer',
+	                                      (saving || paymentCopyUploading) ? 'opacity-60 pointer-events-none' : ''
+	                                    )}
+	                                  >
+	                                    {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Uploaded' : 'Upload'}
+	                                    <input
+	                                      type="file"
+	                                      className="hidden"
+	                                      disabled={saving || paymentCopyUploading}
+	                                      onChange={async (e) => {
+	                                        const inputEl = e.currentTarget;
+	                                        const f = inputEl.files?.[0];
+	                                        if (!f) return;
+	                                        try {
+	                                          setPaymentCopyUploading(true);
+	                                          const { url } = await uploadFileToServer(f);
+	                                          setPaymentCopyInput(url);
+	                                        } catch (err) {
+	                                          setModalError(err instanceof Error ? err.message : String(err));
+	                                        } finally {
+	                                          setPaymentCopyUploading(false);
+	                                          if (inputEl?.isConnected) inputEl.value = '';
+	                                        }
+	                                      }}
+	                                    />
+	                                  </label>
+	                                  {paymentCopyInput.trim() ? <div className="text-[11px] text-on-surface-variant">Uploaded</div> : null}
+	                                </div>
 	                              </td>
 		                        </>
 		                      ) : null}
