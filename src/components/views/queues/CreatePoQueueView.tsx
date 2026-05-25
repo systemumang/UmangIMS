@@ -166,7 +166,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	            quantity: remainingQty > 0 ? String(remainingQty) : '',
 	            rate: suggested && Number.isFinite(suggested.rate) ? String(suggested.rate) : '',
 	            discountPercent: '',
-	            taxPercent: '',
+		            taxPercent: '0',
 	          };
 	        });
 
@@ -528,7 +528,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                              options={supplierOptions}
 	                              allowClear
 	                              disabled={masters.loading}
-	                              placeholder="Select supplier..."
+	                              placeholder=""
 	                              onChange={(nextId) => {
 	                                const safeId = String(nextId ?? '').trim();
 	                                setLines((prev) => {
@@ -600,10 +600,10 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                             />
                           </td>
                           <td className="px-3 py-2 border border-outline-variant">
-                            <select
-                              className={cn(inputClass, 'py-1.5')}
-                              value={String(l.taxPercent ?? '')}
-                              onChange={(e) =>
+	                            <select
+	                              className={cn(inputClass, 'py-1.5')}
+	                              value={String(l.taxPercent ?? '')}
+	                              onChange={(e) =>
                                 setLines((prev) => {
                                   const next = prev.slice();
                                   next[idx] = { ...next[idx]!, taxPercent: clampPercentString(e.target.value) };
@@ -611,10 +611,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 })
                               }
                             >
-                              <option value="">Select</option>
-                              {gstPercentOptions.map((v) => (
-                                <option key={v} value={v}>
-                                  {v}
+	                              {gstPercentOptions.map((v) => (
+	                                <option key={v} value={v}>
+	                                  {v}
                                 </option>
                               ))}
                             </select>
@@ -627,7 +626,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               options={supplierOptions}
                               allowClear
                               disabled={masters.loading}
-                              placeholder="Select supplier..."
+	                              placeholder=""
                               onChange={(nextId) => {
                                 const safeId = String(nextId ?? '').trim();
                                 setLines((prev) => {
