@@ -49,13 +49,16 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
       </div>
 
       <div className="overflow-x-auto bg-surface-container-lowest rounded-xl border border-outline-variant/10">
-        <table className="w-full min-w-[1100px] text-sm border-collapse">
+        <table className="w-full min-w-[1320px] text-sm border-collapse">
           <thead>
             <tr className="bg-primary text-on-primary">
               <th className="px-3 py-2 text-left border border-outline-variant/20">Request No</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Date</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Project</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Customer</th>
+              <th className="px-3 py-2 text-left border border-outline-variant/20">Firm</th>
+              <th className="px-3 py-2 text-left border border-outline-variant/20">Store</th>
+              <th className="px-3 py-2 text-left border border-outline-variant/20">Department</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Requested By</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Type</th>
               <th className="px-3 py-2 text-left border border-outline-variant/20">Items</th>
@@ -73,6 +76,9 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.date ? new Date(mr.date).toLocaleDateString() : '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.projectName || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.customerName || '-'}</td>
+                  <td className="px-3 py-2 border border-outline-variant/20">{mr.firmName || '-'}</td>
+                  <td className="px-3 py-2 border border-outline-variant/20">{mr.storeName || '-'}</td>
+                  <td className="px-3 py-2 border border-outline-variant/20">{mr.department || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{(mr.requestByType === 'Inhouse' ? mr.userName : mr.supplierName) || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.requestByType}</td>
                   <td className="px-3 py-2 border border-outline-variant/20 max-w-[260px] truncate" title={itemList || '-'}>{itemList || '-'}</td>
@@ -91,7 +97,7 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
             })}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-on-surface-variant border border-outline-variant/20">
+                <td colSpan={12} className="px-3 py-10 text-center text-on-surface-variant border border-outline-variant/20">
                   No pending material requests found
                 </td>
               </tr>

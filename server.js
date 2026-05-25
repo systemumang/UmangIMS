@@ -346,13 +346,16 @@ function getMysqlPool() {
       `);
 
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS material_requests (
-          id VARCHAR(255) PRIMARY KEY,
-          request_no VARCHAR(255) NOT NULL UNIQUE,
-          date DATE NOT NULL,
-          customer_id VARCHAR(255),
-          project_id VARCHAR(255),
-          request_by_type VARCHAR(255) NOT NULL,
+	        CREATE TABLE IF NOT EXISTS material_requests (
+	          id VARCHAR(255) PRIMARY KEY,
+	          request_no VARCHAR(255) NOT NULL UNIQUE,
+	          date DATE NOT NULL,
+	          firm_id VARCHAR(255),
+	          store_id VARCHAR(255),
+	          department VARCHAR(255),
+	          customer_id VARCHAR(255),
+	          project_id VARCHAR(255),
+	          request_by_type VARCHAR(255) NOT NULL,
           request_by_user_id VARCHAR(255),
           request_by_supplier_id VARCHAR(255),
           remarks TEXT,
@@ -517,6 +520,9 @@ function getMysqlPool() {
 	      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
 	      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
 	      await ensureColumn('items', 'opening_stock', 'DOUBLE NOT NULL DEFAULT 0');
+	      await ensureColumn('material_requests', 'firm_id', 'VARCHAR(255) NULL');
+	      await ensureColumn('material_requests', 'store_id', 'VARCHAR(255) NULL');
+	      await ensureColumn('material_requests', 'department', 'VARCHAR(255) NULL');
 	    } catch (err) {
 	      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
 	    }
@@ -5218,8 +5224,11 @@ app.post('/api/material-requests', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
-    const date = String(req.body?.date ?? '').trim();
-    const customerId = req.body?.customerId ? String(req.body.customerId).trim() : null;
+	    const date = String(req.body?.date ?? '').trim();
+	    const firmId = req.body?.firmId ? String(req.body.firmId).trim() : null;
+	    const storeId = req.body?.storeId ? String(req.body.storeId).trim() : null;
+	    const department = req.body?.department ? String(req.body.department).trim() : null;
+	    const customerId = req.body?.customerId ? String(req.body.customerId).trim() : null;
     const projectId = req.body?.projectId ? String(req.body.projectId).trim() : null;
     const requestByType = String(req.body?.requestByType ?? 'Inhouse').trim();
     const requestByUserId = req.body?.requestByUserId ? String(req.body.requestByUserId).trim() : null;
@@ -5227,8 +5236,11 @@ app.post('/api/material-requests', async (req, res) => {
     const remarks = req.body?.remarks ? String(req.body.remarks).trim() : null;
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
-    if (!date) return res.status(400).json({ error: 'date is required' });
-    if (!items.length) return res.status(400).json({ error: 'items are required' });
+	    if (!date) return res.status(400).json({ error: 'date is required' });
+	    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+	    if (!storeId) return res.status(400).json({ error: 'storeId is required' });
+	    if (!department) return res.status(400).json({ error: 'department is required' });
+	    if (!items.length) return res.status(400).json({ error: 'items are required' });
     if (requestByType !== 'Inhouse' && requestByType !== 'Vendor') {
       return res.status(400).json({ error: 'requestByType must be Inhouse or Vendor' });
     }
@@ -5243,11 +5255,11 @@ app.post('/api/material-requests', async (req, res) => {
     const requestNo = await allocateDocNumber(pool, 'MR', new Date());
 
     await pool.query(
-      `INSERT INTO material_requests 
-        (id, request_no, date, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, remarks, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [requestId, requestNo, date, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, remarks, 'system']
-    );
+	      `INSERT INTO material_requests 
+	        (id, request_no, date, firm_id, store_id, department, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, remarks, created_by)
+	       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	      [requestId, requestNo, date, firmId, storeId, department, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, remarks, 'system']
+	    );
 
     for (const item of items) {
       const itemId = String(item.itemId ?? '').trim();
@@ -5273,17 +5285,21 @@ app.get('/api/material-requests', async (_req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
-    const [rows] = await pool.query(`
-      SELECT 
-        mr.*,
-        c.name AS customerName,
-        p.name AS projectName,
-        u.name AS userName,
-        s.name AS supplierName
-      FROM material_requests mr
-      LEFT JOIN customers c ON c.id = mr.customer_id
-      LEFT JOIN projects p ON p.id = mr.project_id
-      LEFT JOIN users u ON u.id = mr.request_by_user_id
+	    const [rows] = await pool.query(`
+	      SELECT 
+	        mr.*,
+	        f.name AS firmName,
+	        st.name AS storeName,
+	        c.name AS customerName,
+	        p.name AS projectName,
+	        u.name AS userName,
+	        s.name AS supplierName
+	      FROM material_requests mr
+	      LEFT JOIN firms f ON f.id = mr.firm_id
+	      LEFT JOIN stores st ON st.id = mr.store_id
+	      LEFT JOIN customers c ON c.id = mr.customer_id
+	      LEFT JOIN projects p ON p.id = mr.project_id
+	      LEFT JOIN users u ON u.id = mr.request_by_user_id
       LEFT JOIN suppliers s ON s.id = mr.request_by_supplier_id
       ORDER BY mr.created_at DESC
     `);
@@ -5298,17 +5314,21 @@ app.get('/api/material-requests/pending', async (_req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
-    const [rows] = await pool.query(`
-      SELECT 
-        mr.*,
-        c.name AS customerName,
-        p.name AS projectName,
-        u.name AS userName,
-        s.name AS supplierName
-      FROM material_requests mr
-      LEFT JOIN customers c ON c.id = mr.customer_id
-      LEFT JOIN projects p ON p.id = mr.project_id
-      LEFT JOIN users u ON u.id = mr.request_by_user_id
+	    const [rows] = await pool.query(`
+	      SELECT 
+	        mr.*,
+	        f.name AS firmName,
+	        st.name AS storeName,
+	        c.name AS customerName,
+	        p.name AS projectName,
+	        u.name AS userName,
+	        s.name AS supplierName
+	      FROM material_requests mr
+	      LEFT JOIN firms f ON f.id = mr.firm_id
+	      LEFT JOIN stores st ON st.id = mr.store_id
+	      LEFT JOIN customers c ON c.id = mr.customer_id
+	      LEFT JOIN projects p ON p.id = mr.project_id
+	      LEFT JOIN users u ON u.id = mr.request_by_user_id
       LEFT JOIN suppliers s ON s.id = mr.request_by_supplier_id
       WHERE mr.status = 'Pending'
       ORDER BY mr.created_at DESC

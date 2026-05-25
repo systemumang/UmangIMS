@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import {
+  fetchDepartments,
   fetchCustomers,
+  fetchStores,
   fetchItemNames,
   fetchItems,
   fetchProjects,
@@ -11,14 +13,17 @@ import {
   fetchSuppliers,
   fetchUsers,
   type Customer,
+  type Department,
   type Item,
   type ItemName,
   type Project,
   type Specification,
   type SpecificationValue,
+  type Store,
   type Supplier,
   type User,
 } from '@/src/lib/masters';
+import { fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
 import { createMaterialRequest } from '@/src/lib/materialRequests';
 import { Plus, Trash2, X } from 'lucide-react';
 
@@ -33,6 +38,9 @@ export default function RequestMaterialView() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [firmId, setFirmId] = useState('');
+  const [storeId, setStoreId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
   const [requestByType, setRequestByType] = useState<'Inhouse' | 'Vendor'>('Inhouse');
   const [requestByUserId, setRequestByUserId] = useState('');
   const [requestBySupplierId, setRequestBySupplierId] = useState('');
@@ -41,6 +49,9 @@ export default function RequestMaterialView() {
   const [rowErrors, setRowErrors] = useState<string[]>([]);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [firms, setFirms] = useState<Firm[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -56,15 +67,19 @@ export default function RequestMaterialView() {
   useEffect(() => {
     async function load() {
       try {
-        const [c, p, s, u, itemNameRows, specRows, i] = await Promise.all([
+        const [f, c, p, s, u, itemNameRows, specRows, i, storeRows, deptRows] = await Promise.all([
+          fetchFirms(),
           fetchCustomers(),
           fetchProjects(),
           fetchSuppliers(),
           fetchUsers(),
           fetchItemNames(),
           fetchSpecifications(),
-          fetchItems()
+          fetchItems(),
+          fetchStores(),
+          fetchDepartments(),
         ]);
+        setFirms(f);
         setCustomers(c);
         setProjects(p);
         setSuppliers(s.filter(it => it.isVendor));
@@ -72,6 +87,8 @@ export default function RequestMaterialView() {
         setItemNames(itemNameRows);
         setSpecs(specRows);
         setMasterItems(i);
+        setStores(storeRows);
+        setDepartments(deptRows);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -166,6 +183,9 @@ export default function RequestMaterialView() {
 
       await createMaterialRequest({
         date,
+        firmId,
+        storeId,
+        department: (departments.find((d) => d.id === departmentId)?.name ?? '').trim(),
         customerId: customerId || null,
         projectId: projectId || null,
         requestByType,
@@ -178,6 +198,9 @@ export default function RequestMaterialView() {
       // Reset form
       setCustomerId('');
       setProjectId('');
+      setFirmId('');
+      setStoreId('');
+      setDepartmentId('');
       setRequestByUserId('');
       setRequestBySupplierId('');
       setRemarks('');
@@ -222,6 +245,37 @@ export default function RequestMaterialView() {
                 value={date}
                 onChange={e => setDate(e.target.value)}
                 required
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</span>
+              <SearchableSelect
+                options={firms.map((f) => ({ value: f.id, label: f.name }))}
+                value={firmId}
+                onChange={setFirmId}
+                placeholder="Select Firm"
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store</span>
+              <SearchableSelect
+                options={storeOptions.map((s) => ({ value: s.id, label: s.name }))}
+                value={storeId}
+                onChange={setStoreId}
+                placeholder="Select Store"
+                disabled={!firmId}
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</span>
+              <SearchableSelect
+                options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                value={departmentId}
+                onChange={setDepartmentId}
+                placeholder="Select Department"
               />
             </label>
 
@@ -431,3 +485,15 @@ export default function RequestMaterialView() {
     </div>
   );
 }
+  const storeOptions = useMemo(
+    () => stores.filter((st) => !firmId || String(st.firmId ?? '') === firmId),
+    [stores, firmId]
+  );
+
+  useEffect(() => {
+    if (!firmId) {
+      setStoreId('');
+      return;
+    }
+    if (storeId && !storeOptions.some((st) => st.id === storeId)) setStoreId('');
+  }, [firmId, storeId, storeOptions]);

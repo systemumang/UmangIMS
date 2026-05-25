@@ -14,6 +14,11 @@ export type MaterialRequest = {
   id: string;
   requestNo: string;
   date: string;
+  firmId?: string | null;
+  storeId?: string | null;
+  department?: string | null;
+  firmName?: string;
+  storeName?: string;
   customerId?: string | null;
   projectId?: string | null;
   requestByType: 'Inhouse' | 'Vendor';
@@ -33,6 +38,11 @@ function normalizeMaterialRequest(raw: any): MaterialRequest {
     id: String(raw?.id ?? ''),
     requestNo: String(raw?.requestNo ?? raw?.request_no ?? ''),
     date: String(raw?.date ?? raw?.request_date ?? ''),
+    firmId: raw?.firmId ?? raw?.firm_id ?? null,
+    storeId: raw?.storeId ?? raw?.store_id ?? null,
+    department: raw?.department ?? null,
+    firmName: raw?.firmName ?? raw?.firm_name ?? undefined,
+    storeName: raw?.storeName ?? raw?.store_name ?? undefined,
     customerId: raw?.customerId ?? raw?.customer_id ?? null,
     projectId: raw?.projectId ?? raw?.project_id ?? null,
     requestByType: String(raw?.requestByType ?? raw?.request_by_type ?? 'Inhouse') === 'Vendor' ? 'Vendor' : 'Inhouse',
@@ -60,6 +70,9 @@ function normalizeMaterialRequest(raw: any): MaterialRequest {
 
 export async function createMaterialRequest(input: {
   date: string;
+  firmId: string;
+  storeId: string;
+  department: string;
   customerId?: string | null;
   projectId?: string | null;
   requestByType: 'Inhouse' | 'Vendor';

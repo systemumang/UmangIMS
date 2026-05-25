@@ -231,6 +231,12 @@ export default function ItemIssueView({
 
 		  useEffect(() => {
 		    if (!materialRequest) return;
+		    setFirmId(String(materialRequest.firmId ?? ''));
+		    setStoreId(String(materialRequest.storeId ?? ''));
+		    const rawDept = String(materialRequest.departmentId ?? materialRequest.department ?? '').trim();
+		    const deptById = departments.find((d) => d.id === rawDept);
+		    const deptByName = departments.find((d) => String(d.name ?? '').trim().toLowerCase() === rawDept.toLowerCase());
+		    setDepartmentId(String(deptById?.id ?? deptByName?.id ?? rawDept));
 		    setProjectId(String(materialRequest.projectId ?? ''));
 		    setIssueType(materialRequest.projectId ? 'Project' : 'Sales');
           setIssuedTo(String(materialRequest.userName ?? materialRequest.supplierName ?? ''));
@@ -256,7 +262,7 @@ export default function ItemIssueView({
               .filter(Boolean) as ItemDraft[];
             if (nextRows.length) setItems(nextRows);
 		      }
-		  }, [materialRequest, masterItems, specNameById]);
+		  }, [materialRequest, masterItems, specNameById, departments]);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
