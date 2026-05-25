@@ -1,6 +1,8 @@
 export type StockTransactionItem = {
   itemId: string;
   item: string;
+  itemNameId?: string;
+  specs?: Record<string, string>;
   quantity: number;
   specification?: string;
   remark?: string;

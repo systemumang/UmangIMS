@@ -382,19 +382,30 @@ export default function DamageView({
       .finally(() => setCreateCategoryInlineBusy(false));
   };
 
-					  const canSubmit = useMemo(() => {
-					    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim() || !approvedByUserId.trim()) return false;
-						    const normalized = items
-						      .map((it) => ({
-                    itemId: String(it.itemId ?? '').trim(),
-						        item: it.item.trim(),
-						        quantity: Number(it.quantity),
-				        specification: it.specification.trim(),
-				        remark: it.remark.trim(),
-							    }))
-							    .filter((it) => it.itemId && it.item && Number.isFinite(it.quantity) && it.quantity > 0 && it.specification && it.remark);
-						    return normalized.length > 0;
-						  }, [departmentId, firmId, items, requestedByUserId, requiredDate, approvedByUserId, storeId]);
+						  const canSubmit = useMemo(() => {
+						    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim() || !approvedByUserId.trim()) return false;
+							    const normalized = items
+							      .map((it) => ({
+	                    itemId: String(it.itemId ?? '').trim(),
+                      itemNameId: String(it.itemNameId ?? '').trim(),
+							        item: it.item.trim(),
+							        quantity: Number(it.quantity),
+					        specification: it.specification.trim(),
+                      specs: it.specs ?? {},
+					        remark: it.remark.trim(),
+								    }))
+								    .filter((it) => {
+                      if (!Number.isFinite(it.quantity) || it.quantity <= 0) return false;
+                      if (!it.remark) return false;
+                      if (it.itemId && it.item) return true;
+                      if (!it.itemNameId) return false;
+                      const specIds = getItemNameSpecIds(it.itemNameId);
+                      if (!specIds.length) return false;
+                      if (specIds.some((sid) => !String(it.specs?.[sid] ?? '').trim())) return false;
+                      return true;
+                    });
+							    return normalized.length > 0;
+							  }, [departmentId, firmId, items, requestedByUserId, requiredDate, approvedByUserId, storeId]);
 
   const getItemNameSpecIds = (itemNameId: string): string[] => {
     const row = itemNames.find((n) => n.id === itemNameId);
@@ -820,24 +831,25 @@ export default function DamageView({
 				                onClick={() => {
 				                  if (saving) return;
 					                  setError(null);
-					                  const rowMessages: string[] = [];
-					                  const usedItemIds = new Set<string>();
-					                  const normalizedItems = items
-					                    .map((it, i) => {
-					                      const itemName = it.item.trim();
-					                      const itemId = String(it.itemId ?? '').trim();
-					                      const quantityNumber = Number(it.quantity);
-					                      const specification = it.specification.trim();
-					                      const remark = it.remark.trim();
-					                      if (!itemId || !itemName) rowMessages[i] = 'Select Item.';
-					                      else if (usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
-					                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
-					                      else if (!specification) rowMessages[i] = 'Missing specification.';
-					                      else if (!remark) rowMessages[i] = 'Remark is required.';
-					                      if (itemId) usedItemIds.add(itemId);
-					                      return { itemId, item: itemName, quantity: quantityNumber, specification };
-					                      })
-					                    .filter((_, i) => !rowMessages[i]);
+						                  const rowMessages: string[] = [];
+						                  const usedItemIds = new Set<string>();
+						                  const normalizedItems = items
+						                    .map((it, i) => {
+						                      const itemName = it.item.trim() || String(itemNames.find((n) => n.id === it.itemNameId)?.name ?? '').trim();
+						                      const itemId = String(it.itemId ?? '').trim();
+                              const itemNameId = String(it.itemNameId ?? '').trim();
+						                      const quantityNumber = Number(it.quantity);
+						                      const specification = it.specification.trim();
+						                      const remark = it.remark.trim();
+						                      if (!itemNameId) rowMessages[i] = 'Select Item.';
+                              else if (!itemId && getItemNameSpecIds(itemNameId).some((sid) => !String(it.specs?.[sid] ?? '').trim())) rowMessages[i] = 'Select specifications.';
+						                      else if (itemId && usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
+						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+						                      else if (!remark) rowMessages[i] = 'Remark is required.';
+						                      if (itemId) usedItemIds.add(itemId);
+						                      return { itemId, itemNameId, specs: it.specs ?? {}, item: itemName, quantity: quantityNumber, specification, remark };
+						                      })
+						                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';

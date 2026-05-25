@@ -5912,21 +5912,25 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 });
 
 // Create Direct PO (not linked to any PR)
-app.post('/api/pos', async (req, res) => {
-  try {
-    const pool = getMysqlPool();
-    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	app.post('/api/pos', async (req, res) => {
+	  try {
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
-    const firmId = String(req.body?.firmId ?? '').trim();
-    const storeId = String(req.body?.storeId ?? '').trim();
-	    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
-	    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
-	    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
-	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
-      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
-      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
-	    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
-	    const advanceDateInput = req.body?.advanceDate;
+	    const firmId = String(req.body?.firmId ?? '').trim();
+	    const storeId = String(req.body?.storeId ?? '').trim();
+		    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
+		    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();
+		    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
+        const department = String(req.body?.department ?? '').trim();
+        const requestedBy = String(req.body?.requestedBy ?? '').trim();
+        const requiredDateInput = String(req.body?.requiredDate ?? '').trim();
+        const requiredDate = toIsoDate(requiredDateInput);
+		    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+	      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
+	      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
+		    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
+		    const advanceDateInput = req.body?.advanceDate;
 	    const normalizedAdvanceDateInput =
 	      advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
 	    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
@@ -5935,10 +5939,13 @@ app.post('/api/pos', async (req, res) => {
 	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
 	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
-    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
-    if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
-    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
-    if (!items.length) return res.status(400).json({ error: 'items are required' });
+	    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+	    if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
+        if (!department) return res.status(400).json({ error: 'department is required' });
+        if (!requestedBy) return res.status(400).json({ error: 'requestedBy is required' });
+        if (!requiredDate) return res.status(400).json({ error: 'requiredDate is required' });
+	    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+	    if (!items.length) return res.status(400).json({ error: 'items are required' });
 
     // Some DB schemas require store_id and pr_id to be non-null + FK-constrained.
     // For "Direct PO", we create an internal placeholder PR and link the PO to it.
@@ -5969,33 +5976,33 @@ app.post('/api/pos', async (req, res) => {
       supplierName = String(sRow.name ?? supplierName);
     }
 
-    const poId = crypto.randomUUID();
-    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+	    const poId = crypto.randomUUID();
+	    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
 
-    const directPrId = crypto.randomUUID();
-    const directPrNumber = `DPO-${poNumber}`;
-    const directRemarks = JSON.stringify({ department: 'Direct PO', directPo: true });
-    const directRequestType = projectId ? 'Project' : 'Stock';
+	    const directPrId = crypto.randomUUID();
+	    const directPrNumber = `DPO-${poNumber}`;
+	    const directRemarks = JSON.stringify({ department, directPo: true, requiredDate });
+	    const directRequestType = projectId ? 'Project' : 'Stock';
 
-    await pool.query(
-      `
-      INSERT INTO purchase_requisitions
-        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
-      VALUES
-        (?, ?, ?, ?, ?, ?, 'approved', ?, ?, NOW(), NOW(), ?)
-      `,
-      [
-        directPrId,
-        directPrNumber,
-        firmId,
-        effectiveStoreId,
-        projectId ? projectId : null,
-        'system',
-        directRemarks,
-        'system',
-        directRequestType,
-      ]
-    );
+	    await pool.query(
+	      `
+	      INSERT INTO purchase_requisitions
+	        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
+	      VALUES
+	        (?, ?, ?, ?, ?, ?, 'approved', ?, ?, NOW(), NOW(), ?)
+	      `,
+	      [
+	        directPrId,
+	        directPrNumber,
+	        firmId,
+	        effectiveStoreId,
+	        projectId ? projectId : null,
+	        requestedBy,
+	        directRemarks,
+	        'system',
+	        directRequestType,
+	      ]
+	    );
 
 		    await pool.query(
 		      `
@@ -6080,16 +6087,16 @@ app.post('/api/pos', async (req, res) => {
         }
       } catch {}
 
-      const prItemId = crypto.randomUUID();
-      await pool.query(
-        `
-        INSERT INTO purchase_requisition_items
-          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
-        VALUES
-          (?, ?, ?, ?, ?, CURDATE(), ?, 'approved', ?, NOW(), NOW())
-        `,
-        [prItemId, directPrId, itemId, quantity, quantity, prSpecText, 'system']
-      );
+	      const prItemId = crypto.randomUUID();
+	      await pool.query(
+	        `
+	        INSERT INTO purchase_requisition_items
+	          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
+	        VALUES
+	          (?, ?, ?, ?, ?, ?, ?, 'approved', ?, NOW(), NOW())
+	        `,
+	        [prItemId, directPrId, itemId, quantity, quantity, requiredDate, prSpecText, 'system']
+	      );
 
       const poItemId = crypto.randomUUID();
       await pool.query(
@@ -10479,11 +10486,67 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
       ]
     );
 
+    const normalizeSpecsObject = (raw) => {
+      if (!raw || typeof raw !== 'object') return {};
+      const out = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const sid = String(k ?? '').trim();
+        const sval = String(v ?? '').trim();
+        if (!sid || !sval) continue;
+        out[sid] = sval;
+      }
+      return out;
+    };
+
+    const stableJsonStringify = (obj) => {
+      const entries = Object.entries(obj || {}).sort(([a], [b]) => String(a).localeCompare(String(b)));
+      return JSON.stringify(Object.fromEntries(entries));
+    };
+
     for (const item of data.items || []) {
+      let resolvedItemId = String(item?.itemId ?? '').trim();
+      if (!resolvedItemId) {
+        const itemNameId = String(item?.itemNameId ?? '').trim();
+        const specsObj = normalizeSpecsObject(item?.specs);
+        const specIds = Object.keys(specsObj);
+        if (!itemNameId || !specIds.length) {
+          return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+        }
+        const specificationsJson = stableJsonStringify(specsObj);
+        const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+
+        const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
+        if (found?.id) {
+          resolvedItemId = String(found.id);
+        } else {
+          const newId = crypto.randomUUID();
+          const itemCode = `IT-${newId.slice(0, 8).toUpperCase()}`;
+          const [[meta]] = await pool.query(
+            `
+            SELECT u.name AS unitName
+            FROM item_names n
+            LEFT JOIN units u ON u.id = n.unit_id
+            WHERE n.id = ?
+            LIMIT 1
+            `,
+            [itemNameId]
+          );
+          const unitName = meta?.unitName != null ? String(meta.unitName) : null;
+          await pool.query(
+            `
+            INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, NOW(), NOW())
+            `,
+            [newId, itemNameId, itemCode, specificationsJson, uniqueKey, unitName, 'system']
+          );
+          resolvedItemId = newId;
+        }
+      }
+
       await pool.query(
         `INSERT INTO ${itemsTable} (id, ${kind}_id, item_id, quantity, specification, remark, created_at)
          VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [crypto.randomUUID(), id, item.itemId, item.quantity, item.specification, item.remark]
+        [crypto.randomUUID(), id, resolvedItemId, item.quantity, item.specification, item.remark]
       );
       
       if (materialRequestId) {
@@ -10491,7 +10554,7 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
           `UPDATE material_request_items 
            SET issued_quantity = issued_quantity + ? 
            WHERE request_id = ? AND item_id = ?`,
-          [item.quantity, materialRequestId, item.itemId]
+          [item.quantity, materialRequestId, resolvedItemId]
         );
       }
     }

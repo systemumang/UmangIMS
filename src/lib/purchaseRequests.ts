@@ -394,6 +394,9 @@ export async function createDirectPo(input: {
   firmId: string;
   storeId?: string | null;
   projectId?: string | null;
+  department?: string;
+  requestedBy?: string;
+  requiredDate?: string; // YYYY-MM-DD
   supplierId: string;
   paymentTerms: string;
   paymentType?: string | null;

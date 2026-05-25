@@ -233,7 +233,7 @@ export default function StockTransferView({
   );
 
   const computeItems = (rows: ItemDraft[]) => {
-    const normalized: Array<{ itemId: string; item: string; quantity: number }> = [];
+    const normalized: Array<{ itemId: string; itemNameId: string; specs: Record<string, string>; item: string; quantity: number }> = [];
     const errors: string[] = [];
 
     for (const row of rows) {
@@ -241,17 +241,27 @@ export default function StockTransferView({
       const hasAny = Boolean(row.itemNameId.trim() || row.itemId.trim() || row.item.trim() || row.quantity.trim());
       if (!hasAny) continue;
 
-      if (!row.itemId.trim()) {
-        errors.push('Please select valid item/specification for all filled rows.');
-        continue;
-      }
       if (!Number.isFinite(qty) || qty <= 0) {
         errors.push('Please enter Qty > 0 for all selected items.');
         continue;
       }
+
+      const itemNameId = String(row.itemNameId ?? '').trim();
+      const itemId = String(row.itemId ?? '').trim();
+      if (!itemId) {
+        const specIds = itemNameId ? getItemNameSpecIds(itemNameId) : [];
+        if (!itemNameId || !specIds.length || specIds.some((sid) => !String(row.specs?.[sid] ?? '').trim())) {
+          errors.push('Please select valid item/specification for all filled rows.');
+          continue;
+        }
+      }
+
+      const itemNameLabel = String(row.item ?? '').trim() || String(itemNames.find((n) => n.id === itemNameId)?.name ?? '').trim();
       normalized.push({
-        itemId: row.itemId,
-        item: row.item,
+        itemId,
+        itemNameId,
+        specs: row.specs ?? {},
+        item: itemNameLabel,
         quantity: qty,
       });
     }
@@ -305,24 +315,26 @@ export default function StockTransferView({
                 }
 
                 setSaving(true);
-                createTransfer({
-                  firmId: fromFirmId,
-                  storeId: fromStoreId,
-                  store: fromStoreName,
-                  department: fromDepartment,
-                  toFirmId: toFirmId,
-                  toStoreId: toStoreId,
-                  toStore: toStoreName,
-                  toDepartment,
-                  person: transferBy,
-                  date: transferDate,
-                  items: normalizedItems.map((it) => ({
-                    itemId: it.itemId,
-                    item: it.item,
-                    quantity: it.quantity,
-                    specification: '',
-                  })),
-                })
+	                createTransfer({
+	                  firmId: fromFirmId,
+	                  storeId: fromStoreId,
+	                  store: fromStoreName,
+	                  department: fromDepartment,
+	                  toFirmId: toFirmId,
+	                  toStoreId: toStoreId,
+	                  toStore: toStoreName,
+	                  toDepartment,
+	                  person: transferBy,
+	                  date: transferDate,
+	                  items: normalizedItems.map((it) => ({
+	                    itemId: it.itemId,
+                      itemNameId: it.itemNameId,
+                      specs: it.specs,
+	                    item: it.item,
+	                    quantity: it.quantity,
+	                    specification: '',
+	                  })),
+	                })
                   .then((row) => onCreated(row.id))
                   .catch((e) => setError(e instanceof Error ? e.message : String(e)))
                   .finally(() => setSaving(false));
@@ -437,29 +449,29 @@ export default function StockTransferView({
             </label>
           </div>
 
-          <div className="rounded-xl border border-outline-variant overflow-hidden">
-            <div className="p-3 bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-              Items
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead className="bg-surface-container-low text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-                  <tr>
-                    <th className="p-3 border-b border-outline-variant">Item Name</th>
-                    <th className="p-3 border-b border-outline-variant">Specifications</th>
-                    <th className="p-3 border-b border-outline-variant text-right">Qty</th>
-                    <th className="p-3 border-b border-outline-variant text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant">
-                  {items.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-surface-container-low/50">
-                      <td className="p-3 min-w-[280px]">
-                        {loadingItems ? (
-                          <div className="flex items-center gap-2 text-on-surface-variant text-sm">
-                            <Spinner className="h-4 w-4" /> Loading...
-                          </div>
-                        ) : (
+	          <div className="rounded-xl border border-outline-variant overflow-hidden">
+	            <div className="p-3 bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+	              Items
+	            </div>
+	            <div className="overflow-x-auto">
+	              <table className="w-full text-left border-collapse text-sm border border-outline-variant">
+	                <thead className="bg-surface-container-low text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+	                  <tr>
+	                    <th className="p-3 border border-outline-variant">Item Name</th>
+	                    <th className="p-3 border border-outline-variant">Specifications</th>
+	                    <th className="p-3 border border-outline-variant text-right">Qty</th>
+	                    <th className="p-3 border border-outline-variant text-right">Action</th>
+	                  </tr>
+	                </thead>
+	                <tbody>
+	                  {items.map((row, idx) => (
+	                    <tr key={idx} className="hover:bg-surface-container-low/50">
+	                      <td className="p-3 min-w-[280px] border border-outline-variant">
+	                        {loadingItems ? (
+	                          <div className="flex items-center gap-2 text-on-surface-variant text-sm">
+	                            <Spinner className="h-4 w-4" /> Loading...
+	                          </div>
+	                        ) : (
                           <SearchableSelect
                             value={row.itemNameId}
                             options={itemNames.map((it) => ({ value: it.id, label: it.name }))}
@@ -489,14 +501,14 @@ export default function StockTransferView({
                             }}
                             placeholder="Search item name..."
                             allowClear
-                            disabled={loadingItemNames}
-                          />
-                        )}
-                      </td>
-                      <td className="p-3 min-w-[260px]">
-                        {row.itemNameId ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {getItemNameSpecIds(row.itemNameId).map((specId) => {
+	                            disabled={loadingItemNames}
+	                          />
+	                        )}
+	                      </td>
+	                      <td className="p-3 min-w-[260px] border border-outline-variant">
+	                        {row.itemNameId ? (
+	                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+	                            {getItemNameSpecIds(row.itemNameId).map((specId) => {
                               const specName = specNameById?.[specId] ?? specId;
                               const value = String(row.specs?.[specId] ?? '');
                               const key = specValueKey(row.itemNameId, specId);
@@ -534,23 +546,23 @@ export default function StockTransferView({
                           <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
                             -
                           </div>
-                        )}
-                      </td>
-                      <td className="p-3 text-right w-[120px]">
-                        <input
-                          type="number"
-                          min={0}
+	                        )}
+	                      </td>
+	                      <td className="p-3 text-right w-[120px] border border-outline-variant">
+	                        <input
+	                          type="number"
+	                          min={0}
                           step={0.01}
                           value={row.quantity}
                           onChange={(e) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: e.target.value } : p)))}
                           className="w-28 text-right bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="p-3 text-right w-[90px]">
-                        <button
-                          type="button"
-                          className="text-error hover:text-error/80 transition-colors disabled:opacity-50"
+	                          placeholder="0"
+	                        />
+	                      </td>
+	                      <td className="p-3 text-right w-[90px] border border-outline-variant">
+	                        <button
+	                          type="button"
+	                          className="text-error hover:text-error/80 transition-colors disabled:opacity-50"
                           title="Remove"
                           disabled={items.length === 1}
                           onClick={() => {
