@@ -4289,7 +4289,7 @@ app.get('/api/operations/payments', async (req, res) => {
     const f = readQueueFilters(req);
     const status = req.query?.status != null ? String(req.query.status).trim() : '';
 
-    const where = ['inv.payment_status IS NOT NULL', "TRIM(inv.payment_status) <> ''"];
+    const where = [];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -4304,11 +4304,11 @@ app.get('/api/operations/payments', async (req, res) => {
       params.push(f.supplierId);
     }
     if (f.from) {
-      where.push('DATE(COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date)) >= ?');
+      where.push('DATE(COALESCE(adj.created_at, inv.invoice_date)) >= ?');
       params.push(f.from);
     }
     if (f.to) {
-      where.push('DATE(COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date)) <= ?');
+      where.push('DATE(COALESCE(adj.created_at, inv.invoice_date)) <= ?');
       params.push(f.to);
     }
     if (f.q) {
@@ -4316,21 +4316,23 @@ app.get('/api/operations/payments', async (req, res) => {
       params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
     }
     if (status) {
-      where.push('inv.payment_status = ?');
+      where.push('adj.receipt_type = ?');
       params.push(status);
     }
 
     const [rows] = await pool.query(
       `
       SELECT
+        adj.id AS paymentId,
+        adj.created_at AS paymentDate,
+        adj.adjusted_amount AS amount,
+        adj.payment_mode AS paymentMode,
+        adj.payment_copy AS paymentCopy,
+        adj.receipt_type AS receiptType,
+        adj.reference_type AS referenceType,
+        adj.created_at AS createdAt,
         inv.id AS invoiceId,
         inv.invoice_number AS invoiceNo,
-        inv.invoice_date AS invoiceDate,
-        inv.total_amount AS invoiceAmount,
-        inv.payment_status AS paymentStatus,
-        inv.payment_date AS paymentDate,
-        inv.updated_at AS updatedAt,
-        inv.created_at AS createdAt,
         po.id AS poId,
         po.po_number AS poNumber,
         pr.id AS prId,
@@ -4339,24 +4341,26 @@ app.get('/api/operations/payments', async (req, res) => {
         f.name AS firmName,
         po.supplier_id AS supplierId,
         s.name AS supplierName
-      FROM invoices inv
+      FROM po_advance_invoice_adjustments adj
+      LEFT JOIN invoices inv ON inv.id = adj.invoice_id
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
-      WHERE ${where.join(' AND ')}
-      ORDER BY COALESCE(inv.payment_date, inv.updated_at, inv.invoice_date) DESC
+      WHERE ${where.length ? where.join(' AND ') : '1=1'}
+      ORDER BY COALESCE(adj.created_at, inv.invoice_date) DESC
       `,
       params
     );
 
     const out = (Array.isArray(rows) ? rows : []).map((r) => ({
-      paymentId: String(r.invoiceId ?? ''),
-      paymentDate: toIsoDate(r.paymentDate) || toIsoDate(r.updatedAt) || toIsoDate(r.invoiceDate) || '',
-      amount: Number(r.invoiceAmount ?? 0),
-      mode: undefined,
-      referenceNo: undefined,
-      status: r.paymentStatus != null ? String(r.paymentStatus) : null,
+      paymentId: String(r.paymentId ?? ''),
+      paymentDate: toIsoDate(r.paymentDate) || '',
+      amount: Number(r.amount ?? 0),
+      mode: r.paymentMode != null ? String(r.paymentMode) : '',
+      referenceNo: r.referenceType != null ? String(r.referenceType) : '',
+      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+      status: r.receiptType != null ? String(r.receiptType) : null,
       invoiceId: String(r.invoiceId ?? ''),
       invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
       poId: String(r.poId ?? ''),
@@ -6222,6 +6226,11 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	        paymentCopy,
 	      });
 	    }
+      for (const row of normalized) {
+        if (!String(row.paymentMode ?? '').trim()) {
+          return res.status(400).json({ error: 'paymentMode is required for each advance row' });
+        }
+      }
 
     conn = await pool.getConnection();
     await conn.beginTransaction();
@@ -11177,9 +11186,11 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     const adjustedAmountRaw = req.body?.adjustedAmount;
     const adjustedAmountInput = adjustedAmountRaw == null ? null : Number(adjustedAmountRaw);
     const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
+    const paymentCopy = req.body?.paymentCopy != null ? String(req.body.paymentCopy).trim() : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
+    if (!paymentMode) return res.status(400).json({ error: 'paymentMode is required' });
     if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
     if (adjustedAmountInput != null && (!Number.isFinite(adjustedAmountInput) || adjustedAmountInput < 0))
       return res.status(400).json({ error: 'adjustedAmount must be 0 or more' });
@@ -11261,10 +11272,20 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
           await pool.query(
             `
             INSERT INTO po_advance_invoice_adjustments
-              (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?, ?)
+              (id, po_id, invoice_id, adjusted_amount, payment_mode, payment_copy, receipt_type, reference_type, entry_key, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?, ?)
             `,
-            [crypto.randomUUID(), poId, invoiceId, paymentAmount, paymentMode || null, crypto.randomUUID(), updatedBy || 'system', updatedBy || 'system']
+            [
+              crypto.randomUUID(),
+              poId,
+              invoiceId,
+              paymentAmount,
+              paymentMode || null,
+              paymentCopy || null,
+              crypto.randomUUID(),
+              updatedBy || 'system',
+              updatedBy || 'system',
+            ]
           );
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -11275,6 +11296,7 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
               UPDATE po_advance_invoice_adjustments
               SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
                   payment_mode = COALESCE(?, payment_mode),
+                  payment_copy = COALESCE(?, payment_copy),
                   receipt_type = 'DIRECT_PAYMENT',
                   reference_type = 'INVOICE',
                   updated_by = ?,
@@ -11282,7 +11304,7 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
               WHERE po_id = ? AND invoice_id = ?
               LIMIT 1
               `,
-              [paymentAmount, paymentMode || null, updatedBy || 'system', poId, invoiceId]
+              [paymentAmount, paymentMode || null, paymentCopy || null, updatedBy || 'system', poId, invoiceId]
             );
           } else {
             throw e;

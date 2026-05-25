@@ -7,6 +7,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -84,6 +85,8 @@ export default function PaymentQueueView({
   const [paymentDate, setPaymentDate] = useState(todayIsoDate());
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
   const [paymentModeInput, setPaymentModeInput] = useState('Cash');
+  const [paymentCopyInput, setPaymentCopyInput] = useState('');
+  const [paymentCopyUploading, setPaymentCopyUploading] = useState(false);
   const [tallyEntryDate, setTallyEntryDate] = useState('');
   const [lines, setLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
@@ -102,6 +105,8 @@ export default function PaymentQueueView({
     setPaymentDate(todayIsoDate());
     setPaymentAmountInput('');
     setPaymentModeInput('Cash');
+    setPaymentCopyInput('');
+    setPaymentCopyUploading(false);
     setTallyEntryDate('');
     setTallyDateInput('');
     setLines([]);
@@ -131,6 +136,7 @@ export default function PaymentQueueView({
     if (!modalOpen || !active) return;
     setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
     setPaymentModeInput(String((active as any)?.paymentMode ?? 'Cash') || 'Cash');
+    setPaymentCopyInput(String((active as any)?.paymentCopy ?? '') || '');
     setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
     setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
     const ac = new AbortController();
@@ -311,16 +317,22 @@ export default function PaymentQueueView({
                   setSaving(false);
                   return;
                 }
-	                const savePromise =
-	                  mode === 'tally'
-	                    ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
-		                    : updateInvoicePayment(active.invoiceId, {
-		                        paymentDate,
-		                        paymentAmount,
-		                        paymentMode: paymentModeInput || undefined,
-		                        updatedBy: 'Accounts Team',
-		                        tallyEntryDate: tallyEntryDate || undefined,
-		                      });
+                if (mode === 'payment' && !String(paymentModeInput ?? '').trim()) {
+                  setModalError('Payment Mode is required.');
+                  setSaving(false);
+                  return;
+                }
+                const savePromise =
+                  mode === 'tally'
+                    ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
+			                    : updateInvoicePayment(active.invoiceId, {
+			                        paymentDate,
+			                        paymentAmount,
+			                        paymentMode: paymentModeInput || undefined,
+                              paymentCopy: paymentCopyInput || undefined,
+			                        updatedBy: 'Accounts Team',
+			                        tallyEntryDate: tallyEntryDate || undefined,
+			                      });
                 savePromise
                   .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())
@@ -426,9 +438,10 @@ export default function PaymentQueueView({
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment</th>
 				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Balance</th>
 				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Amount</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
 	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
-		                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
+                        <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Copy</th>
+			                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
 			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
 			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
@@ -479,6 +492,7 @@ export default function PaymentQueueView({
 		                          </td>
                               <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                                 <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+                                  <option value="">Select</option>
                                   <option value="Cash">Cash</option>
                                   <option value="UPI">UPI</option>
                                   <option value="Cheque">Cheque</option>
@@ -487,6 +501,41 @@ export default function PaymentQueueView({
                                   <option value="IMPS">IMPS</option>
                                   <option value="Card">Card</option>
                                 </select>
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                                <div className="space-y-1">
+                                  <input
+                                    className={cn(inputClass, 'py-1.5')}
+                                    value={paymentCopyInput}
+                                    onChange={(e) => setPaymentCopyInput(e.target.value)}
+                                    placeholder="Paste link / URL"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="file"
+                                      disabled={saving || paymentCopyUploading}
+                                      onChange={async (e) => {
+                                        const f = e.currentTarget.files?.[0];
+                                        if (!f) return;
+                                        try {
+                                          setPaymentCopyUploading(true);
+                                          const { url } = await uploadFileToServer(f);
+                                          setPaymentCopyInput(url);
+                                        } catch (err) {
+                                          setModalError(err instanceof Error ? err.message : String(err));
+                                        } finally {
+                                          setPaymentCopyUploading(false);
+                                          e.currentTarget.value = '';
+                                        }
+                                      }}
+                                    />
+                                    {paymentCopyInput.trim() ? (
+                                      <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+                                        View
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                </div>
                               </td>
                             <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                               <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyEntryDate} onChange={(e) => setTallyEntryDate(e.target.value)} />
@@ -500,9 +549,9 @@ export default function PaymentQueueView({
 		                  ))
 	                ) : (
 		                  <tr>
-				                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
-			                      No records.
-			                    </td>
+					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={14}>
+				                      No records.
+				                    </td>
 		                  </tr>
 	                )}
 	              </tbody>

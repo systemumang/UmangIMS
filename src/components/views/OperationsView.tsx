@@ -3,6 +3,7 @@ import { FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
@@ -39,12 +40,13 @@ import {
 } from '@/src/lib/operations';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
-type OpsTab = 'prs' | 'pos' | 'grns' | 'invoices' | 'payments';
+type OpsTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments';
 type InvoiceSubTab = 'pendingAdjustments' | 'receipts';
 
 const TAB_LABEL: Record<OpsTab, string> = {
   prs: 'Purchase Requisitions',
   pos: 'Purchase Orders',
+  pendingAdjustments: 'Pending Advance Adjustment',
   grns: 'GRN',
   invoices: 'Invoices',
   payments: 'Payments',
@@ -95,16 +97,17 @@ export default function OperationsView({
 	  const statusOptions = useMemo(() => {
 	    if (tab === 'prs') return ['', 'Pending Approval', 'Approved', 'Rejected'];
 	    if (tab === 'pos') return ['', 'Open', 'Partial', 'Closed'];
-	    if (tab === 'invoices') return invoiceSubTab === 'pendingAdjustments' ? ['', 'Open', 'Partial', 'Closed'] : ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
-	    if (tab === 'payments') return ['', 'Full Paid', 'Partly Paid'];
+	    if (tab === 'pendingAdjustments') return ['', 'Open', 'Partial', 'Closed'];
+	    if (tab === 'invoices') return ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
+	    if (tab === 'payments') return ['', 'ADVANCE_ADJUSTMENT', 'DIRECT_PAYMENT'];
 	    return [''];
-	  }, [tab, invoiceSubTab]);
+	  }, [tab]);
 
 	  useEffect(() => {
 	    if (tab !== 'payments') return;
 	    setFilters((p) => {
 	      const cur = String(p.status ?? '').trim();
-	      return cur ? p : { ...p, status: 'Full Paid' };
+	      return cur ? p : { ...p, status: '' };
 	    });
 	  }, [tab]);
 
@@ -150,6 +153,7 @@ export default function OperationsView({
   const [adjustInvoices, setAdjustInvoices] = useState<PoReceiptInvoiceRow[]>([]);
   const [adjustInvoiceAmounts, setAdjustInvoiceAmounts] = useState<Record<string, string>>({});
   const [adjustInvoicePaymentModes, setAdjustInvoicePaymentModes] = useState<Record<string, string>>({});
+  const [advanceUploadBusyByIdx, setAdvanceUploadBusyByIdx] = useState<Record<number, boolean>>({});
 
   const [editPoOpen, setEditPoOpen] = useState(false);
   const [editPoBusy, setEditPoBusy] = useState(false);
@@ -185,19 +189,19 @@ export default function OperationsView({
 	    setSort({ key: defaultSortKey, dir: 'desc' });
 	  }, [defaultSortKey]);
 
-	  const sortedRows = useMemo(() => {
-	    const list: any[] =
-	        tab === 'prs'
-	          ? prs
-	          : tab === 'pos'
-	            ? pos
-	            : tab === 'grns'
-	              ? grns
-	              : tab === 'invoices'
-	                ? invoiceSubTab === 'pendingAdjustments'
-	                  ? advancePos
-	                  : invoices
-	                : payments;
+		  const sortedRows = useMemo(() => {
+		    const list: any[] =
+		        tab === 'prs'
+		          ? prs
+		          : tab === 'pos'
+		            ? pos
+		            : tab === 'pendingAdjustments'
+		              ? advancePos
+		            : tab === 'grns'
+		              ? grns
+		              : tab === 'invoices'
+		                ? invoices
+		                : payments;
 	    const out = [...(list ?? [])];
 	    const key = String(sort.key ?? '');
 	    const dir = sort.dir === 'asc' ? 1 : -1;
@@ -241,7 +245,7 @@ export default function OperationsView({
 
 	    out.sort((ra, rb) => cmp(ra?.[key], rb?.[key]) * dir);
 	    return out;
-	  }, [advancePos, grns, invoiceSubTab, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
+		  }, [advancePos, grns, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
 
 	  const rowsCount = sortedRows.length;
 
@@ -290,18 +294,18 @@ export default function OperationsView({
     setLoading(true);
     setError(null);
 
-    const p =
-      tab === 'prs'
-        ? fetchOperationsPrs(filters, ac.signal).then(setPrs)
-        : tab === 'pos'
-          ? fetchOperationsPos(filters, ac.signal).then(setPos)
-            : tab === 'grns'
-              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
-              : tab === 'invoices'
-                ? invoiceSubTab === 'pendingAdjustments'
-                  ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
-                  : fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
-                : fetchOperationsPayments(filters, ac.signal).then(setPayments);
+	    const p =
+	      tab === 'prs'
+	        ? fetchOperationsPrs(filters, ac.signal).then(setPrs)
+	        : tab === 'pos'
+	          ? fetchOperationsPos(filters, ac.signal).then(setPos)
+	          : tab === 'pendingAdjustments'
+	            ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
+	            : tab === 'grns'
+	              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
+	              : tab === 'invoices'
+	                ? fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
+	                : fetchOperationsPayments(filters, ac.signal).then(setPayments);
 
     p.catch((e) => {
       if (ac.signal.aborted) return;
@@ -312,7 +316,7 @@ export default function OperationsView({
     });
 
     return () => ac.abort();
-  }, [filters, invoiceSubTab, tab]);
+	  }, [filters, tab]);
 
 	  const firmOptions = useMemo(
 	    () => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))],
@@ -548,6 +552,7 @@ export default function OperationsView({
     setAdvanceModalOpen(true);
     setAdvanceModalError(null);
     setAdvanceModalBusy(false);
+    setAdvanceUploadBusyByIdx({});
     setAdvanceLines([{ advanceDate: new Date().toISOString().slice(0, 10), advanceAmount: '', paymentMode: '', paymentCopy: '' }]);
   };
 
@@ -593,6 +598,26 @@ export default function OperationsView({
     setAdjustModalBusy(true);
     setAdjustModalError(null);
     try {
+      const invoiceAmountById = new Map(
+        adjustInvoices.map((inv) => [String(inv.invoiceId ?? ''), Number(inv.invoiceAmount ?? 0)])
+      );
+      for (const [invoiceId, raw] of Object.entries(adjustInvoiceAmounts)) {
+        const entered = String(raw ?? '').trim() ? Number(raw) : 0;
+        const invoiceAmount = Number(invoiceAmountById.get(String(invoiceId)) ?? 0);
+        if (!Number.isFinite(entered) || entered < 0) {
+          setAdjustModalError('Amount Adjustment must be a valid non-negative number.');
+          setAdjustModalBusy(false);
+          return;
+        }
+        if (entered > invoiceAmount + 1e-9) {
+          const inv = adjustInvoices.find((x) => String(x.invoiceId) === String(invoiceId));
+          setAdjustModalError(
+            `Amount Adjustment cannot be more than Invoice Amount for ${inv?.invoiceNo || invoiceId}.`
+          );
+          setAdjustModalBusy(false);
+          return;
+        }
+      }
       const rows = Object.entries(adjustInvoiceAmounts).map(([invoiceId, v]) => ({
         invoiceId,
         adjustedAmount: String(v ?? '').trim() ? Number(v) : 0,
@@ -616,6 +641,7 @@ export default function OperationsView({
     setAdvanceModalPoId('');
     setAdvanceModalPoNumber('');
     setAdvanceLines([]);
+    setAdvanceUploadBusyByIdx({});
   };
 
   const openEditPoModal = async (row: OperationsPoListRow) => {
@@ -740,6 +766,11 @@ export default function OperationsView({
         paymentCopy: String((line as any).paymentCopy ?? '').trim() || undefined,
       }))
       .filter((line) => line.advanceDate && Number.isFinite(line.advanceAmount) && line.advanceAmount > 0);
+    const missingMode = normalized.find((line) => !String(line.paymentMode ?? '').trim());
+    if (missingMode) {
+      setAdvanceModalError('Payment Mode is required for each advance row.');
+      return;
+    }
     setAdvanceModalBusy(true);
     setAdvanceModalError(null);
     try {
@@ -840,7 +871,7 @@ export default function OperationsView({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-	        {(['prs', 'pos', 'grns', 'invoices'] as OpsTab[]).map((k) => (
+	        {(['prs', 'pos', 'pendingAdjustments', 'grns', 'invoices'] as OpsTab[]).map((k) => (
 	          <button
 	            key={k}
 	            type="button"
@@ -853,24 +884,6 @@ export default function OperationsView({
             {TAB_LABEL[k]}
           </button>
         ))}
-	        {tab === 'invoices' ? (
-	          <div className="inline-flex items-center gap-2 ml-2">
-	            <button
-	              type="button"
-	              className={invoiceSubTab === 'pendingAdjustments' ? 'btn-danger btn-sm' : 'btn btn-sm'}
-	              onClick={() => setInvoiceSubTab('pendingAdjustments')}
-	            >
-	              Pending Advance Adjustment
-	            </button>
-	            <button
-	              type="button"
-	              className={invoiceSubTab === 'receipts' ? 'btn-danger btn-sm' : 'btn btn-sm'}
-	              onClick={() => setInvoiceSubTab('receipts')}
-	            >
-	                                Payment
-	            </button>
-	          </div>
-	        ) : null}
         <div className="flex-1" />
 		        <button
 		          type="button"
@@ -959,11 +972,10 @@ export default function OperationsView({
                   <col className="w-[180px]" />
                   <col className="w-[120px]" />
                   <col className="w-[80px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[70px]" />
-                  <col className="w-[90px]" />
+	                  <col className="w-[120px]" />
+	                  <col className="w-[120px]" />
+	                  <col className="w-[70px]" />
+	                  <col className="w-[90px]" />
                 </colgroup>
               ) : null}
 		            <thead>
@@ -987,11 +999,10 @@ export default function OperationsView({
 			                    <SortTh label="Supplier" colKey="supplierName" />
 			                    <SortTh label="Order Date" colKey="orderDate" />
 			                    <SortTh label="Status" colKey="status" />
-				                    <SortTh label="Amount" colKey="totalAmount" />
-				                    <SortTh label="Advance" colKey="advanceAmount" />
-				                    <SortTh label="Adv Date" colKey="advanceDate" />
-				                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
-				                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
+					                    <SortTh label="Amount" colKey="totalAmount" />
+					                    <SortTh label="Advance" colKey="advanceAmount" />
+					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
+					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
 			                  </>
 		                ) : tab === 'grns' ? (
 	                  <>
@@ -1003,19 +1014,18 @@ export default function OperationsView({
 	                    <SortTh label="Received" colKey="receivedDate" />
 	                    <SortTh label="Qty" colKey="totalQty" />
 	                  </>
-		                ) : tab === 'invoices' ? (
-		                  invoiceSubTab === 'pendingAdjustments' ? (
-                        <>
-                          <SortTh label="PO" colKey="poNumber" />
+		                ) : tab === 'pendingAdjustments' ? (
+	                        <>
+	                          <SortTh label="PO" colKey="poNumber" />
                           <SortTh label="Firm" colKey="firmName" />
                           <SortTh label="Supplier" colKey="supplierName" />
                           <SortTh label="Order Date" colKey="orderDate" />
                           <SortTh label="Advance" colKey="advanceAmount" />
                           <SortTh label="Amount Adjusted" colKey="amountAdjusted" />
                           <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
-                        </>
-                      ) : (
-		                    <>
+	                        </>
+	                      ) : tab === 'invoices' ? (
+			                    <>
 		                      <SortTh label="Invoice" colKey="invoiceNo" />
 		                      <SortTh label="PO" colKey="poNumber" />
 		                      <SortTh label="Firm" colKey="firmName" />
@@ -1028,8 +1038,7 @@ export default function OperationsView({
                           <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Balance</th>
                           <SortTh label="Status" colKey="status" />
                           <SortTh label="Amount" colKey="invoiceAmount" />
-		                    </>
-                      )
+			                    </>
 		                ) : (
                       <>
                         <SortTh label="Invoice" colKey="invoiceNo" />
@@ -1038,7 +1047,9 @@ export default function OperationsView({
                         <SortTh label="Supplier" colKey="supplierName" />
                         <SortTh label="Date" colKey="paymentDate" />
                         <SortTh label="Amount" colKey="amount" />
-                        <SortTh label="Payment Status" colKey="status" />
+                        <SortTh label="Type" colKey="status" />
+                        <SortTh label="Payment Mode" colKey="mode" />
+                        <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Payment Copy</th>
                       </>
 		                )}
 	              </tr>
@@ -1046,13 +1057,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 12) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 8 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-			                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 8 : tab === 'invoices' ? (invoiceSubTab === 'pendingAdjustments' ? 7 : 12) : 7} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 8 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -1065,11 +1076,11 @@ export default function OperationsView({
                         ? String(r.poId)
                         : tab === 'grns'
                           ? String(r.grnId)
-	                          : tab === 'invoices'
-	                            ? invoiceSubTab === 'pendingAdjustments'
-                                ? String(r.poId)
-                                : String(r.invoiceId)
-	                            : String(r.paymentId);
+		                          : tab === 'pendingAdjustments'
+		                            ? String(r.poId)
+		                            : tab === 'invoices'
+		                              ? String(r.invoiceId)
+		                            : String(r.paymentId);
 		                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
                       const isInvoiceReceiptExpanded =
                         tab === 'invoices' && invoiceSubTab === 'receipts'
@@ -1084,13 +1095,14 @@ export default function OperationsView({
 	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
                   return (
                     <React.Fragment key={rowId}>
-                      <tr
-                        className="hover:bg-surface-container-high/40 cursor-pointer"
-                        onClick={() => {
-	                          if (tab === 'invoices' && invoiceSubTab === 'pendingAdjustments') return openAdjustModal(r as any);
+	                      <tr
+	                        className="hover:bg-surface-container-high/40 cursor-pointer"
+	                        onClick={() => {
+	                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
+                            if (tab === 'payments') return;
                             if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
 	                          openDetailForRow(r);
-                        }}
+	                        }}
                       >
                     {tab === 'prs' ? (
                       <>
@@ -1115,10 +1127,7 @@ export default function OperationsView({
 				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
 				                          {Number(r.advanceAmount ?? 0).toFixed(2)}
 				                        </td>
-				                        <td className="px-3 py-2 border border-outline-variant">
-				                          {r.advanceDate ? formatDateShort(String(r.advanceDate)) : '-'}
-				                        </td>
-				                        <td className="px-3 py-2 border border-outline-variant">
+					                        <td className="px-3 py-2 border border-outline-variant">
 				                          <button
 				                            type="button"
 				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
@@ -1171,9 +1180,8 @@ export default function OperationsView({
 	                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.receivedDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalQty ?? 0)}</td>
 	                      </>
-			                    ) : tab === 'invoices' ? (
-                            invoiceSubTab === 'pendingAdjustments' ? (
-                              <>
+				                    ) : tab === 'pendingAdjustments' ? (
+	                              <>
                                 <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
@@ -1181,13 +1189,13 @@ export default function OperationsView({
                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
                                 <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
                                 <td className="px-3 py-2 border border-outline-variant">
-                                  <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
-                                Payment
-                                  </button>
-                                </td>
-                              </>
-                            ) : (
-			                      <>
+	                                  <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
+	                                Payment Adjustment
+	                                  </button>
+	                                </td>
+	                              </>
+	                            ) : tab === 'invoices' ? (
+				                      <>
 		                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
 			                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 			                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
@@ -1202,19 +1210,28 @@ export default function OperationsView({
                               </td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 				                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-			                      </>
-                            )
-				                    ) : (
+				                      </>
+	                    ) : (
                         <>
                           <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
-			                      <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-			                      <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-			                      <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-			                      <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
-			                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
+				                      <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+				                      <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+				                      <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+				                      <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
+				                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
                           <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
+                          <td className="px-3 py-2 border border-outline-variant">{String((r as any).mode ?? '') || '-'}</td>
+                          <td className="px-3 py-2 border border-outline-variant">
+                            {String((r as any).paymentCopy ?? '').trim() ? (
+                              <a href={String((r as any).paymentCopy)} target="_blank" rel="noreferrer" className="text-primary underline">
+                                View
+                              </a>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
                         </>
-	                    )}
+		                    )}
                       </tr>
 	                      {tab === 'pos' && isExpanded ? (
 	                        <tr>
@@ -1466,15 +1483,47 @@ export default function OperationsView({
 	                      </select>
 	                    </td>
 	                    <td className="px-3 py-2 border border-outline-variant">
-	                      <input
-	                        className={cn(inputClass, 'py-1.5')}
-	                        value={String((line as any).paymentCopy ?? '')}
-	                        onChange={(e) =>
-	                          setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: e.target.value } : x)))
-	                        }
-	                        placeholder="Paste link / URL"
-	                        disabled={advanceModalBusy}
-	                      />
+                        <div className="space-y-1">
+	                        <input
+	                          className={cn(inputClass, 'py-1.5')}
+	                          value={String((line as any).paymentCopy ?? '')}
+	                          onChange={(e) =>
+	                            setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: e.target.value } : x)))
+	                          }
+	                          placeholder="Paste link / URL"
+	                          disabled={advanceModalBusy}
+	                        />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              disabled={advanceModalBusy || Boolean(advanceUploadBusyByIdx[idx])}
+                              onChange={async (e) => {
+                                const f = e.currentTarget.files?.[0];
+                                if (!f) return;
+                                try {
+                                  setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: true }));
+                                  const { url } = await uploadFileToServer(f);
+                                  setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: url } : x)));
+                                } catch (err) {
+                                  setAdvanceModalError(err instanceof Error ? err.message : String(err));
+                                } finally {
+                                  setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: false }));
+                                  e.currentTarget.value = '';
+                                }
+                              }}
+                            />
+                            {String((line as any).paymentCopy ?? '').trim() ? (
+                              <a
+                                href={String((line as any).paymentCopy)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary underline"
+                              >
+                                View
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
 	                    </td>
 	                    <td className="px-3 py-2 border border-outline-variant">
 	                      <button
@@ -1553,7 +1602,7 @@ export default function OperationsView({
                   <th className="px-3 py-2 border border-outline-variant">Invoice No.</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
-                  <th className="px-3 py-2 border border-outline-variant">Payment Amount</th>
+                  <th className="px-3 py-2 border border-outline-variant">Amount Adjustment</th>
                   <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
                 </tr>
               </thead>

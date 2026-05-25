@@ -52,6 +52,7 @@ import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
   fetchUsers,
 } from '@/src/lib/masters';
 import {
+  fetchOperationsAdvances,
   fetchOperationsGrns,
   fetchOperationsInvoices,
   fetchOperationsPayments,
@@ -120,11 +121,11 @@ export default function App() {
 	        const [settingsExpanded, setSettingsExpanded] = useState(false);
 	        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
 	        const [quotationExpanded, setQuotationExpanded] = useState(false);
-	        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'grns' | 'invoices' | 'payments'>('prs');
+        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments'>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
-      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<'prs' | 'pos' | 'grns' | 'invoices' | 'payments', number>>>({});
+      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments', number>>>({});
 
   const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const [countsRefreshTick, setCountsRefreshTick] = useState(0);
@@ -219,14 +220,15 @@ export default function App() {
 	    if (!currentUser) return;
 	    const ac = new AbortController();
 	    Promise.all([
-	      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
+      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
       fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
+      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
       fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
       fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
       fetchOperationsPayments(undefined, ac.signal).then((r) => ['payments', r.length] as const),
     ])
       .then((pairs) => {
-        const next: Partial<Record<'prs' | 'pos' | 'grns' | 'invoices' | 'payments', number>> = {};
+        const next: Partial<Record<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments', number>> = {};
         for (const [k, v] of pairs) next[k] = v;
         setPurchaseMastersCounts(next);
       })
