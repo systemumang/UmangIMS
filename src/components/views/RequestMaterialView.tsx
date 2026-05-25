@@ -387,7 +387,7 @@ export default function RequestMaterialView() {
                       <td className="p-1 border border-outline-variant/20">
                         <input
                           type="number"
-                          className="w-full bg-transparent px-2 py-1 text-sm outline-none"
+                          className="w-full bg-surface-container-low border border-black rounded px-2 py-1 text-sm outline-none"
                           value={row.quantity}
                           onChange={e => {
                             const quantity = String(e.target.value ?? '');

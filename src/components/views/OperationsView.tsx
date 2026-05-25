@@ -1590,12 +1590,13 @@ export default function OperationsView({
           </div>
 
           <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+              <table className="w-full min-w-[1160px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                 <colgroup>
                   <col className="w-[180px]" />
                   <col className="w-[140px]" />
                   <col className="w-[160px]" />
                   <col className="w-[180px]" />
+                  <col className="w-[160px]" />
                   <col className="w-[180px]" />
                 </colgroup>
               <thead>
@@ -1604,19 +1605,20 @@ export default function OperationsView({
                   <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
                   <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
                   <th className="px-3 py-2 border border-outline-variant">Amount Adjustment</th>
+                  <th className="px-3 py-2 border border-outline-variant">Balance</th>
                   <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
                 </tr>
               </thead>
               <tbody>
                 {adjustModalBusy ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    <td colSpan={6} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
                       Loading...
                     </td>
                   </tr>
                 ) : !adjustInvoices.length ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+                    <td colSpan={6} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
                       No invoices found for this PO.
                     </td>
                   </tr>
@@ -1640,6 +1642,9 @@ export default function OperationsView({
                           placeholder="0"
                           disabled={adjustModalBusy}
                         />
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                        {Math.max(0, Number(inv.invoiceAmount ?? 0) - (String(adjustInvoiceAmounts[inv.invoiceId] ?? '').trim() ? Number(adjustInvoiceAmounts[inv.invoiceId]) : 0)).toFixed(2)}
                       </td>
                       <td className="px-3 py-2 border border-outline-variant">
                         <input

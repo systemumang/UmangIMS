@@ -5317,9 +5317,12 @@ app.get('/api/material-requests/pending', async (_req, res) => {
     const requests = [];
     for (const row of rows) {
       const [items] = await pool.query(`
-        SELECT mri.*, i.item_name AS itemName
+        SELECT
+          mri.*,
+          COALESCE(iname.name, i.item_code, i.id) AS itemName
         FROM material_request_items mri
         JOIN items i ON i.id = mri.item_id
+        LEFT JOIN item_names iname ON iname.id = i.item_name_id
         WHERE mri.request_id = ?
       `, [row.id]);
       requests.push({ ...row, items });
