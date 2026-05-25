@@ -2765,10 +2765,8 @@ app.get('/api/queues/payment', async (req, res) => {
         const paymentModeLower = paymentMode.trim().toLowerCase();
         const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
 
-        // Cash invoices are treated as fully paid and should not show in pending payment.
-        const isCash = paymentModeLower === 'cash';
-        const isFull = paymentStatus.includes('full') || isCash;
-        const paidAmount = isCash ? invoiceAmount : Math.max(0, paymentAmount);
+        const isFull = paymentStatus.includes('full');
+        const paidAmount = Math.max(0, paymentAmount);
         const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
         return {
           invoiceId: String(r.invoiceId ?? ''),
@@ -2884,7 +2882,7 @@ app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
     const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
     const paymentModeLower = paymentMode.trim().toLowerCase();
     const isCash = paymentModeLower === 'cash';
-    const isFull = paymentStatusLower.includes('full') || isCash;
+    const isFull = paymentStatusLower.includes('full');
     const paidAmount = isFull ? invoiceAmount : 0;
     const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
 
@@ -2894,7 +2892,7 @@ app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
 
     const failures = [];
     if (!(remainingAmount > 1e-9)) failures.push('Fully paid (remainingAmount is 0)');
-    if (isCash) failures.push('Payment mode is Cash (treated as fully paid)');
+    if (isCash) failures.push('Payment mode is Cash (verify partial cash payments are entered correctly)');
     if (!(totalInvoiceQty > 0)) failures.push('No invoice items (totalInvoiceQty is 0)');
     if (!(totalInvoiceQty > 0 && Math.abs(totalInvoiceQty - totalApprovedQty) <= 1e-9)) failures.push('Not fully QC-approved (invoice qty != approved qty)');
     if (hasTallyEntryDate && !tallyEntryDate) failures.push('Tally entry date is empty');
