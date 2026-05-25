@@ -862,10 +862,13 @@ function getFirmLabel(row: InventorySheetRow) {
 }
 
 function normalizeViewUrl(raw: string) {
-  const v = String(raw ?? '').trim();
+  const v = String(raw ?? '').trim().replace(/\\/g, '/');
   if (!v) return '#';
+  if (/^data:image\//i.test(v)) return v;
   if (/^https?:\/\//i.test(v) || v.startsWith('/')) return v;
-  return `https://${v}`;
+  if (/^www\./i.test(v)) return `https://${v}`;
+  // Treat bare paths like "uploads/foo.jpg" as same-origin assets.
+  return `/${v.replace(/^\/+/, '')}`;
 }
 
 function normalizePreviewUrl(raw: string) {
