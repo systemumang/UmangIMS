@@ -1235,7 +1235,7 @@ export default function OperationsView({
                       </tr>
 	                      {tab === 'pos' && isExpanded ? (
 	                        <tr>
-		                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+		                          <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
 	                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
 	                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
 	                            {!detailLoading && !detailError ? (
@@ -1296,8 +1296,8 @@ export default function OperationsView({
                         </tr>
 	                      ) : null}
 			                      {tab === 'pos' && isAdvanceExpanded && (advanceLoading || Boolean(advanceError) || advanceRows.length > 0) ? (
-		                        <tr>
-		                          <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+			                        <tr>
+		                          <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
 		                            {advanceLoading ? <div className="text-sm text-on-surface-variant">Loading advances...</div> : null}
 		                            {!advanceLoading && advanceError ? <div className="text-sm text-error">{advanceError}</div> : null}
 		                            {!advanceLoading && !advanceError && advanceRows.length ? (
@@ -1498,7 +1498,8 @@ export default function OperationsView({
                               type="file"
                               disabled={advanceModalBusy || Boolean(advanceUploadBusyByIdx[idx])}
                               onChange={async (e) => {
-                                const f = e.currentTarget.files?.[0];
+                                const inputEl = e.currentTarget;
+                                const f = inputEl.files?.[0];
                                 if (!f) return;
                                 try {
                                   setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: true }));
@@ -1508,7 +1509,7 @@ export default function OperationsView({
                                   setAdvanceModalError(err instanceof Error ? err.message : String(err));
                                 } finally {
                                   setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: false }));
-                                  e.currentTarget.value = '';
+                                  if (inputEl) inputEl.value = '';
                                 }
                               }}
                             />

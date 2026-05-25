@@ -193,7 +193,7 @@ export default function RequestMaterialView() {
   if (loading) return <div className="p-8 flex justify-center"><Spinner /></div>;
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
+    <div className="p-4 w-full">
       {success && (
         <div className="mb-4 p-3 bg-success-container text-on-success-container rounded-lg flex justify-between items-center">
           <span>Material Request created successfully!</span>

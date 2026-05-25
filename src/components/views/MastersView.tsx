@@ -4060,15 +4060,6 @@ export default function MastersView({
 	                        placeholder="Select item name first"
 	                      />
 	                    </label>
-		                    <label className="space-y-1">
-		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
-		                      <input
-		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                        value={newItemDescription}
-		                        onChange={(e) => setNewItemDescription(e.target.value)}
-		                        placeholder="High tensile"
-		                      />
-		                    </label>
 		                  </div>
 	
 			                  <div className="space-y-2">
@@ -4223,15 +4214,6 @@ export default function MastersView({
                           value={newItemOpeningStock}
                           onChange={(e) => setNewItemOpeningStock(e.target.value)}
                           placeholder="0.00"
-                        />
-                      </label>
-                      <label className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Description (optional)</div>
-                        <input
-                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          value={newItemDescription}
-                          onChange={(e) => setNewItemDescription(e.target.value)}
-                          placeholder="High tensile"
                         />
                       </label>
                       <div className="space-y-2">

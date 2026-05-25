@@ -2006,7 +2006,14 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ["po.check_po = 1", "po.cancel_reason IS NULL"];
+    const where = [
+      "po.check_po = 1",
+      "po.cancel_reason IS NULL",
+      "po.sent_date IS NOT NULL",
+      "po.sent_date <> ''",
+      "po.sent_by IS NOT NULL",
+      "po.sent_by <> ''",
+    ];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
