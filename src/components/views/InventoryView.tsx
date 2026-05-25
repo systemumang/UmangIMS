@@ -635,14 +635,11 @@ export default function InventoryView() {
 		                Close
 		              </button>
 		            </div>
-		            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-		              {photoModal.photos.map((p) => (
-		                <a
-		                  key={p}
-		                  href={normalizeViewUrl(p)}
-		                  target="_blank"
-		                  rel="noreferrer"
-			                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden hover:bg-surface-container-high transition-colors"
+			            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+			              {photoModal.photos.map((p) => (
+			                <div
+			                  key={p}
+			                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden"
 			                >
 			                  <div className="aspect-video bg-black/5 flex items-center justify-center">
 			                    <img
@@ -651,12 +648,18 @@ export default function InventoryView() {
 			                      loading="lazy"
 			                      referrerPolicy="no-referrer"
 			                      className="max-h-full max-w-full object-contain"
+			                      onError={(e) => {
+			                        const target = e.currentTarget;
+			                        target.style.display = 'none';
+			                        const fallback = target.nextElementSibling as HTMLElement | null;
+			                        if (fallback) fallback.style.display = 'block';
+			                      }}
 			                    />
+			                    <div className="hidden text-xs text-on-surface-variant px-3">Preview unavailable</div>
 			                  </div>
-			                  <div className="px-3 py-2 text-xs text-primary underline break-all">Open</div>
-			                </a>
+			                </div>
 			              ))}
-		            </div>
+			            </div>
 		          </div>
 		        </div>
 		      ) : null}
