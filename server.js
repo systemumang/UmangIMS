@@ -10456,9 +10456,36 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
     const isIssue = table === 'item_issues';
-    const query = isIssue
-      ? `SELECT t.*, mr.request_no AS material_request_no FROM ${table} t LEFT JOIN material_requests mr ON mr.id = t.material_request_id ORDER BY t.created_at DESC`
-      : `SELECT *, NULL AS material_request_no FROM ${table} ORDER BY created_at DESC`;
+    const isTransfer = table === 'item_transfers';
+    const query = isTransfer
+      ? `
+        SELECT t.*,
+               fs.name AS store_name,
+               ts.name AS to_store_name,
+               NULL AS material_request_no
+        FROM ${table} t
+        LEFT JOIN stores fs ON fs.id = t.from_store_id
+        LEFT JOIN stores ts ON ts.id = t.to_store_id
+        ORDER BY t.created_at DESC
+      `
+      : isIssue
+        ? `
+          SELECT t.*,
+                 mr.request_no AS material_request_no,
+                 s.name AS store_name
+          FROM ${table} t
+          LEFT JOIN material_requests mr ON mr.id = t.material_request_id
+          LEFT JOIN stores s ON s.id = t.store_id
+          ORDER BY t.created_at DESC
+        `
+        : `
+          SELECT t.*,
+                 NULL AS material_request_no,
+                 s.name AS store_name
+          FROM ${table} t
+          LEFT JOIN stores s ON s.id = t.store_id
+          ORDER BY t.created_at DESC
+        `;
     
     const [rows] = await pool.query(query);
 
@@ -10506,7 +10533,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         id: row.id,
         transactionNo: row.transaction_no || row.id,
         firmId: row.firm_id,
-        store: row.store_id || row.from_store_id || row.store,
+        store: row.store_name || row.store_id || row.from_store_id || row.store,
         department: row.department,
         person: row.person || row.requested_by,
         date: toIsoDate(row.date) || toIsoDate(row.created_at),
@@ -10516,7 +10543,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         customerName: row.customer_name,
         approvedBy: row.approved_by,
         toFirmId: row.to_firm_id,
-        toStore: row.to_store_id || row.to_store,
+        toStore: row.to_store_name || row.to_store_id || row.to_store,
         toDepartment: row.to_department,
         projectId: row.project_id,
         materialRequestId: row.material_request_id,
