@@ -307,10 +307,11 @@ export default function App() {
 		    if (view === 'pendingTasks') return { title: 'Pending Tasks', showSearch: false };
 		    if (view === 'materialRequest') return { title: 'Material', subtitle: 'Request Material', showSearch: false };
 		    if (view === 'materialPendingIssue') return { title: 'Material', subtitle: 'Pending Issue', showSearch: false };
-        if (view === 'settingsCatalogue') return { title: 'Catalogue', showSearch: false };
-		    if (view === 'newPurchaseRequest') return { title: 'Purchase Requests', subtitle: 'New Purchase Request', showSearch: false };
-		    if (view === 'purchaseRequestDetail') return { title: 'Purchase Requests', subtitle: 'Request Details', showSearch: false };
-	    if (isPendingQueueView(view)) {
+	        if (view === 'settingsCatalogue') return { title: 'Catalogue', showSearch: false };
+			    if (view === 'directPo') return { title: 'Direct PO', showSearch: false };
+			    if (view === 'newPurchaseRequest') return { title: 'Purchase Requests', subtitle: 'New Purchase Request', showSearch: false };
+			    if (view === 'purchaseRequestDetail') return { title: 'Purchase Requests', subtitle: 'Request Details', showSearch: false };
+		    if (isPendingQueueView(view)) {
 	      const subtitleByKey: Record<PendingQueueView, string> = {
 	        queueApprovePr: 'Approve PR',
 	        queueCreatePo: 'Create PO',
