@@ -642,14 +642,20 @@ export default function InventoryView() {
 		                  href={normalizeViewUrl(p)}
 		                  target="_blank"
 		                  rel="noreferrer"
-		                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden hover:bg-surface-container-high transition-colors"
-		                >
-		                  <div className="aspect-video bg-black/5 flex items-center justify-center">
-		                    <img src={normalizeViewUrl(p)} alt="Photo" className="max-h-full max-w-full object-contain" />
-		                  </div>
-		                  <div className="px-3 py-2 text-xs text-primary underline break-all">Open</div>
-		                </a>
-		              ))}
+			                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden hover:bg-surface-container-high transition-colors"
+			                >
+			                  <div className="aspect-video bg-black/5 flex items-center justify-center">
+			                    <img
+			                      src={normalizePreviewUrl(p)}
+			                      alt="Photo"
+			                      loading="lazy"
+			                      referrerPolicy="no-referrer"
+			                      className="max-h-full max-w-full object-contain"
+			                    />
+			                  </div>
+			                  <div className="px-3 py-2 text-xs text-primary underline break-all">Open</div>
+			                </a>
+			              ))}
 		            </div>
 		          </div>
 		        </div>
@@ -857,4 +863,20 @@ function normalizeViewUrl(raw: string) {
   if (!v) return '#';
   if (/^https?:\/\//i.test(v) || v.startsWith('/')) return v;
   return `https://${v}`;
+}
+
+function normalizePreviewUrl(raw: string) {
+  const url = normalizeViewUrl(raw);
+  try {
+    const u = new URL(url, window.location.origin);
+    if (u.hostname.includes('drive.google.com')) {
+      const m = u.pathname.match(/\/file\/d\/([^/]+)\//);
+      if (m?.[1]) return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(m[1])}`;
+      const id = u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
 }
