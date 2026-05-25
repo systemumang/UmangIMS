@@ -426,28 +426,43 @@ export default function PaymentQueueView({
         ) : modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
         ) : (
-		          <div className="overflow-x-auto">
-		            <table className="w-full min-w-[1220px] table-auto text-left border-collapse border border-outline-variant">
-		              <thead>
-		                <tr className="bg-primary text-on-primary">
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Advance</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment</th>
-				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Balance</th>
-				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Amount</th>
-		                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
-                        <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Copy</th>
-			                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Tally Date</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
-		                </tr>
-		              </thead>
-	              <tbody>
+			          <div className="overflow-x-auto">
+			            <table className="w-full min-w-[1700px] table-fixed text-left border-collapse border border-outline-variant">
+			              <colgroup>
+			                <col className="w-[90px]" />
+			                <col className="w-[110px]" />
+			                <col className="w-[110px]" />
+			                <col className="w-[90px]" />
+			                <col className="w-[90px]" />
+			                <col className="w-[90px]" />
+			                <col className="w-[90px]" />
+			                <col className="w-[120px]" />
+			                <col className="w-[120px]" />
+			                <col className="w-[120px]" />
+			                <col className="w-[220px]" />
+			                <col className="w-[420px]" />
+			                <col className="w-[80px]" />
+			                <col className="w-[80px]" />
+			              </colgroup>
+			              <thead>
+			                <tr className="bg-primary text-on-primary">
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
+		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Advance</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment</th>
+					                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Balance</th>
+					                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Amount</th>
+			                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Mode</th>
+	                        <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Copy</th>
+				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
+				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
+			                </tr>
+			              </thead>
+		              <tbody>
                 {active && lines.length ? (
                   lines.map((l, idx) => (
                     <tr key={l.invoiceItemId}>
@@ -502,59 +517,57 @@ export default function PaymentQueueView({
                                   <option value="Card">Card</option>
                                 </select>
                               </td>
-                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-                                <div className="space-y-1">
-                                  <input
-                                    className={cn(inputClass, 'py-1.5')}
-                                    value={paymentCopyInput}
-                                    onChange={(e) => setPaymentCopyInput(e.target.value)}
-                                    placeholder="Paste link / URL"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="file"
-                                      disabled={saving || paymentCopyUploading}
-                                      onChange={async (e) => {
-                                        const f = e.currentTarget.files?.[0];
-                                        if (!f) return;
-                                        try {
-                                          setPaymentCopyUploading(true);
-                                          const { url } = await uploadFileToServer(f);
-                                          setPaymentCopyInput(url);
-                                        } catch (err) {
-                                          setModalError(err instanceof Error ? err.message : String(err));
-                                        } finally {
-                                          setPaymentCopyUploading(false);
-                                          e.currentTarget.value = '';
-                                        }
-                                      }}
-                                    />
-                                    {paymentCopyInput.trim() ? (
-                                      <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-                                        View
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </td>
-                            <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-                              <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyEntryDate} onChange={(e) => setTallyEntryDate(e.target.value)} />
-                            </td>
-	                        </>
-	                      ) : null}
-		                      <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.invoiceQty}</td>
-		                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.linkedQty}</td>
-		                    </tr>
-		                  ))
-	                ) : (
-		                  <tr>
-					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={14}>
-				                      No records.
-				                    </td>
-		                  </tr>
-	                )}
-	              </tbody>
+	                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+	                                <div className="space-y-1">
+	                                  <input
+	                                    className={cn(inputClass, 'py-1.5')}
+	                                    value={paymentCopyInput}
+	                                    onChange={(e) => setPaymentCopyInput(e.target.value)}
+	                                    placeholder="Paste link / URL"
+	                                  />
+	                                  <div className="flex items-center gap-2">
+	                                    <input
+	                                      type="file"
+	                                      disabled={saving || paymentCopyUploading}
+	                                      onChange={async (e) => {
+	                                        const inputEl = e.currentTarget;
+	                                        const f = inputEl.files?.[0];
+	                                        if (!f) return;
+	                                        try {
+	                                          setPaymentCopyUploading(true);
+	                                          const { url } = await uploadFileToServer(f);
+	                                          setPaymentCopyInput(url);
+	                                        } catch (err) {
+	                                          setModalError(err instanceof Error ? err.message : String(err));
+	                                        } finally {
+	                                          setPaymentCopyUploading(false);
+	                                          if (inputEl?.isConnected) inputEl.value = '';
+	                                        }
+	                                      }}
+	                                    />
+	                                    {paymentCopyInput.trim() ? (
+	                                      <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+	                                        View
+	                                      </a>
+	                                    ) : null}
+	                                  </div>
+	                                </div>
+	                              </td>
+		                        </>
+		                      ) : null}
+			                      <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
+			                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.invoiceQty}</td>
+			                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.linkedQty}</td>
+			                    </tr>
+			                  ))
+		                ) : (
+			                  <tr>
+						                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
+					                      No records.
+					                    </td>
+			                  </tr>
+		                )}
+		              </tbody>
             </table>
           </div>
         )}
