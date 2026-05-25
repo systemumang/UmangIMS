@@ -33,6 +33,9 @@ type Line = {
 };
 
 export default function DirectPoView({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+  const inputClass =
+    'w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
+
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -292,24 +295,24 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 placeholder="Select firm..."
               />
             </label>
-            <label className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance</div>
-              <input
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-                value={advanceAmount}
-                onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
-                placeholder="0"
-              />
-            </label>
-            <label className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance Date</div>
-              <input
-                type="date"
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-                value={advanceDate}
-                onChange={(e) => setAdvanceDate(String(e.target.value ?? '').slice(0, 10))}
-              />
-            </label>
+	            <label className="space-y-1">
+	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance</div>
+	              <input
+	                className={inputClass}
+	                value={advanceAmount}
+	                onChange={(e) => setAdvanceAmount(sanitizeDecimalInput(e.target.value))}
+	                placeholder="0"
+	              />
+	            </label>
+	            <label className="space-y-1">
+	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Advance Date</div>
+	              <input
+	                type="date"
+	                className={inputClass}
+	                value={advanceDate}
+	                onChange={(e) => setAdvanceDate(String(e.target.value ?? '').slice(0, 10))}
+	              />
+	            </label>
 
             <label className="space-y-1">
               <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Store</div>
@@ -355,25 +358,25 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
               />
             </label>
 
-            <label className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Payment Terms</div>
-              <input
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-                placeholder="e.g. Advance / 7 days / 30 days"
-              />
-            </label>
+	            <label className="space-y-1">
+	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Payment Terms</div>
+	              <input
+	                className={inputClass}
+	                value={paymentTerms}
+	                onChange={(e) => setPaymentTerms(e.target.value)}
+	                placeholder="e.g. Advance / 7 days / 30 days"
+	              />
+	            </label>
 
-            <label className="space-y-1 md:col-span-3">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Shipping Address</div>
-              <textarea
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm min-h-20"
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Shipping address..."
-              />
-            </label>
+	            <label className="space-y-1 md:col-span-3">
+	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Shipping Address</div>
+	              <textarea
+	                className={[inputClass, 'min-h-20'].join(' ')}
+	                value={shippingAddress}
+	                onChange={(e) => setShippingAddress(e.target.value)}
+	                placeholder="Shipping address..."
+	              />
+	            </label>
 
           </div>
 
