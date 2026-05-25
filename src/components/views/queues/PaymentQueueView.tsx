@@ -439,7 +439,7 @@ export default function PaymentQueueView({
 			                <col className="w-[120px]" />
 			                <col className="w-[120px]" />
 			                <col className="w-[120px]" />
-			                <col className="w-[220px]" />
+			                <col className="w-[150px]" />
 			                <col className="w-[420px]" />
 			                <col className="w-[80px]" />
 			                <col className="w-[80px]" />
@@ -518,40 +518,25 @@ export default function PaymentQueueView({
                                 </select>
                               </td>
 	                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                                <div className="space-y-1">
-	                                  <input
-	                                    className={cn(inputClass, 'py-1.5')}
-	                                    value={paymentCopyInput}
-	                                    onChange={(e) => setPaymentCopyInput(e.target.value)}
-	                                    placeholder="Paste link / URL"
-	                                  />
-	                                  <div className="flex items-center gap-2">
-	                                    <input
-	                                      type="file"
-	                                      disabled={saving || paymentCopyUploading}
-	                                      onChange={async (e) => {
-	                                        const inputEl = e.currentTarget;
-	                                        const f = inputEl.files?.[0];
-	                                        if (!f) return;
-	                                        try {
-	                                          setPaymentCopyUploading(true);
-	                                          const { url } = await uploadFileToServer(f);
-	                                          setPaymentCopyInput(url);
-	                                        } catch (err) {
-	                                          setModalError(err instanceof Error ? err.message : String(err));
-	                                        } finally {
-	                                          setPaymentCopyUploading(false);
-	                                          if (inputEl?.isConnected) inputEl.value = '';
-	                                        }
-	                                      }}
-	                                    />
-	                                    {paymentCopyInput.trim() ? (
-	                                      <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-	                                        View
-	                                      </a>
-	                                    ) : null}
-	                                  </div>
-	                                </div>
+	                                <input
+	                                  type="file"
+	                                  disabled={saving || paymentCopyUploading}
+	                                  onChange={async (e) => {
+	                                    const inputEl = e.currentTarget;
+	                                    const f = inputEl.files?.[0];
+	                                    if (!f) return;
+	                                    try {
+	                                      setPaymentCopyUploading(true);
+	                                      const { url } = await uploadFileToServer(f);
+	                                      setPaymentCopyInput(url);
+	                                    } catch (err) {
+	                                      setModalError(err instanceof Error ? err.message : String(err));
+	                                    } finally {
+	                                      setPaymentCopyUploading(false);
+	                                      if (inputEl?.isConnected) inputEl.value = '';
+	                                    }
+	                                  }}
+	                                />
 	                              </td>
 		                        </>
 		                      ) : null}
