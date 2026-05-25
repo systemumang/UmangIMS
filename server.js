@@ -10461,10 +10461,47 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
       : `SELECT *, NULL AS material_request_no FROM ${table} ORDER BY created_at DESC`;
     
     const [rows] = await pool.query(query);
+
+    const [specRows] = await pool.query('SELECT id, name FROM specifications');
+    const specNameById = new Map(
+      (Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()])
+    );
+    const formatSpecsLabel = (specificationsJson) => {
+      const raw = String(specificationsJson ?? '').trim();
+      if (!raw) return '';
+      try {
+        const obj = JSON.parse(raw) || {};
+        if (!obj || typeof obj !== 'object') return '';
+        const parts = [];
+        for (const [specId, v] of Object.entries(obj)) {
+          const sid = String(specId ?? '').trim();
+          const sval = String(v ?? '').trim();
+          if (!sid || !sval) continue;
+          const specName = specNameById.get(sid) || sid;
+          parts.push(`${specName}: ${sval}`);
+        }
+        return parts.join(' - ');
+      } catch {
+        return raw
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(' - ');
+      }
+    };
     const transactions = [];
 
     for (const row of Array.isArray(rows) ? rows : []) {
-      const [itemRows] = await pool.query(`SELECT * FROM ${itemsTable} WHERE ${kind}_id = ?`, [row.id]);
+      const [itemRows] = await pool.query(
+        `
+        SELECT itx.*, iname.name AS itemName, it.specifications_json AS specificationsJson
+        FROM ${itemsTable} itx
+        LEFT JOIN items it ON it.id = itx.item_id
+        LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        WHERE itx.${kind}_id = ?
+        `,
+        [row.id]
+      );
       transactions.push({
         id: row.id,
         transactionNo: row.transaction_no || row.id,
@@ -10486,7 +10523,11 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         materialRequestNo: row.material_request_no,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
           itemId: it.item_id,
-          item: it.item_name || it.item_id,
+          item: (() => {
+            const name = String(it.itemName ?? '').trim() || String(it.item_id ?? '').trim();
+            const specText = formatSpecsLabel(it.specificationsJson);
+            return [name, specText].filter(Boolean).join(' - ');
+          })(),
           quantity: it.quantity,
           specification: it.specification,
           remark: it.remark
