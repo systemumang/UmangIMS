@@ -4464,8 +4464,8 @@ export default function MastersView({
 				                      {String(f.termsConditions ?? '').trim() ? 'Yes' : '-'}
 				                    </td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-						                      <div className="flex items-center gap-2">
-								                        <button
+							                      <div className="flex items-center gap-2">
+							                        <button
 						                          type="button"
 					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(f.id)}
@@ -4529,17 +4529,7 @@ export default function MastersView({
 				                  <tr key={d.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{d.name}</td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-						                      <div className="flex items-center gap-2">
-						                        <button
-						                          type="button"
-						                          title="Download Template"
-						                          aria-label={`Download template for ${n.name}`}
-						                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-sky-500 text-white shadow-sm hover:bg-sky-600 transition-colors disabled:opacity-50"
-						                          disabled={templateBusy}
-						                          onClick={() => downloadItemNameItemsTemplate(n.id, n.name)}
-						                        >
-						                          <Download size={16} />
-						                        </button>
+							                      <div className="flex items-center gap-2">
 							                        <button
 						                          type="button"
 					                          className="btn-primary btn-sm"
@@ -4762,11 +4752,11 @@ export default function MastersView({
 				                    </td>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.location ?? ''}</td>
-			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-			                      <div className="flex items-center gap-2">
-				                        <button
-				                          type="button"
-				                          className="btn-primary btn-sm"
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+							                      <div className="flex items-center gap-2">
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(s.id)}
 				                        >
 				                          Edit
@@ -4848,11 +4838,11 @@ export default function MastersView({
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.startDate ?? ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.endDate ?? ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.status ?? ''}</td>
-			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-			                      <div className="flex items-center gap-2">
-			                        <button
-			                          type="button"
-			                          className="btn-primary btn-sm"
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+							                      <div className="flex items-center gap-2">
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
 			                          onClick={() => openEditModal(p.id)}
 			                        >
 			                          Edit
@@ -4950,11 +4940,11 @@ export default function MastersView({
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.email ?? ''}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.hasPassword ? '********' : ''}</td>
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.mobile ?? ''}</td>
-				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-			                      <div className="flex items-center gap-2">
-				                        <button
-				                          type="button"
-				                          className="btn-primary btn-sm"
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+							                      <div className="flex items-center gap-2">
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
 				                          onClick={() => openEditModal(u.id)}
 				                        >
 				                          Edit
@@ -5520,12 +5510,22 @@ export default function MastersView({
                               );
                             })()}
                           </td>
-					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-					                      <div className="flex items-center gap-2">
-						                        <button
-					                          type="button"
-				                          className="btn-primary btn-sm"
-				                          onClick={() => openEditModal(n.id)}
+						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+						                      <div className="flex items-center gap-2">
+							                        <button
+							                          type="button"
+							                          title="Download Template"
+							                          aria-label={`Download template for ${n.name}`}
+							                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-sky-500 text-white shadow-sm hover:bg-sky-600 transition-colors disabled:opacity-50"
+							                          disabled={templateBusy}
+							                          onClick={() => downloadItemNameItemsTemplate(n.id, n.name)}
+							                        >
+							                          <Download size={16} />
+							                        </button>
+							                        <button
+						                          type="button"
+					                          className="btn-primary btn-sm"
+					                          onClick={() => openEditModal(n.id)}
 				                        >
 				                          Edit
 				                        </button>
