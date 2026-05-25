@@ -183,11 +183,11 @@ export default function StockTransferView({
     [users]
   );
 
-  const getItemNameSpecIds = (itemNameId: string): string[] => {
+  function getItemNameSpecIds(itemNameId: string): string[] {
     const row = itemNames.find((n) => n.id === itemNameId);
     const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
     return ids.filter(Boolean);
-  };
+  }
 
   const specValueKey = (itemNameId: string, specificationId: string) => `${itemNameId}::${specificationId}`;
 

@@ -424,11 +424,11 @@ export default function ItemIssueView({
 							    return normalized.length > 0;
 							  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
 
-  const getItemNameSpecIds = (itemNameId: string): string[] => {
-    const row = itemNames.find((n) => n.id === itemNameId);
-    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
-    return ids.filter(Boolean);
-  };
+	  function getItemNameSpecIds(itemNameId: string): string[] {
+	    const row = itemNames.find((n) => n.id === itemNameId);
+	    const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+	    return ids.filter(Boolean);
+	  }
 
   const parseSpecObject = (specificationsJson: string) => {
     try {
