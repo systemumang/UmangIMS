@@ -123,7 +123,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       firms
         .slice()
         .sort((a, b) => (String(a.sortName ?? '').trim() || a.name).localeCompare(String(b.sortName ?? '').trim() || b.name))
-        .map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name })),
+        .map((f) => {
+          const short = String(f.sortName ?? '').trim();
+          return { value: f.id, label: short ? `${f.name} (${short})` : f.name };
+        }),
     [firms]
   );
 
@@ -510,14 +513,20 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         placeholder="0"
                       />
                     </td>
-                    <td className="p-2 border border-outline-variant text-right w-24">
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                        value={l.taxPercent}
-                        onChange={(e) => updateLine(idx, { taxPercent: sanitizePercentInput(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </td>
+	                    <td className="p-2 border border-outline-variant text-right w-24">
+	                      <select
+	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                        value={String(l.taxPercent ?? '')}
+	                        onChange={(e) => updateLine(idx, { taxPercent: String(e.target.value ?? '') })}
+	                      >
+	                        <option value="">Select</option>
+	                        <option value="0">0</option>
+	                        <option value="5">5</option>
+	                        <option value="12">12</option>
+	                        <option value="18">18</option>
+	                        <option value="28">28</option>
+	                      </select>
+	                    </td>
                     <td className="p-2 border border-outline-variant text-right w-24">
                       <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
                         Remove

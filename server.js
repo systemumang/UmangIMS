@@ -10526,17 +10526,52 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
 
     const materialRequestId = table === 'item_issues' ? (data.materialRequestId || null) : null;
 
+    const cols = [
+      'id',
+      'transaction_no',
+      'firm_id',
+      storeCol,
+      'department',
+      'person',
+      'date',
+      'issue_type',
+      'issued_to',
+      'return_type',
+      'customer_name',
+      'approved_by',
+      'to_firm_id',
+      toStoreCol,
+      'to_department',
+      'project_id',
+    ];
+    const params = [
+      id,
+      transactionNo,
+      data.firmId,
+      storeId,
+      data.department,
+      data.person,
+      data.date,
+      data.issueType,
+      data.issuedTo,
+      data.returnType,
+      data.customerName,
+      data.approvedBy,
+      data.toFirmId,
+      toStoreId,
+      data.toDepartment,
+      data.projectId,
+    ];
+
+    // Only "issues" table supports material_request_id in some schemas.
+    if (table === 'item_issues') {
+      cols.push('material_request_id');
+      params.push(materialRequestId);
+    }
+
     await pool.query(
-      `INSERT INTO ${table} (
-        id, transaction_no, firm_id, ${storeCol}, department, person, date,
-        issue_type, issued_to, return_type, customer_name, approved_by,
-        to_firm_id, ${toStoreCol}, to_department, project_id, material_request_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [
-        id, transactionNo, data.firmId, storeId, data.department, data.person, data.date,
-        data.issueType, data.issuedTo, data.returnType, data.customerName, data.approvedBy,
-        data.toFirmId, toStoreId, data.toDepartment, data.projectId, materialRequestId
-      ]
+      `INSERT INTO ${table} (${cols.join(', ')}, created_at, updated_at) VALUES (${cols.map(() => '?').join(', ')}, NOW(), NOW())`,
+      params
     );
 
     const normalizeSpecsObject = (raw) => {

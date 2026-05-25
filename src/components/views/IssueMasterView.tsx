@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Eye, Edit2, Trash2, ArrowUpDown } from 'lucide-react';
+import { Search, Trash2, ArrowUpDown } from 'lucide-react';
 import { listIssues, deleteIssue, updateIssue, type StockTransaction } from '@/src/lib/stockMaster';
 import { fetchDepartments, fetchFirms, fetchItems, fetchStores, type Department, type Firm, type Item, type Store } from '@/src/lib/masters';
 
@@ -302,8 +302,13 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                   </td>
                 </tr>
               ) : null}
-	              {sorted.map(row => (
-	                <tr key={row.id} className="hover:bg-surface-container-low/50 transition-colors">
+		              {sorted.map(row => (
+		                <tr
+		                  key={row.id}
+		                  className="hover:bg-surface-container-low/50 transition-colors cursor-pointer"
+		                  onClick={() => setViewItem(row)}
+		                  onDoubleClick={() => setEditItem(cloneTx(row))}
+		                >
 	                  <td className="p-3 border-r border-black text-on-surface font-medium">{row.transactionNo}</td>
 	                  <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
 	                  <td className="p-3 border-r border-black text-on-surface-variant">{row.issueType ?? 'Stock'}</td>
@@ -313,22 +318,24 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
-                  <td className="p-3 text-right">
-                    <div className="flex items-center justify-end gap-3">
-	                      <button type="button" className="text-primary hover:text-primary-dim transition-colors" title="View" onClick={() => setViewItem(row)}>
-	                        <Eye size={16} />
-	                      </button>
-		                      <button type="button" className="text-primary hover:text-primary-dim transition-colors" title="Edit" onClick={() => setEditItem(cloneTx(row))}>
-		                        <Edit2 size={16} />
+	                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
+	                  <td className="p-3 text-right">
+	                    <div className="flex items-center justify-end gap-3">
+		                      <button
+		                        type="button"
+		                        className="text-error hover:text-error/80 transition-colors"
+		                        title="Delete"
+		                        onClick={(e) => {
+		                          e.stopPropagation();
+		                          handleDelete(row.id);
+		                        }}
+		                      >
+		                        <Trash2 size={16} />
 		                      </button>
-	                      <button type="button" className="text-error hover:text-error/80 transition-colors" title="Delete" onClick={() => handleDelete(row.id)}>
-	                        <Trash2 size={16} />
-	                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+	                    </div>
+	                  </td>
+	                </tr>
+	              ))}
             </tbody>
 		          </table>
 		        </div>
