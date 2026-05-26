@@ -29,7 +29,7 @@ import ReturnMasterView from './components/views/ReturnMasterView';
 import DamageMasterView from './components/views/DamageMasterView';
 import TransferMasterView from './components/views/TransferMasterView';
 import DirectPoView from './components/views/DirectPoView';
-import { type MastersTab } from '@/src/lib/mastersTabs';
+import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
 	import {
