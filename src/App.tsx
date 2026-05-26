@@ -331,7 +331,7 @@ export default function App() {
 	      return { title: titleByKey[view], showSearch: false };
 	    }
 	    return { title: 'Purchase Requests', showSearch: true };
-	  }, [view, stockMasterTab]);
+		  }, [mastersTab, view, stockMasterTab]);
 
 		  const sidebarActive: NavView = useMemo(() => {
 		    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
