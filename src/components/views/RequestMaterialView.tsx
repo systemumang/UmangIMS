@@ -213,6 +213,19 @@ export default function RequestMaterialView() {
     }
   };
 
+  const storeOptions = useMemo(
+    () => stores.filter((st) => !firmId || String(st.firmId ?? '') === firmId),
+    [stores, firmId]
+  );
+
+  useEffect(() => {
+    if (!firmId) {
+      setStoreId('');
+      return;
+    }
+    if (storeId && !storeOptions.some((st) => st.id === storeId)) setStoreId('');
+  }, [firmId, storeId, storeOptions]);
+
   if (loading) return <div className="p-8 flex justify-center"><Spinner /></div>;
 
   return (
@@ -485,15 +498,3 @@ export default function RequestMaterialView() {
     </div>
   );
 }
-  const storeOptions = useMemo(
-    () => stores.filter((st) => !firmId || String(st.firmId ?? '') === firmId),
-    [stores, firmId]
-  );
-
-  useEffect(() => {
-    if (!firmId) {
-      setStoreId('');
-      return;
-    }
-    if (storeId && !storeOptions.some((st) => st.id === storeId)) setStoreId('');
-  }, [firmId, storeId, storeOptions]);
