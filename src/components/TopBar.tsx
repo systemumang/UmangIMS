@@ -33,7 +33,7 @@ export default function TopBar({
         >
           {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
-        <h1 className="font-headline text-on-surface font-semibold text-lg tracking-tight">
+	        <h1 className="font-headline text-on-surface font-bold text-3xl leading-tight tracking-tight">
           {title}
           {subtitle ? (
             <>

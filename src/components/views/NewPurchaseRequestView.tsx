@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createPurchaseRequest, fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
@@ -388,17 +388,33 @@ export default function NewPurchaseRequestView({
       .finally(() => setCreateCategoryInlineBusy(false));
   };
 
-							  const canSubmit = useMemo(() => {
-							    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-							    if (requestType === 'Project' && !projectId.trim()) return false;
-						    const normalized = items
-						      .map((it) => ({
-						        itemNameId: String(it.itemNameId ?? '').trim(),
-						        quantity: Number(it.quantity),
-						      }))
-						      .filter((it) => it.itemNameId && Number.isFinite(it.quantity) && it.quantity > 0);
-						    return normalized.length > 0;
-							  }, [firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
+  const previousFirmIdRef = useRef<string>('');
+
+  useEffect(() => {
+    const prev = previousFirmIdRef.current;
+    if (!prev) {
+      previousFirmIdRef.current = firmId;
+      return;
+    }
+    if (prev !== firmId) {
+      setStoreId('');
+      setProjectId('');
+    }
+    previousFirmIdRef.current = firmId;
+  }, [firmId]);
+
+								  const canSubmit = useMemo(() => {
+								    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+								    if (requestType === 'Project' && !projectId.trim()) return false;
+                  const hasValidRows = items.some((it) => {
+                    const itemNameId = String(it.itemNameId ?? '').trim();
+                    const quantity = Number(it.quantity);
+                    if (!itemNameId || !Number.isFinite(quantity) || quantity <= 0) return false;
+                    const requiredSpecIds = getItemNameSpecIds(itemNameId);
+                    return requiredSpecIds.every((sid) => String(it.specs?.[sid] ?? '').trim());
+                  });
+							    return hasValidRows;
+								  }, [firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
 
 			  const storeOptions = useMemo(() => {
 			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
@@ -705,10 +721,10 @@ export default function NewPurchaseRequestView({
 
 									        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
                             <div className="overflow-x-auto">
-                              <div className="min-w-[1250px]">
+                              <div className="min-w-[1280px]">
                                 <div
                                   className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 140px 110px 80px` }}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 80px` }}
                                 >
                                   <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                                   {specColumnIds.length ? (
@@ -731,7 +747,7 @@ export default function NewPurchaseRequestView({
 							              <div
 							                key={idx}
                                   className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 140px 110px 80px` }}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 80px` }}
 							              >
 							                <div className="px-2 py-2 border-r border-outline-variant space-y-2">
 							                  <SearchableSelect
