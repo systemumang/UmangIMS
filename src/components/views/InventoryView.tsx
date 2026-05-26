@@ -171,9 +171,13 @@ export default function InventoryView() {
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
     const fullLabel = getFullSheetItemLabel(r, specNameById).toLowerCase();
+    const firmLabel = getFirmLabel(r).toLowerCase();
+    const storeLabel = getStoreLabel(r).toLowerCase();
     const bySearch =
       fullLabel.includes(search.toLowerCase()) ||
-      r.itemCode.toLowerCase().includes(search.toLowerCase());
+      r.itemCode.toLowerCase().includes(search.toLowerCase()) ||
+      firmLabel.includes(search.toLowerCase()) ||
+      storeLabel.includes(search.toLowerCase());
 
     const balance = Number((r as any).balance ?? 0);
     const reorderLevel = Number((r as any).reorderLevel ?? 0);

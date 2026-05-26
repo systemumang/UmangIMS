@@ -10905,7 +10905,7 @@ app.get('/api/inventory/opening-balances', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const storeId = String(req.query.storeId ?? '').trim();
-    const year = String(req.query.year ?? '2024-25').trim() || '2024-25';
+    const year = String(req.query.year ?? fiscalYearLabel(new Date())).trim() || fiscalYearLabel(new Date());
     if (!storeId) return res.status(400).json({ error: 'storeId is required' });
     const [rows] = await pool.query(
       `
@@ -10932,7 +10932,7 @@ app.post('/api/inventory/opening-balances', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const storeId = String(req.body?.storeId ?? '').trim();
-    const year = String(req.body?.year ?? '2024-25').trim() || '2024-25';
+    const year = String(req.body?.year ?? fiscalYearLabel(new Date())).trim() || fiscalYearLabel(new Date());
     const balances = Array.isArray(req.body?.balances) ? req.body.balances : [];
     if (!storeId) return res.status(400).json({ error: 'storeId is required' });
 
@@ -10965,7 +10965,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const firmId = String(req.query.firmId ?? '').trim();
-    const year = String(req.query.year ?? '2024-25').trim() || '2024-25';
+    const year = String(req.query.year ?? fiscalYearLabel(new Date())).trim() || fiscalYearLabel(new Date());
     const includeEmpty = String(req.query.includeEmpty ?? '').trim() === '1' || String(req.query.includeEmpty ?? '').trim().toLowerCase() === 'true';
     if (!firmId) return res.status(400).json({ error: 'firmId is required' });
 
@@ -11037,7 +11037,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
           SELECT iob.store_id AS storeId, iob.item_id AS itemId
           FROM item_opening_balances iob
           INNER JOIN stores st ON st.id = iob.store_id
-          WHERE st.firm_id = ? AND iob.year = ?
+          WHERE st.firm_id = ?
           UNION
           SELECT g.store_id AS storeId, qc.item_id AS itemId
           FROM qc_records qc
@@ -11068,7 +11068,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         SELECT iob.store_id AS storeId, iob.item_id AS itemId, SUM(iob.quantity) AS opening
         FROM item_opening_balances iob
         INNER JOIN stores st ON st.id = iob.store_id
-        WHERE st.firm_id = ? AND iob.year = ?
+        WHERE st.firm_id = ?
         GROUP BY iob.store_id, iob.item_id
       ) opening ON opening.storeId = base.storeId AND opening.itemId = base.itemId
       LEFT JOIN (
@@ -11108,7 +11108,6 @@ app.get('/api/inventory/sheet', async (req, res) => {
       `,
       [
         firmId,
-        year,
         firmId,
         range.start,
         range.end,
@@ -11125,7 +11124,6 @@ app.get('/api/inventory/sheet', async (req, res) => {
         range.start,
         range.end,
         firmId,
-        year,
         firmId,
         range.start,
         range.end,
