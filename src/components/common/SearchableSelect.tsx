@@ -192,7 +192,7 @@ export default function SearchableSelect({
 
   const defaultInputControl = 'w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-3 pr-14 py-2 text-base text-on-surface-variant placeholder:text-on-surface-variant outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
   const defaultButtonControl =
-    'w-full min-h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-3 pr-14 py-2 text-base text-left text-on-surface-variant outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15 whitespace-normal break-words leading-snug';
+    'w-full min-h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-3 pr-14 py-2 text-base text-left text-on-surface-variant outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15 whitespace-nowrap overflow-hidden text-ellipsis leading-tight';
   const inputControlClass = controlClassName ?? defaultInputControl;
   const buttonControlClass = controlClassName ?? defaultButtonControl;
 

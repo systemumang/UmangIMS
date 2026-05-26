@@ -638,7 +638,7 @@ export default function NewPurchaseRequestView({
 	              options={firms.map((f) => ({ value: f.id, label: f.name }))}
 	              onChange={setFirmId}
 	              disabled={loadingFirms}
-	              placeholder="Select firm..."
+		              placeholder="Select"
 	            />
 	          </label>
 
@@ -649,7 +649,7 @@ export default function NewPurchaseRequestView({
 	              options={storeOptions}
 	              onChange={setStoreId}
 	              disabled={loadingStores || !firmId}
-	              placeholder="Select store..."
+		              placeholder="Select"
 	            />
 	          </label>
 
@@ -660,7 +660,7 @@ export default function NewPurchaseRequestView({
 	              options={users.map((u) => ({ value: u.id, label: u.name }))}
 	              onChange={setRequestedByUserId}
 	              disabled={loadingUsers}
-	              placeholder="Select user..."
+		              placeholder="Select"
 	            />
 	          </label>
 
@@ -677,7 +677,7 @@ export default function NewPurchaseRequestView({
                       { value: 'Project', label: 'Project' },
                     ]}
                     onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
-                    placeholder="Search request type..."
+	                    placeholder="Select"
                   />
                 </label>
 		        </div>
@@ -690,7 +690,7 @@ export default function NewPurchaseRequestView({
 		                options={projectOptions}
 		                onChange={setProjectId}
 		                disabled={loadingProjects}
-		                placeholder={loadingProjects ? 'Loading projects...' : projectOptions.length ? 'Select project...' : 'No projects available'}
+			                placeholder={loadingProjects ? 'Loading...' : projectOptions.length ? 'Select' : 'No options'}
 		              />
 			            </label>
 			          ) : null}
@@ -752,7 +752,7 @@ export default function NewPurchaseRequestView({
 						                      }
 						                    }}
 						                    disabled={loadingItemNames}
-						                    placeholder="Search item name..."
+							                    placeholder="Select"
 						                    allowClear
 						                    showCreateWhenEmpty
 						                    alwaysShowCreate
@@ -796,7 +796,7 @@ export default function NewPurchaseRequestView({
 							                            <SearchableSelect
 							                              value={value}
 							                              options={options}
-							                              placeholder={`Select ${specName}...`}
+							                              placeholder="Select"
 						                              showCreateWhenEmpty
 						                              alwaysShowCreate
 						                              allowEmptyCreate
@@ -877,7 +877,7 @@ export default function NewPurchaseRequestView({
 	                                  value={row.priorityId}
 	                                  options={orderedPriorities.map((p) => ({ value: p.id, label: p.name }))}
 	                                  onChange={(v) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, priorityId: v } : p)))}
-	                                  placeholder={loadingPriorities ? 'Loading...' : 'Select...'}
+	                                  placeholder={loadingPriorities ? 'Loading...' : 'Select'}
 	                                  disabled={loadingPriorities}
 	                                  allowClear
 	                                />
