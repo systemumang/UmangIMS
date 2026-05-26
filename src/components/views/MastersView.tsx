@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
@@ -158,6 +158,7 @@ function MultiSelectFilter({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const q = String(query ?? '').trim().toLowerCase();
   const active = values.length ? values : ['name'];
   const filtered = options.filter((o) => !q || String(o.label ?? '').toLowerCase().includes(q));
@@ -166,8 +167,25 @@ function MultiSelectFilter({
     const has = active.includes(value);
     onChange(has ? active.filter((x) => x !== value) : [...active, value]);
   };
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const node = containerRef.current;
+      if (!node) return;
+      if (!node.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
   return (
-    <div className={['relative w-full sm:min-w-[180px]', controlClassName].filter(Boolean).join(' ')}>
+    <div ref={containerRef} className={['relative w-full sm:min-w-[180px]', controlClassName].filter(Boolean).join(' ')}>
       <button
         type="button"
         className="w-full h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm font-medium text-left text-on-surface-variant flex items-center justify-between gap-2"
@@ -575,7 +593,25 @@ export default function MastersView({
 			      if (listField === 'state') return matchesListQuery([c.state]);
 			      return matchesListQuery([c.name]);
 			    });
-			  }, [cities, listQueryKey, listField, cityStateFilters, cityNameFilters]);
+				  }, [cities, listQueryKey, listField, cityStateFilters, cityNameFilters]);
+
+          const groupedCities = useMemo(() => {
+            const byState = new Map<string, City[]>();
+            for (const city of filteredCities) {
+              const stateName = String(city.state ?? '').trim() || 'Unknown State';
+              const list = byState.get(stateName) ?? [];
+              list.push(city);
+              byState.set(stateName, list);
+            }
+            return Array.from(byState.entries())
+              .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+              .map(([state, entries]) => ({
+                state,
+                cities: entries
+                  .slice()
+                  .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' })),
+              }));
+          }, [filteredCities]);
 
 		  const filteredStores = useMemo(() => {
 		    if (!listQueryKey) return stores;
@@ -923,17 +959,19 @@ export default function MastersView({
     setTab(externalTab);
   }, [externalTab]);
 
-		  useEffect(() => {
-		    setAddOpen(false);
-		    setEditCtx(null);
-		    setFieldErrors({});
-		  }, [tab]);
+  useEffect(() => {
+    setAddOpen(false);
+    setEditCtx(null);
+    setFieldErrors({});
+    setError(null);
+  }, [tab]);
 
-		  const closeModal = () => {
-		    setAddOpen(false);
-		    setEditCtx(null);
-		    setFieldErrors({});
-		  };
+  const closeModal = () => {
+    setAddOpen(false);
+    setEditCtx(null);
+    setFieldErrors({});
+    setError(null);
+  };
 
 						  const openAddModal = () => {
 						    setEditCtx(null);
@@ -2225,7 +2263,7 @@ export default function MastersView({
 		                    </label>
 		                  </div>
 
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
@@ -2332,7 +2370,7 @@ export default function MastersView({
 		                      placeholder="Head Office / Site"
 		                    />
 		                  </label>
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
@@ -2436,7 +2474,7 @@ export default function MastersView({
 		                      />
 		                    </label>
 		                  </div>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button
 		                      type="button"
 		                      className="btn btn-sm"
@@ -2492,7 +2530,7 @@ export default function MastersView({
 		                      placeholder="Operations"
 		                    />
 		                  </label>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button
 		                      type="button"
 		                      className="btn btn-sm"
@@ -2540,7 +2578,7 @@ export default function MastersView({
 			                      placeholder="Assam"
 			                    />
 			                  </label>
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
@@ -2612,7 +2650,7 @@ export default function MastersView({
 			                      placeholder="Guwahati"
 			                    />
 			                  </label>
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
@@ -2847,7 +2885,7 @@ export default function MastersView({
 		                    </div>
 		                  </div>
 
-	                  <div className="flex justify-end gap-2">
+	                  <div className="pt-3 flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
@@ -3116,7 +3154,7 @@ export default function MastersView({
 			                      <span className="font-semibold text-on-surface">Vendor</span>
 			                    </label>
 			                  </div>
-				                  <div className="flex justify-end gap-2">
+				                  <div className="pt-3 flex justify-end gap-2">
 				                    <button
 				                      type="button"
 			                      className="btn btn-sm"
@@ -3311,7 +3349,7 @@ export default function MastersView({
 		                      />
 		                    </label>
 		                  </div>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button type="button" className="btn btn-sm" onClick={closeModal}>
 		                      Cancel
 		                    </button>
@@ -3413,7 +3451,7 @@ export default function MastersView({
 		                    />
 		                    {fieldErrors.transporterPhone ? <div className="text-xs text-error">{fieldErrors.transporterPhone}</div> : null}
 		                  </label>
-	                  <div className="flex justify-end gap-2">
+	                  <div className="pt-3 flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
@@ -3477,7 +3515,7 @@ export default function MastersView({
 		                      placeholder="Nos / Kg / Meter"
 		                    />
 		                  </label>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button
 		                      type="button"
 		                      className="btn btn-sm"
@@ -3524,7 +3562,7 @@ export default function MastersView({
                             placeholder="High / Medium / Low"
                           />
                         </label>
-                        <div className="flex justify-end gap-2">
+                        <div className="pt-3 flex justify-end gap-2">
                           <button
                             type="button"
                             className="btn btn-sm"
@@ -3571,7 +3609,7 @@ export default function MastersView({
 		                      placeholder="Hardware"
 		                    />
 		                  </label>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button
 		                      type="button"
 		                      className="btn btn-sm"
@@ -3738,7 +3776,7 @@ export default function MastersView({
                           placeholder="https://..."
                         />
                       </label>
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 			                      className="btn btn-sm"
@@ -3817,7 +3855,7 @@ export default function MastersView({
 	                      placeholder="Size"
 	                    />
 	                  </label>
-		                  <div className="flex justify-end gap-2">
+		                  <div className="pt-3 flex justify-end gap-2">
 		                    <button
 		                      type="button"
 		                      className="btn btn-sm"
@@ -3892,7 +3930,7 @@ export default function MastersView({
 	                      placeholder="M12"
 	                    />
 		                    </label>
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 			                    <button
 			                      type="button"
 		                      className="btn btn-sm"
@@ -4164,137 +4202,112 @@ export default function MastersView({
 	                    </label>
 		                  </div>
 	
-			                  <div className="space-y-2">
-			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
-			                    {newItemSpecs.map((row, idx) => (
-		                      <div
-		                        key={idx}
-		                        className="bg-surface-container-low rounded-lg border border-outline-variant/10 p-3 space-y-2"
-		                      >
-		                        <div className="flex items-center justify-between gap-2">
-		                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-		                            Spec Row {idx + 1}
-		                          </div>
-                              {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
-		                            <button
-		                              type="button"
-		                              className="btn btn-sm disabled:opacity-50"
-		                              disabled={newItemSpecs.length === 1}
-		                              onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
-		                              title={newItemSpecs.length === 1 ? 'At least one specification required' : 'Remove'}
-		                            >
-		                              Remove
-		                            </button>
-                              ) : null}
-		                        </div>
-		
-			                        <label className="space-y-1">
-			                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Spec</div>
-                                  {Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId) ? (
-                                    <input
-                                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none opacity-80"
-                                      value={specNameLookup[row.specificationId] ?? ''}
-                                      readOnly
-                                      disabled
-                                    />
-                                  ) : (
-				                          <SearchableSelect
-				                            value={row.specificationId}
-				                            options={specs.map((s) => ({ value: s.id, label: s.name }))}
-			                            onChange={(specId) => {
-			                              setNewItemSpecs((prev) =>
-		                                prev.map((p, i) =>
-		                                  i === idx ? { ...p, specificationId: specId, value: '', useCustom: false } : p
-		                                )
-		                              );
-		                              if (!specId) return;
-		                              fetchSpecificationValues(specId)
-		                                .then((vals) => setSpecValueOptions((m) => ({ ...m, [specId]: vals })))
-		                                .catch(() => {});
-			                            }}
-			                            placeholder="Search specification..."
-			                            createLabel={(q) => `+ Create Specification "${q}"`}
-				                            onCreate={async (label) => {
-				                              const name = label.trim();
-				                              if (!name) return null;
-				                              const created = await createSpecification({ name, createdBy: 'system' });
-			                              const next = created.specification;
-		                              if (!next?.id) return null;
-		                              await loadAll();
-				                              return { value: next.id, label: next.name };
-			                            }}
-			                          />
-                                  )}
-			                        </label>
-	
-		                        <label className="space-y-1">
-		                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Value</div>
-			                          <SearchableSelect
-			                            value={row.value}
-		                            options={(() => {
-		                              const opts = (specValueOptions[row.specificationId] ?? []).map((v) => ({
-		                                value: v.value,
-		                                label: v.value,
-		                              }));
-		                              if (row.value && !opts.some((o) => o.value === row.value)) {
-		                                return [{ value: row.value, label: row.value }, ...opts];
-		                              }
-		                              return opts;
-		                            })()}
-			                            onChange={(v) => setNewItemSpecs((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))}
-			                            disabled={!row.specificationId}
-			                            placeholder={row.specificationId ? 'Search or type value...' : 'Select spec first'}
-			                            createLabel={(q) => `+ Add Value "${q}"`}
-			                            onCreate={async (label) => {
-			                              const v = label.trim();
-			                              if (!v) return null;
-			                              if (!row.specificationId) return null;
-			                              try {
-			                                const created = await createSpecificationValue({
-			                                  specificationId: row.specificationId,
-			                                  value: v,
-			                                  createdBy: 'system',
-			                                });
-			                                const next = created.specificationValue;
-			                                if (next) {
-			                                  setSpecValueOptions((m) => {
-			                                    const prev = m[row.specificationId] ?? [];
-			                                    if (prev.some((p) => p.value === next.value)) return m;
-			                                    return { ...m, [row.specificationId]: [...prev, next] };
-			                                  });
-			                                  return { value: next.value, label: next.value };
-			                                }
-			                              } catch {
-			                                // fall back to local-only addition
-			                              }
-			                              setSpecValueOptions((m) => {
-			                                const prev = m[row.specificationId] ?? [];
-			                                if (prev.some((p) => p.value === v)) return m;
-			                                return {
-			                                  ...m,
-			                                  [row.specificationId]: [
-			                                    ...prev,
-			                                    { id: `NEW-${Date.now()}-${Math.random()}`, specificationId: row.specificationId, value: v, isActive: true },
-			                                  ],
-			                                };
-			                              });
-			                              return { value: v, label: v };
-			                            }}
-			                          />
-			                        </label>
-	                      </div>
-			                    ))}
+				                  <div className="space-y-2">
+				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
+                            <div className="rounded-lg border border-outline-variant/15 overflow-hidden">
+                              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-3 py-2 bg-surface-container-low text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                                <div>Specification</div>
+                                <div>Value</div>
+                                <div>Action</div>
+                              </div>
+                              <div className="p-2 space-y-2">
+                                {newItemSpecs.map((row, idx) => (
+                                  <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                                    <div>
+                                      {Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId) ? (
+                                        <input
+                                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none opacity-80"
+                                          value={specNameLookup[row.specificationId] ?? ''}
+                                          readOnly
+                                          disabled
+                                        />
+                                      ) : (
+                                        <SearchableSelect
+                                          value={row.specificationId}
+                                          options={specs.map((s) => ({ value: s.id, label: s.name }))}
+                                          onChange={(specId) => {
+                                            setNewItemSpecs((prev) => prev.map((p, i) => (i === idx ? { ...p, specificationId: specId, value: '', useCustom: false } : p)));
+                                            if (!specId) return;
+                                            fetchSpecificationValues(specId).then((vals) => setSpecValueOptions((m) => ({ ...m, [specId]: vals }))).catch(() => {});
+                                          }}
+                                          placeholder="Select specification..."
+                                          createLabel={(q) => `+ Create Specification "${q}"`}
+                                          onCreate={async (label) => {
+                                            const name = label.trim();
+                                            if (!name) return null;
+                                            const created = await createSpecification({ name, createdBy: 'system' });
+                                            const next = created.specification;
+                                            if (!next?.id) return null;
+                                            await loadAll();
+                                            return { value: next.id, label: next.name };
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <SearchableSelect
+                                        value={row.value}
+                                        options={(() => {
+                                          const opts = (specValueOptions[row.specificationId] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                                          if (row.value && !opts.some((o) => o.value === row.value)) return [{ value: row.value, label: row.value }, ...opts];
+                                          return opts;
+                                        })()}
+                                        onChange={(v) => setNewItemSpecs((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))}
+                                        disabled={!row.specificationId}
+                                        placeholder={row.specificationId ? 'Select or type value...' : 'Select spec first'}
+                                        createLabel={(q) => `+ Add Value "${q}"`}
+                                        onCreate={async (label) => {
+                                          const v = label.trim();
+                                          if (!v || !row.specificationId) return null;
+                                          try {
+                                            const created = await createSpecificationValue({ specificationId: row.specificationId, value: v, createdBy: 'system' });
+                                            const next = created.specificationValue;
+                                            if (next) {
+                                              setSpecValueOptions((m) => {
+                                                const prev = m[row.specificationId] ?? [];
+                                                if (prev.some((p) => p.value === next.value)) return m;
+                                                return { ...m, [row.specificationId]: [...prev, next] };
+                                              });
+                                              return { value: next.value, label: next.value };
+                                            }
+                                          } catch {}
+                                          setSpecValueOptions((m) => {
+                                            const prev = m[row.specificationId] ?? [];
+                                            if (prev.some((p) => p.value === v)) return m;
+                                            return { ...m, [row.specificationId]: [...prev, { id: `NEW-${Date.now()}-${Math.random()}`, specificationId: row.specificationId, value: v, isActive: true }] };
+                                          });
+                                          return { value: v, label: v };
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm disabled:opacity-50"
+                                          disabled={newItemSpecs.length === 1}
+                                          onClick={() => setNewItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
+                                          title={newItemSpecs.length === 1 ? 'At least one specification required' : 'Remove'}
+                                        >
+                                          Remove
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
 
-                          {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
-		                      <button
-		                        type="button"
-		                        className="btn btn-sm"
-		                        onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
-		                      >
-		                        + Add Spec Row
-		                      </button>
-                          ) : null}
-			                  </div>
+                            {!(Boolean(newItemItemNameId) && !inlineCreatedItemNameIds.includes(newItemItemNameId)) ? (
+			                      <button
+			                        type="button"
+			                        className="btn btn-sm"
+			                        onClick={() => setNewItemSpecs((prev) => [...prev, { specificationId: '', value: '', useCustom: false }])}
+			                      >
+			                        + Add Spec Row
+			                      </button>
+                            ) : null}
+				                  </div>
 
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
@@ -4412,7 +4425,7 @@ export default function MastersView({
                         </div>
                       </div>
 
-			                  <div className="flex justify-end gap-2">
+			                  <div className="pt-3 flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
@@ -4780,51 +4793,58 @@ export default function MastersView({
                         />
                       </div>
                     </div>
-					          <div className="overflow-auto">
-					            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
-					              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-					                <tr>
-					                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">State</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-					                </tr>
-					              </thead>
-					              <tbody>
-					                {filteredCities.map((c) => (
-					                  <tr key={c.id}>
-					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
-					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.state}</td>
-					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
-				                      <div className="flex items-center gap-2">
-				                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
-				                          Edit
-				                        </button>
-				                        <button
-				                          type="button"
-				                          title="Delete"
-				                          aria-label="Delete"
-				                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-				                          onClick={() => {
-				                            if (!window.confirm(`Delete city "${c.name}"?`)) return;
-				                            setBusy(true);
-				                            setError(null);
-				                            deleteCity(c.id, { deletedBy: 'system' })
-				                              .then(() => refreshCurrentTab(tab))
-				                              .catch(handleMasterError)
-				                              .finally(() => setBusy(false));
-				                          }}
-				                        >
-				                          <Trash2 size={16} />
-				                        </button>
-				                      </div>
-				                    </td>
-				                  </tr>
-				                ))}
-				              </tbody>
-				            </table>
-				          </div>
-				        </div>
-				      ) : null}
+					          <div className="space-y-5">
+                      {groupedCities.map((group) => (
+                        <div key={group.state} className="rounded-xl border border-outline-variant/15 overflow-hidden">
+                          <div className="px-4 py-3 bg-surface-container-low border-b border-outline-variant/15">
+                            <h1 className="text-2xl font-bold text-on-surface">{group.state}</h1>
+                          </div>
+                          <div className="overflow-auto">
+                            <table className="min-w-[720px] w-full text-sm border-collapse border border-blue-600">
+                              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
+                                <tr>
+                                  <th className="text-left px-3 py-2 border border-blue-600">City</th>
+                                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.cities.map((c) => (
+                                  <tr key={c.id}>
+                                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
+                                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          title="Delete"
+                                          aria-label="Delete"
+                                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
+                                          onClick={() => {
+                                            if (!window.confirm(`Delete city "${c.name}"?`)) return;
+                                            setBusy(true);
+                                            setError(null);
+                                            deleteCity(c.id, { deletedBy: 'system' })
+                                              .then(() => refreshCurrentTab(tab))
+                                              .catch(handleMasterError)
+                                              .finally(() => setBusy(false));
+                                          }}
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+					          </div>
+					        </div>
+					      ) : null}
 
 				      {tab === 'stores' ? (
 				        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
@@ -6004,4 +6024,5 @@ export default function MastersView({
     </div>
   );
 }
+
 
