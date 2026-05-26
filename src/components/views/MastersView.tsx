@@ -1914,8 +1914,7 @@ export default function MastersView({
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-bold text-on-surface">{activeTabLabel}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-sm" onClick={exportCurrentTab}>
               Export Excel

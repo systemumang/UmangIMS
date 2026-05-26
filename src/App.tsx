@@ -303,7 +303,10 @@ export default function App() {
 		    if (view === 'returnMaster') return { title: 'Return Master', showSearch: false };
 		    if (view === 'damageMaster') return { title: 'Damage Master', showSearch: false };
 		    if (view === 'transferMaster') return { title: 'Transfer Master', showSearch: false };
-		    if (view === 'masters') return { title: 'Masters', showSearch: false };
+		    if (view === 'masters') {
+	      const tabLabel = MASTERS_TABS.find((t) => t.key === mastersTab)?.label ?? 'Masters';
+	      return { title: tabLabel, showSearch: false };
+	    }
 		    if (view === 'pendingTasks') return { title: 'Pending Tasks', showSearch: false };
 		    if (view === 'materialRequest') return { title: 'Material', subtitle: 'Request Material', showSearch: false };
 		    if (view === 'materialPendingIssue') return { title: 'Material', subtitle: 'Pending Issue', showSearch: false };
