@@ -2343,10 +2343,11 @@ export default function MastersView({
 	                    <button
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-	                      disabled={!newStoreFirmId || !newStoreName.trim() || busy}
-	                      onClick={() => {
-	                        setBusy(true);
-	                        setError(null);
+		                      disabled={!newStoreFirmId || !newStoreName.trim() || busy}
+		                      onClick={() => {
+		                        if (busy) return;
+		                        setBusy(true);
+		                        setError(null);
 		                        const fn = isEditing
 		                          ? updateStore(editCtx?.id ?? '', {
 		                              firmId: newStoreFirmId,
@@ -3189,7 +3190,7 @@ export default function MastersView({
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              createdBy: 'system',
 				                            });
-			                        fn.then(() => loadAll())
+			                        fn.then(() => refreshCurrentTab('stores'))
 			                          .then(() => {
 			                            setNewSupplierName('');
 			                            setNewSupplierGstNumber('');
