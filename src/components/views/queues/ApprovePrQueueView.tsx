@@ -345,11 +345,11 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 
       <Modal
         open={modalOpen}
-			        title={
-			          modalMode === 'approve'
-			            ? `Approve PR ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
-			            : `Reject PR ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
-			        }
+				        title={
+				          modalMode === 'approve'
+				            ? `Approve ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
+				            : `Reject ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
+				        }
         onClose={() => (saving ? null : closeModal())}
         footer={
           <>
@@ -397,8 +397,10 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
 	        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-		          <div>
-		            <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Approved / Rejected By</div>
+			          <div>
+			            <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">
+                    {modalMode === 'approve' ? 'Approved By' : 'Rejected By'}
+                  </div>
 		            <select
 		              className={cn(inputClass, 'mt-1')}
 		              value={approverUserId}
@@ -435,9 +437,8 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
           )}
         </div>
 
-        {modalMode === 'approve' ? (
-          <div className="bg-surface-container rounded-xl border border-outline-variant/10 p-4 space-y-3">
-	            <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Item-wise Approved Qty</div>
+	        {modalMode === 'approve' ? (
+	          <div className="bg-surface-container rounded-xl border border-outline-variant/10 p-4 space-y-3">
             {!activeDetail ? (
               <div className="text-sm text-on-surface-variant">Loading items...</div>
             ) : (

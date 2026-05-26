@@ -73,7 +73,7 @@ export function Modal({
         <div className="shrink-0 border-b border-outline-variant px-5 py-4">
           <div className={cn(titleCentered ? 'grid grid-cols-3 items-center' : 'flex items-center justify-between')}>
             {titleCentered ? <div /> : null}
-            <div className={cn('text-sm font-bold text-on-surface', titleCentered ? 'text-center' : '', titleClassName)}>{title}</div>
+	            <div className={cn('text-2xl font-bold text-on-surface leading-tight', titleCentered ? 'text-center' : '', titleClassName)}>{title}</div>
             <div className={cn(titleCentered ? 'flex justify-end' : '', 'inline-flex items-center gap-2 whitespace-nowrap')}>
               {headerRight ? <span className="inline-flex items-center">{headerRight}</span> : null}
               <button type="button" className="btn btn-sm min-w-[96px] h-9 px-4 whitespace-nowrap" onClick={onClose}>

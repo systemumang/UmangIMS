@@ -7,11 +7,9 @@ import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Trash2 } from 'lucide-react';
 				import {
 				  createItem,
-				  createDepartment,
 				  createItemName,
 				  createSpecification,
 				  createSpecificationValue,
-				  fetchDepartments,
 				  fetchStores,
 					  fetchProjects,
 					  fetchUsers,
@@ -25,7 +23,6 @@ import { Trash2 } from 'lucide-react';
 				  fetchSpecifications,
 				  fetchSpecificationValues,
 				  updateItem,
-				  type Department,
 				  type Store,
 				  type Project,
 				  type Item,
@@ -74,9 +71,6 @@ export default function NewPurchaseRequestView({
 
 		  const [firms, setFirms] = useState<Firm[]>([]);
 		  const [loadingFirms, setLoadingFirms] = useState(true);
-			  const [departments, setDepartments] = useState<Department[]>([]);
-			  const [loadingDepartments, setLoadingDepartments] = useState(true);
-			  const [departmentId, setDepartmentId] = useState('');
 			  const [stores, setStores] = useState<Store[]>([]);
 			  const [loadingStores, setLoadingStores] = useState(true);
 			  const [storeId, setStoreId] = useState('');
@@ -170,20 +164,7 @@ export default function NewPurchaseRequestView({
 		    return () => ac.abort();
 		  }, []);
 
-			  useEffect(() => {
-			    const ac = new AbortController();
-			    setLoadingDepartments(true);
-			    fetchDepartments(ac.signal)
-			      .then((rows) => setDepartments(rows))
-		      .catch((e) => {
-		        if (ac.signal.aborted) return;
-		        if (e instanceof DOMException && e.name === 'AbortError') return;
-		        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
-		        setError(e instanceof Error ? e.message : String(e));
-		      })
-		      .finally(() => setLoadingDepartments(false));
-			    return () => ac.abort();
-			  }, []);
+
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -407,9 +388,9 @@ export default function NewPurchaseRequestView({
       .finally(() => setCreateCategoryInlineBusy(false));
   };
 
-						  const canSubmit = useMemo(() => {
-						    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-						    if (requestType === 'Project' && !projectId.trim()) return false;
+							  const canSubmit = useMemo(() => {
+							    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+							    if (requestType === 'Project' && !projectId.trim()) return false;
 						    const normalized = items
 						      .map((it) => ({
 						        itemNameId: String(it.itemNameId ?? '').trim(),
@@ -417,12 +398,36 @@ export default function NewPurchaseRequestView({
 						      }))
 						      .filter((it) => it.itemNameId && Number.isFinite(it.quantity) && it.quantity > 0);
 						    return normalized.length > 0;
-						  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
+							  }, [firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
 
 			  const storeOptions = useMemo(() => {
 			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
 			    return list.map((s) => ({ value: s.id, label: s.name }));
 			  }, [firmId, stores]);
+
+  const orderedPriorities = useMemo(() => {
+    const rank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    return [...priorities].sort((a, b) => {
+      const ra = rank[String(a.name ?? '').trim().toLowerCase()];
+      const rb = rank[String(b.name ?? '').trim().toLowerCase()];
+      const wa = Number.isFinite(ra) ? ra : 99;
+      const wb = Number.isFinite(rb) ? rb : 99;
+      if (wa !== wb) return wa - wb;
+      return String(a.name ?? '').localeCompare(String(b.name ?? ''));
+    });
+  }, [priorities]);
+
+  const specColumnIds = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of items) {
+      const itemNameId = String(row.itemNameId ?? '').trim();
+      if (!itemNameId) continue;
+      for (const specId of getItemNameSpecIds(itemNameId)) {
+        if (specId) seen.add(specId);
+      }
+    }
+    return Array.from(seen);
+  }, [items, itemNames]);
 
 			  const closeCreateItemName = () => {
 			    setCreateItemNameInlineOpen(false);
@@ -625,7 +630,7 @@ export default function NewPurchaseRequestView({
 		      ) : null}
 
 				      <div className="rounded-2xl bg-surface-container-low p-3 shadow-sm">
-		        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+		        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 	          <label className="space-y-1">
 	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
 	            <SearchableSelect
@@ -634,30 +639,6 @@ export default function NewPurchaseRequestView({
 	              onChange={setFirmId}
 	              disabled={loadingFirms}
 	              placeholder="Select firm..."
-	            />
-	          </label>
-
-	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
-	            <SearchableSelect
-	              value={departmentId}
-	              options={departments.map((d) => ({ value: d.id, label: d.name }))}
-	              onChange={setDepartmentId}
-	              disabled={loadingDepartments}
-	              placeholder="Select department..."
-	              onCreate={(label) =>
-	                createDepartment({ name: label.trim(), createdBy: 'system' }).then((res) => {
-	                  const created = res.department;
-	                  if (!created?.id) return null;
-	                  setDepartments((prev) => {
-	                    if (prev.some((p) => p.id === created.id)) return prev;
-	                    return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
-	                  });
-	                  return { value: created.id, label: created.name };
-	                })
-	              }
-	              createLabel={(q) => (q.trim() ? `+ Add Department \"${q.trim()}\"` : '+ Add Department')}
-	              closeOnCreate
 	            />
 	          </label>
 
@@ -683,40 +664,37 @@ export default function NewPurchaseRequestView({
 	            />
 	          </label>
 
-		          <label className="space-y-1">
-		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Required Date</div>
-		            <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
-		          </label>
+			          <label className="space-y-1">
+			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Required Date</div>
+			            <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
+			          </label>
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request Type</div>
+                  <SearchableSelect
+                    value={requestType}
+                    options={[
+                      { value: 'Stock', label: 'Stock' },
+                      { value: 'Project', label: 'Project' },
+                    ]}
+                    onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
+                    placeholder="Search request type..."
+                  />
+                </label>
 		        </div>
 
-			        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-			          <label className="space-y-1">
-			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request Type</div>
-			            <SearchableSelect
-			              value={requestType}
-			              options={[
-			                { value: 'Stock', label: 'Stock' },
-			                { value: 'Project', label: 'Project' },
-			              ]}
-			              onChange={(v) => setRequestType(v === 'Project' ? 'Project' : 'Stock')}
-			              placeholder="Search request type..."
-			            />
-			          </label>
-
-		          {requestType === 'Project' ? (
-		            <label className="space-y-1 md:col-span-3">
-		              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
-		              <SearchableSelect
-		                value={projectId}
+				          {requestType === 'Project' ? (
+				            <label className="space-y-1 block mt-4">
+			              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
+			              <SearchableSelect
+			                value={projectId}
 		                options={projectOptions}
 		                onChange={setProjectId}
 		                disabled={loadingProjects}
 		                placeholder={loadingProjects ? 'Loading projects...' : projectOptions.length ? 'Select project...' : 'No projects available'}
 		              />
-		            </label>
-		          ) : null}
-		        </div>
-		      </div>
+			            </label>
+			          ) : null}
+			      </div>
 
 						      <div className="bg-surface-container-low rounded-2xl p-2 shadow-sm space-y-2">
 				        <div className="flex items-center justify-between">
@@ -725,28 +703,39 @@ export default function NewPurchaseRequestView({
 				          </div>
 				        </div>
 
-								        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
-									          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
-									            <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
-									            <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
-                              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Priority</div>
-									            <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant">Qty</div>
-									            <div className="md:col-span-1 px-2 py-2 text-right">Action</div>
-									          </div>
-	
-						          {items.map((row, idx) => {
-						            const specIds = row.itemNameId ? getItemNameSpecIds(row.itemNameId) : [];
-						            return (
-						              <div
-						                key={idx}
-						                className={[
-						                  'grid grid-cols-1 md:grid-cols-12 gap-0 bg-surface-container-lowest',
-						                  idx === 0 ? '' : 'border-t border-outline-variant',
-						                ].join(' ')}
-						              >
-						                <div className="md:col-span-4 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
-						                  <SearchableSelect
-						                    value={row.itemNameId}
+									        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
+                            <div className="overflow-x-auto">
+                              <div className="min-w-[1250px]">
+                                <div
+                                  className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 140px 110px 80px` }}
+                                >
+                                  <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
+                                  {specColumnIds.length ? (
+                                    specColumnIds.map((specId) => (
+                                      <div key={`hdr-${specId}`} className="px-2 py-2 border-r border-outline-variant">
+                                        {specNameById?.[specId] ?? 'Specification'}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="px-2 py-2 border-r border-outline-variant">Specifications</div>
+                                  )}
+                                  <div className="px-2 py-2 border-r border-outline-variant">Priority</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant">Qty</div>
+                                  <div className="px-2 py-2 text-right">Action</div>
+                                </div>
+
+							          {items.map((row, idx) => {
+							            const specIds = row.itemNameId ? getItemNameSpecIds(row.itemNameId) : [];
+							            return (
+							              <div
+							                key={idx}
+                                  className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 140px 110px 80px` }}
+							              >
+							                <div className="px-2 py-2 border-r border-outline-variant space-y-2">
+							                  <SearchableSelect
+							                    value={row.itemNameId}
 						                    options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
 						                    onChange={(id) => {
 						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
@@ -782,22 +771,32 @@ export default function NewPurchaseRequestView({
 						                      return null;
 						                    }}
 						                  />
-						                </div>
-							                <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">
-						                  {row.itemNameId ? (
-						                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-						                      {specIds.map((specId) => {
-						                        const specName = specNameById?.[specId] ?? specId;
-						                        const value = String(row.specs?.[specId] ?? '');
-						                        const key = specValueKey(row.itemNameId, specId);
+							                </div>
+                                  {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => {
+                                    if (specId === '__no_specs__') {
+                                      return (
+                                        <div key={`${idx}-spec-empty`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-80">
+                                          Select Item Name to load specifications.
+                                        </div>
+                                      );
+                                    }
+                                    const isRequiredForRow = specIds.includes(specId);
+                                    return (
+                                      <div key={`${idx}-${specId}`} className="px-2 py-2 border-r border-outline-variant">
+							                  {row.itemNameId && isRequiredForRow ? (
+							                    <div className="space-y-1">
+							                      {(() => {
+							                        const specName = specNameById?.[specId] ?? specId;
+							                        const value = String(row.specs?.[specId] ?? '');
+							                        const key = specValueKey(row.itemNameId, specId);
 						                        const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
 						                        if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value });
-						                        return (
-						                          <label key={`${idx}-${specId}`} className="space-y-1">
-						                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
-						                            <SearchableSelect
-						                              value={value}
-						                              options={options}
+							                        return (
+							                          <label className="space-y-1">
+							                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName} <span className="text-error">*</span></div>
+							                            <SearchableSelect
+							                              value={value}
+							                              options={options}
 						                              placeholder="Select value..."
 						                              showCreateWhenEmpty
 						                              alwaysShowCreate
@@ -864,25 +863,27 @@ export default function NewPurchaseRequestView({
 								                                return null;
 								                              }}
 							                            />
-						                          </label>
-						                        );
-						                      })}
-						                    </div>
-						                  ) : (
-						                    <div className="text-xs text-on-surface-variant opacity-80">Select Item Name to load specifications.</div>
-						                  )}
-						                </div>
-                              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
-                                <SearchableSelect
-                                  value={row.priorityId}
-                                  options={priorities.map((p) => ({ value: p.id, label: p.name }))}
-                                  onChange={(v) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, priorityId: v } : p)))}
-                                  placeholder={loadingPriorities ? 'Loading...' : 'Select...'}
-                                  disabled={loadingPriorities}
-                                  allowClear
-                                />
-                              </div>
-							                <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
+							                          </label>
+							                        );
+							                      })()}
+							                    </div>
+							                  ) : (
+							                    <div className="text-xs text-on-surface-variant opacity-80">{row.itemNameId ? '-' : 'Select Item Name'}</div>
+							                  )}
+                                      </div>
+                                    );
+                                  })}
+	                              <div className="px-2 py-2 border-r border-outline-variant space-y-1">
+	                                <SearchableSelect
+	                                  value={row.priorityId}
+	                                  options={orderedPriorities.map((p) => ({ value: p.id, label: p.name }))}
+	                                  onChange={(v) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, priorityId: v } : p)))}
+	                                  placeholder={loadingPriorities ? 'Loading...' : 'Select...'}
+	                                  disabled={loadingPriorities}
+	                                  allowClear
+	                                />
+	                              </div>
+								                <div className="px-2 py-2 border-r border-outline-variant space-y-1">
 						                  <input
 						                    className={inputClass}
 						                    placeholder="Qty"
@@ -899,7 +900,7 @@ export default function NewPurchaseRequestView({
 						                  />
 						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
 						                </div>
-						                <div className="md:col-span-1 px-2 py-2 flex md:justify-end">
+							                <div className="px-2 py-2 flex justify-end">
 						                  <button
 						                    type="button"
 						                    className="btn-icon-danger"
@@ -910,10 +911,12 @@ export default function NewPurchaseRequestView({
 						                    <Trash2 size={16} />
 						                  </button>
 						                </div>
-						              </div>
-						            );
-						          })}
-									          <div className="border-t border-outline-variant bg-surface-container-lowest px-2 py-2 flex items-center justify-between gap-3">
+							              </div>
+							            );
+							          })}
+                              </div>
+                            </div>
+										          <div className="border-t border-outline-variant bg-surface-container-lowest px-2 py-2 flex items-center justify-between gap-3">
 									            <div className="flex items-center gap-3">
 										              <button
 									                type="button"
@@ -965,13 +968,13 @@ export default function NewPurchaseRequestView({
 						                    .filter((_, i) => !rowMessages[i]);
 						                  setItemRowErrors(rowMessages);
 
-								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
+								                  const department = '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
 								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
-								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Store, Department, Requested By, Required Date, and at least one valid item.');
+								                  if (!firmId || !store.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
+								                    setError('Please fill Firm, Store, Requested By, Required Date, and at least one valid item.');
 								                    return;
-						                  }
+			                  }
 							                  if (requestType === 'Project' && !projectId.trim()) {
 							                    setError('Please select a Project Name for Project-type requisitions.');
 							                    return;
@@ -1004,9 +1007,10 @@ export default function NewPurchaseRequestView({
 						                  'Create'
 						                )}
 						              </button>
-				            </div>
-				          </div>
-				        </div>
+										          </div>
+										        </div>
+                        <div className="text-sm text-red-600 font-semibold px-1">Note: It is mandatory to fill all specifications.</div>
+				      </div>
 	      </div>
 
 			      {createItemOpen ? (

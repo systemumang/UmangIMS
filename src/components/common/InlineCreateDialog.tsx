@@ -38,8 +38,8 @@ export default function InlineCreateDialog({
     <div className="fixed inset-0 z-[10010] flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={onClose} />
       <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
-          <div className="text-sm font-bold text-on-surface">{title}</div>
+	        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
+	          <div className="text-2xl font-bold text-on-surface leading-tight">{title}</div>
           <button type="button" className="btn btn-sm" onClick={onClose}>
             Close
           </button>
@@ -78,4 +78,3 @@ export default function InlineCreateDialog({
     document.body
   );
 }
-

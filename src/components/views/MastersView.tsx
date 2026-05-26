@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
@@ -156,68 +156,7 @@ function MultiSelectFilter({
   onChange: (next: string[]) => void;
   controlClassName?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const q = String(query ?? '').trim().toLowerCase();
-  const active = values.length ? values : ['name'];
-  const filtered = options.filter((o) => !q || String(o.label ?? '').toLowerCase().includes(q));
-  const title = active.length ? options.filter((o) => active.includes(o.value)).map((o) => o.label).join(', ') : 'Select filters...';
-  const toggle = (value: string) => {
-    const has = active.includes(value);
-    onChange(has ? active.filter((x) => x !== value) : [...active, value]);
-  };
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      const node = containerRef.current;
-      if (!node) return;
-      if (!node.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-  return (
-    <div ref={containerRef} className={['relative w-full sm:min-w-[180px]', controlClassName].filter(Boolean).join(' ')}>
-      <button
-        type="button"
-        className="w-full h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm font-medium text-left text-on-surface-variant flex items-center justify-between gap-2"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="truncate flex-1">{title}</span>
-        <ChevronDown size={16} className={['transition-transform shrink-0', open ? 'rotate-180' : ''].join(' ')} />
-      </button>
-      {open ? (
-        <div className="absolute z-20 mt-1 w-full min-w-[220px] bg-white border border-outline-variant/20 rounded-lg shadow-lg p-2 space-y-2">
-          <input
-            className="w-full h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-            placeholder="Search..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="flex items-center gap-2">
-            <button type="button" className="btn btn-sm flex-1" onClick={() => onChange(options.map((o) => o.value))}>All</button>
-            <button type="button" className="btn btn-sm flex-1" onClick={() => onChange([])}>Clear</button>
-          </div>
-          <div className="max-h-48 overflow-auto space-y-1">
-            {filtered.map((o) => (
-              <label key={o.value} className="flex items-center gap-2 text-sm p-1 hover:bg-surface-container-low rounded cursor-pointer">
-                <input type="checkbox" checked={active.includes(o.value)} onChange={() => toggle(o.value)} className="rounded border-outline-variant/20" />
-                <span className="flex-1">{o.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
+  return null;
 }
 
 export default function MastersView({
@@ -395,12 +334,7 @@ export default function MastersView({
 
 		  const [listQuery, setListQuery] = useState('');
 		  const [listFields, setListFields] = useState<string[]>(['name']);
-      const listField = useMemo(() => {
-        if (!listFields.length) return 'all';
-        if (listFields.includes('all')) return 'all';
-        if (listFields.length > 1) return 'all';
-        return listFields[0] ?? 'all';
-      }, [listFields]);
+      const listField = 'all';
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
@@ -577,23 +511,15 @@ export default function MastersView({
 		    return states.filter((s) => matchesListQuery([s.name]));
 		  }, [states, listQueryKey]);
 
-			  const filteredCities = useMemo(() => {
-          let rows = cities;
-          if (cityStateFilters.length) {
-            const picked = new Set(cityStateFilters.map((x) => normalizeKey(x)));
-            rows = rows.filter((c) => picked.has(normalizeKey(c.state)));
-          }
-          if (cityNameFilters.length) {
-            const picked = new Set(cityNameFilters.map((x) => normalizeKey(x)));
-            rows = rows.filter((c) => picked.has(normalizeKey(c.name)));
-          }
-			    if (!listQueryKey) return rows;
-			    return rows.filter((c) => {
-			      if (listField === 'all') return matchesListQuery([c.state, c.name]);
-			      if (listField === 'state') return matchesListQuery([c.state]);
-			      return matchesListQuery([c.name]);
-			    });
-				  }, [cities, listQueryKey, listField, cityStateFilters, cityNameFilters]);
+				  const filteredCities = useMemo(() => {
+          const rows = cities;
+				    if (!listQueryKey) return rows;
+				    return rows.filter((c) => {
+				      if (listField === 'all') return matchesListQuery([c.state, c.name]);
+				      if (listField === 'state') return matchesListQuery([c.state]);
+				      return matchesListQuery([c.name]);
+				    });
+				  }, [cities, listQueryKey, listField]);
 
           const groupedCities = useMemo(() => {
             const byState = new Map<string, City[]>();
@@ -635,9 +561,7 @@ export default function MastersView({
 		  }, [projects, listQueryKey, firmNameLookup, listField]);
 
 		  const filteredUsers = useMemo(() => {
-		    let rows = users;
-		    if (listStatusFilter === 'active') rows = rows.filter((u) => (u as any).isActive !== false);
-		    if (listStatusFilter === 'inactive') rows = rows.filter((u) => (u as any).isActive === false);
+		    const rows = users;
 		    if (!listQueryKey) return rows;
 		    return rows.filter((u) => {
 		      if (listField === 'all') return matchesListQuery([u.name, (u as any).loginId, (u as any).role, u.designation, u.email, u.mobile]);
@@ -647,7 +571,7 @@ export default function MastersView({
 		      if (listField === 'mobile') return matchesListQuery([u.mobile]);
 		      return matchesListQuery([u.name]);
 		    });
-		  }, [users, listQueryKey, listStatusFilter, listField]);
+		  }, [users, listQueryKey, listField]);
 
 		  const filteredSuppliers = useMemo(() => {
 		    if (!listQueryKey) return suppliers;
@@ -676,10 +600,7 @@ export default function MastersView({
 		  }, [suppliers, listQueryKey, listField]);
 
 			  const filteredCustomers = useMemo(() => {
-          let rows = customers;
-          if (customerNameFilter.trim()) {
-            rows = rows.filter((c) => normalizeKey(c.name) === normalizeKey(customerNameFilter));
-          }
+          const rows = customers;
 			    if (!listQueryKey) return rows;
 			    return rows.filter((c) => {
 			      if (listField === 'all') return matchesListQuery([c.name, c.phone, c.address, (c as any).categoryName, (c as any).subCategoryName, (c as any).city, (c as any).state, (c as any).contactPerson, (c as any).contactNumber, (c as any).emailId]);
@@ -694,7 +615,7 @@ export default function MastersView({
 			      if (listField === 'address') return matchesListQuery([c.address]);
 			      return matchesListQuery([c.name]);
 			    });
-			  }, [customers, listQueryKey, listField, customerNameFilter]);
+			  }, [customers, listQueryKey, listField]);
 
 		  const filteredTransporters = useMemo(() => {
 		    if (!listQueryKey) return transporters;
@@ -745,9 +666,7 @@ export default function MastersView({
 	  }, [specs, listQueryKey]);
 
 		  const filteredSpecValues = useMemo(() => {
-		    let rows = specValues;
-		    if (listStatusFilter === 'active') rows = rows.filter((v) => v.isActive);
-		    if (listStatusFilter === 'inactive') rows = rows.filter((v) => !v.isActive);
+		    const rows = specValues;
 		    if (!listQueryKey) return rows;
 		    return rows.filter((v) => {
 		      if (listField === 'all') return matchesListQuery([specNameLookup[v.specificationId], v.itemName, v.value]);
@@ -755,7 +674,7 @@ export default function MastersView({
 		      if (listField === 'itemName') return matchesListQuery([v.itemName]);
 		      return matchesListQuery([v.value]);
 		    });
-		  }, [specValues, listQueryKey, listStatusFilter, specNameLookup, listField]);
+		  }, [specValues, listQueryKey, specNameLookup, listField]);
 
 		  const filteredItems = useMemo(() => {
 		    if (!listQueryKey) return items;
@@ -4202,7 +4121,8 @@ export default function MastersView({
 	                    </label>
 		                  </div>
 	
-				                  <div className="space-y-2">
+				                  {newItemItemNameId ? (
+                              <div className="space-y-2">
 				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
                             <div className="rounded-lg border border-outline-variant/15 overflow-hidden">
                               <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-3 py-2 bg-surface-container-low text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
@@ -4308,6 +4228,11 @@ export default function MastersView({
 			                      </button>
                             ) : null}
 				                  </div>
+                              ) : (
+                                <div className="text-xs text-on-surface-variant bg-surface-container-low border border-outline-variant/15 rounded-lg px-3 py-2">
+                                  Select Item Name to add specifications.
+                                </div>
+                              )}
 
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
@@ -4771,28 +4696,7 @@ export default function MastersView({
 					              Add
 					            </button>
 					          </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State Filter</div>
-                        <MultiSelectFilter
-                          options={Array.from(new Set(cities.map((c) => String(c.state ?? '').trim()).filter(Boolean)))
-                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                            .map((s) => ({ value: s, label: s }))}
-                          values={cityStateFilters}
-                          onChange={setCityStateFilters}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">City Filter</div>
-                        <MultiSelectFilter
-                          options={Array.from(new Set(cities.map((c) => String(c.name ?? '').trim()).filter(Boolean)))
-                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                            .map((s) => ({ value: s, label: s }))}
-                          values={cityNameFilters}
-                          onChange={setCityNameFilters}
-                        />
-                      </div>
-                    </div>
+                    
 					          <div className="space-y-5">
                       {groupedCities.map((group) => (
                         <div key={group.state} className="rounded-xl border border-outline-variant/15 overflow-hidden">
@@ -5024,19 +4928,7 @@ export default function MastersView({
 				                onChange={(e) => setListQuery(e.target.value)}
 				                placeholder={searchPlaceholder}
 				              />
-				              <div className="relative w-full sm:w-40 h-10">
-				                <select
-				                  className="w-full h-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none appearance-none pr-10"
-				                  value={listStatusFilter}
-				                  onChange={(e) => setListStatusFilter(e.target.value as any)}
-				                  aria-label="Filter users by status"
-				                >
-				                  <option value="all">All</option>
-				                  <option value="active">Active</option>
-				                  <option value="inactive">Inactive</option>
-				                </select>
-				                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
-				              </div>				              {listQuery ? (
+					              {listQuery ? (
 				                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 				                  Clear
 				                </button>
@@ -5246,21 +5138,7 @@ export default function MastersView({
 					                onChange={(e) => setListQuery(e.target.value)}
 					                placeholder="Search anything..."
 					              />
-                        <div className="w-full sm:w-64">
-                          <SearchableSelect
-                            value={customerNameFilter}
-                            options={[
-                              { value: '', label: 'All Customers' },
-                              ...customers
-                                .slice()
-                                .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
-                                .map((c) => ({ value: c.name, label: c.name })),
-                            ]}
-                            onChange={(v) => setCustomerNameFilter(String(v ?? ''))}
-                            placeholder="Filter customer name"
-                            allowClear
-                          />
-                        </div>
+	                        
 					              {listQuery ? (
 					                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 					                  Clear
@@ -5757,17 +5635,8 @@ export default function MastersView({
 	        </div>
 	      ) : null}
 
-		      {tab === 'specValues' ? (
-		        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
-		          <label className="space-y-1">
-		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
-		            <SearchableSelect
-		              value={specValuesFilterItemNameId}
-		              options={[{ value: '', label: 'All' }, ...itemNames.map((n) => ({ value: n.id, label: n.name }))]}
-		              onChange={setSpecValuesFilterItemNameId}
-		              placeholder="Filter by item name..."
-		            />
-		          </label>
+			      {tab === 'specValues' ? (
+			        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 p-5 shadow-sm space-y-3">
 			          <label className="space-y-1">
 			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
 			            <SearchableSelect
@@ -5800,19 +5669,7 @@ export default function MastersView({
 			                onChange={(e) => setListQuery(e.target.value)}
 			                placeholder={searchPlaceholder}
 			              />
-			              <div className="relative w-full sm:w-40 h-10">
-			                <select
-			                  className="w-full h-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none appearance-none pr-10"
-			                  value={listStatusFilter}
-			                  onChange={(e) => setListStatusFilter(e.target.value as any)}
-			                  aria-label="Filter spec values by status"
-			                >
-			                  <option value="all">All</option>
-			                  <option value="active">Active</option>
-			                  <option value="inactive">Inactive</option>
-			                </select>
-			                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
-			              </div>			              {listQuery ? (
+				              {listQuery ? (
 			                <button type="button" className="btn btn-sm" onClick={() => setListQuery('')}>
 			                  Clear
 			                </button>

@@ -3426,7 +3426,7 @@ export default function PurchaseRequestDetailView({
               <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={closeApproveDialog} />
               <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
-                  <div className="text-sm font-bold text-on-surface">Approve PR</div>
+	                  <div className="text-2xl font-bold text-on-surface leading-tight">Approve {pr.prNumber}</div>
                   <button
                     type="button"
                     className="btn btn-sm"
@@ -3505,7 +3505,7 @@ export default function PurchaseRequestDetailView({
               <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={closeRejectDialog} />
               <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-xl">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
-                  <div className="text-sm font-bold text-on-surface">Reject PR</div>
+	                  <div className="text-2xl font-bold text-on-surface leading-tight">Reject {pr.prNumber}</div>
                   <button
                     type="button"
                     className="btn btn-sm"

@@ -107,7 +107,9 @@ export const materialMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'materialRequest', label: 'Request Material' },
   { key: 'materialPendingIssue', label: 'Pending Issue' },
 ];
-export const settingsMenuItems: Array<{ key: NavView; label: string }> = [];
+export const settingsMenuItems: Array<{ key: NavView; label: string }> = [
+  { key: 'settingsCatalogue', label: 'Links' },
+];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
 
@@ -248,19 +250,7 @@ export default function Sidebar({
 	            </motion.button>
 	          ) : null}
 
-	          {isAllowed('settingsCatalogue') ? (
-	            <motion.button
-	              whileHover={{ x: 4 }}
-	              type="button"
-	              onClick={() => onNavigate('settingsCatalogue')}
-	              className={cn(viewRowClass, activeView === 'settingsCatalogue' ? activeRowClass : '', 'mt-1')}
-	            >
-	              <FileText className="mr-3 text-white" size={18} />
-	              <span className="flex-1">Links</span>
-	            </motion.button>
-	          ) : null}
-
-	          {isAllowed('masters') || hasPrefix('masters:') ? (
+		          {isAllowed('masters') || hasPrefix('masters:') ? (
 	            <motion.button whileHover={{ x: 4 }} type="button" onClick={() => onNavigate('masters')} className={cn(sectionRowClass, activeView === 'masters' ? activeRowClass : '')}>
 	              <Database className="mr-3 text-white" size={18} />
 	              <span className="flex-1">Masters</span>
@@ -468,19 +458,19 @@ export default function Sidebar({
 	          ) : null}
           {settingsExpanded && onNavigateSettingsView ? (
             <div className="ml-7 mr-1 space-y-1">
-              {settingsMenuItems.filter((it) => isAllowed(`settings:${it.key}`)).map((it) => (
-                <button
-                  key={it.key}
-                  type="button"
-                  onClick={() => onNavigateSettingsView(it.key)}
-                  className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Settings size={14} />
-                    {it.label}
-                  </span>
-                </button>
-              ))}
+	              {settingsMenuItems.filter((it) => isAllowed(`settings:${it.key}`) || isAllowed(it.key)).map((it) => (
+	                <button
+	                  key={it.key}
+	                  type="button"
+	                  onClick={() => onNavigateSettingsView(it.key)}
+	                  className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
+	                >
+	                  <span className="inline-flex items-center gap-2">
+	                    {it.key === 'settingsCatalogue' ? <FileText size={14} /> : <Settings size={14} />}
+	                    {it.label}
+	                  </span>
+	                </button>
+	              ))}
             </div>
           ) : null}
 	        </nav>
@@ -491,14 +481,14 @@ export default function Sidebar({
 			            Logged in as: <span className="font-semibold text-on-surface">{currentUserName}</span>
 			          </div>
 			        ) : null}
-			        <button
-			          type="button"
-			          className="flex items-center px-4 py-2 bg-surface-container-high text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-outline-variant/20"
-			          onClick={() => onLogout?.()}
-			        >
-			          <LogOut className="mr-3" size={18} />
-			          Logout
-			        </button>
+				        <button
+				          type="button"
+				          className="flex items-center px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-sans text-sm tracking-wide w-full text-left border border-red-700/70"
+				          onClick={() => onLogout?.()}
+				        >
+				          <LogOut className="mr-3" size={18} />
+				          Logout
+				        </button>
 			      </div>
 		    </aside>
 		  );
