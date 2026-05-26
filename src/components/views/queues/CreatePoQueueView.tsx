@@ -32,7 +32,7 @@ type Line = {
 export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
-  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<CreatePoQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +40,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [page, setPage] = useState(1);
 
   const mastersForFilters = useMemo(
-    () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
-    [masters.departments, masters.firms, masters.projects, masters.suppliers]
+    () => ({ firms: masters.firms, projects: masters.projects, suppliers: masters.suppliers }),
+    [masters.firms, masters.projects, masters.suppliers]
   );
 
   useEffect(() => {
@@ -201,7 +201,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	              <colgroup>
 	                <col className="w-[130px]" />
 	                <col className="w-[180px]" />
-	                <col className="w-[140px]" />
 	                <col className="w-[200px]" />
 		                <col className="w-[140px]" />
 		                <col className="w-[160px]" />
@@ -212,7 +211,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
@@ -226,7 +224,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     <tr key={r.prId}>
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
@@ -261,7 +258,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                 ))
               ) : (
 	                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
 	                      No records.
 	                    </td>
 	                  </tr>

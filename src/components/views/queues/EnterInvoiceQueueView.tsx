@@ -31,7 +31,7 @@ type InvoiceLine = {
 export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true, includeTransporters: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
-  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<EnterInvoiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +39,8 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const [page, setPage] = useState(1);
 
   const mastersForFilters = useMemo(
-    () => ({ firms: masters.firms, departments: masters.departments, projects: masters.projects, suppliers: masters.suppliers }),
-    [masters.departments, masters.firms, masters.projects, masters.suppliers]
+    () => ({ firms: masters.firms, projects: masters.projects, suppliers: masters.suppliers }),
+    [masters.firms, masters.projects, masters.suppliers]
   );
 
   useEffect(() => {
@@ -304,7 +304,6 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                 <col className="w-[150px]" />
                 <col className="w-[140px]" />
                 <col className="w-[190px]" />
-                <col className="w-[170px]" />
                 <col className="w-[240px]" />
                 <col className="w-[120px]" />
                 <col className="w-[260px]" />
@@ -314,7 +313,6 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
@@ -334,7 +332,6 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingQty}</td>
                       <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
@@ -354,7 +351,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                     </tr>
                     {isExpanded ? (
                       <tr>
-                        <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                        <td colSpan={6} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                           {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO item details...</div> : null}
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
@@ -394,7 +391,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   )})
                 ) : (
                   <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
                       No records.
                     </td>
                   </tr>

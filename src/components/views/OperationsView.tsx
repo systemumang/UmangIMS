@@ -984,7 +984,6 @@ export default function OperationsView({
 	                  <>
                     <SortTh label="PR" colKey="prNumber" />
                     <SortTh label="Firm" colKey="firmName" />
-                    <SortTh label="Dept" colKey="department" />
                     <SortTh label="Store" colKey="store" />
                     <SortTh label="Project" colKey="projectName" />
                     <SortTh label="Req By" colKey="requestedBy" />
@@ -1057,13 +1056,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 8 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 8 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -1108,7 +1107,6 @@ export default function OperationsView({
                       <>
             <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-                        <td className="px-3 py-2 border border-outline-variant">{r.department}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.store ?? '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.requestedBy ?? '-'}</td>

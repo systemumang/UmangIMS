@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Calendar, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { avatarColorClass, getInitials, statusPillClass, type Firm, type PurchaseRequest } from '@/src/lib/purchaseRequests';
@@ -26,18 +26,8 @@ export default function PurchaseTable({
   showStatusFilter?: boolean;
 			}) {
   const [statusFilter, setStatusFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-	  const departmentOptions = useMemo(() => {
-	    const set = new Set<string>();
-	    for (const r of requests) {
-	      const d = String(r.department ?? '').trim();
-	      if (d) set.add(d);
-	    }
-	    return Array.from(set).sort((a, b) => a.localeCompare(b));
-	  }, [requests]);
 
 	  const statusFilterOptions = useMemo(
 	    () => [
@@ -47,11 +37,6 @@ export default function PurchaseTable({
 	      { value: 'Rejected', label: 'Rejected' },
 	    ],
 	    []
-	  );
-
-	  const departmentFilterOptions = useMemo(
-	    () => [{ value: '', label: 'All Depts' }, ...departmentOptions.map((d) => ({ value: d, label: d }))],
-	    [departmentOptions]
 	  );
 
 	  const compactControlClass =
@@ -67,7 +52,6 @@ export default function PurchaseTable({
     const to = dateTo ? new Date(dateTo) : null;
     const list = requests.filter((r) => {
       if (statusFilter && r.status !== statusFilter) return false;
-      if (departmentFilter && r.department !== departmentFilter) return false;
       if (from || to) {
         const rd = r.requiredDate ? new Date(r.requiredDate) : null;
         if (!rd || Number.isNaN(rd.getTime())) return false;
@@ -84,14 +68,14 @@ export default function PurchaseTable({
     return list
       .slice()
       .sort((a, b) => String(b.requisitionDate ?? '').localeCompare(String(a.requisitionDate ?? '')));
-	  }, [dateFrom, dateTo, departmentFilter, requests, statusFilter]);
+	  }, [dateFrom, dateTo, requests, statusFilter]);
 
 	  const pageSize = 20;
 	  const [page, setPage] = useState(1);
 
 	  useEffect(() => {
 	    setPage(1);
-	  }, [statusFilter, departmentFilter, dateFrom, dateTo]);
+	  }, [statusFilter, dateFrom, dateTo]);
 
 		  const pagedRequests = useMemo(() => {
 		    const start = (page - 1) * pageSize;
@@ -101,11 +85,10 @@ export default function PurchaseTable({
       const exportCsv = () => {
         if (onExportExcel) return onExportExcel();
         const stamp = new Date().toISOString().slice(0, 10);
-        const header = ['pr', 'firm', 'department', 'requestedBy', 'requisitionDate', 'requiredDate', 'status'];
+        const header = ['pr', 'firm', 'requestedBy', 'requisitionDate', 'requiredDate', 'status'];
         const rows = filteredRequests.map((r) => ({
           pr: formatPrNumber(r.prNumber ?? r.id),
           firm: firmNameById[r.firmId] ?? r.firmId,
-          department: r.department ?? '',
           requestedBy: r.requestedBy ?? '',
           requisitionDate: formatDateDDMMYYYYOnly(r.requisitionDate),
           requiredDate: formatDateDDMMYYYYOnly(r.requiredDate),
@@ -151,17 +134,6 @@ export default function PurchaseTable({
               <Calendar size={14} className="text-outline-variant" />
             </div>
           </div>
-	          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg">
-	            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</label>
-		            <SearchableSelect
-		              className="w-[160px]"
-		              options={departmentFilterOptions}
-		              value={departmentFilter}
-		              onChange={setDepartmentFilter}
-		              placeholder="All Depts"
-		              controlClassName={compactControlClass}
-		            />
-		          </div>
         </div>
 		        <div className="flex items-center gap-2">
               <button type="button" onClick={onAddPurchaseRequest} className="btn-danger btn-sm" disabled={!onAddPurchaseRequest}>
@@ -188,7 +160,6 @@ export default function PurchaseTable({
 			              <tr className="bg-surface-container-low/50 border-b border-blue-600">
 				                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">PR</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Firm</th>
-			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Department</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requested By</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Requisition Date</th>
 			                <th className="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-blue-600">Required Date</th>
@@ -218,7 +189,6 @@ export default function PurchaseTable({
 		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">
 			                    {firmNameById[req.firmId] ?? req.firmId}
 		                  </td>
-		                  <td className="px-6 py-4 text-sm text-on-surface-variant border border-blue-600">{req.department}</td>
 		                  <td className="px-6 py-4 border border-blue-600">
 		                    <div className="flex items-center gap-3">
 		                      <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold", avatarColorClass(req.requestedBy))}>
@@ -250,4 +220,3 @@ export default function PurchaseTable({
     </div>
   );
 }
-

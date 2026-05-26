@@ -177,7 +177,7 @@ export function QueueFiltersBar({
   onChange,
   masters,
   showSupplier = true,
-  showDepartment = true,
+  showDepartment = false,
 }: {
   filters: QueueFilters;
   onChange: (next: QueueFilters) => void;
