@@ -195,7 +195,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Create PO" subtitle={`${rows.length} pending`}>
+        <QueueCard title="Create PO" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
 		            <table className="w-full min-w-[1180px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>

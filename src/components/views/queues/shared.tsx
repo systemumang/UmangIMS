@@ -303,13 +303,25 @@ export function QueueFiltersBar({
   );
 }
 
-export function QueueCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+export function QueueCard({
+  title,
+  subtitle,
+  children,
+  hideHeader = false,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  hideHeader?: boolean;
+}) {
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/5 shadow-sm">
-      <div className="px-5 py-4 border-b border-outline-variant/10">
-        <div className="text-sm font-bold text-on-surface">{title}</div>
-        {subtitle ? <div className="text-xs text-on-surface-variant mt-0.5">{subtitle}</div> : null}
-      </div>
+      {!hideHeader ? (
+        <div className="px-5 py-4 border-b border-outline-variant/10">
+          <div className="text-sm font-bold text-on-surface">{title}</div>
+          {subtitle ? <div className="text-xs text-on-surface-variant mt-0.5">{subtitle}</div> : null}
+        </div>
+      ) : null}
       <div className="p-5">{children}</div>
     </div>
   );

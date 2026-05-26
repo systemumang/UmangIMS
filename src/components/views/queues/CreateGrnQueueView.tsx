@@ -195,7 +195,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Create GRN" subtitle={`${rows.length} pending`}>
+        <QueueCard title="Create GRN" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
 	            <table className="w-full min-w-[1260px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>

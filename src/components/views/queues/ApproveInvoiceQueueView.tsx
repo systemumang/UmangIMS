@@ -95,7 +95,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Approve Invoice" subtitle={`${rows.length} pending`}>
+        <QueueCard title="Approve Invoice" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1240px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>

@@ -115,7 +115,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Link Invoice ↔ GRN" subtitle={`${rows.length} pending`}>
+        <QueueCard title="Link Invoice ↔ GRN" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] table-fixed text-left border-collapse border border-outline-variant">
               <colgroup>

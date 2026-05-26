@@ -6,6 +6,7 @@ import { formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
+import Spinner from '@/src/components/common/Spinner';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { fetchInventorySheet } from '@/src/lib/inventory';
 
@@ -216,19 +217,18 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
       ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
 	      ) : (
-	        <QueueCard title="Approve PR" subtitle={`${rows.length} pending`}>
+	        <QueueCard title="Approve PR" subtitle={`${rows.length} pending`} hideHeader>
 	          <div className="overflow-x-auto">
-			            <table className="w-full min-w-[1140px] table-fixed text-left border-collapse border border-outline-variant">
-		              <colgroup>
-		                <col className="w-[120px]" />
-		                <col className="w-[170px]" />
-		                <col className="w-[140px]" />
-		                <col className="w-[160px]" />
-		                <col className="w-[140px]" />
+				            <table className="w-full min-w-[1040px] table-fixed text-left border-collapse border border-outline-variant">
+			              <colgroup>
 			                <col className="w-[120px]" />
+			                <col className="w-[170px]" />
 			                <col className="w-[140px]" />
-			                <col className="w-[220px]" />
-	              </colgroup>
+			                <col className="w-[160px]" />
+			                <col className="w-[140px]" />
+				                <col className="w-[120px]" />
+				                <col className="w-[220px]" />
+		              </colgroup>
 	              <thead>
 	                <tr className="bg-surface-container-high">
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
@@ -236,9 +236,8 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Request Type</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested By</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+				                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
+				                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
               <tbody>
@@ -254,9 +253,8 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestType ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
-			                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
-			                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
-	                      <td className="px-3 py-2 border border-outline-variant">
+				                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+		                      <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
 	                          <button
                             type="button"
@@ -285,33 +283,36 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                     </tr>
                     {expandedPrId === r.prId ? (
                       <tr>
-	                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={8}>
+		                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={7}>
                           {expandedLoading ? (
                             <div className="text-sm text-on-surface-variant">Loading items...</div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="w-full min-w-[760px] table-fixed text-left border-collapse border border-outline-variant">
-                                <colgroup>
-                                  <col className="w-[520px]" />
-                                  <col className="w-[120px]" />
-                                  <col className="w-[120px]" />
-                                </colgroup>
-                                <thead>
-                                  <tr className="bg-surface-container-high">
-                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
-                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
-                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
-                                  </tr>
+	                              <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant">
+	                                <colgroup>
+	                                  <col className="w-[420px]" />
+	                                  <col className="w-[160px]" />
+	                                  <col className="w-[120px]" />
+	                                  <col className="w-[120px]" />
+	                                </colgroup>
+	                                <thead>
+	                                  <tr className="bg-surface-container-high">
+	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+                                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
+	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+	                                  </tr>
                                 </thead>
                                 <tbody>
                                   {expandedItems.map((it) => (
-                                    <tr key={it.id}>
-                                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-                                        {formatItemWithSpecification(it.item, it.specification, specNameById)}
-                                      </td>
-                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
-                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-                                        {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
+	                                    <tr key={it.id}>
+	                                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+	                                        {formatItemWithSpecification(it.item, it.specification, specNameById)}
+	                                      </td>
+                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).priority ?? '').trim() || '-'}</td>
+	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+	                                        {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
                                       </td>
                                     </tr>
                                   ))}
@@ -326,7 +327,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                   ))
                 ) : (
 	                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
+			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
 	                      No records.
 	                    </td>
 	                  </tr>
@@ -342,11 +343,15 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 
       <Modal
         open={modalOpen}
-				        title={
-				          modalMode === 'approve'
-				            ? `Approve ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
-				            : `Reject ${formatPrNumber(activeDetail?.pr?.prNumber ?? activePrId ?? '')}`
-				        }
+					        title={
+                    modalMode === 'approve'
+                      ? activeDetail?.pr?.prNumber
+                        ? `Approve ${formatPrNumber(activeDetail.pr.prNumber)}`
+                        : 'Approve'
+                      : activeDetail?.pr?.prNumber
+                        ? `Reject ${formatPrNumber(activeDetail.pr.prNumber)}`
+                        : 'Reject'
+					        }
         onClose={() => (saving ? null : closeModal())}
         footer={
           <>
@@ -389,7 +394,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
             </button>
           </>
         }
-        maxWidthClass="max-w-5xl"
+	        maxWidthClass="max-w-6xl"
       >
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
@@ -436,32 +441,35 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 
 	        {modalMode === 'approve' ? (
 	          <div className="bg-surface-container rounded-xl border border-outline-variant/10 p-4 space-y-3">
-            {!activeDetail ? (
-              <div className="text-sm text-on-surface-variant">Loading items...</div>
-            ) : (
-              <div className="overflow-x-auto">
-	                <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant">
-		                  <colgroup>
-		                    <col className="w-[460px]" />
-		                    <col className="w-[130px]" />
-		                    <col className="w-[130px]" />
-		                    <col className="w-[140px]" />
-		                  </colgroup>
-	                  <thead>
-	                    <tr className="bg-surface-container-high">
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
-		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
+	            {!activeDetail ? (
+	              <div className="text-sm text-on-surface-variant inline-flex items-center gap-2"><Spinner className="h-4 w-4" /> Loading items...</div>
+	            ) : (
+	              <div className="overflow-x-auto">
+		                <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant">
+			                  <colgroup>
+			                    <col className="w-[420px]" />
+                              <col className="w-[160px]" />
+			                    <col className="w-[130px]" />
+			                    <col className="w-[130px]" />
+			                    <col className="w-[140px]" />
+			                  </colgroup>
+		                  <thead>
+		                    <tr className="bg-surface-container-high">
+		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+			                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
 		                    </tr>
 	                  </thead>
 	                  <tbody>
 	                    {activeDetail.items.map((it) => (
-	                      <tr key={it.id}>
-		                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-		                          {formatItemWithSpecification(it.item, it.specification, specNameById)}
-		                        </td>
-		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+		                      <tr key={it.id}>
+			                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+			                          {formatItemWithSpecification(it.item, it.specification, specNameById)}
+			                        </td>
+                                <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).priority ?? '').trim() || '-'}</td>
+			                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
 		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
 		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
 		                        </td>
