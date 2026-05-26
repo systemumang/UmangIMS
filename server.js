@@ -9176,6 +9176,13 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
       `,
       [id]
     );
+    const [storeRows] = await pool.query(
+      `
+      SELECT name
+      FROM stores
+      ORDER BY name
+      `
+    );
 
     const toCsvCell = (value) => {
       const raw = String(value ?? '');
@@ -9186,7 +9193,11 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
     const specColumns = (Array.isArray(specRows) ? specRows : [])
       .map((r) => String(r.name ?? '').trim())
       .filter(Boolean);
-    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns];
+    const allStoreNames = (Array.isArray(storeRows) ? storeRows : [])
+      .map((r) => String(r.name ?? '').trim())
+      .filter(Boolean)
+      .join(' | ');
+    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'store_names'];
     const lines = [header.map(toCsvCell).join(',')];
 
     for (let i = 0; i < 25; i += 1) {
@@ -9196,6 +9207,7 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
         String(itemNameRow.unitName ?? ''),
         String(itemNameRow.itemCategoryName ?? ''),
         ...specColumns.map(() => ''),
+        allStoreNames,
       ];
       lines.push(row.map(toCsvCell).join(','));
     }
