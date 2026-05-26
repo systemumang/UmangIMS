@@ -793,11 +793,10 @@ export default function NewPurchaseRequestView({
 						                        if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value });
 							                        return (
 							                          <label className="space-y-1">
-							                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName} <span className="text-error">*</span></div>
 							                            <SearchableSelect
 							                              value={value}
 							                              options={options}
-						                              placeholder="Select value..."
+							                              placeholder={`Select ${specName}...`}
 						                              showCreateWhenEmpty
 						                              alwaysShowCreate
 						                              allowEmptyCreate
