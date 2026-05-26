@@ -177,11 +177,13 @@ export function QueueFiltersBar({
   onChange,
   masters,
   showSupplier = true,
+  showDepartment = true,
 }: {
   filters: QueueFilters;
   onChange: (next: QueueFilters) => void;
   masters: { firms: Firm[]; departments: Department[]; projects: Project[]; suppliers?: Supplier[] };
   showSupplier?: boolean;
+  showDepartment?: boolean;
 }) {
 	  const firmOptions = useMemo(
 	    () => [
@@ -228,18 +230,20 @@ export function QueueFiltersBar({
         </div>
       </div>
 
-      <div className="min-w-[170px]">
-        <div className={labelClass}>Department</div>
-        <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
-          <SearchableSelect
-            options={deptOptions}
-            value={filters.department ?? ''}
-            onChange={(v) => onChange({ ...filters, department: v })}
-            placeholder="All Depts"
-            controlClassName={compactControlClass}
-          />
-        </div>
-      </div>
+        {showDepartment ? (
+	        <div className="min-w-[170px]">
+	          <div className={labelClass}>Department</div>
+	          <div className="mt-1 bg-surface-container-low px-3 py-1.5 rounded-lg border border-black">
+	            <SearchableSelect
+	              options={deptOptions}
+	              value={filters.department ?? ''}
+	              onChange={(v) => onChange({ ...filters, department: v })}
+	              placeholder="All Depts"
+	              controlClassName={compactControlClass}
+	            />
+	          </div>
+	        </div>
+        ) : null}
 
       <div className="min-w-[190px]">
         <div className={labelClass}>Project</div>

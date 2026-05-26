@@ -209,7 +209,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
         <div className="text-sm text-on-surface-variant">Pending Tasks / Approve PR</div>
         <ExportCsvButton id="pending-export-btn" filename={`queue-approve-pr-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
       </div>
-      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} showSupplier={false} />
+	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} showSupplier={false} showDepartment={false} />
 
       {loading ? (
         <LoadingCard label="Loading pending PR approvals..." />
