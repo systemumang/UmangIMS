@@ -188,16 +188,16 @@ export function QueueFiltersBar({
 	  const firmOptions = useMemo(
 	    () => [
 	      { value: '', label: 'All Firms' },
-	      ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name })),
+	      ...(masters.firms ?? []).map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name })),
 	    ],
 	    [masters.firms]
 	  );
   const deptOptions = useMemo(
-    () => [{ value: '', label: 'All Depts' }, ...masters.departments.map((d) => ({ value: d.name, label: d.name }))],
+    () => [{ value: '', label: 'All Depts' }, ...(masters.departments ?? []).map((d) => ({ value: d.name, label: d.name }))],
     [masters.departments]
   );
   const projectOptions = useMemo(
-    () => [{ value: '', label: 'All Projects' }, ...masters.projects.map((p) => ({ value: p.id, label: p.name }))],
+    () => [{ value: '', label: 'All Projects' }, ...(masters.projects ?? []).map((p) => ({ value: p.id, label: p.name }))],
     [masters.projects]
   );
   const supplierOptions = useMemo(() => {
