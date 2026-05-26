@@ -9193,11 +9193,11 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
     const specColumns = (Array.isArray(specRows) ? specRows : [])
       .map((r) => String(r.name ?? '').trim())
       .filter(Boolean);
-    const allStoreNames = (Array.isArray(storeRows) ? storeRows : [])
+    const storeColumns = (Array.isArray(storeRows) ? storeRows : [])
       .map((r) => String(r.name ?? '').trim())
       .filter(Boolean)
-      .join(' | ');
-    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Store Name'];
+      .map((name) => `Opening Stock - ${name}`);
+    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns];
     const lines = [header.map(toCsvCell).join(',')];
 
     for (let i = 0; i < 25; i += 1) {
@@ -9207,7 +9207,7 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
         String(itemNameRow.unitName ?? ''),
         String(itemNameRow.itemCategoryName ?? ''),
         ...specColumns.map(() => ''),
-        allStoreNames,
+        ...storeColumns.map(() => ''),
       ];
       lines.push(row.map(toCsvCell).join(','));
     }
@@ -9508,7 +9508,7 @@ app.post('/api/masters/items', async (req, res) => {
 	    if (openingStockRaw !== null && openingStockRaw !== undefined && String(openingStockRaw).trim() !== '' && !Number.isFinite(openingStock)) {
 	      return res.status(400).json({ error: 'openingStock must be a number' });
 	    }
-    const storeName = req.body?.storeName != null ? String(req.body.storeName).trim() : '';
+    const storeOpeningBalances = Array.isArray(req.body?.storeOpeningBalances) ? req.body.storeOpeningBalances : [];
 	    const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
 	    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
 
@@ -9522,21 +9522,28 @@ app.post('/api/masters/items', async (req, res) => {
 		      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
 		      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
 		    );
-    if (Number(openingStock) > 0 && storeName) {
-      const [storeRows] = await pool.query('SELECT id, name FROM stores WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [storeName]);
-      const matches = Array.isArray(storeRows) ? storeRows : [];
-      if (!matches.length) return res.status(400).json({ error: `Store not found: ${storeName}` });
-      if (matches.length > 1) return res.status(400).json({ error: `Multiple stores found with same name: ${storeName}. Use unique store name.` });
-      const storeId = String(matches[0].id ?? '').trim();
-      const year = fiscalYearLabel(new Date());
-      await pool.query(
-        `
-        INSERT INTO item_opening_balances (id, store_id, item_id, quantity, reorder_level, year, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), reorder_level=VALUES(reorder_level), updated_at=NOW()
-        `,
-        [crypto.randomUUID(), storeId, id, Number(openingStock), Number.isFinite(reorderLevel) ? reorderLevel : 0, year]
+    if (storeOpeningBalances.length) {
+      const [allStores] = await pool.query('SELECT id, name FROM stores');
+      const storeIdByName = new Map(
+        (Array.isArray(allStores) ? allStores : []).map((s) => [String(s.name ?? '').trim().toLowerCase(), String(s.id ?? '').trim()])
       );
+      const year = fiscalYearLabel(new Date());
+      for (const entry of storeOpeningBalances) {
+        const storeName = String(entry?.storeName ?? '').trim();
+        const qtyRaw = Number(entry?.quantity ?? 0);
+        if (!storeName || !Number.isFinite(qtyRaw) || qtyRaw <= 0) continue;
+        const storeId = storeIdByName.get(storeName.toLowerCase());
+        if (!storeId) return res.status(400).json({ error: `Store not found: ${storeName}` });
+        const qty = Math.max(0, qtyRaw);
+        await pool.query(
+          `
+          INSERT INTO item_opening_balances (id, store_id, item_id, quantity, reorder_level, year, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+          ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), reorder_level=VALUES(reorder_level), updated_at=NOW()
+          `,
+          [crypto.randomUUID(), storeId, id, qty, Number.isFinite(reorderLevel) ? reorderLevel : 0, year]
+        );
+      }
     }
 
     const [rows] = await pool.query(

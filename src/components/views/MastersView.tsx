@@ -112,8 +112,7 @@ type PendingItemUploadRow = {
   unitName: string;
   itemCategoryName: string;
   reorderLevel: string;
-  openingStock: string;
-  storeName: string;
+  storeOpeningBalances: Array<{ storeName: string; quantity: string }>;
   specs: Array<{ specificationId: string; value: string }>;
 };
 type ItemUploadIssue = {
@@ -1404,7 +1403,7 @@ export default function MastersView({
 	          const duplicateInFileRows: string[] = [];
 	          const duplicateExistingRows: string[] = [];
 	          const invalidReorderRows: string[] = [];
-          const invalidOpeningRows: string[] = [];
+	          const invalidOpeningRows: string[] = [];
 	          for (const row of rows) {
 	            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
 	            if (!itemNameId) continue;
@@ -1414,10 +1413,11 @@ export default function MastersView({
 	              const reorderLevelNumber = Number(row.reorderLevel);
 	              if (!Number.isFinite(reorderLevelNumber) || reorderLevelNumber < 0) invalidReorderRows.push(comboLabel);
 	            }
-            if (row.openingStock.trim()) {
-              const openingStockNumber = Number(row.openingStock);
-              if (!Number.isFinite(openingStockNumber) || openingStockNumber < 0) invalidOpeningRows.push(comboLabel);
-            }
+            const badOpening = row.storeOpeningBalances.some((entry) => {
+              const openingStockNumber = Number(entry.quantity);
+              return !Number.isFinite(openingStockNumber) || openingStockNumber < 0;
+            });
+            if (badOpening) invalidOpeningRows.push(comboLabel);
 	            if (inFileSignatures.has(sig)) duplicateInFileRows.push(comboLabel);
 	            inFileSignatures.add(sig);
 	            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
@@ -1506,8 +1506,10 @@ export default function MastersView({
 	                unit: row.unitName || undefined,
 	                description: row.description || undefined,
 	                reorderLevel: row.reorderLevel.trim() ? Number(row.reorderLevel) : null,
-                openingStock: row.openingStock.trim() ? Number(row.openingStock) : 0,
-                storeName: row.storeName.trim() || undefined,
+                openingStock: row.storeOpeningBalances.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0),
+                storeOpeningBalances: row.storeOpeningBalances
+                  .filter((entry) => Number(entry.quantity) > 0)
+                  .map((entry) => ({ storeName: entry.storeName, quantity: Number(entry.quantity) })),
 	                specs: row.specs,
 	                createdBy: 'system',
 	              });
@@ -1587,21 +1589,21 @@ export default function MastersView({
             setItemUploadIssues([]);
 	            if (tab === 'items') {
 		              const specColumns = specs.map((s) => s.name);
-		              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Opening Stock', 'Store Name', 'Re-Order Level'];
+                  const storeColumns = stores.map((s) => `Opening Stock - ${s.name}`);
+		              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns, 'Re-Order Level'];
 		              const sampleRow: Record<string, string> = {
 		                item_name: '',
 		                description: '',
 		                unit: '',
 		                item_category: '',
-                    'Opening Stock': '',
-                    'Store Name': '',
 	                  'Re-Order Level': '',
 		              };
-              for (const col of specColumns) sampleRow[col] = '';
-              downloadTextFile('items-template.csv', toCsv(header, [sampleRow]), 'text/csv; charset=utf-8');
-              setTemplateInfo('Template downloaded.');
-              return;
-            }
+	              for (const col of specColumns) sampleRow[col] = '';
+                  for (const col of storeColumns) sampleRow[col] = '';
+	              downloadTextFile('items-template.csv', toCsv(header, [sampleRow]), 'text/csv; charset=utf-8');
+	              setTemplateInfo('Template downloaded.');
+	              return;
+	            }
             const key = apiKeyForTab(tab);
             const res = await fetch(`/api/masters/${encodeURIComponent(key)}/template`);
             const text = await res.text();
@@ -1661,16 +1663,11 @@ export default function MastersView({
 	                headerMap.get('reorder_level') ??
 	                headerMap.get('reorderlevel') ??
 	                '';
-                const openingStockColumn =
-                  headerMap.get('opening stock') ??
-                  headerMap.get('opening_stock') ??
-                  headerMap.get('openingstock') ??
-                  '';
-                const storeNameColumn =
-                  headerMap.get('store name') ??
-                  headerMap.get('storename') ??
-                  headerMap.get('store') ??
-                  '';
+                const storeColumns = stores.map((store) => {
+                  const key = normalizeKey(`Opening Stock - ${store.name}`);
+                  const col = headerMap.get(key);
+                  return col ? { storeName: store.name, column: col } : null;
+                }).filter(Boolean) as Array<{ storeName: string; column: string }>;
               const specIdByColumn = new Map<string, string>();
               for (const s of specs) {
                 const col = headerMap.get(normalizeKey(s.name));
@@ -1683,13 +1680,14 @@ export default function MastersView({
 	                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
 	                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
 	                  const reorderLevel = reorderColumn ? String(r[reorderColumn] ?? '').trim() : '';
-                    const openingStock = openingStockColumn ? String(r[openingStockColumn] ?? '').trim() : '';
-                    const storeName = storeNameColumn ? String(r[storeNameColumn] ?? '').trim() : '';
-		                  const rowSpecs = Array.from(specIdByColumn.entries())
-	                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
-	                    .filter((x) => x.value);
-		                  return { itemName, description, unitName, itemCategoryName, reorderLevel, openingStock, storeName, specs: rowSpecs };
-	                })
+                    const storeOpeningBalances = storeColumns
+                      .map(({ storeName, column }) => ({ storeName, quantity: String(r[column] ?? '').trim() }))
+                      .filter((entry) => entry.quantity);
+			                  const rowSpecs = Array.from(specIdByColumn.entries())
+		                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
+		                    .filter((x) => x.value);
+			                  return { itemName, description, unitName, itemCategoryName, reorderLevel, storeOpeningBalances, specs: rowSpecs };
+		                })
                 .filter((r) => r.itemName);
               if (!rows.length) throw new Error('No valid item rows found in file.');
               const itemNameSet = new Set(itemNames.map((n) => normalizeKey(n.name)));
@@ -1864,8 +1862,9 @@ export default function MastersView({
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
 	          if (tab === 'items') {
-		            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Opening Stock', 'Store Name', 'Re-Order Level'];
-            const rows = items.map((it) => {
+                const storeColumns = stores.map((s) => `Opening Stock - ${s.name}`);
+		            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), ...storeColumns, 'Re-Order Level'];
+	            const rows = items.map((it) => {
               const specObj = (() => {
                 try {
                   const parsed = JSON.parse(it.specificationsJson || '{}');
@@ -1883,11 +1882,10 @@ export default function MastersView({
                 unit: it.unit ?? '',
 	                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
 	                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
-		                  'Opening Stock': (it as any).openingStock ?? 0,
-                    'Store Name': '',
+                    ...Object.fromEntries(storeColumns.map((col) => [col, ''])),
 		                  'Re-Order Level': it.reorderLevel ?? '',
-		              };
-            });
+			              };
+	            });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
         }
