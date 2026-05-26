@@ -223,7 +223,6 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 		                <col className="w-[120px]" />
 		                <col className="w-[170px]" />
 		                <col className="w-[140px]" />
-		                <col className="w-[140px]" />
 		                <col className="w-[160px]" />
 		                <col className="w-[140px]" />
 			                <col className="w-[120px]" />
@@ -235,7 +234,6 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Request Type</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Dept</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested By</th>
 			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
@@ -254,7 +252,6 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                     <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestType ?? '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.department}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
 			                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
@@ -288,7 +285,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                     </tr>
                     {expandedPrId === r.prId ? (
                       <tr>
-	                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={9}>
+	                        <td className="px-3 py-3 border border-outline-variant bg-surface-container-low" colSpan={8}>
                           {expandedLoading ? (
                             <div className="text-sm text-on-surface-variant">Loading items...</div>
                           ) : (
@@ -329,7 +326,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                   ))
                 ) : (
 	                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={9}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
 	                      No records.
 	                    </td>
 	                  </tr>
