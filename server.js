@@ -6665,7 +6665,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       return lines.length ? lines : [''];
     };
 
-    const drawText = (text, opts = {}) => {
+	    const drawText = (text, opts = {}) => {
       const size = opts.size ?? 10;
       const f = opts.bold ? fontBold : font;
       const x = opts.x ?? margin;
@@ -6677,6 +6677,17 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       for (const line of lines) {
         page.drawText(String(line ?? ''), { x, y, size, font: f, color });
         y -= lineHeight;
+      }
+	    };
+    const drawTextPreserveNewlines = (text, opts = {}) => {
+      const parts = String(text ?? '').split(/\r?\n/);
+      for (const part of parts) {
+        const line = String(part ?? '');
+        if (line.trim()) {
+          drawText(line, opts);
+        } else {
+          y -= (opts.lineHeight ?? (opts.size ?? 10) + 4);
+        }
       }
     };
 
@@ -6953,11 +6964,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
     y = summaryTop - summaryHeight - 12;
 
-    const terms = String(poRow.termsConditions ?? poRow.firmTermsConditions ?? '').trim();
-    if (terms) {
-      drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
-      drawText(terms, { size: 8, x: margin, maxWidth: 320 });
-    }
+	    const terms = String(poRow.firmTermsConditions ?? poRow.termsConditions ?? '').trim();
+	    if (terms) {
+	      drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
+	      drawTextPreserveNewlines(terms, { size: 8, x: margin, maxWidth: 320 });
+	    }
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
