@@ -2276,7 +2276,7 @@ export default function MastersView({
 			                              createdBy: 'system',
 			                            });
 		                        fn
-		                          .then(() => loadAll())
+		                          .then(() => refreshCurrentTab(tab))
 				                          .then(() => {
 				                            setNewFirmName('');
 				                            setNewFirmSortName('');
@@ -2356,7 +2356,7 @@ export default function MastersView({
 		                              updatedBy: 'system',
 		                            })
 		                          : createStore({ firmId: newStoreFirmId, name: newStoreName.trim(), location: newStoreLocation.trim() || undefined, createdBy: 'system' });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewStoreFirmId('');
 		                            setNewStoreName('');
@@ -2461,7 +2461,7 @@ export default function MastersView({
 		                        const fn = isEditing
 		                          ? updateProject(editCtx?.id ?? '', payload)
 		                          : createProject({ ...payload, createdBy: 'system' });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewProjectName('');
 		                            closeModal();
@@ -2509,7 +2509,7 @@ export default function MastersView({
 		                          ? updateDepartment(editCtx?.id ?? '', { name: newDepartmentName.trim(), updatedBy: 'system' })
 		                          : createDepartment({ name: newDepartmentName.trim(), createdBy: 'system' });
 		                        fn
-		                          .then(() => loadAll())
+		                          .then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewDepartmentName('');
 		                            closeModal();
@@ -2908,7 +2908,7 @@ export default function MastersView({
 			                              password,
 			                              createdBy: 'system',
 			                            });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewUserName('');
 		                            setNewUserEmail('');
@@ -3190,7 +3190,19 @@ export default function MastersView({
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              createdBy: 'system',
 				                            });
-			                        fn.then(() => refreshCurrentTab('stores'))
+			                        fn.then((result: any) => {
+                                  const saved = (result as any)?.store as Store | undefined;
+                                  if (!saved?.id) return;
+                                  setStores((prev) => {
+                                    const existingIndex = prev.findIndex((s) => s.id === saved.id);
+                                    if (existingIndex >= 0) {
+                                      const next = [...prev];
+                                      next[existingIndex] = saved;
+                                      return next.sort((a, b) => a.name.localeCompare(b.name));
+                                    }
+                                    return [...prev, saved].sort((a, b) => a.name.localeCompare(b.name));
+                                  });
+                                })
 			                          .then(() => {
 			                            setNewSupplierName('');
 			                            setNewSupplierGstNumber('');
@@ -3345,7 +3357,7 @@ export default function MastersView({
 				                              emailId: newCustomerEmailId.trim() || undefined,
 				                              createdBy: 'system',
 				                            });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 			                            setNewCustomerName('');
 			                            setNewCustomerMobile('');
@@ -3433,7 +3445,7 @@ export default function MastersView({
 		                              phone: phone || undefined,
 		                              createdBy: 'system',
 		                            });
-	                        fn.then(() => loadAll())
+	                        fn.then(() => refreshCurrentTab(tab))
 	                          .then(() => {
 	                            setNewTransporterName('');
 	                            setNewTransporterPhone('');
@@ -3481,7 +3493,7 @@ export default function MastersView({
 		                        const fn = isEditing
 		                          ? updateUnit(editCtx?.id ?? '', { name: newUnitName.trim(), updatedBy: 'system' })
 		                          : createUnit({ name: newUnitName.trim(), createdBy: 'system' });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewUnitName('');
 		                            closeModal();
@@ -3528,7 +3540,7 @@ export default function MastersView({
                               const fn = isEditing
                                 ? updatePriority(editCtx?.id ?? '', { name: newPriorityName.trim(), updatedBy: 'system' })
                                 : createPriority({ name: newPriorityName.trim(), createdBy: 'system' });
-                              fn.then(() => loadAll())
+                              fn.then(() => refreshCurrentTab(tab))
                                 .then(() => {
                                   setNewPriorityName('');
                                   closeModal();
@@ -3575,7 +3587,7 @@ export default function MastersView({
 		                        const fn = isEditing
 		                          ? updateItemCategory(editCtx?.id ?? '', { name: newItemCategoryName.trim(), updatedBy: 'system' })
 		                          : createItemCategory({ name: newItemCategoryName.trim(), createdBy: 'system' });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 		                          .then(() => {
 		                            setNewItemCategoryName('');
 		                            closeModal();
@@ -3770,7 +3782,7 @@ export default function MastersView({
                                 catalogueLink: newItemNameCatalogueLink.trim() || null,
 				                              createdBy: 'system',
 				                            });
-		                        fn.then(() => loadAll())
+		                        fn.then(() => refreshCurrentTab(tab))
 			                          .then(() => {
 			                            setNewItemName('');
 			                            setNewItemNameUnitId('');
@@ -3821,7 +3833,7 @@ export default function MastersView({
 	                        const fn = isEditing
 	                          ? updateSpecification(editCtx?.id ?? '', { name: newSpecName.trim(), updatedBy: 'system' })
 	                          : createSpecification({ name: newSpecName.trim(), createdBy: 'system' });
-	                        fn.then(() => loadAll())
+	                        fn.then(() => refreshCurrentTab(tab))
 	                          .then(() => {
 	                            setNewSpecName('');
 	                            closeModal();
@@ -4583,7 +4595,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteFirm(f.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -4648,7 +4660,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteDepartment(d.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -4703,7 +4715,7 @@ export default function MastersView({
 				                            setBusy(true);
 				                            setError(null);
 				                            deleteState(s.id, { deletedBy: 'system' })
-				                              .then(() => loadAll())
+				                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -4792,7 +4804,7 @@ export default function MastersView({
 				                            setBusy(true);
 				                            setError(null);
 				                            deleteCity(c.id, { deletedBy: 'system' })
-				                              .then(() => loadAll())
+				                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -4872,7 +4884,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteStore(s.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -4958,7 +4970,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteProject(p.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5060,7 +5072,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteUser(u.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5179,7 +5191,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteSupplier(s.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5279,7 +5291,7 @@ export default function MastersView({
 			                            setBusy(true);
 			                            setError(null);
 			                            deleteCustomer(c.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 			                              .catch(handleMasterError)
 			                              .finally(() => setBusy(false));
 			                          }}
@@ -5353,7 +5365,7 @@ export default function MastersView({
 		                            setBusy(true);
 		                            setError(null);
 		                            deleteTransporter(t.id, { deletedBy: 'system' })
-		                              .then(() => loadAll())
+		                              .then(() => refreshCurrentTab(tab))
 		                              .catch(handleMasterError)
 		                              .finally(() => setBusy(false));
 		                          }}
@@ -5408,7 +5420,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteUnit(u.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5465,7 +5477,7 @@ export default function MastersView({
                                     setBusy(true);
                                     setError(null);
                                     deletePriority(p.id, { deletedBy: 'system' })
-                                      .then(() => loadAll())
+                                      .then(() => refreshCurrentTab(tab))
                                       .catch(handleMasterError)
                                       .finally(() => setBusy(false));
                                   }}
@@ -5522,7 +5534,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteItemCategory(c.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5640,7 +5652,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteItemName(n.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
@@ -5703,7 +5715,7 @@ export default function MastersView({
 					                            setBusy(true);
 				                            setError(null);
 			                            deleteSpecification(s.id, { deletedBy: 'system' })
-			                              .then(() => loadAll())
+			                              .then(() => refreshCurrentTab(tab))
 				                              .catch(handleMasterError)
 				                              .finally(() => setBusy(false));
 				                          }}
