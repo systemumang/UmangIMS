@@ -11173,7 +11173,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         transferIn: 0,
         transferOut: 0,
 	      };
-	      const opening = num(meta.openingStock, 0);
+	      const opening = num(agg.opening, 0);
 	      const reorderLevel = num(meta.reorderLevel, 0);
       const purchase = num(agg.purchase, 0);
       const issue = num(agg.issue, 0);

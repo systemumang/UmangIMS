@@ -624,9 +624,9 @@ export default function InventoryView() {
 	        </div>
 		      </div>
 
-		      {photoModal ? (
-		        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-		          <div className="w-full max-w-5xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl overflow-hidden">
+			      {photoModal ? (
+			        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50">
+			          <div className="w-[96vw] max-w-[1600px] max-h-[92vh] bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl overflow-hidden">
 		            <div className="px-4 py-3 border-b border-outline-variant flex items-center justify-between gap-3">
 		              <div className="font-semibold text-sm text-on-surface truncate" title={photoModal.title}>
 		                Photos — {photoModal.title}
@@ -635,13 +635,13 @@ export default function InventoryView() {
 		                Close
 		              </button>
 		            </div>
-			            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+				            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-auto max-h-[calc(92vh-84px)]">
 			              {photoModal.photos.map((p) => (
 			                <div
 			                  key={p}
 			                  className="block rounded-lg border border-outline-variant bg-surface-container-low overflow-hidden"
 			                >
-			                  <div className="aspect-video bg-black/5 flex items-center justify-center">
+				                  <div className="aspect-[16/10] bg-black/5 flex items-center justify-center">
 			                    <img
 			                      src={normalizePreviewUrl(p)}
 			                      alt="Photo"
