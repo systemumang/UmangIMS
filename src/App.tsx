@@ -364,7 +364,7 @@ export default function App() {
 		    setView('purchaseRequestDetail');
 		  };
 
-				  const showBusyOverlay = inFlightCount > 0;
+				  const showBusyOverlay = writeFlowActive && inFlightCount > 0;
 	        const hideSidebarAfterViewChange = () => setSidebarOpen(false);
 
 		  if (!currentUser) {
