@@ -352,6 +352,7 @@ export default function MastersView({
   const [newItemVideoLink, setNewItemVideoLink] = useState('');
   const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
   const [newItemOpeningStock, setNewItemOpeningStock] = useState('');
+  const [newItemStoreOpeningBalances, setNewItemStoreOpeningBalances] = useState<Array<{ storeId: string; storeName: string; quantity: string }>>([]);
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string; useCustom?: boolean }>>([
     { specificationId: '', value: '', useCustom: false },
   ]);
@@ -834,6 +835,19 @@ export default function MastersView({
   useEffect(() => {
     setNewItemUnit(selectedItemUnitName);
   }, [selectedItemUnitName]);
+
+  const buildDefaultStoreOpeningRows = () =>
+    stores.map((store) => ({
+      storeId: store.id,
+      storeName: store.name,
+      quantity: '',
+    }));
+
+  useEffect(() => {
+    if (!addOpen || tab !== 'items') return;
+    if (newItemStoreOpeningBalances.length) return;
+    setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+  }, [addOpen, tab, stores, newItemStoreOpeningBalances.length]);
 	  const groupedSpecValues = useMemo(() => {
 	    const map = new Map<
 	      string,
@@ -1007,16 +1021,17 @@ export default function MastersView({
 			      setNewSpecValueSpecId(specIdForValues || '');
 			      setSpecValueItemNameId('');
 			    }
-    if (tab === 'items') {
-      setNewItemUnit('');
-      setNewItemDescription('');
-      setNewItemPhotos(['', '', '', '', '']);
-      setNewItemLink('');
-      setNewItemVideoLink('');
-      setNewItemReorderLevel('');
-      setNewItemOpeningStock('');
-      setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-    }
+	    if (tab === 'items') {
+	      setNewItemUnit('');
+	      setNewItemDescription('');
+	      setNewItemPhotos(['', '', '', '', '']);
+	      setNewItemLink('');
+	      setNewItemVideoLink('');
+	      setNewItemReorderLevel('');
+	      setNewItemOpeningStock('');
+        setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+	      setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+	    }
 	    setAddOpen(true);
 	  };
 
@@ -1162,8 +1177,32 @@ export default function MastersView({
             ]);
             setNewItemLink(String((row as any).itemLink ?? ''));
             setNewItemVideoLink(String((row as any).videoLink ?? ''));
-            setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
-            setNewItemOpeningStock((row as any).openingStock == null ? '' : String((row as any).openingStock));
+	            setNewItemReorderLevel(row.reorderLevel == null ? '' : String(row.reorderLevel));
+	            setNewItemOpeningStock((row as any).openingStock == null ? '' : String((row as any).openingStock));
+              setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+              fetch(`/api/masters/items/${encodeURIComponent(id)}/opening-balances`)
+                .then(async (res) => {
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(String((data as any)?.error ?? `Failed to load opening balances (${res.status})`));
+                  const balances = Array.isArray((data as any)?.balances) ? (data as any).balances : [];
+                  const qtyByStore = new Map<string, number>();
+                  for (const b of balances) {
+                    const key = String(b?.storeId ?? '').trim();
+                    if (!key) continue;
+                    const prev = qtyByStore.get(key) ?? 0;
+                    qtyByStore.set(key, prev + Number(b?.quantity ?? 0));
+                  }
+                  setNewItemStoreOpeningBalances(
+                    stores.map((store) => ({
+                      storeId: store.id,
+                      storeName: store.name,
+                      quantity: qtyByStore.has(store.id) ? String(qtyByStore.get(store.id) ?? 0) : '',
+                    }))
+                  );
+                })
+                .catch(() => {
+                  setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+                });
 		        try {
 	          const obj = JSON.parse(row.specificationsJson) as Record<string, unknown>;
 		          const next = Object.entries(obj)
@@ -4250,17 +4289,6 @@ export default function MastersView({
 		                        placeholder="0.00"
 		                      />
 		                    </label>
-                      <label className="space-y-1">
-                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Opening Stock</div>
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                          value={newItemOpeningStock}
-                          onChange={(e) => setNewItemOpeningStock(e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </label>
                       <div className="space-y-2">
                         {newItemPhotos.map((value, idx) => {
                           const canShow = idx === 0 || Boolean(String(newItemPhotos[idx - 1] ?? '').trim());
@@ -4331,8 +4359,42 @@ export default function MastersView({
                           placeholder="https://..."
                         />
                       </label>
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Opening Stock (Store-wise)</div>
+                        <div className="overflow-auto border border-outline-variant/20 rounded-lg">
+                          <table className="min-w-[420px] w-full text-sm border-collapse">
+                            <thead>
+                              <tr className="bg-surface-container-low">
+                                <th className="text-left px-3 py-2 border-b border-outline-variant/20">Store</th>
+                                <th className="text-left px-3 py-2 border-b border-outline-variant/20">Opening Balance</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {newItemStoreOpeningBalances.map((row, idx) => (
+                                <tr key={`store-opening-${row.storeId}`}>
+                                  <td className="px-3 py-2 border-b border-outline-variant/10 text-on-surface-variant">{row.storeName}</td>
+                                  <td className="px-3 py-2 border-b border-outline-variant/10">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                                      value={row.quantity}
+                                      onChange={(e) =>
+                                        setNewItemStoreOpeningBalances((prev) =>
+                                          prev.map((p, i) => (i === idx ? { ...p, quantity: e.target.value } : p))
+                                        )
+                                      }
+                                      placeholder="0.00"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
 
-		                  <div className="flex justify-end gap-2">
+			                  <div className="flex justify-end gap-2">
 	                    <button
 	                      type="button"
 	                      className="btn btn-sm"
@@ -4340,12 +4402,13 @@ export default function MastersView({
 		                        setNewItemUnit('');
 			                        setNewItemDescription('');
                             setNewItemPhotos(['', '', '', '', '']);
-	                            setNewItemLink('');
-	                            setNewItemVideoLink('');
-	                            setNewItemReorderLevel('');
-	                            setNewItemOpeningStock('');
-				                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-		                        closeModal();
+		                            setNewItemLink('');
+		                            setNewItemVideoLink('');
+		                            setNewItemReorderLevel('');
+		                            setNewItemOpeningStock('');
+                                setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+					                        setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+			                        closeModal();
 	                      }}
 	                    >
 	                      Cancel
@@ -4360,10 +4423,34 @@ export default function MastersView({
                         newItemSpecs.filter((s) => s.specificationId.trim() && s.value.trim()).length === 0
                       }
 	                      onClick={() => {
-	                        setBusy(true);
-	                        setError(null);
-	                        const fn = isEditing
-	                          ? updateItem(editCtx?.id ?? '', {
+		                        setBusy(true);
+		                        setError(null);
+                          const storeOpeningBalancesPayload = newItemStoreOpeningBalances
+                            .map((row) => ({
+                              storeName: row.storeName,
+                              quantity: Number(row.quantity),
+                            }))
+                            .filter((row) => Number.isFinite(row.quantity) && row.quantity > 0);
+                          const totalOpeningStock = storeOpeningBalancesPayload.reduce((sum, row) => sum + row.quantity, 0);
+		                        const fn = isEditing
+		                          ? updateItem(editCtx?.id ?? '', {
+		                              itemNameId: newItemItemNameId,
+		                              unit: newItemUnit,
+		                              description: newItemDescription,
+                              photo1: String(newItemPhotos[0] ?? '').trim() || null,
+                              photo2: String(newItemPhotos[1] ?? '').trim() || null,
+                              photo3: String(newItemPhotos[2] ?? '').trim() || null,
+                              photo4: String(newItemPhotos[3] ?? '').trim() || null,
+                              photo5: String(newItemPhotos[4] ?? '').trim() || null,
+		                              itemLink: newItemLink.trim() || null,
+		                              videoLink: newItemVideoLink.trim() || null,
+		                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                                openingStock: totalOpeningStock,
+                                storeOpeningBalances: storeOpeningBalancesPayload,
+				                              specs: newItemSpecs,
+		                              updatedBy: 'system',
+		                            })
+		                          : createItem({
 	                              itemNameId: newItemItemNameId,
 		                              unit: newItemUnit,
 		                              description: newItemDescription,
@@ -4372,41 +4459,27 @@ export default function MastersView({
                               photo3: String(newItemPhotos[2] ?? '').trim() || null,
                               photo4: String(newItemPhotos[3] ?? '').trim() || null,
                               photo5: String(newItemPhotos[4] ?? '').trim() || null,
-	                              itemLink: newItemLink.trim() || null,
-	                              videoLink: newItemVideoLink.trim() || null,
-	                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
-                                openingStock: newItemOpeningStock.trim() ? Number(newItemOpeningStock) : 0,
-			                              specs: newItemSpecs,
-	                              updatedBy: 'system',
-	                            })
-	                          : createItem({
-	                              itemNameId: newItemItemNameId,
-		                              unit: newItemUnit,
-		                              description: newItemDescription,
-                              photo1: String(newItemPhotos[0] ?? '').trim() || null,
-                              photo2: String(newItemPhotos[1] ?? '').trim() || null,
-                              photo3: String(newItemPhotos[2] ?? '').trim() || null,
-                              photo4: String(newItemPhotos[3] ?? '').trim() || null,
-                              photo5: String(newItemPhotos[4] ?? '').trim() || null,
-	                              itemLink: newItemLink.trim() || null,
-	                              videoLink: newItemVideoLink.trim() || null,
-	                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
-                                openingStock: newItemOpeningStock.trim() ? Number(newItemOpeningStock) : 0,
-			                              specs: newItemSpecs,
-	                              createdBy: 'system',
-	                            });
+		                              itemLink: newItemLink.trim() || null,
+		                              videoLink: newItemVideoLink.trim() || null,
+		                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                                openingStock: totalOpeningStock,
+                                storeOpeningBalances: storeOpeningBalancesPayload,
+				                              specs: newItemSpecs,
+		                              createdBy: 'system',
+		                            });
 	                        fn
 	                          .then(() => fetchItems().then(setItems))
 	                          .then(() => {
 			                            setNewItemUnit('');
 			                            setNewItemDescription('');
                                 setNewItemPhotos(['', '', '', '', '']);
-	                                setNewItemLink('');
-	                                setNewItemVideoLink('');
-	                                setNewItemReorderLevel('');
-                                  setNewItemOpeningStock('');
-				                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
-		                            closeModal();
+		                                setNewItemLink('');
+		                                setNewItemVideoLink('');
+		                                setNewItemReorderLevel('');
+	                                  setNewItemOpeningStock('');
+                                  setNewItemStoreOpeningBalances(buildDefaultStoreOpeningRows());
+					                            setNewItemSpecs([{ specificationId: '', value: '', useCustom: false }]);
+			                            closeModal();
 	                          })
 	                          .catch(handleMasterError)
 	                          .finally(() => setBusy(false));
