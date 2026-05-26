@@ -217,25 +217,23 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
       ) : (
         <QueueCard title="Check PO" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1240px] table-fixed text-left border-collapse border border-outline-variant">
-	              <colgroup>
-	                <col className="w-[150px]" />
-	                <col className="w-[150px]" />
-	                <col className="w-[190px]" />
-	                <col className="w-[200px]" />
-		                <col className="w-[140px]" />
-		                <col className="w-[140px]" />
-		                <col className="w-[260px]" />
-	              </colgroup>
+		            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse border border-outline-variant">
+		              <colgroup>
+		                <col className="w-[150px]" />
+		                <col className="w-[150px]" />
+		                <col className="w-[190px]" />
+		                <col className="w-[200px]" />
+			                <col className="w-[140px]" />
+			                <col className="w-[260px]" />
+		              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Order Date</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Order Date</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
               <tbody>
@@ -266,8 +264,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || '-'}</td>
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-		                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
-		                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
+			                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : '-'}</td>
 		                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                            <div className="flex items-center gap-2 flex-wrap">
 	                              <a
@@ -295,7 +292,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                         </tr>
                         {isExpanded ? (
                           <tr>
-	                            <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+		                            <td colSpan={6} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                               {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO details...</div> : null}
                               {!isExpandedLoading && expandedError ? (
                                 <div className="text-sm text-error">Failed to load details: {expandedError}</div>
@@ -306,19 +303,21 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                                     Supplier: {expandedDetails.po.supplier || '-'} | Payment Terms: {expandedDetails.po.paymentTerms || '-'}
                                   </div>
                                   <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[980px] table-fixed border-collapse border border-outline-variant text-sm">
-                                      <colgroup>
-                                        <col className="w-[38%]" />
-                                        <col className="w-[10%]" />
-                                        <col className="w-[12%]" />
-                                        <col className="w-[10%]" />
-                                        <col className="w-[10%]" />
-                                        <col className="w-[20%]" />
-                                      </colgroup>
-                                      <thead>
-                                        <tr className="bg-surface-container-high">
-                                          <th className="px-3 py-2 text-left border border-outline-variant">Item</th>
-                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
+	                                    <table className="w-full min-w-[1060px] table-fixed border-collapse border border-outline-variant text-sm">
+	                                      <colgroup>
+	                                        <col className="w-[34%]" />
+	                                        <col className="w-[12%]" />
+	                                        <col className="w-[10%]" />
+	                                        <col className="w-[12%]" />
+	                                        <col className="w-[10%]" />
+	                                        <col className="w-[10%]" />
+	                                        <col className="w-[12%]" />
+	                                      </colgroup>
+	                                      <thead>
+	                                        <tr className="bg-surface-container-high">
+	                                          <th className="px-3 py-2 text-left border border-outline-variant">Item</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Priority</th>
+	                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">PO Rate</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">Disc %</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
@@ -326,10 +325,11 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {items.map((it, idx) => (
-                                          <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
-                                            <td className="px-3 py-2 border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
-                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+	                                        {items.map((it, idx) => (
+	                                          <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
+	                                            <td className="px-3 py-2 border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant">{String((it as any).priority ?? (r as any).priority ?? '').trim() || '-'}</td>
+	                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
@@ -349,7 +349,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                   })
                 ) : (
                   <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
 	                      No records.
 	                    </td>
                   </tr>
@@ -408,26 +408,28 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : active && activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1300px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
-              <colgroup>
-                <col className="w-[120px]" />
-                <col className="w-[160px]" />
-                <col className="w-[120px]" />
-                <col className="w-[420px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[80px]" />
-                <col className="w-[80px]" />
-                <col className="w-[200px]" />
+	            <table className="w-full min-w-[1300px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+	              <colgroup>
+	                <col className="w-[120px]" />
+	                <col className="w-[160px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[420px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[80px]" />
+	                <col className="w-[80px]" />
+	                <col className="w-[200px]" />
                 <col className="w-[150px]" />
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO No</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Supplier</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Terms</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Items</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO Qty</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Supplier</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Terms</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Items</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Priority</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO Qty</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Disc %</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">GST %</th>
@@ -454,10 +456,11 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                             </td>
                           </>
                         ) : null}
-                        <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-			                        {formatItemInline(it.item, it.specificationsJson, specNameById)}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
+	                        <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
+				                        {formatItemInline(it.item, it.specificationsJson, specNameById)}
+	                        </td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.discountPercent ?? '-'}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>

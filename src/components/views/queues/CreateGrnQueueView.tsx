@@ -214,7 +214,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
               </thead>
@@ -234,7 +233,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingQty}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
 	                      <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
@@ -252,35 +250,37 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                     </tr>
                     {isExpanded ? (
                       <tr>
-	                        <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+	                        <td colSpan={6} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                           {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO item details...</div> : null}
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
                             <div className="overflow-x-auto">
-                              <table className="w-full min-w-[680px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-                                <thead>
-                                  <tr className="bg-surface-container-high">
-                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                    <th className="px-3 py-2 border border-outline-variant">Pending GRN Qty</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {expandedItems.length ? (
-                                    expandedItems.map((it) => (
-                                      <tr key={it.itemId}>
-                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
-                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
-                                      </tr>
-                                    ))
-                                  ) : (
-                                    <tr>
-                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={2}>
-                                        No pending items.
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
+	                              <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                <thead>
+	                                  <tr className="bg-surface-container-high">
+	                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                      <th className="px-3 py-2 border border-outline-variant">Priority</th>
+	                                    <th className="px-3 py-2 border border-outline-variant">Pending GRN Qty</th>
+	                                  </tr>
+	                                </thead>
+	                                <tbody>
+	                                  {expandedItems.length ? (
+	                                    expandedItems.map((it) => (
+	                                      <tr key={it.itemId}>
+	                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
+                                        <td className="px-3 py-2 border border-outline-variant">{String((it as any).priority ?? (r as any).priority ?? '').trim() || '-'}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
+	                                      </tr>
+	                                    ))
+	                                  ) : (
+	                                    <tr>
+	                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
+	                                        No pending items.
+	                                      </td>
+	                                    </tr>
+	                                  )}
+	                                </tbody>
+	                              </table>
                             </div>
                           ) : null}
                         </td>
@@ -290,7 +290,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   )})
                 ) : (
                   <tr>
-	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
                       No records.
                     </td>
                   </tr>
@@ -448,26 +448,28 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	        ) : activePoDetails ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1500px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
-              <colgroup>
-                <col className="w-[130px]" />
-                <col className="w-[170px]" />
-                <col className="w-[90px]" />
-                <col className="w-[520px]" />
-                <col className="w-[110px]" />
-                <col className="w-[110px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[170px]" />
+	              <colgroup>
+	                <col className="w-[130px]" />
+	                <col className="w-[170px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[520px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[170px]" />
                 <col className="w-[200px]" />
                 <col className="w-[200px]" />
               </colgroup>
               <thead>
                 <tr className="bg-blue-700">
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO No</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Supplier</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Terms</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Items</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO Qty</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Supplier</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Terms</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Items</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Priority</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO Qty</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO Rate</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Disc %</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">GST %</th>
@@ -499,10 +501,11 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             </td>
                           </>
                         ) : null}
-                        <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
-                        </td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
+	                        <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
+	                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
+	                        </td>
+	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
+	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.discountPercent ?? '-'}</td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>
