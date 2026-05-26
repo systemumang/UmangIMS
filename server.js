@@ -5370,7 +5370,6 @@ app.post('/api/requests', async (req, res) => {
 
     if (!firmId) return res.status(400).json({ error: 'firmId is required' });
     if (!storeName) return res.status(400).json({ error: 'store is required' });
-    if (!department) return res.status(400).json({ error: 'department is required' });
     if (!requestedBy) return res.status(400).json({ error: 'requestedBy is required' });
     if (!requiredDate) return res.status(400).json({ error: 'requiredDate is required' });
     if (!items.length) return res.status(400).json({ error: 'items are required' });
@@ -5382,7 +5381,7 @@ app.post('/api/requests', async (req, res) => {
 
     const prId = crypto.randomUUID();
     const prNumber = await allocateDocNumber(pool, 'PR', new Date());
-    const remarks = JSON.stringify({ department });
+    const remarks = department ? JSON.stringify({ department }) : JSON.stringify({});
 
 	    await pool.query(
 	      `

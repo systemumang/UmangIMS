@@ -406,14 +406,15 @@ export default function NewPurchaseRequestView({
 								  const canSubmit = useMemo(() => {
 								    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 								    if (requestType === 'Project' && !projectId.trim()) return false;
-                  const hasValidRows = items.some((it) => {
+                  if (!items.length) return false;
+                  const allRowsValid = items.every((it) => {
                     const itemNameId = String(it.itemNameId ?? '').trim();
                     const quantity = Number(it.quantity);
                     if (!itemNameId || !Number.isFinite(quantity) || quantity <= 0) return false;
                     const requiredSpecIds = getItemNameSpecIds(itemNameId);
                     return requiredSpecIds.every((sid) => String(it.specs?.[sid] ?? '').trim());
                   });
-							    return hasValidRows;
+							    return allRowsValid;
 								  }, [firmId, items, projectId, requestedByUserId, requiredDate, requestType, storeId]);
 
 			  const storeOptions = useMemo(() => {
@@ -970,10 +971,10 @@ export default function NewPurchaseRequestView({
 
 						                      if (!itemNameId) rowMessages[i] = 'Select Item Name.';
 						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
-						                      else {
-						                        const missing = specIds.find((sid) => !String(specsObj[sid] ?? '').trim());
-						                        if (missing) rowMessages[i] = `Select ${specNameById?.[missing] ?? 'specification'} value.`;
-						                      }
+							                      else {
+							                        const missing = specIds.find((sid) => !String(specsObj[sid] ?? '').trim());
+							                        if (missing) rowMessages[i] = '';
+							                      }
 
 						                      const dedupeKey = itemNameId ? `${itemNameId}:${JSON.stringify(specsObj)}` : '';
 						                      if (itemNameId && usedKeys.has(dedupeKey)) rowMessages[i] = 'Duplicate item specification row.';
