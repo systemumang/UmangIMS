@@ -1931,7 +1931,7 @@ export default function MastersView({
 
 	  return (
 	    <div className="space-y-4">
-		      {error ? (
+			      {error && !addOpen ? (
             <div className="rounded-lg border border-error/40 bg-error/5 p-3 space-y-2">
               <div className="text-xs font-semibold text-error">{error}</div>
               {error.startsWith('Cannot delete') && deleteUsageDetails.length ? (
@@ -2088,8 +2088,13 @@ export default function MastersView({
 	              </button>
 	            </div>
 
-		            <div className="flex-1 min-h-0 overflow-auto p-5 space-y-3">
-				              {tab === 'firms' ? (
+			            <div className="flex-1 min-h-0 overflow-auto p-5 space-y-3">
+                    {error ? (
+                      <div className="rounded-lg border border-error/40 bg-error/5 p-3">
+                        <div className="text-xs font-semibold text-error">{error}</div>
+                      </div>
+                    ) : null}
+					              {tab === 'firms' ? (
 				                <div className="space-y-2">
 			                  <label className="space-y-1">
 			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm name</div>
