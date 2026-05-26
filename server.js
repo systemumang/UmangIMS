@@ -9197,7 +9197,7 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
       .map((r) => String(r.name ?? '').trim())
       .filter(Boolean)
       .join(' | ');
-    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'store_names'];
+    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Store Name'];
     const lines = [header.map(toCsvCell).join(',')];
 
     for (let i = 0; i < 25; i += 1) {
@@ -9508,8 +9508,9 @@ app.post('/api/masters/items', async (req, res) => {
 	    if (openingStockRaw !== null && openingStockRaw !== undefined && String(openingStockRaw).trim() !== '' && !Number.isFinite(openingStock)) {
 	      return res.status(400).json({ error: 'openingStock must be a number' });
 	    }
-    const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
-    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    const storeName = req.body?.storeName != null ? String(req.body.storeName).trim() : '';
+	    const specs = Array.isArray(req.body?.specs) ? req.body.specs : [];
+	    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
 
     // itemCode/uniqueKey are app-specific; generate simple deterministic values.
     const id = crypto.randomUUID();
@@ -9517,10 +9518,26 @@ app.post('/api/masters/items', async (req, res) => {
     const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
-    await pool.query(
-	      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-	      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
-	    );
+	    await pool.query(
+		      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+		      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
+		    );
+    if (Number(openingStock) > 0 && storeName) {
+      const [storeRows] = await pool.query('SELECT id, name FROM stores WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [storeName]);
+      const matches = Array.isArray(storeRows) ? storeRows : [];
+      if (!matches.length) return res.status(400).json({ error: `Store not found: ${storeName}` });
+      if (matches.length > 1) return res.status(400).json({ error: `Multiple stores found with same name: ${storeName}. Use unique store name.` });
+      const storeId = String(matches[0].id ?? '').trim();
+      const year = fiscalYearLabel(new Date());
+      await pool.query(
+        `
+        INSERT INTO item_opening_balances (id, store_id, item_id, quantity, reorder_level, year, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), reorder_level=VALUES(reorder_level), updated_at=NOW()
+        `,
+        [crypto.randomUUID(), storeId, id, Number(openingStock), Number.isFinite(reorderLevel) ? reorderLevel : 0, year]
+      );
+    }
 
     const [rows] = await pool.query(
       `
@@ -9714,6 +9731,39 @@ app.post('/api/masters/departments/import', async (req, res) => {
       await pool.query('INSERT INTO departments (id, name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [crypto.randomUUID(), name]);
     }
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/masters/items/:id/opening-balances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        iob.store_id AS storeId,
+        st.name AS storeName,
+        iob.year AS year,
+        iob.quantity AS quantity
+      FROM item_opening_balances iob
+      LEFT JOIN stores st ON st.id = iob.store_id
+      WHERE iob.item_id = ?
+      ORDER BY st.name, iob.year
+      `,
+      [id]
+    );
+    res.json({
+      balances: (Array.isArray(rows) ? rows : []).map((r) => ({
+        storeId: String(r.storeId ?? ''),
+        storeName: String(r.storeName ?? ''),
+        year: String(r.year ?? ''),
+        quantity: Number(r.quantity ?? 0),
+      })),
+    });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

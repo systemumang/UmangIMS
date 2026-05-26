@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
-import { Plus, Trash2, ChevronDown, Download } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
@@ -112,6 +112,8 @@ type PendingItemUploadRow = {
   unitName: string;
   itemCategoryName: string;
   reorderLevel: string;
+  openingStock: string;
+  storeName: string;
   specs: Array<{ specificationId: string; value: string }>;
 };
 type ItemUploadIssue = {
@@ -1365,7 +1367,7 @@ export default function MastersView({
           if (t === 'items') return fetchItems().then(setItems);
         }
 
-        async function importItemRows(rows: PendingItemUploadRow[]) {
+	        async function importItemRows(rows: PendingItemUploadRow[]) {
           let created = 0;
           const failures: ItemUploadIssue[] = [];
           const itemNameIdByName = new Map(itemNames.map((n) => [normalizeKey(n.name), n.id]));
@@ -1401,24 +1403,30 @@ export default function MastersView({
 	          const inFileSignatures = new Set<string>();
 	          const duplicateInFileRows: string[] = [];
 	          const duplicateExistingRows: string[] = [];
-          const invalidReorderRows: string[] = [];
+	          const invalidReorderRows: string[] = [];
+          const invalidOpeningRows: string[] = [];
 	          for (const row of rows) {
 	            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
 	            if (!itemNameId) continue;
 	            const sig = makeSignature(itemNameId, row.specs);
 	            const comboLabel = formatCombo(row.itemName, row.specs);
-            if (row.reorderLevel.trim()) {
-              const reorderLevelNumber = Number(row.reorderLevel);
-              if (!Number.isFinite(reorderLevelNumber) || reorderLevelNumber < 0) invalidReorderRows.push(comboLabel);
+	            if (row.reorderLevel.trim()) {
+	              const reorderLevelNumber = Number(row.reorderLevel);
+	              if (!Number.isFinite(reorderLevelNumber) || reorderLevelNumber < 0) invalidReorderRows.push(comboLabel);
+	            }
+            if (row.openingStock.trim()) {
+              const openingStockNumber = Number(row.openingStock);
+              if (!Number.isFinite(openingStockNumber) || openingStockNumber < 0) invalidOpeningRows.push(comboLabel);
             }
 	            if (inFileSignatures.has(sig)) duplicateInFileRows.push(comboLabel);
 	            inFileSignatures.add(sig);
 	            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
 	          }
-	          if (duplicateInFileRows.length || duplicateExistingRows.length || invalidReorderRows.length) {
+		          if (duplicateInFileRows.length || duplicateExistingRows.length || invalidReorderRows.length || invalidOpeningRows.length) {
 	            const dupInFile = Array.from(new Set(duplicateInFileRows));
 	            const dupExisting = Array.from(new Set(duplicateExistingRows));
-            const invalidReorder = Array.from(new Set(invalidReorderRows));
+	            const invalidReorder = Array.from(new Set(invalidReorderRows));
+            const invalidOpening = Array.from(new Set(invalidOpeningRows));
 	            const issues: ItemUploadIssue[] = [
               ...dupInFile.map((combination) => ({
                 type: 'duplicate_in_file' as const,
@@ -1430,12 +1438,17 @@ export default function MastersView({
 	                combination,
 	                message: 'This item combination already exists in system.',
 	              })),
-              ...invalidReorder.map((combination) => ({
-                type: 'invalid_reorder_level' as const,
+	              ...invalidReorder.map((combination) => ({
+	                type: 'invalid_reorder_level' as const,
+	                combination,
+	                message: 'Re-Order Level must be blank or a non-negative number.',
+	              })),
+              ...invalidOpening.map((combination) => ({
+                type: 'create_failed' as const,
                 combination,
-                message: 'Re-Order Level must be blank or a non-negative number.',
+                message: 'Opening Stock must be blank or a non-negative number.',
               })),
-	            ];
+		            ];
             setItemUploadIssues(issues);
             setTemplateError('Validation failed. Please correct the template and upload again.');
             setTemplateInfo(null);
@@ -1488,14 +1501,16 @@ export default function MastersView({
               }
             }
             try {
-              await createItem({
-                itemNameId,
-                unit: row.unitName || undefined,
-                description: row.description || undefined,
-                reorderLevel: row.reorderLevel.trim() ? Number(row.reorderLevel) : null,
-                specs: row.specs,
-                createdBy: 'system',
-              });
+	              await createItem({
+	                itemNameId,
+	                unit: row.unitName || undefined,
+	                description: row.description || undefined,
+	                reorderLevel: row.reorderLevel.trim() ? Number(row.reorderLevel) : null,
+                openingStock: row.openingStock.trim() ? Number(row.openingStock) : 0,
+                storeName: row.storeName.trim() || undefined,
+	                specs: row.specs,
+	                createdBy: 'system',
+	              });
               created += 1;
             } catch (e) {
               failures.push({
@@ -1507,9 +1522,26 @@ export default function MastersView({
           }
           await refreshCurrentTab('items');
           const message = `Upload complete. Created: ${created}, Failed: ${failures.length}.`;
-          setItemUploadIssues(failures);
-          setTemplateInfo(message);
-        }
+	          setItemUploadIssues(failures);
+	          setTemplateInfo(message);
+	        }
+
+          async function showItemOpeningStockByStore(itemId: string, itemLabel: string) {
+            try {
+              const res = await fetch(`/api/masters/items/${encodeURIComponent(itemId)}/opening-balances`);
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(String((data as any)?.error ?? `Failed to load opening balances (${res.status})`));
+              const balances = Array.isArray((data as any)?.balances) ? (data as any).balances : [];
+              if (!balances.length) {
+                window.alert(`${itemLabel}\n\nNo store-wise opening balances found.`);
+                return;
+              }
+              const lines = balances.map((b: any) => `${String(b.storeName ?? b.storeId ?? '-')} : ${Number(b.quantity ?? 0)}`);
+              window.alert(`${itemLabel}\n\n${lines.join('\n')}`);
+            } catch (e) {
+              window.alert(e instanceof Error ? e.message : String(e));
+            }
+          }
 
         async function createMissingItemNamesAndContinue() {
           try {
@@ -1553,16 +1585,18 @@ export default function MastersView({
             setTemplateError(null);
             setTemplateInfo(null);
             setItemUploadIssues([]);
-            if (tab === 'items') {
-	              const specColumns = specs.map((s) => s.name);
-	              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Re-Order Level'];
-	              const sampleRow: Record<string, string> = {
-	                item_name: '',
-	                description: '',
-	                unit: '',
-	                item_category: '',
-                  'Re-Order Level': '',
-	              };
+	            if (tab === 'items') {
+		              const specColumns = specs.map((s) => s.name);
+		              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, 'Opening Stock', 'Store Name', 'Re-Order Level'];
+		              const sampleRow: Record<string, string> = {
+		                item_name: '',
+		                description: '',
+		                unit: '',
+		                item_category: '',
+                    'Opening Stock': '',
+                    'Store Name': '',
+	                  'Re-Order Level': '',
+		              };
               for (const col of specColumns) sampleRow[col] = '';
               downloadTextFile('items-template.csv', toCsv(header, [sampleRow]), 'text/csv; charset=utf-8');
               setTemplateInfo('Template downloaded.');
@@ -1621,12 +1655,22 @@ export default function MastersView({
               const descriptionColumn = headerMap.get('description') ?? '';
 	              const unitColumn = headerMap.get('unit') ?? '';
 	              const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
-              const reorderColumn =
-                headerMap.get('re-order level') ??
-                headerMap.get('reorder level') ??
-                headerMap.get('reorder_level') ??
-                headerMap.get('reorderlevel') ??
-                '';
+	              const reorderColumn =
+	                headerMap.get('re-order level') ??
+	                headerMap.get('reorder level') ??
+	                headerMap.get('reorder_level') ??
+	                headerMap.get('reorderlevel') ??
+	                '';
+                const openingStockColumn =
+                  headerMap.get('opening stock') ??
+                  headerMap.get('opening_stock') ??
+                  headerMap.get('openingstock') ??
+                  '';
+                const storeNameColumn =
+                  headerMap.get('store name') ??
+                  headerMap.get('storename') ??
+                  headerMap.get('store') ??
+                  '';
               const specIdByColumn = new Map<string, string>();
               for (const s of specs) {
                 const col = headerMap.get(normalizeKey(s.name));
@@ -1638,12 +1682,14 @@ export default function MastersView({
                   const description = descriptionColumn ? String(r[descriptionColumn] ?? '').trim() : '';
 	                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
 	                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
-                  const reorderLevel = reorderColumn ? String(r[reorderColumn] ?? '').trim() : '';
-	                  const rowSpecs = Array.from(specIdByColumn.entries())
-                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
-                    .filter((x) => x.value);
-	                  return { itemName, description, unitName, itemCategoryName, reorderLevel, specs: rowSpecs };
-                })
+	                  const reorderLevel = reorderColumn ? String(r[reorderColumn] ?? '').trim() : '';
+                    const openingStock = openingStockColumn ? String(r[openingStockColumn] ?? '').trim() : '';
+                    const storeName = storeNameColumn ? String(r[storeNameColumn] ?? '').trim() : '';
+		                  const rowSpecs = Array.from(specIdByColumn.entries())
+	                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
+	                    .filter((x) => x.value);
+		                  return { itemName, description, unitName, itemCategoryName, reorderLevel, openingStock, storeName, specs: rowSpecs };
+	                })
                 .filter((r) => r.itemName);
               if (!rows.length) throw new Error('No valid item rows found in file.');
               const itemNameSet = new Set(itemNames.map((n) => normalizeKey(n.name)));
@@ -1817,8 +1863,8 @@ export default function MastersView({
             const rows = specValues.map((v) => ({ specificationId: v.specificationId, value: v.value, isActive: v.isActive ? 'true' : 'false' }));
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
-          if (tab === 'items') {
-	            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Opening Stock', 'Re-Order Level'];
+	          if (tab === 'items') {
+		            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), 'Opening Stock', 'Store Name', 'Re-Order Level'];
             const rows = items.map((it) => {
               const specObj = (() => {
                 try {
@@ -1837,8 +1883,9 @@ export default function MastersView({
                 unit: it.unit ?? '',
 	                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
 	                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
-	                  'Opening Stock': (it as any).openingStock ?? 0,
-	                  'Re-Order Level': it.reorderLevel ?? '',
+		                  'Opening Stock': (it as any).openingStock ?? 0,
+                    'Store Name': '',
+		                  'Re-Order Level': it.reorderLevel ?? '',
 		              };
             });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
@@ -5771,14 +5818,25 @@ export default function MastersView({
 						                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
 						                      {formatItemInline(it.itemName, it.specificationsJson, specNameLookup)}
 						                    </td>
-                            <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
-                              {(() => {
-                                const raw = (it as any).openingStock;
-                                if (raw == null || String(raw).trim() === '') return '0';
-                                const n = Number(raw);
-                                return Number.isFinite(n) ? n : String(raw);
-                              })()}
-                            </td>
+	                            <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
+                                <div className="inline-flex items-center gap-2">
+	                                <span>{(() => {
+	                                  const raw = (it as any).openingStock;
+	                                  if (raw == null || String(raw).trim() === '') return '0';
+	                                  const n = Number(raw);
+	                                  return Number.isFinite(n) ? n : String(raw);
+	                                })()}</span>
+                                  <button
+                                    type="button"
+                                    title="View store-wise opening stock"
+                                    aria-label="View store-wise opening stock"
+                                    className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-outline-variant/30 hover:bg-surface-container-low"
+                                    onClick={() => showItemOpeningStockByStore(it.id, formatItemInline(it.itemName, it.specificationsJson, specNameLookup))}
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                </div>
+	                            </td>
                           <td className="px-3 py-2 text-on-surface border border-blue-600">
                             {(() => {
                               const photos = [

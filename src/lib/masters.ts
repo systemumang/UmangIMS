@@ -894,6 +894,7 @@ export async function createItem(input: {
   videoLink?: string | null;
   reorderLevel?: number | null;
   openingStock?: number | null;
+  storeName?: string;
   specs: Array<{ specificationId: string; value: string }>;
   createdBy?: string;
 }) {
