@@ -18,7 +18,7 @@ function todayIsoDate() {
 export default function PaymentQueueView({
   onViewPr,
   queueLabel = 'Pending Payment',
-  queuePathLabel = 'Pending Tasks / Pending Payment',
+  queuePathLabel = 'Pending Payment',
   exportPrefix = 'queue-payment',
   fetchRows = fetchQueuePayment,
   mode = 'payment',

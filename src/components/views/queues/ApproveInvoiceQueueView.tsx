@@ -85,7 +85,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
 	      <div className="hidden">
-	        <div className="text-sm text-on-surface-variant">Pending Tasks / Approve Invoice</div>
+	        <div className="text-sm text-on-surface-variant">Approve Invoice</div>
 	        <ExportCsvButton id="pending-export-btn" filename={`queue-approve-invoice-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
 	      </div>
 	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />

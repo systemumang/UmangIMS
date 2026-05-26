@@ -312,7 +312,7 @@ export default function App() {
 			    if (view === 'newPurchaseRequest') return { title: 'New Purchase Request', showSearch: false };
 			    if (view === 'purchaseRequestDetail') return { title: 'Request Details', showSearch: false };
 		    if (isPendingQueueView(view)) {
-	      const subtitleByKey: Record<PendingQueueView, string> = {
+	      const titleByKey: Record<PendingQueueView, string> = {
 	        queueApprovePr: 'Approve PR',
 	        queueCreatePo: 'Create PO',
 	        queueCheckPo: 'Check PO',
@@ -325,7 +325,7 @@ export default function App() {
 	        queueLinkInvoiceGrn: 'Link Invoice ↔ GRN',
 		        queuePayment: 'Pending Payment',
 		      };
-	      return { title: 'Pending Tasks', subtitle: subtitleByKey[view], showSearch: false };
+	      return { title: titleByKey[view], showSearch: false };
 	    }
 	    return { title: 'Purchase Requests', showSearch: true };
 	  }, [view, stockMasterTab]);
@@ -839,7 +839,7 @@ export default function App() {
 			          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueApproveInvoice' ? <ApproveInvoiceQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Pending Tasks / Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
+			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
 			          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
 		        </div>
