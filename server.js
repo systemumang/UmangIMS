@@ -12072,10 +12072,11 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
         cvi.quantity,
         cvi.rate,
         cvi.amount,
-        i.item_name AS itemName,
+        iname.name AS itemName,
         i.specifications_json AS specificationsJson
       FROM credit_voucher_items cvi
       LEFT JOIN items i ON i.id = cvi.item_id
+      LEFT JOIN item_names iname ON iname.id = i.item_name_id
       WHERE cvi.credit_voucher_id = ?
       ORDER BY cvi.created_at ASC
       `,
@@ -12149,7 +12150,7 @@ app.get('/api/credit-vouchers/:id/items', async (req, res) => {
       SELECT
         cvi.id,
         cvi.item_id AS itemId,
-        COALESCE(iname.name, i.item_name, '') AS itemName,
+        COALESCE(iname.name, '') AS itemName,
         cvi.quantity,
         cvi.rate,
         cvi.amount
