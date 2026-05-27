@@ -12011,8 +12011,31 @@ async function allocateCreditVoucherNumber(pool, date = new Date()) {
   return `${fy}-${seq}`;
 }
 
+async function peekCreditVoucherNumber(pool, date = new Date()) {
+  const fyRaw = fiscalYearLabel(date);
+  const fy = fyRaw.replace('-', '/');
+  await ensureDocSequencesTable(pool);
+  const [rows] = await pool.query('SELECT next_no AS nextNo FROM doc_sequences WHERE kind=? AND fy=? LIMIT 1', ['CV', fyRaw]);
+  const nextNo = Number((Array.isArray(rows) ? rows[0] : null)?.nextNo ?? 1);
+  const seq = String(Number.isFinite(nextNo) && nextNo > 0 ? nextNo : 1).padStart(5, '0');
+  return `${fy}-${seq}`;
+}
+
 app.post('/api/pos/:id/credit-voucher', handleCreateCreditVoucher);
 app.post('/api/pos/:id/credit-vouchers', handleCreateCreditVoucher);
+
+app.get('/api/credit-vouchers/next-number', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const voucherDateInput = String(req.query?.voucherDate ?? '').trim();
+    const voucherDate = toIsoDate(voucherDateInput) || voucherDateInput;
+    const nextVoucherNo = await peekCreditVoucherNumber(pool, voucherDate ? new Date(voucherDate) : new Date());
+    res.json({ voucherNo: nextVoucherNo });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 app.put('/api/credit-vouchers/:id/approve-entry', async (req, res) => {
   try {
