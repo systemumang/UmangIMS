@@ -188,6 +188,7 @@ export type OperationsCreditVoucherListRow = {
   prNumber: string;
   firmId: string;
   firmName: string;
+  firmShortName?: string;
   supplierId: string;
   supplierName: string;
   status: string;
@@ -377,6 +378,24 @@ export async function fetchInvoiceReceipts(
     receipts?: InvoiceReceiptRow[];
     totals?: { adjustedAmount?: number; actualReceiptAmount?: number };
   }>(res, 'Failed to load invoice receipts');
+  return {
+    receipts: Array.isArray(data.receipts) ? data.receipts : [],
+    totals: {
+      adjustedAmount: Number(data.totals?.adjustedAmount ?? 0),
+      actualReceiptAmount: Number(data.totals?.actualReceiptAmount ?? 0),
+    },
+  };
+}
+
+export async function fetchCreditVoucherReceipts(
+  cvId: string,
+  signal?: AbortSignal
+): Promise<{ receipts: InvoiceReceiptRow[]; totals: { adjustedAmount: number; actualReceiptAmount: number } }> {
+  const res = await fetch(`/api/credit-vouchers/${encodeURIComponent(cvId)}/receipts`, { signal });
+  const data = await requireOk<{
+    receipts?: InvoiceReceiptRow[];
+    totals?: { adjustedAmount?: number; actualReceiptAmount?: number };
+  }>(res, 'Failed to load credit voucher receipts');
   return {
     receipts: Array.isArray(data.receipts) ? data.receipts : [],
     totals: {

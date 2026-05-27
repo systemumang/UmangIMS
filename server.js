@@ -4769,6 +4769,7 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
         f.name AS firmName,
+        f.sort_name AS firmShortName,
         po.supplier_id AS supplierId,
         s.name AS supplierName
       FROM credit_vouchers cv
@@ -12794,6 +12795,62 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
       }
     }
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/credit-vouchers/:id/receipts', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const cvId = req.params.id;
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        po_id AS poId,
+        invoice_id AS invoiceId,
+        adjusted_amount AS amount,
+        payment_mode AS paymentMode,
+        receipt_type AS receiptType,
+        reference_type AS referenceType,
+        created_by AS createdBy,
+        created_at AS createdAt,
+        updated_by AS updatedBy,
+        updated_at AS updatedAt
+      FROM po_advance_invoice_adjustments
+      WHERE entry_key = ? AND reference_type = 'CREDIT_VOUCHER'
+      ORDER BY created_at DESC, updated_at DESC
+      `,
+      [cvId]
+    );
+
+    const receipts = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      poId: String(r.poId ?? ''),
+      invoiceId: String(r.invoiceId ?? ''),
+      amount: Number(r.amount ?? 0),
+      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
+      receiptType: r.receiptType != null ? String(r.receiptType) : 'ADVANCE_ADJUSTMENT',
+      referenceType: r.referenceType != null ? String(r.referenceType) : '',
+      createdBy: r.createdBy != null ? String(r.createdBy) : '',
+      createdAt: toIsoDateTime(r.createdAt) || '',
+      updatedBy: r.updatedBy != null ? String(r.updatedBy) : '',
+      updatedAt: toIsoDateTime(r.updatedAt) || '',
+    }));
+
+    const totals = receipts.reduce(
+      (acc, x) => {
+        if (String(x.receiptType) === 'DIRECT_PAYMENT') acc.actualReceiptAmount += Number(x.amount ?? 0);
+        else acc.adjustedAmount += Number(x.amount ?? 0);
+        return acc;
+      },
+      { adjustedAmount: 0, actualReceiptAmount: 0 }
+    );
+
+    res.json({ receipts, totals });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

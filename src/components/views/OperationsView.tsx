@@ -136,6 +136,15 @@ export default function OperationsView({
   >({});
   const [inlineInvoiceReceiptsLoadingById, setInlineInvoiceReceiptsLoadingById] = useState<Record<string, boolean>>({});
   const [inlineInvoiceReceiptsErrorById, setInlineInvoiceReceiptsErrorById] = useState<Record<string, string>>({});
+
+  const [expandedCreditVoucherReceiptIds, setExpandedCreditVoucherReceiptIds] = useState<string[]>([]);
+  const [inlineCreditVoucherReceiptsById, setInlineCreditVoucherReceiptsById] = useState<Record<string, InvoiceReceiptRow[]>>({});
+  const [inlineCreditVoucherReceiptTotalsById, setInlineCreditVoucherReceiptTotalsById] = useState<
+    Record<string, { adjustedAmount: number; actualReceiptAmount: number }>
+  >({});
+  const [inlineCreditVoucherReceiptsLoadingById, setInlineCreditVoucherReceiptsLoadingById] = useState<Record<string, boolean>>({});
+  const [inlineCreditVoucherReceiptsErrorById, setInlineCreditVoucherReceiptsErrorById] = useState<Record<string, string>>({});
+
   const [expandedPoIds, setExpandedPoIds] = useState<string[]>([]);
   const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
   const [inlinePoLoadingById, setInlinePoLoadingById] = useState<Record<string, boolean>>({});
@@ -907,6 +916,40 @@ export default function OperationsView({
     }
   };
 
+  const toggleInlineCreditVoucherReceipts = async (row: OperationsCreditVoucherListRow) => {
+    const cvId = String(row?.creditVoucherId ?? '').trim();
+    if (!cvId) return;
+    const isOpen = expandedCreditVoucherReceiptIds.includes(cvId);
+    if (isOpen) {
+      setExpandedCreditVoucherReceiptIds((prev) => prev.filter((x) => x !== cvId));
+      return;
+    }
+    if (inlineCreditVoucherReceiptsById[cvId]) {
+      setExpandedCreditVoucherReceiptIds((prev) => (prev.includes(cvId) ? prev : [...prev, cvId]));
+      return;
+    }
+    if (inlineCreditVoucherReceiptsLoadingById[cvId]) return;
+    setInlineCreditVoucherReceiptsLoadingById((prev) => ({ ...prev, [cvId]: true }));
+    setInlineCreditVoucherReceiptsErrorById((prev) => {
+      const next = { ...prev };
+      delete next[cvId];
+      return next;
+    });
+    try {
+      const payload = await fetchCreditVoucherReceipts(cvId);
+      setInlineCreditVoucherReceiptsById((prev) => ({ ...prev, [cvId]: payload.receipts ?? [] }));
+      setInlineCreditVoucherReceiptTotalsById((prev) => ({
+        ...prev,
+        [cvId]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 },
+      }));
+      setExpandedCreditVoucherReceiptIds((prev) => (prev.includes(cvId) ? prev : [...prev, cvId]));
+    } catch (e) {
+      setInlineCreditVoucherReceiptsErrorById((prev) => ({ ...prev, [cvId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setInlineCreditVoucherReceiptsLoadingById((prev) => ({ ...prev, [cvId]: false }));
+    }
+  };
+
 	  return (
 	    <div className="space-y-4">
 	      <div className="flex items-center justify-end">
@@ -1068,10 +1111,8 @@ export default function OperationsView({
 	                      <SortTh label="Voucher" colKey="voucherNo" />
 	                      <SortTh label="Date" colKey="voucherDate" />
 	                      <SortTh label="PO" colKey="poNumber" />
-	                      <SortTh label="PR" colKey="prNumber" />
-	                      <SortTh label="Firm" colKey="firmName" />
-	                      <SortTh label="Supplier" colKey="supplierName" />
-	                      <SortTh label="Status" colKey="status" />
+	                      <SortTh label="Firm" colKey="firmShortName" />
+	                      <SortTh label="Supplier" colKey="supplierName" />	                      <SortTh label="Status" colKey="status" />
 	                      <SortTh label="Payment" colKey="paymentStatus" />
 	                      <SortTh label="Amount" colKey="totalAmount" />
 	                      <SortTh label="Paid" colKey="paidAmount" />
@@ -1096,13 +1137,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 			                    Loading...
 			                  </td>
 			                </tr>
 			              ) : !paged.length ? (
 			                <tr>
-						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 			                    No records.
 			                  </td>
 			                </tr>
@@ -1128,6 +1169,7 @@ export default function OperationsView({
                         tab === 'invoices' && invoiceSubTab === 'receipts'
                           ? expandedInvoiceReceiptIds.includes(String(r.invoiceId ?? ''))
                           : false;
+                      const isCreditVoucherReceiptExpanded = tab === 'creditVouchers' ? expandedCreditVoucherReceiptIds.includes(String(r.creditVoucherId ?? '')) : false;
 	                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
 		                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
 		                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
@@ -1145,7 +1187,7 @@ export default function OperationsView({
 	                        onClick={() => {
 	                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
-	                            if (tab === 'creditVouchers') return;
+	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);
 	                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
 	                          openDetailForRow(r);
 	                        }}
@@ -1261,8 +1303,7 @@ export default function OperationsView({
 		                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.firmShortName || r.firmName}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.status || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.paymentStatus || '-'}</td>
@@ -1501,6 +1542,110 @@ export default function OperationsView({
                                                       const payload = await fetchInvoiceReceipts(String(r.invoiceId ?? '').trim());
                                                       setInlineInvoiceReceiptsById((prev) => ({ ...prev, [String(r.invoiceId ?? '')]: payload.receipts ?? [] }));
                                                       setInlineInvoiceReceiptTotalsById((prev) => ({ ...prev, [String(r.invoiceId ?? '')]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 } }));
+                                                    }}
+                                                  >
+                                                    <Trash2 size={16} />
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            ))
+                                          ) : (
+                                            <tr>
+                                              <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                                No receipt rows found.
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ) : null}
+                          {tab === 'creditVouchers' && isCreditVoucherReceiptExpanded ? (
+                            <tr>
+                              <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                                {inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] ? (
+                                  <div className="text-sm text-on-surface-variant">Loading credit voucher receipts...</div>
+                                ) : null}
+                                {!inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] &&
+                                inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')] ? (
+                                  <div className="text-sm text-error">
+                                    {inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')]}
+                                  </div>
+                                ) : null}
+                                {!inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] &&
+                                !inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')] ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+                                      <div>
+                                        Adjusted Amount:{' '}
+                                        <span className="text-primary tabular-nums">
+                                          {Number(
+                                            inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.adjustedAmount ?? 0
+                                          ).toFixed(2)}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        Actual Payment:{' '}
+                                        <span className="text-emerald-600 tabular-nums">
+                                          {Number(
+                                            inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.actualReceiptAmount ?? 0
+                                          ).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm bg-surface">
+                                        <thead>
+                                          <tr className="bg-primary text-on-primary">
+                                            <th className="px-3 py-2 border border-outline-variant">Date</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Receipt Type</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+                                            <th className="px-3 py-2 border border-outline-variant">Amount</th>
+                                            <th className="px-3 py-2 border border-outline-variant w-[80px]">Action</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
+                                            (inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).map((x) => (
+                                              <tr key={String(x.id ?? '')} className="hover:bg-surface-container-high/40">
+                                                <td className="px-3 py-2 border border-outline-variant">
+                                                  {formatDateShort(x.createdAt || '')}
+                                                </td>
+                                                <td className="px-3 py-2 border border-outline-variant">{x.receiptType}</td>
+                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
+                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                                  {Number(x.amount ?? 0).toFixed(2)}
+                                                </td>
+                                                <td className="px-3 py-2 border border-outline-variant">
+                                                  <button
+                                                    type="button"
+                                                    className="text-error hover:text-error/80 transition-colors"
+                                                    title="Delete"
+                                                    aria-label="Delete"
+                                                    onClick={async (e) => {
+                                                      e.stopPropagation();
+                                                      const id = String(x.id ?? '').trim();
+                                                      if (!id) return;
+                                                      await deleteReceiptRow(id);
+                                                      // Refresh this CV's receipt list.
+                                                      const payload = await fetchCreditVoucherReceipts(
+                                                        String(r.creditVoucherId ?? '').trim()
+                                                      );
+                                                      setInlineCreditVoucherReceiptsById((prev) => ({
+                                                        ...prev,
+                                                        [String(r.creditVoucherId ?? '')]: payload.receipts ?? [],
+                                                      }));
+                                                      setInlineCreditVoucherReceiptTotalsById((prev) => ({
+                                                        ...prev,
+                                                        [String(r.creditVoucherId ?? '')]: payload.totals ?? {
+                                                          adjustedAmount: 0,
+                                                          actualReceiptAmount: 0,
+                                                        },
+                                                      }));
                                                     }}
                                                   >
                                                     <Trash2 size={16} />
