@@ -2925,8 +2925,8 @@ export default function MastersView({
 			                      />
 			                    </label>
 
-					                    <label className="space-y-1">
-						                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type <span className="text-red-600">*</span></div>
+				                    <label className="space-y-1">
+					                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type {newSupplierGstNumber.trim() ? <span className="text-red-600">*</span> : null}</div>
 					                      <SearchableSelect
 					                        options={[
 					                          { value: 'Intra-State', label: 'Intra-State' },
@@ -3117,7 +3117,7 @@ export default function MastersView({
 	                    <button
 	                      type="button"
 	                      className="px-4 py-2 text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-		                      disabled={!newSupplierName.trim() || !newSupplierGstType.trim() || !newSupplierCity.trim() || !newSupplierState.trim() || busy}
+		                      disabled={!newSupplierName.trim() || !newSupplierCity.trim() || !newSupplierState.trim() || (newSupplierGstNumber.trim() && !newSupplierGstType.trim()) || busy}
 				                      onClick={() => {
 				                        setBusy(true);
 				                        setError(null);
@@ -3125,13 +3125,14 @@ export default function MastersView({
 					                        const phone = newSupplierPhone.trim();
 					                        const supplierName = newSupplierName.trim();
 					                        const gstType = newSupplierGstType.trim();
+                                  const hasGstNumber = Boolean(newSupplierGstNumber.trim());
 					                        const city = newSupplierCity.trim();
 					                        const state = newSupplierState.trim();
-					                        if (!supplierName || !gstType || !city || !state) {
-					                          setBusy(false);
-					                          setError('Please fill all required fields: Supplier Name, GST Type, City, State.');
-					                          return;
-					                        }
+						                        if (!supplierName || (hasGstNumber && !gstType) || !city || !state) {
+						                          setBusy(false);
+						                          setError('Please fill all required fields: Supplier Name, City, State. GST Type is required when GST is entered.');
+						                          return;
+						                        }
 					                        if (phone && !isValidTenDigitPhone(phone)) {
 				                          setBusy(false);
 				                          setFieldError('supplierPhone', 'Must be a 10 digit number.');
