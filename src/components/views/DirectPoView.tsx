@@ -147,28 +147,14 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
-  const formatSpecsLines = (specificationsJson: string) => {
-    const raw = String(specificationsJson ?? '').trim();
-    if (!raw) return [];
-    try {
-      const obj = JSON.parse(raw) as Record<string, unknown>;
-      const entries = Object.entries(obj);
-      return entries
-        .map(([specId, v]) => {
-          const value = String(v ?? '').trim();
-          if (!value) return '';
-          const name = specNameById?.[specId];
-          // Never show raw ids in the UI; if the spec name isn't loaded, show only the value.
-          return name ? `${name}: ${value}` : value;
-        })
-        .filter(Boolean);
-    } catch {
-      return raw
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+  const specColumnIds = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of lines) {
+      if (!row.itemNameId) continue;
+      for (const specId of getItemNameSpecIds(row.itemNameId)) seen.add(specId);
     }
-  };
+    return Array.from(seen);
+  }, [lines, itemNames]);
 
   const itemOptions = useMemo(
     () =>
@@ -420,27 +406,39 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
             </button>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-outline-variant">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-                <tr>
-                  <th className="px-3 py-2 border border-outline-variant">{poType === 'Services' ? 'Service Name' : 'Item Name'}</th>
-                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant">Specifications</th> : null}
-                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Available</th> : null}
-                  <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
-                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Disc %</th> : null}
-                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Tax %</th> : null}
-                  <th className="px-3 py-2 border border-outline-variant text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l, idx) => (
-                  <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
-                    <td className="p-2 border border-outline-variant min-w-[360px]">
-                      <SearchableSelect
-                        value={l.itemNameId}
-                        options={itemOptions}
+	          <div className="overflow-x-auto rounded-xl border border-outline-variant">
+              {poType === 'Goods' ? (
+                <div className="min-w-[1120px]">
+                  <div
+                    className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
+                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 110px 110px 100px 100px 90px 90px` }}
+                  >
+                    <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
+                    {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
+                      <div key={`hdr-${specId}`} className="px-2 py-2 border-r border-outline-variant">
+                        {specId === '__no_specs__' ? 'Specifications' : specNameById?.[specId] ?? 'Specification'}
+                      </div>
+                    ))}
+                    <div className="px-2 py-2 border-r border-outline-variant text-right">Available</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-right">Qty</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-right">Rate</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-right">Disc %</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-right">Tax %</div>
+                    <div className="px-2 py-2 text-right">Action</div>
+                  </div>
+
+                  {lines.map((l, idx) => {
+                    const specIds = l.itemNameId ? getItemNameSpecIds(l.itemNameId) : [];
+                    return (
+                      <div
+                        key={idx}
+                        className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
+                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 110px 110px 100px 100px 90px 90px` }}
+                      >
+	                    <div className="p-2 border-r border-outline-variant">
+	                      <SearchableSelect
+	                        value={l.itemNameId}
+	                        options={itemOptions}
                         onChange={(itemNameId) => {
                           const specIdsToLoad = itemNameId ? getItemNameSpecIds(itemNameId) : [];
                           for (const specId of specIdsToLoad) {
@@ -454,79 +452,78 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         }}
                         placeholder={poType === 'Services' ? 'Search service name...' : 'Search item name...'}
                       />
-                    </td>
-                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant min-w-[280px]">
-                      {l.itemNameId ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {getItemNameSpecIds(l.itemNameId).map((specId) => {
-                            const specName = specNameById?.[specId] ?? specId;
-                            const value = String(l.specs?.[specId] ?? '');
-                            const key = specValueKey(l.itemNameId, specId);
-                            const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
-                            if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+	                    </div>
+                        {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => {
+                          if (specId === '__no_specs__') {
                             return (
-                              <label key={`${idx}-${specId}`} className="space-y-1">
-                                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
-                                <SearchableSelect
-                                  value={value}
-                                  options={options}
-                                  placeholder="Select value..."
-                                  onChange={(selectedValue) => {
-                                    setLines((prev) =>
-                                      prev.map((p, i) => {
-                                        if (i !== idx) return p;
-                                        const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
-                                        const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
-                                        return {
-                                          ...p,
-                                          specs: nextSpecs,
-                                          itemId: matched?.id ?? '',
-                                        };
-                                      })
-                                    );
-                                  }}
-                                />
-                              </label>
+                              <div key={`${idx}-spec-empty`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-80">
+                                Select Item Name to load specifications.
+                              </div>
                             );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="min-h-[40px] text-xs whitespace-pre-line px-2 py-2 bg-surface-container-low rounded-lg border border-outline-variant">
-                          -
-                        </div>
-                      )}
-                    </td> : null}
-                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-28">
-                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
-                    </td> : null}
-                    <td className="p-2 border border-outline-variant text-right w-28">
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                        value={l.quantity}
+                          }
+                          const isRequiredForRow = specIds.includes(specId);
+                          if (!l.itemNameId || !isRequiredForRow) {
+                            return <div key={`${idx}-${specId}`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-60">-</div>;
+                          }
+                          const value = String(l.specs?.[specId] ?? '');
+                          const key = specValueKey(l.itemNameId, specId);
+                          const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                          if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                          return (
+                            <div key={`${idx}-${specId}`} className="p-2 border-r border-outline-variant">
+                              <SearchableSelect
+                                value={value}
+                                options={options}
+                                placeholder="Select"
+                                onChange={(selectedValue) => {
+                                  setLines((prev) =>
+                                    prev.map((p, i) => {
+                                      if (i !== idx) return p;
+                                      const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
+                                      const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
+                                      return {
+                                        ...p,
+                                        specs: nextSpecs,
+                                        itemId: matched?.id ?? '',
+                                      };
+                                    })
+                                  );
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+	                    <div className="p-2 border-r border-outline-variant text-right">
+	                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
+	                    </div>
+	                    <div className="p-2 border-r border-outline-variant text-right">
+	                      <input
+	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                        value={l.quantity}
                         onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
                         placeholder="0"
                       />
-                    </td>
-                    <td className="p-2 border border-outline-variant text-right w-28">
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                        value={l.rate}
+	                    </div>
+	                    <div className="p-2 border-r border-outline-variant text-right">
+	                      <input
+	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                        value={l.rate}
                         onChange={(e) => updateLine(idx, { rate: sanitizeDecimalInput(e.target.value) })}
                         placeholder="0"
                       />
-                    </td>
-                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-24">
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                        value={l.discountPercent}
-                        onChange={(e) => updateLine(idx, { discountPercent: sanitizePercentInput(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </td> : null}
-                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-24">
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                        value={String(l.taxPercent ?? '')}
+	                    </div>
+	                    <div className="p-2 border-r border-outline-variant text-right">
+	                      <input
+	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                        value={l.discountPercent}
+	                        onChange={(e) => updateLine(idx, { discountPercent: sanitizePercentInput(e.target.value) })}
+	                        placeholder="0"
+	                      />
+	                    </div>
+	                    <div className="p-2 border-r border-outline-variant text-right">
+	                      <select
+	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                        value={String(l.taxPercent ?? '')}
 	                        onChange={(e) => updateLine(idx, { taxPercent: String(e.target.value ?? '') })}
 	                      >
 	                        <option value="">Select</option>
@@ -534,19 +531,66 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                        <option value="5">5</option>
 	                        <option value="12">12</option>
 	                        <option value="18">18</option>
-                        <option value="28">28</option>
-                      </select>
-                    </td> : null}
-                    <td className="p-2 border border-outline-variant text-right w-24">
-                      <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+	                        <option value="28">28</option>
+	                      </select>
+	                    </div>
+	                    <div className="p-2 text-right">
+	                      <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
+	                        Remove
+	                      </button>
+	                    </div>
+	                  </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                    <tr>
+                      <th className="px-3 py-2 border border-outline-variant">Service Name</th>
+                      <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
+                      <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
+                      <th className="px-3 py-2 border border-outline-variant text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((l, idx) => (
+                      <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
+                        <td className="p-2 border border-outline-variant min-w-[360px]">
+                          <SearchableSelect
+                            value={l.itemNameId}
+                            options={itemOptions}
+                            onChange={(itemNameId) => updateLine(idx, { itemNameId, itemId: '', specs: {} })}
+                            placeholder="Search service name..."
+                          />
+                        </td>
+                        <td className="p-2 border border-outline-variant text-right w-28">
+                          <input
+                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                            value={l.quantity}
+                            onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="p-2 border border-outline-variant text-right w-28">
+                          <input
+                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                            value={l.rate}
+                            onChange={(e) => updateLine(idx, { rate: sanitizeDecimalInput(e.target.value) })}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="p-2 border border-outline-variant text-right w-24">
+                          <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+	          </div>
 
           <div className="text-xs text-on-surface-variant">
             Note: Direct PO is not linked to any Purchase Request.

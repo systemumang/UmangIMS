@@ -12051,6 +12051,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
         cv.voucher_date AS voucherDate,
         cv.total_amount AS totalAmount,
         cv.status,
+        cv.updated_by AS approvedBy,
         cv.po_id AS poId,
         po.po_number AS poNumber,
         s.name AS supplierName
@@ -12152,7 +12153,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     drawText('Item', x1 + 6, headerBottom + 6, 10, true);
     drawText('Qty', x3 - textWidth('Qty', 10, true) - 6, headerBottom + 6, 10, true);
     drawText('Rate', x4 - textWidth('Rate', 10, true) - 6, headerBottom + 6, 10, true);
-    drawText('Amount', x4 + 6, headerBottom + 6, 10, true);
+    drawText('Amount', x5 - textWidth('Amount', 10, true) - 6, headerBottom + 6, 10, true);
     y = headerBottom - 2;
 
     const rows = Array.isArray(itemRows) ? itemRows : [];
@@ -12188,6 +12189,8 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     y -= 10;
     drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
+    y -= 22; // one blank row gap below total
+    drawText(`Approved By: ${String(header.approvedBy ?? '').trim()}`, 40, y, 10, true);
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
