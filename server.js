@@ -12091,12 +12091,22 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     const drawText = (text, x, y, size = 10, useBold = false) => {
       page.drawText(String(text ?? ''), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
     };
+    const formatDateDDMMYYYY = (value) => {
+      const raw = String(value ?? '').trim();
+      if (!raw) return '';
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return raw;
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
+    };
 
     let y = 810;
     drawText('CREDIT VOUCHER', 40, y, 16, true);
     y -= 26;
     drawText(`Voucher No: ${String(header.voucherNo ?? creditVoucherId)}`, 40, y, 10, true);
-    drawText(`Date: ${String(header.voucherDate ?? '')}`, 400, y, 10, true);
+    drawText(`Date: ${formatDateDDMMYYYY(header.voucherDate)}`, 400, y, 10, true);
     y -= 18;
     drawText(`PO: ${String(header.poNumber ?? header.poId ?? '')}`, 40, y, 10);
     y -= 18;
@@ -12104,12 +12114,28 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     drawText(`Status: ${String(header.status ?? '')}`, 400, y, 10);
     y -= 24;
 
-    // Table header
-    drawText('Item', 40, y, 10, true);
-    drawText('Qty', 340, y, 10, true);
-    drawText('Rate', 410, y, 10, true);
-    drawText('Amount', 480, y, 10, true);
-    y -= 14;
+    // Table (with borders)
+    const tableX = 40;
+    const colItemX = 40;
+    const colQtyX = 340;
+    const colRateX = 410;
+    const colAmtX = 480;
+    const col1 = 320;
+    const col2 = 70;
+    const col3 = 70;
+    const col4 = 75;
+    const rowH = 20;
+    const headerTop = y + 12;
+    const headerBottom = headerTop - rowH;
+    page.drawRectangle({ x: tableX, y: headerBottom, width: col1 + col2 + col3 + col4, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: tableX + col1, y: headerTop }, end: { x: tableX + col1, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: tableX + col1 + col2, y: headerTop }, end: { x: tableX + col1 + col2, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: tableX + col1 + col2 + col3, y: headerTop }, end: { x: tableX + col1 + col2 + col3, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    drawText('Item', colItemX + 4, headerBottom + 6, 10, true);
+    drawText('Qty', colQtyX + 4, headerBottom + 6, 10, true);
+    drawText('Rate', colRateX + 4, headerBottom + 6, 10, true);
+    drawText('Amount', colAmtX + 4, headerBottom + 6, 10, true);
+    y = headerBottom - 2;
 
     const rows = Array.isArray(itemRows) ? itemRows : [];
     for (const row of rows) {
@@ -12118,11 +12144,17 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
       const rate = Number(row?.rate ?? 0);
       const amount = Number(row?.amount ?? qty * rate);
 
-      drawText(itemName.length > 55 ? `${itemName.slice(0, 55)}...` : itemName, 40, y, 9);
-      drawText(qty.toFixed(2), 340, y, 9);
-      drawText(rate.toFixed(2), 410, y, 9);
-      drawText(amount.toFixed(2), 480, y, 9);
-      y -= 14;
+      const rowTop = y;
+      const rowBottom = rowTop - rowH;
+      page.drawRectangle({ x: tableX, y: rowBottom, width: col1 + col2 + col3 + col4, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: tableX + col1, y: rowTop }, end: { x: tableX + col1, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: tableX + col1 + col2, y: rowTop }, end: { x: tableX + col1 + col2, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: tableX + col1 + col2 + col3, y: rowTop }, end: { x: tableX + col1 + col2 + col3, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      drawText(itemName.length > 55 ? `${itemName.slice(0, 55)}...` : itemName, colItemX + 4, rowBottom + 6, 9);
+      drawText(qty.toFixed(2), colQtyX + 4, rowBottom + 6, 9);
+      drawText(rate.toFixed(2), colRateX + 4, rowBottom + 6, 9);
+      drawText(amount.toFixed(2), colAmtX + 4, rowBottom + 6, 9);
+      y = rowBottom - 2;
       if (y < 70) break;
     }
 
