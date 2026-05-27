@@ -6410,7 +6410,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
 
 	    const directPrId = crypto.randomUUID();
-	    const directPrNumber = `DPO-${poNumber}`;
+	    const directPrNumber = await allocateDocNumber(pool, 'PR', new Date());
 	    const directRemarks = JSON.stringify({ department, directPo: true, requiredDate });
 	    const directRequestType = projectId ? 'Project' : 'Stock';
 
