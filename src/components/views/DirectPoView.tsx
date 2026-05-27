@@ -2,19 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 	import SearchableSelect from '@/src/components/common/SearchableSelect';
 	import { createDirectPo } from '@/src/lib/purchaseRequests';
 	import { fetchInventorySheet } from '@/src/lib/inventory';
-	import {
-	  fetchDepartments,
-	  fetchFirms,
-	  fetchItemNames,
-	  fetchItems,
+import {
+  fetchFirms,
+  fetchItemNames,
+  fetchItems,
 	  fetchSpecificationValues,
 	  fetchProjects,
 	  fetchSpecifications,
-	  fetchStores,
-	  fetchSuppliers,
-	  fetchUsers,
-	  type Department,
-	  type Firm,
+  fetchStores,
+  fetchSuppliers,
+  fetchUsers,
+  type Firm,
 	  type Item,
 	  type ItemName,
 	  type Project,
@@ -40,7 +38,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const inputClass =
     'w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
 
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -51,7 +48,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
-  const [departmentId, setDepartmentId] = useState('');
   const [firmId, setFirmId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [projectId, setProjectId] = useState<string>('');
@@ -71,7 +67,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
   useEffect(() => {
     const ac = new AbortController();
-    fetchDepartments(ac.signal).then(setDepartments).catch(() => setDepartments([]));
     fetchFirms(ac.signal).then(setFirms).catch(() => setFirms([]));
     fetchStores(ac.signal).then(setStores).catch(() => setStores([]));
     fetchProjects(ac.signal).then(setProjects).catch(() => setProjects([]));
@@ -82,6 +77,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
     return () => ac.abort();
   }, []);
+
+  useEffect(() => {
+    if (poType === 'Services' && storeId) setStoreId('');
+  }, [poType, storeId]);
 
   useEffect(() => {
     if (!firmId) {
@@ -213,13 +212,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     );
   };
 
-		  const canSave = useMemo(() => {
-		    if (!firmId || !supplierId) return false;
-      if (!departmentId) return false;
+  const canSave = useMemo(() => {
+    if (!firmId || !supplierId) return false;
       if (!requestedByUserId) return false;
       if (!String(requiredDate ?? '').trim()) return false;
-	      if (!storeId && !projectId) return false;
-			    if (!String(paymentTerms ?? '').trim()) return false;
+      if (poType === 'Goods' && !storeId && !projectId) return false;
+      if (poType === 'Services' && !projectId) return false;
+        if (!String(paymentTerms ?? '').trim()) return false;
 			    const hasLine = lines.some((l) => {
 	          const qtyOk = Number(l.quantity) > 0;
 	          const rateOk = Number(l.rate) > 0;
@@ -233,7 +232,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          return true;
 	        });
 			    return hasLine;
-			  }, [departmentId, firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines, poType]);
+      }, [firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines, poType]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -252,14 +251,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     if (!canSave) return;
     setSaving(true);
     setError(null);
-	    try {
-	      const department = String(departments.find((d) => d.id === departmentId)?.name ?? '').trim();
-	      const requestedBy = String(users.find((u) => u.id === requestedByUserId)?.name ?? '').trim();
-	      const requiredDateIso = String(requiredDate ?? '').trim();
+    try {
+      const department = 'N/A';
+      const requestedBy = String(users.find((u) => u.id === requestedByUserId)?.name ?? '').trim();
+      const requiredDateIso = String(requiredDate ?? '').trim();
 
-	      if (!department) throw new Error('Department is required.');
-	      if (!requestedBy) throw new Error('Requested By is required.');
-	      if (!requiredDateIso) throw new Error('Required Date is required.');
+      if (!requestedBy) throw new Error('Requested By is required.');
+      if (!requiredDateIso) throw new Error('Required Date is required.');
 
 	      const picked = lines
 	        .filter((l) => (String(l.itemId ?? '').trim() || String(l.itemNameId ?? '').trim()) && Number(l.quantity) > 0 && Number(l.rate) > 0)
@@ -314,9 +312,25 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
             <div className="p-3 rounded-lg border border-error/30 bg-error/10 text-error text-sm">{error}</div>
           ) : null}
 
-	          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-	            <label className="space-y-1">
-	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+            <label className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">PO Type</div>
+              <select
+                className={inputClass}
+                value={poType}
+                onChange={(e) => {
+                  const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
+                  setPoType(next);
+                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+                }}
+              >
+                <option value="Goods">Goods</option>
+                <option value="Services">Services</option>
+              </select>
+            </label>
+
+            <label className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
 	              <SearchableSelect
 	                value={firmId}
 	                options={firmOptions}
@@ -329,29 +343,19 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	              />
 	            </label>
 
-	            <label className="space-y-1">
-	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Department</div>
-	              <SearchableSelect
-	                value={departmentId}
-	                options={departments.map((d) => ({ value: d.id, label: d.name }))}
-	                onChange={setDepartmentId}
-	                placeholder="Select department..."
-	              />
-	            </label>
-
-	            <label className="space-y-1">
-	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Store</div>
-	              <SearchableSelect
-	                value={storeId}
+            {poType === 'Goods' ? <label className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Store</div>
+              <SearchableSelect
+                value={storeId}
                 options={storeOptions}
                 onChange={(v) => {
                   setStoreId(v);
                   if (v) setProjectId('');
                 }}
-	                placeholder="Select store..."
-	                disabled={Boolean(projectId)}
-	              />
-	            </label>
+                placeholder="Select store..."
+                disabled={Boolean(projectId)}
+              />
+            </label> : null}
 
 	            <label className="space-y-1">
 	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project</div>
@@ -383,23 +387,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 		              <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
 		            </label>
 
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">PO Type</div>
-                  <select
-                    className={inputClass}
-                    value={poType}
-                    onChange={(e) => {
-                      const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
-                      setPoType(next);
-                      setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
-                    }}
-                  >
-                    <option value="Goods">Goods</option>
-                    <option value="Services">Services</option>
-                  </select>
-                </label>
-
-	            <label className="space-y-1 md:col-span-2">
+            <label className="space-y-1 md:col-span-2">
 	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier</div>
 	              <SearchableSelect
                 value={supplierId}
@@ -438,8 +426,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
               <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                 <tr>
                   <th className="px-3 py-2 border border-outline-variant">Item Name</th>
-                  <th className="px-3 py-2 border border-outline-variant">Specifications</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">Available</th>
+                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant">Specifications</th> : null}
+                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Available</th> : null}
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Disc %</th>
@@ -468,7 +456,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         placeholder="Search item name..."
                       />
                     </td>
-                    <td className="p-2 border border-outline-variant min-w-[280px]">
+                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant min-w-[280px]">
                       {l.itemNameId ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {getItemNameSpecIds(l.itemNameId).map((specId) => {
@@ -508,10 +496,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                           -
                         </div>
                       )}
-                    </td>
-                    <td className="p-2 border border-outline-variant text-right w-28">
+                    </td> : null}
+                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-28">
                       {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
-                    </td>
+                    </td> : null}
                     <td className="p-2 border border-outline-variant text-right w-28">
                       <input
                         className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"

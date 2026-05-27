@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Save, ArrowUpDown } from 'lucide-react';
-import { fetchFirms, fetchStores, fetchItems, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -13,6 +13,7 @@ export default function InventoryView() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [specNameById, setSpecNameById] = useState<Record<string, string>>({});
+  const [goodsItemIds, setGoodsItemIds] = useState<Set<string>>(new Set());
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
   const [selectedStoreFilterId, setSelectedStoreFilterId] = useState<string>('');
   const [rows, setRows] = useState<InventorySheetRow[]>([]);
@@ -33,6 +34,12 @@ export default function InventoryView() {
       setSelectedFirmId(ALL_FIRMS_VALUE);
     });
     fetchStores().then(setStores);
+    Promise.all([fetchItems(), fetchItemNames()])
+      .then(([itemRows, itemNameRows]) => {
+        const goodsNameIds = new Set(itemNameRows.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => String(n.id)));
+        setGoodsItemIds(new Set(itemRows.filter((it) => goodsNameIds.has(String(it.itemNameId ?? ''))).map((it) => String(it.id))));
+      })
+      .catch(() => setGoodsItemIds(new Set()));
     fetchSpecifications()
       .then((list) => setSpecNameById(Object.fromEntries(list.map((s) => [s.id, s.name]))))
       .catch(() => setSpecNameById({}));
@@ -126,7 +133,9 @@ export default function InventoryView() {
 	        })
 	        .reduce((sum, it) => sum + Number(it.quantity ?? 0), 0);
 
-    return rows.map((row) => {
+    return rows
+      .filter((row) => goodsItemIds.has(String(row.itemId ?? '')))
+      .map((row) => {
       const rowFirmId = resolveFirmId(getFirmLabel(row));
       let issueDelta = 0;
       let returnDelta = 0;
@@ -165,8 +174,8 @@ export default function InventoryView() {
       const damage = Number(row.damage ?? 0) + damageDelta;
       const balance = opening + purchase + returns + transferIn - issue - damage - transferOut;
       return { ...row, issue, returns, damage, transferIn, transferOut, balance };
-    });
-  }, [rows, firms, issueRows, returnRows, damageRows, transferRows, specNameById]);
+      });
+  }, [rows, firms, issueRows, returnRows, damageRows, transferRows, specNameById, goodsItemIds]);
 
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
@@ -676,10 +685,12 @@ function OpeningStockModal({
   onClose,
   firms,
   specNameById,
+  goodsItemIds,
 }: {
   onClose: () => void;
   firms: Firm[];
   specNameById: Record<string, string>;
+  goodsItemIds: Set<string>;
 }) {
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedFirmId, setSelectedFirmId] = useState('');
@@ -696,6 +707,7 @@ function OpeningStockModal({
   }, []);
 
   const filteredStores = stores.filter(s => s.firmId === selectedFirmId);
+  const goodsItems = useMemo(() => items.filter((it) => goodsItemIds.has(String(it.id))), [items, goodsItemIds]);
 
   useEffect(() => {
     if (selectedStoreId) {
@@ -791,7 +803,7 @@ function OpeningStockModal({
             <div className="border border-outline-variant rounded-lg overflow-hidden">
             {loading ? (
               <div className="p-12 flex justify-center"><Spinner /></div>
-            ) : items.length === 0 ? (
+            ) : goodsItems.length === 0 ? (
               <div className="p-8 text-center italic text-on-surface-variant">No items defined in system</div>
             ) : (
               <div>
@@ -803,7 +815,7 @@ function OpeningStockModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black">
-                    {items.map((item) => (
+                    {goodsItems.map((item) => (
                       <tr key={item.id} className="hover:bg-surface-container-low/50 transition-colors">
                         <td className="p-3 border-r border-black">
                           <div

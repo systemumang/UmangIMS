@@ -679,8 +679,12 @@ export default function MastersView({
 		  }, [specValues, listQueryKey, specNameLookup, listField]);
 
 		  const filteredItems = useMemo(() => {
-		    if (!listQueryKey) return items;
-		    return items.filter((it) => {
+        const goodsItemNameIds = new Set(
+          itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => String(n.id))
+        );
+        const goodsOnly = items.filter((it) => goodsItemNameIds.has(String(it.itemNameId ?? '')));
+		    if (!listQueryKey) return goodsOnly;
+		    return goodsOnly.filter((it) => {
 		      const full = formatItemInline(it.itemName, it.specificationsJson, specNameLookup);
 		      if (listField === 'all')
 		        return matchesListQuery([
@@ -698,7 +702,7 @@ export default function MastersView({
 		      if (listField === 'video') return matchesListQuery([(it as any).videoLink]);
 		      return matchesListQuery([it.itemName, full]);
 		    });
-		  }, [items, listQueryKey, specNameLookup, listField]);
+		  }, [items, itemNames, listQueryKey, specNameLookup, listField]);
 
 	  const searchPlaceholder = useMemo(() => {
 	    if (tab === 'firms') return 'Search firms...';
