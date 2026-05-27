@@ -753,7 +753,7 @@ export default function NewPurchaseRequestView({
 							                <div className="px-2 py-2 border-r border-outline-variant space-y-2">
 							                  <SearchableSelect
 							                    value={row.itemNameId}
-						                    options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+							                    options={itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => ({ value: n.id, label: n.name }))}
 						                    onChange={(id) => {
 						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
 						                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, itemNameId: id, specs: {} } : p)));
@@ -1325,7 +1325,7 @@ export default function NewPurchaseRequestView({
 					                                const idx = reqCreateValueRowIndex;
 					                                return idx != null ? String(items[idx]?.itemNameId ?? '') : '';
 					                              })()}
-					                              options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+					                              options={itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => ({ value: n.id, label: n.name }))}
 					                              onChange={() => {}}
 					                              placeholder="Select item name..."
 					                              disabled
@@ -1378,7 +1378,7 @@ export default function NewPurchaseRequestView({
 			                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item Name</div>
 			                <SearchableSelect
 			                  value={newItemItemNameId}
-			                  options={itemNames.map((n) => ({ value: n.id, label: n.name }))}
+			                  options={itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => ({ value: n.id, label: n.name }))}
 		                  onChange={(id) => {
                         setNewItemItemNameId(id);
                         const row = itemNames.find((n) => n.id === id);

@@ -56,6 +56,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [storeId, setStoreId] = useState('');
   const [projectId, setProjectId] = useState<string>('');
   const [supplierId, setSupplierId] = useState('');
+  const [poType, setPoType] = useState<'Goods' | 'Services'>('Goods');
   const [paymentTerms, setPaymentTerms] = useState('');
   const [requestedByUserId, setRequestedByUserId] = useState('');
   const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -171,8 +172,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   };
 
   const itemOptions = useMemo(
-    () => itemNames.slice().sort((a, b) => a.name.localeCompare(b.name)).map((it) => ({ value: it.id, label: it.name })),
-    [itemNames]
+    () =>
+      itemNames
+        .filter((n) => (n.type ?? 'Goods') === poType)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((it) => ({ value: it.id, label: it.name })),
+    [itemNames, poType]
   );
 
   function getItemNameSpecIds(itemNameId: string): string[] {
@@ -212,22 +218,22 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       if (!departmentId) return false;
       if (!requestedByUserId) return false;
       if (!String(requiredDate ?? '').trim()) return false;
-		    if (!storeId && !projectId) return false;
-		    if (!String(paymentTerms ?? '').trim()) return false;
-		    const hasLine = lines.some((l) => {
-          const qtyOk = Number(l.quantity) > 0;
-          const rateOk = Number(l.rate) > 0;
-          if (!qtyOk || !rateOk) return false;
-          if (String(l.itemId ?? '').trim()) return true;
-          const itemNameId = String(l.itemNameId ?? '').trim();
-          if (!itemNameId) return false;
-          const specIds = getItemNameSpecIds(itemNameId);
-          if (!specIds.length) return false;
-          if (specIds.some((sid) => !String(l.specs?.[sid] ?? '').trim())) return false;
-          return true;
-        });
-		    return hasLine;
-		  }, [departmentId, firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines]);
+	      if (!storeId && !projectId) return false;
+			    if (!String(paymentTerms ?? '').trim()) return false;
+			    const hasLine = lines.some((l) => {
+	          const qtyOk = Number(l.quantity) > 0;
+	          const rateOk = Number(l.rate) > 0;
+	          if (!qtyOk || !rateOk) return false;
+	          if (String(l.itemId ?? '').trim()) return true;
+	          const itemNameId = String(l.itemNameId ?? '').trim();
+	          if (!itemNameId) return false;
+	          const specIds = getItemNameSpecIds(itemNameId);
+	          if (!specIds.length) return poType === 'Services';
+	          if (specIds.some((sid) => !String(l.specs?.[sid] ?? '').trim())) return false;
+	          return true;
+	        });
+			    return hasLine;
+			  }, [departmentId, firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines, poType]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -267,15 +273,16 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
 	        }));
 
-	      await createDirectPo({
-	        firmId,
-	        storeId: storeId ? storeId : null,
-	        projectId: projectId ? projectId : null,
-	        supplierId,
-	        department,
-	        requestedBy,
-	        requiredDate: requiredDateIso,
-	          paymentTerms: paymentTerms.trim(),
+		      await createDirectPo({
+		        firmId,
+		        storeId: storeId ? storeId : null,
+		        projectId: projectId ? projectId : null,
+            poType,
+		        supplierId,
+		        department,
+		        requestedBy,
+		        requiredDate: requiredDateIso,
+		          paymentTerms: paymentTerms.trim(),
 	        termsConditions: firmTermsConditions || undefined,
 	        items: picked,
 	      });
@@ -371,10 +378,26 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	              />
 	            </label>
 
-	            <label className="space-y-1">
-	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Required Date</div>
-	              <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
-	            </label>
+		            <label className="space-y-1">
+		              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Required Date</div>
+		              <input className={inputClass} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} type="date" />
+		            </label>
+
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">PO Type</div>
+                  <select
+                    className={inputClass}
+                    value={poType}
+                    onChange={(e) => {
+                      const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
+                      setPoType(next);
+                      setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+                    }}
+                  >
+                    <option value="Goods">Goods</option>
+                    <option value="Services">Services</option>
+                  </select>
+                </label>
 
 	            <label className="space-y-1 md:col-span-2">
 	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier</div>

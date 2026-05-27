@@ -197,6 +197,26 @@ export async function fetchQueueEnterInvoice(filters?: QueueFilters, signal?: Ab
   return Array.isArray(data.rows) ? data.rows : [];
 }
 
+export type EnterCreditVoucherQueueRow = {
+  poId: string;
+  poNumber: string;
+  prId: string;
+  firmId: string;
+  firmName: string;
+  department: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  supplierId?: string | null;
+  supplierName: string;
+  pendingReason: string;
+};
+
+export async function fetchQueueEnterCreditVoucher(filters?: QueueFilters, signal?: AbortSignal): Promise<EnterCreditVoucherQueueRow[]> {
+  const res = await fetch(`/api/queues/enter-credit-voucher${buildQueueQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: EnterCreditVoucherQueueRow[] }>(res, 'Failed to load Enter Credit Voucher queue');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
 export type LinkInvoiceGrnQueueRow = {
   grnId: string;
   grnNumber: string;
@@ -259,6 +279,81 @@ export async function updateQueueApproveInvoice(
     body: JSON.stringify(input),
   });
   return requireOk<{ ok?: boolean }>(res, 'Failed to approve invoice');
+}
+
+export type ApproveCreditVoucherQueueRow = {
+  creditVoucherId: string;
+  voucherNo: string;
+  voucherDate: string;
+  poId: string;
+  poNumber: string;
+  prId: string;
+  firmId: string;
+  firmName: string;
+  department: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  supplierId?: string | null;
+  supplierName: string;
+  voucherAmount: number;
+  status: 'Recorded' | 'On Hold' | 'Approved' | 'Paid';
+  approvedBy?: string;
+  approvedAt?: string;
+  pendingReason: string;
+};
+
+export async function fetchQueueApproveCreditVoucher(
+  filters?: QueueFilters,
+  signal?: AbortSignal
+): Promise<ApproveCreditVoucherQueueRow[]> {
+  const res = await fetch(`/api/queues/approve-credit-voucher${buildQueueQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: ApproveCreditVoucherQueueRow[] }>(res, 'Failed to load Approve Credit Voucher queue');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function updateQueueApproveCreditVoucher(
+  creditVoucherId: string,
+  input: { approvedBy: string; approveDate: string }
+): Promise<{ ok?: boolean }> {
+  const res = await fetch(`/api/credit-vouchers/${encodeURIComponent(creditVoucherId)}/approve-entry`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ ok?: boolean }>(res, 'Failed to approve credit voucher');
+}
+
+export type CreditVoucherPaymentQueueRow = {
+  creditVoucherId: string;
+  voucherNo: string;
+  voucherDate: string;
+  paymentStatus?: string;
+  paymentDate?: string;
+  poId: string;
+  poNumber: string;
+  prId: string;
+  firmId: string;
+  firmName: string;
+  department: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  supplierId?: string | null;
+  supplierName: string;
+  voucherAmount: number;
+  paymentMode?: string;
+  tallyEntryDate?: string;
+  paidAmount: number;
+  remainingAmount: number;
+  pendingReason: string;
+};
+
+export async function fetchQueueCreditVoucherPayment(
+  filters?: QueueFilters,
+  signal?: AbortSignal
+): Promise<CreditVoucherPaymentQueueRow[]> {
+  const res = await fetch(`/api/queues/credit-voucher-payment${buildQueueQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: CreditVoucherPaymentQueueRow[] }>(res, 'Failed to load Credit Voucher Payment queue');
+  return Array.isArray(data.rows) ? data.rows : [];
 }
 
 export type PaymentQueueRow = {

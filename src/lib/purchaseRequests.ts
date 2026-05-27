@@ -394,6 +394,7 @@ export async function createDirectPo(input: {
   firmId: string;
   storeId?: string | null;
   projectId?: string | null;
+  poType?: 'Goods' | 'Services';
   department?: string;
   requestedBy?: string;
   requiredDate?: string; // YYYY-MM-DD
@@ -448,8 +449,25 @@ export async function createInvoice(poId: string, input: {
 			    headers: { 'Content-Type': 'application/json' },
 		    body: JSON.stringify(input),
 		  });
-		  return requireOk<{ invoice?: any; error?: string }>(res, 'Failed to create invoice');
-		}
+			  return requireOk<{ invoice?: any; error?: string }>(res, 'Failed to create invoice');
+			}
+
+export async function createCreditVoucher(
+  poId: string,
+  input: {
+    voucherNumber?: string | null;
+    voucherDate: string;
+    updatedBy?: string;
+    items: Array<{ itemId: string; item?: string; quantity: number; rate: number }>;
+  }
+) {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/credit-voucher`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ creditVoucher?: any; error?: string }>(res, 'Failed to create credit voucher');
+}
 
 export async function updateInvoice(
   invoiceId: string,
@@ -492,6 +510,25 @@ export async function updateInvoicePayment(
     body: JSON.stringify(input),
   });
   return requireOk<{ invoice?: any; error?: string }>(res, 'Failed to update invoice payment');
+}
+
+export async function updateCreditVoucherPayment(
+  creditVoucherId: string,
+  input: {
+    paymentDate: string;
+    paymentAmount: number;
+    paymentMode?: 'Cash' | 'UPI' | 'Cheque' | 'NEFT' | 'RTGS' | 'IMPS' | 'Card' | string;
+    paymentCopy?: string;
+    tallyEntryDate?: string;
+    updatedBy?: string;
+  }
+) {
+  const res = await fetch(`/api/credit-vouchers/${encodeURIComponent(creditVoucherId)}/payment`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ ok?: boolean; error?: string }>(res, 'Failed to update credit voucher payment');
 }
 
 export async function deleteInvoice(invoiceId: string) {

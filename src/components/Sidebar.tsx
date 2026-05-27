@@ -50,10 +50,13 @@ export type PendingQueueKey =
   | 'queueCreateGrn'
   | 'queueCheckQuality'
   | 'queueEnterInvoice'
+  | 'queueEnterCreditVoucher'
   | 'queueApproveInvoice'
+  | 'queueApproveCreditVoucher'
   | 'queueTallyEntry'
   | 'queueLinkInvoiceGrn'
-  | 'queuePayment';
+  | 'queuePayment'
+  | 'queueCreditVoucherPayment';
 
 export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> = [
   { key: 'queueApprovePr', label: 'Approve PR' },
@@ -63,10 +66,13 @@ export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> =
   { key: 'queueCreateGrn', label: 'Create GRN' },
   { key: 'queueCheckQuality', label: 'Check Quality' },
   { key: 'queueEnterInvoice', label: 'Enter Invoice' },
+  { key: 'queueEnterCreditVoucher', label: 'Enter Credit Voucher' },
   { key: 'queueApproveInvoice', label: 'Approve Invoice' },
+  { key: 'queueApproveCreditVoucher', label: 'Approve Credit Voucher' },
   { key: 'queueTallyEntry', label: 'Tally Entry' },
   { key: 'queueLinkInvoiceGrn', label: 'Link Invoice ↔ GRN' },
   { key: 'queuePayment', label: 'Pending Payment' },
+  { key: 'queueCreditVoucherPayment', label: 'Pending Credit Voucher Payment' },
 ];
 
 export const stockMenuItems: Array<{ key: NavView; label: string }> = [

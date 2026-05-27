@@ -81,6 +81,13 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<EnterInvoiceQueueRow | null>(null);
+
+  const supplierHasGst = useMemo(() => {
+    const supplierId = String((active as any)?.supplierId ?? '').trim();
+    if (!supplierId) return true;
+    const s = masters.suppliers.find((x) => x.id === supplierId);
+    return Boolean(String((s as any)?.gstNumber ?? '').trim());
+  }, [active, masters.suppliers]);
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(todayIsoDate());
   const [courierCharge, setCourierCharge] = useState('');
@@ -185,6 +192,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   }, [lines]);
 
   const computedTaxAmount = useMemo(() => {
+    if (!supplierHasGst) return 0;
     let sum = 0;
     for (const l of lines) {
       const q = String(l.invoiceQty ?? '').trim() ? Number(l.invoiceQty) : 0;
@@ -193,17 +201,17 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
       if (Number.isFinite(q) && Number.isFinite(r) && Number.isFinite(gst) && gst > 0) sum += (q * r * gst) / 100;
     }
     return sum;
-  }, [lines]);
+  }, [lines, supplierHasGst]);
   const computedTotalAmount = useMemo(() => {
     const c = String(courierCharge ?? '').trim() ? Number(courierCharge) : 0;
     const p = String(packingCharge ?? '').trim() ? Number(packingCharge) : 0;
     const l = String(labourCharge ?? '').trim() ? Number(labourCharge) : 0;
     const o = String(otherCharge ?? '').trim() ? Number(otherCharge) : 0;
-    const cg = String(chargesGstAmount ?? '').trim() ? Number(chargesGstAmount) : 0;
+    const cg = supplierHasGst && String(chargesGstAmount ?? '').trim() ? Number(chargesGstAmount) : 0;
     const extra = (Number.isFinite(c) ? c : 0) + (Number.isFinite(p) ? p : 0) + (Number.isFinite(l) ? l : 0) + (Number.isFinite(o) ? o : 0);
     const extraTax = Number.isFinite(cg) ? cg : 0;
     return computedGoodsAmount + computedTaxAmount + extra + extraTax;
-  }, [computedGoodsAmount, computedTaxAmount, courierCharge, packingCharge, labourCharge, otherCharge, chargesGstAmount]);
+  }, [computedGoodsAmount, computedTaxAmount, courierCharge, packingCharge, labourCharge, otherCharge, chargesGstAmount, supplierHasGst]);
 
   const computedInvoiceTotal = useMemo(() => computedGoodsAmount + computedTaxAmount, [computedGoodsAmount, computedTaxAmount]);
 
@@ -238,7 +246,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
         errors.items = 'Invalid invoice rate.';
         break;
       }
-      if (!Number.isFinite(it.taxPercent) || it.taxPercent < 0 || it.taxPercent > 100) {
+      if (supplierHasGst && (!Number.isFinite(it.taxPercent) || it.taxPercent < 0 || it.taxPercent > 100)) {
         errors.items = 'Invalid GST%.';
         break;
       }
@@ -249,7 +257,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
       { key: 'packingCharge', label: 'Packing Charge', v: packingCharge },
       { key: 'labourCharge', label: 'Labour Charge', v: labourCharge },
       { key: 'otherCharge', label: 'Other Charge', v: otherCharge },
-      { key: 'chargesGstAmount', label: 'GST on Charges', v: chargesGstAmount },
+      ...(supplierHasGst ? [{ key: 'chargesGstAmount', label: 'GST on Charges', v: chargesGstAmount }] : []),
     ];
     for (const f of numericFields) {
       const s = String(f.v ?? '').trim();
@@ -260,7 +268,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
     const firstError = Object.values(errors)[0];
     return { ok: Object.keys(errors).length === 0, errors, firstError, items };
-  }, [chargesGstAmount, courierCharge, invoiceDate, labourCharge, lines, otherCharge, packingCharge, supplierInvoiceNo, updatedBy]);
+  }, [chargesGstAmount, courierCharge, invoiceDate, labourCharge, lines, otherCharge, packingCharge, supplierHasGst, supplierInvoiceNo, updatedBy]);
 
   async function toggleExpandRow(row: EnterInvoiceQueueRow) {
     const poId = String(row.poId ?? '').trim();
@@ -478,7 +486,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                      cnCopyUrl,
 	                      updatedBy: updatedBy.trim(),
 	                      paymentMode: 'Credit',
-	                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: it.taxPercent })),
+	                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: supplierHasGst ? it.taxPercent : 0 })),
 	                    });
 	                    await fetchQueueEnterInvoice(filters).then(setRows);
 	                    closeModal();
@@ -567,19 +575,21 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                  <input className={cn(inputClass, 'py-2')} value={labourCharge} onChange={(e) => setLabourCharge(sanitizeDecimalInput(e.target.value))} type="text" inputMode="decimal" />
 		                  {attemptedSubmit && validation.errors.labourCharge ? <div className="text-xs text-error">{validation.errors.labourCharge}</div> : null}
 		                </label>
-		                <label className="space-y-1">
-		                  <div className={cn(labelClass, 'text-blue-800')}>Other Charge</div>
-		                  <input className={cn(inputClass, 'py-2')} value={otherCharge} onChange={(e) => setOtherCharge(sanitizeDecimalInput(e.target.value))} type="text" inputMode="decimal" />
-		                  {attemptedSubmit && validation.errors.otherCharge ? <div className="text-xs text-error">{validation.errors.otherCharge}</div> : null}
-		                </label>
-		                <label className="space-y-1">
-		                  <div className={cn(labelClass, 'text-blue-800')}>GST on Charges</div>
-		                  <input className={cn(inputClass, 'py-2')} value={chargesGstAmount} onChange={(e) => setChargesGstAmount(sanitizeDecimalInput(e.target.value))} type="text" inputMode="decimal" />
-		                  {attemptedSubmit && validation.errors.chargesGstAmount ? <div className="text-xs text-error">{validation.errors.chargesGstAmount}</div> : null}
-		                </label>
-		              </div>
-		            </div>
-		          </div>
+			                <label className="space-y-1">
+			                  <div className={cn(labelClass, 'text-blue-800')}>Other Charge</div>
+			                  <input className={cn(inputClass, 'py-2')} value={otherCharge} onChange={(e) => setOtherCharge(sanitizeDecimalInput(e.target.value))} type="text" inputMode="decimal" />
+			                  {attemptedSubmit && validation.errors.otherCharge ? <div className="text-xs text-error">{validation.errors.otherCharge}</div> : null}
+			                </label>
+                      {supplierHasGst ? (
+			                <label className="space-y-1">
+			                  <div className={cn(labelClass, 'text-blue-800')}>GST on Charges</div>
+			                  <input className={cn(inputClass, 'py-2')} value={chargesGstAmount} onChange={(e) => setChargesGstAmount(sanitizeDecimalInput(e.target.value))} type="text" inputMode="decimal" />
+			                  {attemptedSubmit && validation.errors.chargesGstAmount ? <div className="text-xs text-error">{validation.errors.chargesGstAmount}</div> : null}
+			                </label>
+                      ) : null}
+			              </div>
+			            </div>
+			          </div>
 
 		          <div className="invoice-parent-card">
 		            <div className="invoice-parent-card-header">
@@ -667,21 +677,23 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
         <div className="rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] table-fixed text-left border-collapse">
-              <colgroup>
-                <col className="w-[420px]" />
-                <col className="w-[120px]" />
-                <col className="w-[140px]" />
-                <col className="w-[180px]" />
-                <col className="w-[160px]" />
-                <col className="w-[180px]" />
-              </colgroup>
+	              <colgroup>
+	                <col className="w-[420px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[140px]" />
+	                <col className="w-[180px]" />
+                  {supplierHasGst ? <col className="w-[160px]" /> : null}
+	                <col className="w-[180px]" />
+	              </colgroup>
               <thead>
                 <tr className="bg-primary text-on-primary">
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Item</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Pending Qty</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">PO Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Inv Rate</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">GST %</th>
+                    {supplierHasGst ? (
+	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">GST %</th>
+                    ) : null}
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Invoice Qty</th>
                 </tr>
               </thead>
@@ -707,28 +719,30 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                          inputMode="decimal"
 	                        />
 	                      </td>
-	                      <td className="px-3 py-2 border border-outline-variant/30">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={ln.gstPercent}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, gstPercent: sanitizePercentInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          onBlur={() =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, gstPercent: clampPercentString(next[idx]!.gstPercent) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
+                        {supplierHasGst ? (
+		                      <td className="px-3 py-2 border border-outline-variant/30">
+		                        <input
+		                          className={cn(inputClass, 'py-1.5')}
+		                          value={ln.gstPercent}
+		                          onChange={(e) =>
+		                            setLines((prev) => {
+		                              const next = prev.slice();
+		                              next[idx] = { ...next[idx]!, gstPercent: sanitizePercentInput(e.target.value) };
+		                              return next;
+		                            })
+		                          }
+		                          onBlur={() =>
+		                            setLines((prev) => {
+		                              const next = prev.slice();
+		                              next[idx] = { ...next[idx]!, gstPercent: clampPercentString(next[idx]!.gstPercent) };
+		                              return next;
+		                            })
+		                          }
+		                          type="text"
+		                          inputMode="decimal"
+		                        />
+		                      </td>
+                        ) : null}
 	                      <td className="px-3 py-2 border border-outline-variant/30">
 	                        <input
 	                          className={cn(inputClass, 'py-1.5')}

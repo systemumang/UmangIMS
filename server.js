@@ -500,13 +500,14 @@ function getMysqlPool() {
 	          ]);
 	        }
 	      }
-	      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
-	      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
-        await ensureColumn('suppliers', 'contact_person', 'VARCHAR(255) NULL');
-        await ensureColumn('suppliers', 'contact_person_mobile', 'VARCHAR(32) NULL');
-        await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
-        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
-	      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
+		      await ensureColumn('suppliers', 'is_vendor', 'TINYINT NOT NULL DEFAULT 0');
+          await ensureColumn('suppliers', 'credit_voucher_applicable', 'TINYINT NOT NULL DEFAULT 0');
+		      await ensureColumn('suppliers', 'catalogue_link', 'TEXT NULL');
+	        await ensureColumn('suppliers', 'contact_person', 'VARCHAR(255) NULL');
+	        await ensureColumn('suppliers', 'contact_person_mobile', 'VARCHAR(32) NULL');
+	        await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
+	        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
+		      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
 	      await ensureColumn('customers', 'category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'sub_category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'city', 'VARCHAR(255) NULL');
@@ -517,16 +518,75 @@ function getMysqlPool() {
 	      await ensureColumn('rfq_items', 'supplier_id', 'VARCHAR(255) NULL');
 	      await ensureColumn('rfq_items', 'supplier_rate', 'DOUBLE NULL');
 	      await ensureColumn('item_issues', 'material_request_id', 'VARCHAR(255) NULL');
-	      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
-	      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
-	      await ensureColumn('items', 'opening_stock', 'DOUBLE NOT NULL DEFAULT 0');
-	      await ensureColumn('material_requests', 'firm_id', 'VARCHAR(255) NULL');
-	      await ensureColumn('material_requests', 'store_id', 'VARCHAR(255) NULL');
-	      await ensureColumn('material_requests', 'department', 'VARCHAR(255) NULL');
-	    } catch (err) {
-	      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
-	    }
-  })();
+		      await ensureColumn('users', 'po_approval_amount', 'DOUBLE NULL');
+		      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
+          await ensureColumn('item_names', 'type', "VARCHAR(16) NOT NULL DEFAULT 'Goods'");
+		      await ensureColumn('items', 'opening_stock', 'DOUBLE NOT NULL DEFAULT 0');
+          await ensureColumn('purchase_orders', 'po_type', "VARCHAR(16) NOT NULL DEFAULT 'Goods'");
+          await ensureColumn('payments', 'credit_voucher_id', 'VARCHAR(255) NULL');
+		      await ensureColumn('material_requests', 'firm_id', 'VARCHAR(255) NULL');
+		      await ensureColumn('material_requests', 'store_id', 'VARCHAR(255) NULL');
+		      await ensureColumn('material_requests', 'department', 'VARCHAR(255) NULL');
+
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS credit_vouchers (
+              id VARCHAR(255) PRIMARY KEY,
+              po_id VARCHAR(255) NOT NULL,
+              supplier_id VARCHAR(255) NOT NULL,
+              voucher_number VARCHAR(255) NULL,
+              voucher_date DATE NOT NULL,
+              status VARCHAR(32) NOT NULL DEFAULT 'Recorded',
+              total_amount DOUBLE NOT NULL DEFAULT 0,
+              payment_status VARCHAR(32) NULL,
+              payment_date DATE NULL,
+              payment_amount DOUBLE NOT NULL DEFAULT 0,
+              payment_mode VARCHAR(16) NULL,
+              tally_entry_date DATE NULL,
+              approved_by VARCHAR(255) NULL,
+              approved_at DATETIME NULL,
+              created_by VARCHAR(255) NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_by VARCHAR(255) NULL,
+              updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              KEY idx_cv_po (po_id),
+              KEY idx_cv_supplier (supplier_id),
+              KEY idx_cv_status (status),
+              CONSTRAINT fk_credit_vouchers_po FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+              CONSTRAINT fk_credit_vouchers_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS credit_voucher_items (
+              id VARCHAR(255) PRIMARY KEY,
+              credit_voucher_id VARCHAR(255) NOT NULL,
+              item_id VARCHAR(255) NOT NULL,
+              quantity DOUBLE NOT NULL DEFAULT 0,
+              rate DOUBLE NOT NULL DEFAULT 0,
+              amount DOUBLE NOT NULL DEFAULT 0,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              KEY idx_cvi_voucher (credit_voucher_id),
+              KEY idx_cvi_item (item_id),
+              CONSTRAINT fk_credit_voucher_items_voucher FOREIGN KEY (credit_voucher_id) REFERENCES credit_vouchers(id) ON DELETE CASCADE,
+              CONSTRAINT fk_credit_voucher_items_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS credit_voucher_grns (
+              credit_voucher_id VARCHAR(255) NOT NULL,
+              grn_id VARCHAR(255) NOT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (credit_voucher_id, grn_id),
+              CONSTRAINT fk_credit_voucher_grns_voucher FOREIGN KEY (credit_voucher_id) REFERENCES credit_vouchers(id) ON DELETE CASCADE,
+              CONSTRAINT fk_credit_voucher_grns_grn FOREIGN KEY (grn_id) REFERENCES grns(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+		    } catch (err) {
+		      console.error('Failed to ensure PO/Invoice enhancement columns:', err);
+		    }
+	  })();
 
   return mysqlPool;
 }
@@ -2012,14 +2072,15 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = [
-      "po.check_po = 1",
-      "po.cancel_reason IS NULL",
-      "po.sent_date IS NOT NULL",
-      "po.sent_date <> ''",
-      "po.sent_by IS NOT NULL",
-      "po.sent_by <> ''",
-    ];
+	    const where = [
+	      "po.check_po = 1",
+	      "po.cancel_reason IS NULL",
+	      "po.sent_date IS NOT NULL",
+	      "po.sent_date <> ''",
+	      "po.sent_by IS NOT NULL",
+	      "po.sent_by <> ''",
+        "COALESCE(s.credit_voucher_applicable, 0) = 0",
+	    ];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
@@ -2096,6 +2157,103 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
         pendingReason: 'Pending invoice',
       };
     });
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/queues/enter-credit-voucher', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = [
+      "po.check_po = 1",
+      "po.cancel_reason IS NULL",
+      "po.sent_date IS NOT NULL",
+      "po.sent_date <> ''",
+      "po.sent_by IS NOT NULL",
+      "po.sent_by <> ''",
+      "COALESCE(s.credit_voucher_applicable, 0) = 1",
+      "NOT EXISTS (SELECT 1 FROM invoices inv WHERE inv.po_id = po.id)",
+    ];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(po.created_at) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(po.created_at) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR pr.id LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.pr_id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        COALESCE(SUM(poi.quantity), 0) AS poQty,
+        COALESCE(SUM(gi.received_qty), 0) AS grnQty
+      FROM purchase_orders po
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+      LEFT JOIN grns g ON g.po_id = po.id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN credit_vouchers cv ON cv.po_id = po.id
+      WHERE ${where.join(' AND ')} AND cv.id IS NULL
+      GROUP BY po.id
+      HAVING poQty > 1e-9 AND (poQty - grnQty) <= 1e-9
+      ORDER BY po.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      supplierId: r.supplierId ? String(r.supplierId) : null,
+      supplierName: String(r.supplierName ?? ''),
+      pendingReason: 'Pending credit voucher',
+    }));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -2497,6 +2655,102 @@ app.get('/api/queues/approve-invoice', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
+	});
+
+// Credit Vouchers pending approval
+app.get('/api/queues/approve-credit-voucher', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["cv.status IN ('Recorded','On Hold')"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(cv.voucher_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(cv.voucher_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(cv.voucher_number LIKE ? OR cv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        cv.id AS creditVoucherId,
+        cv.voucher_number AS voucherNo,
+        cv.voucher_date AS voucherDate,
+        cv.total_amount AS voucherAmount,
+        cv.status AS status,
+        cv.approved_by AS approvedBy,
+        cv.approved_at AS approvedAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        pr.remarks AS prRemarks
+      FROM credit_vouchers cv
+      INNER JOIN purchase_orders po ON po.id = cv.po_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY cv.voucher_date DESC, cv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      creditVoucherId: String(r.creditVoucherId ?? ''),
+      voucherNo: String(r.voucherNo ?? r.creditVoucherId ?? ''),
+      voucherDate: toIsoDate(r.voucherDate) || '',
+      poId: String(r.poId ?? ''),
+      poNumber: String(r.poNumber ?? r.poId ?? ''),
+      prId: String(r.prId ?? ''),
+      prNumber: String(r.prNumber ?? r.prId ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+      projectId: r.projectId ? String(r.projectId) : null,
+      projectName: r.projectName ? String(r.projectName) : null,
+      supplierId: String(r.supplierId ?? ''),
+      supplierName: String(r.supplierName ?? ''),
+      voucherAmount: Number(r.voucherAmount ?? 0),
+      status: String(r.status ?? 'Recorded') || 'Recorded',
+      approvedBy: r.approvedBy != null ? String(r.approvedBy) : undefined,
+      approvedAt: toIsoDateTime(r.approvedAt) || undefined,
+      pendingReason: 'Pending credit voucher approval',
+    }));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // Invoices pending tally entry
@@ -2819,6 +3073,129 @@ app.get('/api/queues/payment', async (req, res) => {
       // Only "accounted" invoices become due for payment.
       // If tally_entry_date column exists, require it to be set.
       .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+	});
+
+// Credit Vouchers pending payment (PO-linked)
+app.get('/api/queues/credit-voucher-payment', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+
+    const where = ["cv.status = 'Approved'"];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(cv.voucher_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(cv.voucher_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(cv.voucher_number LIKE ? OR cv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        cv.id AS creditVoucherId,
+        cv.voucher_number AS voucherNo,
+        cv.voucher_date AS voucherDate,
+        cv.total_amount AS voucherAmount,
+        cv.payment_status AS paymentStatus,
+        cv.payment_date AS paymentDate,
+        cv.payment_amount AS paymentAmount,
+        cv.payment_mode AS paymentMode,
+        cv.tally_entry_date AS tallyEntryDate,
+        cv.approved_by AS approvedBy,
+        cv.approved_at AS approvedAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        pr.remarks AS prRemarks
+      FROM credit_vouchers cv
+      INNER JOIN purchase_orders po ON po.id = cv.po_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY cv.voucher_date DESC, cv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const voucherAmount = Number(r.voucherAmount ?? 0);
+        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+        const paymentModeLower = paymentMode.trim().toLowerCase();
+        const isCash = paymentModeLower === 'cash';
+        const isFull = paymentStatus.includes('full') || isCash;
+        const paidAmount = isFull ? voucherAmount : Math.max(0, Number(r.paymentAmount ?? 0));
+        const remainingAmount = Math.max(0, voucherAmount - paidAmount);
+        return {
+          creditVoucherId: String(r.creditVoucherId ?? ''),
+          voucherNo: String(r.voucherNo ?? r.creditVoucherId ?? ''),
+          voucherDate: toIsoDate(r.voucherDate) || '',
+          paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+          paymentDate: toIsoDate(r.paymentDate) || undefined,
+          approvedBy: r.approvedBy != null ? String(r.approvedBy) : undefined,
+          approvedAt: toIsoDateTime(r.approvedAt) || undefined,
+          paymentMode,
+          tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
+          poId: String(r.poId ?? ''),
+          poNumber: String(r.poNumber ?? r.poId ?? ''),
+          prId: String(r.prId ?? ''),
+          prNumber: String(r.prNumber ?? r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          firmName: String(r.firmName ?? ''),
+          department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+          projectId: r.projectId ? String(r.projectId) : null,
+          projectName: r.projectName ? String(r.projectName) : null,
+          supplierId: r.supplierId ? String(r.supplierId) : null,
+          supplierName: String(r.supplierName ?? ''),
+          voucherAmount,
+          paidAmount,
+          remainingAmount,
+          pendingReason: 'Pending credit voucher payment',
+        };
+      })
+      .filter((x) => x.remainingAmount > 1e-9)
+      .filter((x) => String(x.paymentMode ?? '').trim().toLowerCase() !== 'cash')
+      .filter((x) => {
+        const approvedBy = String(x?.approvedBy ?? '').trim();
+        const approvedAt = String(x?.approvedAt ?? '').trim();
+        return Boolean(approvedBy) && Boolean(approvedAt);
+      });
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -5959,10 +6336,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
         const department = String(req.body?.department ?? '').trim();
         const requestedBy = String(req.body?.requestedBy ?? '').trim();
         const requiredDateInput = String(req.body?.requiredDate ?? '').trim();
-        const requiredDate = toIsoDate(requiredDateInput);
-		    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
-	      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
-	      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
+	        const requiredDate = toIsoDate(requiredDateInput);
+			    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
+		      const poTypeRaw = String(req.body?.poType ?? '').trim();
+		      const poType = poTypeRaw.toLowerCase() === 'services' ? 'Services' : 'Goods';
+		      const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
+		      const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
 		    const advanceAmount = Math.max(0, num(req.body?.advanceAmount, 0));
 		    const advanceDateInput = req.body?.advanceDate;
 	    const normalizedAdvanceDateInput =
@@ -6055,25 +6434,26 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      ]
 	    );
 
-		    await pool.query(
-		      `
-			      INSERT INTO purchase_orders
-			        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-			      VALUES
-			        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
-		      `,
-		      [
-	        poId,
-	        poNumber,
-	        firmId,
-	        effectiveStoreId,
-	        projectId ? projectId : null,
-		        supplierId,
-			        directPrId,
-			        paymentTerms,
-              paymentType,
-              paymentMode,
-		          advanceAmount,
+			    await pool.query(
+			      `
+				      INSERT INTO purchase_orders
+				        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+				      VALUES
+				        (?, ?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+			      `,
+			      [
+		        poId,
+		        poNumber,
+		        firmId,
+		        effectiveStoreId,
+		        projectId ? projectId : null,
+			        supplierId,
+				        directPrId,
+				        poType,
+				        paymentTerms,
+	              paymentType,
+	              paymentMode,
+			          advanceAmount,
 		          advanceDate,
 			        'system',
 	        shippingAddress,
@@ -6094,12 +6474,19 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    for (const row of items) {
 	      let itemId = String(row?.itemId ?? '').trim();
         if (!itemId) {
-          const itemNameId = String(row?.itemNameId ?? '').trim();
-          const specsObj = normalizeSpecsObject(row?.specs);
-          const specIds = Object.keys(specsObj);
-          if (!itemNameId || !specIds.length) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
-          const specificationsJson = stableJsonStringify(specsObj);
-          const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+		        const itemNameId = String(row?.itemNameId ?? '').trim();
+		          const specsObj = normalizeSpecsObject(row?.specs);
+		          const specIds = Object.keys(specsObj);
+		          if (!itemNameId) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+
+		          const [[iname]] = await pool.query('SELECT type FROM item_names WHERE id=? LIMIT 1', [itemNameId]);
+		          const itemNameType = String(iname?.type ?? '').trim() || 'Goods';
+		          const allowNoSpecs = poType === 'Services' || itemNameType === 'Services';
+		          if (!specIds.length && !allowNoSpecs) {
+		            return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+		          }
+		          const specificationsJson = stableJsonStringify(specsObj);
+		          const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
           const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
           if (found?.id) {
@@ -6127,10 +6514,26 @@ app.post('/api/pos/:id/grn', async (req, res) => {
             );
             itemId = newId;
           }
-        }
+	        }
 
-	      const quantity = Number(row?.quantity ?? 0);
-	      const rate = Number(row?.rate ?? 0);
+		      if (itemId) {
+		        const [[typeRow]] = await pool.query(
+		          `
+		          SELECT n.type AS type
+		          FROM items it
+		          JOIN item_names n ON n.id = it.item_name_id
+		          WHERE it.id = ?
+		          LIMIT 1
+		          `,
+		          [itemId]
+		        );
+		        const itemType = String(typeRow?.type ?? '').trim() || 'Goods';
+		        if (poType === 'Goods' && itemType === 'Services') return res.status(400).json({ error: 'PO Type is Goods. Service item is not allowed.' });
+		        if (poType === 'Services' && itemType === 'Goods') return res.status(400).json({ error: 'PO Type is Services. Goods item is not allowed.' });
+		      }
+
+		      const quantity = Number(row?.quantity ?? 0);
+		      const rate = Number(row?.rate ?? 0);
 	      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
 	      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
@@ -7490,16 +7893,17 @@ app.get('/api/masters/suppliers', async (_req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const [rows] = await pool.query(
       `
-      SELECT
-        id,
-        name,
-        gst_number AS gstNumber,
-        gst_type AS gstType,
-        address,
-        phone,
-        contact_person AS contactPerson,
-        contact_person_mobile AS contactPersonMobile,
-        city,
+	      SELECT
+	        id,
+	        name,
+	        gst_number AS gstNumber,
+	        gst_type AS gstType,
+	        credit_voucher_applicable AS creditVoucherApplicable,
+	        address,
+	        phone,
+	        contact_person AS contactPerson,
+	        contact_person_mobile AS contactPersonMobile,
+	        city,
         state,
         mobile_2 AS mobile2,
         payment_terms AS paymentTerms,
@@ -7509,15 +7913,16 @@ app.get('/api/masters/suppliers', async (_req, res) => {
       ORDER BY name
       `
     );
-    const suppliers = (rows || []).map((r) => ({
-      ...r,
-      gstType: normalizeGstType(r.gstType),
-    }));
-    res.json({ suppliers });
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
+	    const suppliers = (rows || []).map((r) => ({
+	      ...r,
+	      gstType: normalizeGstType(r.gstType),
+	      creditVoucherApplicable: Boolean(r.creditVoucherApplicable),
+	    }));
+	    res.json({ suppliers });
+	  } catch (e) {
+	    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
 
 app.post('/api/masters/suppliers', async (req, res) => {
   try {
@@ -7527,14 +7932,15 @@ app.post('/api/masters/suppliers', async (req, res) => {
     const name = String(req.body?.name ?? '').trim();
     if (!name) return res.status(400).json({ error: 'name is required' });
 
-    const supplier = {
-      id: crypto.randomUUID(),
-      name,
-      gstNumber: req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null,
-      gstType: req.body?.gstType != null ? String(req.body.gstType).trim() : null,
-      address: req.body?.address != null ? String(req.body.address).trim() : null,
-      phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
-      contactPerson: req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null,
+	    const supplier = {
+	      id: crypto.randomUUID(),
+	      name,
+	      gstNumber: req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null,
+	      gstType: req.body?.gstType != null ? String(req.body.gstType).trim() : null,
+	      creditVoucherApplicable: req.body?.creditVoucherApplicable ? 1 : 0,
+	      address: req.body?.address != null ? String(req.body.address).trim() : null,
+	      phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
+	      contactPerson: req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null,
       contactPersonMobile: req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null,
       city: req.body?.city != null ? String(req.body.city).trim() : null,
       state: req.body?.state != null ? String(req.body.state).trim() : null,
@@ -7545,19 +7951,20 @@ app.post('/api/masters/suppliers', async (req, res) => {
       createdBy: req.body?.createdBy != null ? String(req.body.createdBy).trim() : null,
     };
 
-    await pool.query(
-      `
-      INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-      `,
-      [
-        supplier.id,
-        supplier.name,
-        supplier.gstNumber,
-        supplier.gstType,
-        supplier.address,
-        supplier.phone,
-        supplier.contactPerson,
+	    await pool.query(
+	      `
+	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
+	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	      `,
+	      [
+	        supplier.id,
+	        supplier.name,
+	        supplier.gstNumber,
+	        supplier.gstType,
+	        supplier.creditVoucherApplicable,
+	        supplier.address,
+	        supplier.phone,
+	        supplier.contactPerson,
         supplier.contactPersonMobile,
         supplier.city,
         supplier.state,
@@ -7573,10 +7980,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
       supplier: {
         id: supplier.id,
         name: supplier.name,
-        gstNumber: supplier.gstNumber ?? undefined,
-        gstType: supplier.gstType ?? undefined,
-        address: supplier.address ?? undefined,
-        phone: supplier.phone ?? undefined,
+	        gstNumber: supplier.gstNumber ?? undefined,
+	        gstType: supplier.gstType ?? undefined,
+	        creditVoucherApplicable: Boolean(supplier.creditVoucherApplicable),
+	        address: supplier.address ?? undefined,
+	        phone: supplier.phone ?? undefined,
         contactPerson: supplier.contactPerson ?? undefined,
         contactPersonMobile: supplier.contactPersonMobile ?? undefined,
         city: supplier.city ?? undefined,
@@ -7607,10 +8015,11 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
     if (!name) return res.status(400).json({ error: 'name is required' });
 
-    const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
-    const gstType = req.body?.gstType != null ? String(req.body.gstType).trim() : null;
-    const address = req.body?.address != null ? String(req.body.address).trim() : null;
-    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+	    const gstNumber = req.body?.gstNumber != null ? String(req.body.gstNumber).trim() : null;
+	    const gstType = req.body?.gstType != null ? String(req.body.gstType).trim() : null;
+	    const creditVoucherApplicable = req.body?.creditVoucherApplicable ? 1 : 0;
+	    const address = req.body?.address != null ? String(req.body.address).trim() : null;
+	    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
     const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
     const contactPersonMobile = req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null;
     const city = req.body?.city != null ? String(req.body.city).trim() : null;
@@ -7620,26 +8029,50 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
 
-    await pool.query(
-      `
-      UPDATE suppliers
-      SET name=?, gst_number=?, gst_type=?, address=?, phone=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
-      WHERE id=?
-      `,
-      [name, gstNumber, gstType, address, phone, contactPerson, contactPersonMobile, city, state, mobile2, paymentTerms, req.body?.isVendor ? 1 : 0, catalogueLink, updatedBy, id]
-    );
+	    await pool.query(
+	      `
+	      UPDATE suppliers
+	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
+	      WHERE id=?
+	      `,
+	      [
+	        name,
+	        gstNumber,
+	        gstType,
+	        creditVoucherApplicable,
+	        address,
+	        phone,
+	        contactPerson,
+	        contactPersonMobile,
+	        city,
+	        state,
+	        mobile2,
+	        paymentTerms,
+	        req.body?.isVendor ? 1 : 0,
+	        catalogueLink,
+	        updatedBy,
+	        id,
+	      ]
+	    );
 
-    const [rows] = await pool.query(
-      `
-      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, address, phone, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
-      FROM suppliers WHERE id=?
-      `,
-      [id]
-    );
+	    const [rows] = await pool.query(
+	      `
+	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
+	      FROM suppliers WHERE id=?
+	      `,
+	      [id]
+	    );
     const row = Array.isArray(rows) ? rows[0] : null;
     if (!row) return res.status(404).json({ error: 'Supplier not found' });
-    res.json({ supplier: row });
-  } catch (e) {
+	    res.json({
+	      supplier: {
+	        ...row,
+	        gstType: normalizeGstType(row.gstType),
+	        isVendor: Boolean(row.isVendor),
+	        creditVoucherApplicable: Boolean(row.creditVoucherApplicable),
+	      },
+	    });
+	  } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) {
       return res.status(400).json({ error: 'Supplier name already exists' });
@@ -8933,13 +9366,14 @@ app.get('/api/masters/item-names', async (_req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const [rows] = await pool.query(
       `
-      SELECT
-        n.id,
-        n.name,
-        n.unit_id AS unitId,
-        u.name AS unitName,
-        n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName,
+	      SELECT
+	        n.id,
+	        n.name,
+	        n.type AS type,
+	        n.unit_id AS unitId,
+	        u.name AS unitName,
+	        n.item_category_id AS itemCategoryId,
+	        c.name AS itemCategoryName,
         n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
@@ -8984,22 +9418,24 @@ app.post('/api/masters/item-names', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const name = String(req.body?.name ?? '').trim();
-    if (!name) return res.status(400).json({ error: 'name is required' });
-    const id = crypto.randomUUID();
-    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
-    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+	    const name = String(req.body?.name ?? '').trim();
+	    if (!name) return res.status(400).json({ error: 'name is required' });
+	    const id = crypto.randomUUID();
+	    const typeRaw = String(req.body?.type ?? '').trim();
+	    const typeNorm = typeRaw.toLowerCase() === 'services' ? 'Services' : 'Goods';
+	    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
+	    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
     const specificationIds = Array.isArray(req.body?.specificationIds)
       ? req.body.specificationIds.map((x) => String(x).trim()).filter(Boolean)
       : [];
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
-    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
-    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
-    await pool.query(
-      'INSERT INTO item_names (id, name, unit_id, item_category_id, catalogue_link, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [id, name, unitId, itemCategoryId, catalogueLink, createdBy]
-    );
+	    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+	    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
+	    await pool.query(
+	      'INSERT INTO item_names (id, name, type, unit_id, item_category_id, catalogue_link, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+	      [id, name, typeNorm, unitId, itemCategoryId, catalogueLink, createdBy]
+	    );
     if (specificationIds.length) {
       for (const specId of specificationIds) {
         await pool.query('INSERT IGNORE INTO item_name_specifications (item_name_id, specification_id, created_at) VALUES (?, ?, NOW())', [
@@ -9010,13 +9446,14 @@ app.post('/api/masters/item-names', async (req, res) => {
     }
     const [rows] = await pool.query(
       `
-      SELECT
-        n.id,
-        n.name,
-        n.unit_id AS unitId,
-        u.name AS unitName,
-        n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName,
+	      SELECT
+	        n.id,
+	        n.name,
+	        n.type AS type,
+	        n.unit_id AS unitId,
+	        u.name AS unitName,
+	        n.item_category_id AS itemCategoryId,
+	        c.name AS itemCategoryName,
         n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
@@ -9065,23 +9502,25 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const id = String(req.params.id ?? '').trim();
-    const name = String(req.body?.name ?? '').trim();
-    if (!id) return res.status(400).json({ error: 'id is required' });
-    if (!name) return res.status(400).json({ error: 'name is required' });
-    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
-    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
+	    const id = String(req.params.id ?? '').trim();
+	    const name = String(req.body?.name ?? '').trim();
+	    if (!id) return res.status(400).json({ error: 'id is required' });
+	    if (!name) return res.status(400).json({ error: 'name is required' });
+	    const typeRaw = String(req.body?.type ?? '').trim();
+	    const typeNorm = typeRaw.toLowerCase() === 'services' ? 'Services' : 'Goods';
+	    const unitId = req.body?.unitId != null ? String(req.body.unitId).trim() : '';
+	    const itemCategoryId = req.body?.itemCategoryId != null ? String(req.body.itemCategoryId).trim() : '';
     const specificationIds = Array.isArray(req.body?.specificationIds)
       ? req.body.specificationIds.map((x) => String(x).trim()).filter(Boolean)
       : [];
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
     if (!itemCategoryId) return res.status(400).json({ error: 'itemCategoryId is required' });
-    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
-    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
-    await pool.query(
-      'UPDATE item_names SET name=?, unit_id=?, item_category_id=?, catalogue_link=?, updated_by=?, updated_at=NOW() WHERE id=?',
-      [name, unitId, itemCategoryId, catalogueLink, updatedBy, id]
-    );
+	    const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
+	    const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
+	    await pool.query(
+	      'UPDATE item_names SET name=?, type=?, unit_id=?, item_category_id=?, catalogue_link=?, updated_by=?, updated_at=NOW() WHERE id=?',
+	      [name, typeNorm, unitId, itemCategoryId, catalogueLink, updatedBy, id]
+	    );
     await pool.query('DELETE FROM item_name_specifications WHERE item_name_id=?', [id]);
     if (specificationIds.length) {
       for (const specId of specificationIds) {
@@ -9093,13 +9532,14 @@ app.put('/api/masters/item-names/:id', async (req, res) => {
     }
     const [rows] = await pool.query(
       `
-      SELECT
-        n.id,
-        n.name,
-        n.unit_id AS unitId,
-        u.name AS unitName,
-        n.item_category_id AS itemCategoryId,
-        c.name AS itemCategoryName,
+	      SELECT
+	        n.id,
+	        n.name,
+	        n.type AS type,
+	        n.unit_id AS unitId,
+	        u.name AS unitName,
+	        n.item_category_id AS itemCategoryId,
+	        c.name AS itemCategoryName,
         n.catalogue_link AS catalogueLink,
         GROUP_CONCAT(ins.specification_id ORDER BY ins.specification_id SEPARATOR ',') AS specificationIdsCsv,
         GROUP_CONCAT(CONCAT(ins.specification_id, ':', COALESCE(sp.name, '')) ORDER BY ins.specification_id SEPARATOR '||') AS specificationsCsv
@@ -11421,6 +11861,243 @@ async function handleCreateInvoice(req, res) {
 // Support both singular and plural for older cached frontends.
 app.post('/api/pos/:id/invoice', handleCreateInvoice);
 app.post('/api/pos/:id/invoices', handleCreateInvoice);
+
+// --- Credit Vouchers (for suppliers without invoices) ---
+async function handleCreateCreditVoucher(req, res) {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'po id is required' });
+
+    const voucherNumber = req.body?.voucherNumber != null ? String(req.body.voucherNumber).trim() : null;
+    const voucherDateInput = String(req.body?.voucherDate ?? '').trim();
+    const voucherDate = toIsoDate(voucherDateInput) || voucherDateInput;
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!voucherDate) return res.status(400).json({ error: 'voucherDate is required' });
+    if (!items.length) return res.status(400).json({ error: 'At least one item is required' });
+
+    const [[poRow]] = await pool.query(
+      `
+      SELECT po.id AS poId, po.supplier_id AS supplierId, COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+    const supplierId = String(poRow.supplierId ?? '').trim();
+    if (!supplierId) return res.status(500).json({ error: 'PO is missing supplierId' });
+    if (!Number(poRow.creditVoucherApplicable ?? 0)) {
+      return res.status(400).json({ error: 'Credit Voucher is not applicable for this supplier.' });
+    }
+
+    const [[existingCv]] = await pool.query('SELECT id FROM credit_vouchers WHERE po_id = ? LIMIT 1', [poId]);
+    if (existingCv?.id) return res.status(400).json({ error: 'Credit Voucher already exists for this PO.' });
+
+    const [[anyInvoice]] = await pool.query('SELECT id FROM invoices WHERE po_id = ? LIMIT 1', [poId]);
+    if (anyInvoice?.id) return res.status(400).json({ error: 'Invoice already exists for this PO. Credit Voucher is not allowed.' });
+
+    // Ensure PO is fully received (GRN complete across multiple GRNs).
+    const [[recvMeta]] = await pool.query(
+      `
+      SELECT
+        COALESCE(SUM(poi.quantity), 0) AS poQty,
+        COALESCE(SUM(gi.received_qty), 0) AS grnQty
+      FROM purchase_order_items poi
+      LEFT JOIN grns g ON g.po_id = poi.po_id
+      LEFT JOIN grn_items gi ON gi.grn_id = g.id AND gi.item_id = poi.item_id
+      WHERE poi.po_id = ?
+      `,
+      [poId]
+    );
+    const poQty = Number(recvMeta?.poQty ?? 0);
+    const grnQty = Number(recvMeta?.grnQty ?? 0);
+    if (!(poQty > 1e-9) || poQty - grnQty > 1e-9) {
+      return res.status(400).json({ error: 'Credit Voucher can be created only after full GRN receipt.' });
+    }
+
+    const [poItems] = await pool.query('SELECT item_id AS itemId, quantity AS poQty FROM purchase_order_items WHERE po_id = ?', [poId]);
+    const poQtyByItemId = new Map(
+      (Array.isArray(poItems) ? poItems : []).map((r) => [String(r.itemId ?? '').trim(), Number(r.poQty ?? 0)])
+    );
+
+    const normalizedItems = items
+      .map((it) => ({
+        itemId: String(it?.itemId ?? '').trim(),
+        quantity: Math.max(0, num(it?.quantity, 0)),
+        rate: Math.max(0, num(it?.rate, 0)),
+      }))
+      .filter((it) => it.itemId && it.quantity > 0);
+    if (!normalizedItems.length) return res.status(400).json({ error: 'No valid credit voucher items' });
+
+    for (const it of normalizedItems) {
+      const maxQty = poQtyByItemId.get(it.itemId);
+      if (maxQty == null) return res.status(400).json({ error: 'Credit voucher item must belong to the PO.' });
+      if (it.quantity - maxQty > 1e-9) return res.status(400).json({ error: 'Credit voucher quantity cannot exceed PO quantity.' });
+    }
+
+    const totalAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
+    const creditVoucherId = crypto.randomUUID();
+
+    await pool.query(
+      `
+      INSERT INTO credit_vouchers (
+        id, po_id, supplier_id,
+        voucher_number, voucher_date,
+        status,
+        total_amount,
+        payment_status, payment_date, payment_amount, payment_mode, tally_entry_date,
+        created_by, created_at, updated_by, updated_at
+      ) VALUES (
+        ?, ?, ?,
+        ?, ?,
+        'Recorded',
+        ?,
+        NULL, NULL, 0, 'Credit', NULL,
+        ?, NOW(), ?, NOW()
+      )
+      `,
+      [creditVoucherId, poId, supplierId, voucherNumber, voucherDate, totalAmount, updatedBy, updatedBy]
+    );
+
+    for (const it of normalizedItems) {
+      await pool.query(
+        `
+        INSERT INTO credit_voucher_items (id, credit_voucher_id, item_id, quantity, rate, amount, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+        [crypto.randomUUID(), creditVoucherId, it.itemId, it.quantity, it.rate, it.quantity * it.rate]
+      );
+    }
+
+    // Attach all GRNs for this PO for audit.
+    const [grnRows] = await pool.query('SELECT id FROM grns WHERE po_id = ?', [poId]);
+    for (const g of Array.isArray(grnRows) ? grnRows : []) {
+      const grnId = String(g?.id ?? '').trim();
+      if (!grnId) continue;
+      await pool.query('INSERT IGNORE INTO credit_voucher_grns (credit_voucher_id, grn_id, created_at) VALUES (?, ?, NOW())', [
+        creditVoucherId,
+        grnId,
+      ]);
+    }
+
+    res.status(201).json({
+      creditVoucher: {
+        id: creditVoucherId,
+        poId,
+        supplierId,
+        voucherNo: voucherNumber || creditVoucherId,
+        voucherDate,
+        status: 'Recorded',
+        totalAmount,
+        approvedBy: undefined,
+        approvedAt: undefined,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+app.post('/api/pos/:id/credit-voucher', handleCreateCreditVoucher);
+app.post('/api/pos/:id/credit-vouchers', handleCreateCreditVoucher);
+
+app.put('/api/credit-vouchers/:id/approve-entry', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const creditVoucherId = String(req.params.id ?? '').trim();
+    if (!creditVoucherId) return res.status(400).json({ error: 'credit voucher id is required' });
+    const approvedBy = String(req.body?.approvedBy ?? '').trim();
+    const approveDateInput = String(req.body?.approveDate ?? '').trim();
+    const approveDate = toIsoDate(approveDateInput) || approveDateInput;
+    if (!approvedBy) return res.status(400).json({ error: 'approvedBy is required' });
+    if (!approveDate) return res.status(400).json({ error: 'approveDate is required' });
+
+    const [[row]] = await pool.query('SELECT id, status FROM credit_vouchers WHERE id = ? LIMIT 1', [creditVoucherId]);
+    if (!row) return res.status(404).json({ error: 'Credit Voucher not found' });
+    const status = String(row.status ?? '').trim() || 'Recorded';
+    if (status === 'Approved' || status === 'Paid') return res.status(400).json({ error: 'Credit Voucher already approved.' });
+
+    await pool.query(
+      `
+      UPDATE credit_vouchers
+      SET approved_by=?, approved_at=?, status='Approved', updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [approvedBy, approveDate, approvedBy, creditVoucherId]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.put('/api/credit-vouchers/:id/payment', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const creditVoucherId = String(req.params.id ?? '').trim();
+    if (!creditVoucherId) return res.status(400).json({ error: 'credit voucher id is required' });
+
+    const paymentDateInput = String(req.body?.paymentDate ?? '').trim();
+    const paymentDate = toIsoDate(paymentDateInput) || paymentDateInput;
+    const paymentAmount = Math.max(0, num(req.body?.paymentAmount, 0));
+    const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
+    const paymentCopy = req.body?.paymentCopy != null ? String(req.body.paymentCopy).trim() : null;
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+
+    if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
+    if (!paymentMode) return res.status(400).json({ error: 'paymentMode is required' });
+    if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
+
+    const [[meta]] = await pool.query(
+      `
+      SELECT id, po_id AS poId, total_amount AS voucherAmount
+      FROM credit_vouchers
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [creditVoucherId]
+    );
+    if (!meta) return res.status(404).json({ error: 'Credit Voucher not found' });
+    const poId = String(meta.poId ?? '').trim();
+    const voucherAmount = Number(meta.voucherAmount ?? 0);
+
+    const paymentStatus = paymentAmount >= voucherAmount - 1e-9 ? 'Full Paid' : paymentAmount > 1e-9 ? 'Partly Paid' : 'Partly Paid';
+    const nextStatus = paymentStatus.toLowerCase().includes('full') ? 'Paid' : 'Approved';
+
+    await pool.query(
+      `
+      UPDATE credit_vouchers
+      SET payment_status=?, payment_date=?, payment_amount=?, payment_mode=?, tally_entry_date=COALESCE(?, tally_entry_date), status=?, updated_by=?, updated_at=NOW()
+      WHERE id=?
+      `,
+      [paymentStatus, paymentDate, paymentAmount, paymentMode, tallyEntryDate || null, nextStatus, updatedBy, creditVoucherId]
+    );
+
+    // Append a PO ledger row (direct payment) linked to this credit voucher.
+    if (poId && paymentAmount > 1e-9) {
+      await pool.query(
+        `
+        INSERT INTO po_advance_invoice_adjustments
+          (id, po_id, invoice_id, adjusted_amount, payment_mode, payment_copy, receipt_type, reference_type, entry_key, created_by, updated_by)
+        VALUES (?, ?, NULL, ?, ?, ?, 'DIRECT_PAYMENT', 'CREDIT_VOUCHER', ?, ?, ?)
+        `,
+        [crypto.randomUUID(), poId, paymentAmount, paymentMode, paymentCopy || null, creditVoucherId, updatedBy || 'system', updatedBy || 'system']
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 app.put('/api/invoices/:id', async (req, res) => {
   try {

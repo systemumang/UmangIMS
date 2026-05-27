@@ -15,6 +15,7 @@ export type Supplier = {
   name: string;
   gstNumber?: string | null;
   gstType?: 'Intra-State' | 'Inter-State' | null;
+  creditVoucherApplicable?: boolean;
   address?: string | null;
   phone?: string | null;
   contactPerson?: string | null;
@@ -58,6 +59,7 @@ export type ItemCategory = { id: string; name: string };
 export type ItemName = {
   id: string;
   name: string;
+  type?: 'Goods' | 'Services';
   unitId?: string | null;
   unitName?: string | null;
   itemCategoryId?: string | null;
@@ -555,6 +557,7 @@ export async function createSupplier(input: {
   name: string;
   gstNumber?: string;
   gstType?: 'Intra-State' | 'Inter-State';
+  creditVoucherApplicable?: boolean;
   address?: string;
   phone?: string;
   contactPerson?: string;
@@ -581,6 +584,7 @@ export async function updateSupplier(
     name: string;
     gstNumber?: string;
     gstType?: 'Intra-State' | 'Inter-State';
+    creditVoucherApplicable?: boolean;
     address?: string;
     phone?: string;
     contactPerson?: string;
@@ -756,6 +760,7 @@ export async function deleteItemCategory(id: string, input?: { deletedBy?: strin
 
 export async function createItemName(input: {
   name: string;
+  type?: 'Goods' | 'Services';
   unitId?: string | null;
   itemCategoryId?: string | null;
   specificationIds?: string[];
@@ -774,6 +779,7 @@ export async function updateItemName(
   id: string,
   input: {
     name: string;
+    type?: 'Goods' | 'Services';
     unitId?: string | null;
     itemCategoryId?: string | null;
     specificationIds?: string[];

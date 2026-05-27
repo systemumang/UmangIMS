@@ -293,7 +293,14 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
 	                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
 	                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Rate</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">Disc %</th>
-                                          <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
+                                            {(() => {
+                                              const supplierId = String((r as any)?.supplierId ?? '').trim();
+                                              const s = masters.suppliers.find((x) => x.id === supplierId);
+                                              const showGst = Boolean(String((s as any)?.gstNumber ?? '').trim());
+                                              return showGst ? (
+	                                            <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
+                                              ) : null;
+                                            })()}
                                           <th className="px-3 py-2 text-left border border-outline-variant">Total</th>
                                         </tr>
                                       </thead>
@@ -305,7 +312,14 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
 	                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
-                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
+                                              {(() => {
+                                                const supplierId = String((r as any)?.supplierId ?? '').trim();
+                                                const s = masters.suppliers.find((x) => x.id === supplierId);
+                                                const showGst = Boolean(String((s as any)?.gstNumber ?? '').trim());
+                                                return showGst ? (
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
+                                                ) : null;
+                                              })()}
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{itemTotal(it)}</td>
                                           </tr>
                                         ))}

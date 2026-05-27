@@ -262,10 +262,11 @@ export default function MastersView({
 			  const [newUserPassword, setNewUserPassword] = useState('');
 			  const [newUserMobile, setNewUserMobile] = useState('');
         const [newUserPoApprovalAmount, setNewUserPoApprovalAmount] = useState('');
-				  const [newSupplierName, setNewSupplierName] = useState('');
-				  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
-				  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
-				  const [newSupplierAddress, setNewSupplierAddress] = useState('');
+					  const [newSupplierName, setNewSupplierName] = useState('');
+					  const [newSupplierGstNumber, setNewSupplierGstNumber] = useState('');
+					  const [newSupplierGstType, setNewSupplierGstType] = useState<'Intra-State' | 'Inter-State'>('Intra-State');
+            const [newSupplierCreditVoucherApplicable, setNewSupplierCreditVoucherApplicable] = useState(false);
+					  const [newSupplierAddress, setNewSupplierAddress] = useState('');
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
             const [newSupplierMobile2, setNewSupplierMobile2] = useState('');
             const [newSupplierContactPerson, setNewSupplierContactPerson] = useState('');
@@ -290,11 +291,12 @@ export default function MastersView({
 					  const [newUnitName, setNewUnitName] = useState('');
             const [newPriorityName, setNewPriorityName] = useState('');
 					  const [newItemCategoryName, setNewItemCategoryName] = useState('');
-					  const [newItemName, setNewItemName] = useState('');
-					  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
-					  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
-					  const [newItemNameSpecIds, setNewItemNameSpecIds] = useState<string[]>([]);
-            const [newItemNameCatalogueLink, setNewItemNameCatalogueLink] = useState('');
+						  const [newItemName, setNewItemName] = useState('');
+              const [newItemNameType, setNewItemNameType] = useState<'Goods' | 'Services'>('Goods');
+						  const [newItemNameUnitId, setNewItemNameUnitId] = useState('');
+						  const [newItemNameCategoryId, setNewItemNameCategoryId] = useState('');
+						  const [newItemNameSpecIds, setNewItemNameSpecIds] = useState<string[]>([]);
+	            const [newItemNameCatalogueLink, setNewItemNameCatalogueLink] = useState('');
 			  const [newSpecName, setNewSpecName] = useState('');
 		  const [specIdForValues, setSpecIdForValues] = useState('');
 		  const [specValuesFilterItemNameId, setSpecValuesFilterItemNameId] = useState('');
@@ -940,11 +942,12 @@ export default function MastersView({
 						      setNewSupplierName('');
 						      setNewSupplierGstNumber('');
 						      setNewSupplierGstType('Intra-State');
+                  setNewSupplierCreditVoucherApplicable(false);
 						      setNewSupplierAddress('');
 						      setNewSupplierPhone('');
 						      setNewSupplierPaymentTerms('');
 						      setNewSupplierIsVendor(false);
-                  setNewSupplierCatalogueLink('');
+	                  setNewSupplierCatalogueLink('');
 						    }
 						    if (tab === 'customers') {
 						      setNewCustomerName('');
@@ -965,13 +968,14 @@ export default function MastersView({
 				    if (tab === 'units') setNewUnitName('');
             if (tab === 'priorities') setNewPriorityName('');
 				    if (tab === 'itemCategories') setNewItemCategoryName('');
-					    if (tab === 'itemNames') {
-					      setNewItemName('');
-					      setNewItemNameUnitId('');
-					      setNewItemNameCategoryId('');
-					      setNewItemNameSpecIds([]);
-                setNewItemNameCatalogueLink('');
-					    }
+						    if (tab === 'itemNames') {
+						      setNewItemName('');
+                  setNewItemNameType('Goods');
+						      setNewItemNameUnitId('');
+						      setNewItemNameCategoryId('');
+						      setNewItemNameSpecIds([]);
+	                setNewItemNameCatalogueLink('');
+						    }
 				    if (tab === 'specs') setNewSpecName('');
 				    if (tab === 'specValues') {
 				      setNewSpecValue('');
@@ -1053,13 +1057,14 @@ export default function MastersView({
               setNewUserPoApprovalAmount((row as any).poApprovalAmount == null ? '' : String((row as any).poApprovalAmount));
 			      }
 			    }
-				    if (tab === 'suppliers') {
-				      const row = suppliers.find((s) => s.id === id);
-				      setNewSupplierName(row?.name ?? '');
-				      setNewSupplierGstNumber(row?.gstNumber ?? '');
-				      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
-				      setNewSupplierAddress(row?.address ?? '');
-				      setNewSupplierPhone(row?.phone ?? '');
+					    if (tab === 'suppliers') {
+					      const row = suppliers.find((s) => s.id === id);
+					      setNewSupplierName(row?.name ?? '');
+					      setNewSupplierGstNumber(row?.gstNumber ?? '');
+					      setNewSupplierGstType((row?.gstType ?? 'Intra-State') === 'Inter-State' ? 'Inter-State' : 'Intra-State');
+                setNewSupplierCreditVoucherApplicable(Boolean((row as any)?.creditVoucherApplicable));
+					      setNewSupplierAddress(row?.address ?? '');
+					      setNewSupplierPhone(row?.phone ?? '');
               setNewSupplierMobile2((row as any)?.mobile2 ?? '');
               setNewSupplierContactPerson((row as any)?.contactPerson ?? '');
               setNewSupplierContactPersonMobile((row as any)?.contactPersonMobile ?? '');
@@ -1099,14 +1104,15 @@ export default function MastersView({
 			      const row = itemCategories.find((c) => c.id === id);
 			      setNewItemCategoryName(row?.name ?? '');
 			    }
-				    if (tab === 'itemNames') {
-				      const row = itemNames.find((n) => n.id === id);
-			      setNewItemName(row?.name ?? '');
-				      setNewItemNameUnitId(row?.unitId ?? '');
-				      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
-				      setNewItemNameSpecIds(Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : []);
-              setNewItemNameCatalogueLink((row as any)?.catalogueLink ?? '');
-			    }
+					    if (tab === 'itemNames') {
+					      const row = itemNames.find((n) => n.id === id);
+				      setNewItemName(row?.name ?? '');
+                setNewItemNameType(((row as any)?.type ?? 'Goods') === 'Services' ? 'Services' : 'Goods');
+					      setNewItemNameUnitId(row?.unitId ?? '');
+					      setNewItemNameCategoryId(row?.itemCategoryId ?? '');
+					      setNewItemNameSpecIds(Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : []);
+	              setNewItemNameCatalogueLink((row as any)?.catalogueLink ?? '');
+				    }
 	    if (tab === 'specs') {
 	      const row = specs.find((s) => s.id === id);
 	      setNewSpecName(row?.name ?? '');
@@ -2915,22 +2921,31 @@ export default function MastersView({
 			                      />
 			                    </label>
 
-				                    <label className="space-y-1">
-					                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type <span className="text-red-600">*</span></div>
-				                      <SearchableSelect
-				                        options={[
-				                          { value: 'Intra-State', label: 'Intra-State' },
-				                          { value: 'Inter-State', label: 'Inter-State' },
-				                        ]}
-				                        value={newSupplierGstType}
-				                        onChange={(v) => setNewSupplierGstType(v === 'Inter-State' ? 'Inter-State' : 'Intra-State')}
-				                        placeholder="Select GST type"
-				                      />
-				                    </label>
+					                    <label className="space-y-1">
+						                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type <span className="text-red-600">*</span></div>
+					                      <SearchableSelect
+					                        options={[
+					                          { value: 'Intra-State', label: 'Intra-State' },
+					                          { value: 'Inter-State', label: 'Inter-State' },
+					                        ]}
+					                        value={newSupplierGstType}
+					                        onChange={(v) => setNewSupplierGstType(v === 'Inter-State' ? 'Inter-State' : 'Intra-State')}
+					                        placeholder="Select GST type"
+					                      />
+					                    </label>
 
-<label className="space-y-1">
-			                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
-			                      <textarea
+                          <label className="flex items-center gap-2 pt-2 select-none">
+                            <input
+                              type="checkbox"
+                              checked={newSupplierCreditVoucherApplicable}
+                              onChange={(e) => setNewSupplierCreditVoucherApplicable(Boolean(e.target.checked))}
+                            />
+                            <span className="text-sm text-on-surface-variant">Credit Voucher Applicable (invoice not required)</span>
+                          </label>
+
+	<label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
+				                      <textarea
 			                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none min-h-[80px]"
 			                        value={newSupplierAddress}
 			                        onChange={(e) => setNewSupplierAddress(e.target.value)}
@@ -3119,12 +3134,13 @@ export default function MastersView({
 				                          return;
 				                        }
 					                        const fn = isEditing
-				                          ? updateSupplier(editCtx?.id ?? '', {
-					                              name: supplierName,
-				                              gstNumber: newSupplierGstNumber.trim() || undefined,
-					                              gstType,
-				                              address: newSupplierAddress.trim() || undefined,
-				                              phone: phone || undefined,
+					                          ? updateSupplier(editCtx?.id ?? '', {
+						                              name: supplierName,
+					                              gstNumber: newSupplierGstNumber.trim() || undefined,
+						                              gstType,
+                                  creditVoucherApplicable: newSupplierCreditVoucherApplicable,
+					                              address: newSupplierAddress.trim() || undefined,
+					                              phone: phone || undefined,
                                   mobile2: newSupplierMobile2.trim() || undefined,
                                   contactPerson: newSupplierContactPerson.trim() || undefined,
                                   contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
@@ -3135,12 +3151,13 @@ export default function MastersView({
                                   catalogueLink: newSupplierCatalogueLink.trim() || undefined,
 				                              updatedBy: 'system',
 				                            })
-				                          : createSupplier({
-					                              name: supplierName,
-				                              gstNumber: newSupplierGstNumber.trim() || undefined,
-					                              gstType,
-				                              address: newSupplierAddress.trim() || undefined,
-				                              phone: phone || undefined,
+					                          : createSupplier({
+						                              name: supplierName,
+					                              gstNumber: newSupplierGstNumber.trim() || undefined,
+						                              gstType,
+                                  creditVoucherApplicable: newSupplierCreditVoucherApplicable,
+					                              address: newSupplierAddress.trim() || undefined,
+					                              phone: phone || undefined,
                                   mobile2: newSupplierMobile2.trim() || undefined,
                                   contactPerson: newSupplierContactPerson.trim() || undefined,
                                   contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
@@ -3565,18 +3582,29 @@ export default function MastersView({
 
 			              {tab === 'itemNames' ? (
 			                <div className="space-y-2">
-		                  <label className="space-y-1">
-		                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item name</div>
-		                    <input
-	                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                      value={newItemName}
-                      onChange={(e) => setNewItemName(e.target.value)}
-		                      placeholder="Bolt"
-		                    />
-		                  </label>
-					                  <label className="space-y-1">
-					                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
-					                    <SearchableSelect
+			                  <label className="space-y-1">
+			                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Item name</div>
+			                    <input
+		                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                      value={newItemName}
+	                      onChange={(e) => setNewItemName(e.target.value)}
+			                      placeholder="Bolt"
+			                    />
+			                  </label>
+                        <label className="space-y-1">
+                          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Type</div>
+                          <select
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                            value={newItemNameType}
+                            onChange={(e) => setNewItemNameType(String(e.target.value) === 'Services' ? 'Services' : 'Goods')}
+                          >
+                            <option value="Goods">Goods</option>
+                            <option value="Services">Services</option>
+                          </select>
+                        </label>
+						                  <label className="space-y-1">
+						                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
+						                    <SearchableSelect
 					                      options={itemCategories.map((c) => ({ value: c.id, label: c.name }))}
 				                      value={newItemNameCategoryId}
 				                      onChange={(v) => {
@@ -3726,31 +3754,34 @@ export default function MastersView({
 				                          setFieldError('itemNameCategoryId', 'Category is required.');
 				                          return;
 				                        }
-				                        const fn = isEditing
-				                          ? updateItemName(editCtx?.id ?? '', {
-				                              name: newItemName.trim(),
-				                              unitId: newItemNameUnitId || null,
-			                              itemCategoryId: newItemNameCategoryId || null,
-			                              specificationIds: newItemNameSpecIds.filter(Boolean),
-                                catalogueLink: newItemNameCatalogueLink.trim() || null,
-				                              updatedBy: 'system',
-				                            })
-				                          : createItemName({
-				                              name: newItemName.trim(),
-				                              unitId: newItemNameUnitId || null,
+					                        const fn = isEditing
+					                          ? updateItemName(editCtx?.id ?? '', {
+					                              name: newItemName.trim(),
+                                type: newItemNameType,
+					                              unitId: newItemNameUnitId || null,
 				                              itemCategoryId: newItemNameCategoryId || null,
 				                              specificationIds: newItemNameSpecIds.filter(Boolean),
-                                catalogueLink: newItemNameCatalogueLink.trim() || null,
-				                              createdBy: 'system',
-				                            });
+	                                catalogueLink: newItemNameCatalogueLink.trim() || null,
+					                              updatedBy: 'system',
+					                            })
+					                          : createItemName({
+					                              name: newItemName.trim(),
+                                type: newItemNameType,
+					                              unitId: newItemNameUnitId || null,
+					                              itemCategoryId: newItemNameCategoryId || null,
+					                              specificationIds: newItemNameSpecIds.filter(Boolean),
+	                                catalogueLink: newItemNameCatalogueLink.trim() || null,
+					                              createdBy: 'system',
+					                            });
 		                        fn.then(() => refreshCurrentTab(tab))
 			                          .then(() => {
-			                            setNewItemName('');
-			                            setNewItemNameUnitId('');
-			                            setNewItemNameCategoryId('');
-			                            setNewItemNameSpecIds([]);
-                              setNewItemNameCatalogueLink('');
-			                            closeModal();
+				                            setNewItemName('');
+                                setNewItemNameType('Goods');
+				                            setNewItemNameUnitId('');
+				                            setNewItemNameCategoryId('');
+				                            setNewItemNameSpecIds([]);
+	                              setNewItemNameCatalogueLink('');
+				                            closeModal();
 			                          })
 		                          .catch(handleMasterError)
 		                          .finally(() => setBusy(false));
@@ -5482,22 +5513,24 @@ export default function MastersView({
 				          <div className="overflow-auto">
 					            <table className="min-w-[1200px] w-full text-sm border-collapse border border-blue-600">
 					              <thead className="text-xs uppercase tracking-wider text-on-surface-variant">
-					                <tr>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Specifications</th>
-                        <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-					                </tr>
+						                <tr>
+						                  <th className="text-left px-3 py-2 border border-blue-600">Name</th>
+						                  <th className="text-left px-3 py-2 border border-blue-600">Unit</th>
+						                  <th className="text-left px-3 py-2 border border-blue-600">Category</th>
+                              <th className="text-left px-3 py-2 border border-blue-600">Type</th>
+						                  <th className="text-left px-3 py-2 border border-blue-600">Specifications</th>
+	                        <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
+						                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+						                </tr>
 						              </thead>
 						              <tbody>
 						                {filteredItemNames.map((n) => (
 						                  <tr key={n.id}>
-					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+						                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
+						                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
+						                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.itemCategoryName ?? ''}</td>
+                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{String((n as any).type ?? 'Goods')}</td>
+						                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
 					                      {(() => {
 					                        const ids = Array.isArray((n as any).specificationIds)
 					                          ? ((n as any).specificationIds as any[]).map((x) => String(x))

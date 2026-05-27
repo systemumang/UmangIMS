@@ -14,11 +14,14 @@ import CreatePoQueueView from './components/views/queues/CreatePoQueueView';
 import CheckPoQueueView from './components/views/queues/CheckPoQueueView';
 import SendPoQueueView from './components/views/queues/SendPoQueueView';
 import CreateGrnQueueView from './components/views/queues/CreateGrnQueueView';
-import QcQueueView from './components/views/queues/QcQueueView';
-import EnterInvoiceQueueView from './components/views/queues/EnterInvoiceQueueView';
-import ApproveInvoiceQueueView from './components/views/queues/ApproveInvoiceQueueView';
-import LinkInvoiceGrnQueueView from './components/views/queues/LinkInvoiceGrnQueueView';
-import PaymentQueueView from './components/views/queues/PaymentQueueView';
+	import QcQueueView from './components/views/queues/QcQueueView';
+	import EnterInvoiceQueueView from './components/views/queues/EnterInvoiceQueueView';
+import EnterCreditVoucherQueueView from './components/views/queues/EnterCreditVoucherQueueView';
+	import ApproveInvoiceQueueView from './components/views/queues/ApproveInvoiceQueueView';
+import ApproveCreditVoucherQueueView from './components/views/queues/ApproveCreditVoucherQueueView';
+	import LinkInvoiceGrnQueueView from './components/views/queues/LinkInvoiceGrnQueueView';
+	import PaymentQueueView from './components/views/queues/PaymentQueueView';
+import CreditVoucherPaymentQueueView from './components/views/queues/CreditVoucherPaymentQueueView';
 import Spinner from './components/common/Spinner';
 import ItemIssueView from './components/views/ItemIssueView';
 import ReturnView from './components/views/ReturnView';
@@ -59,19 +62,22 @@ import {
   fetchOperationsPos,
   fetchOperationsPrs,
 } from '@/src/lib/operations';
-import {
-  fetchQueueApprovePr,
-  fetchQueueCheckPo,
-  fetchQueueCreateGrn,
-  fetchQueueCreatePo,
-  fetchQueueEnterInvoice,
-  fetchQueueApproveInvoice,
-  fetchQueueLinkInvoiceGrn,
-  fetchQueuePayment,
-  fetchQueueTallyEntry,
-  fetchQueueQc,
-  fetchQueueSendPo,
-} from '@/src/lib/queues';
+	import {
+	  fetchQueueApprovePr,
+	  fetchQueueCheckPo,
+	  fetchQueueCreateGrn,
+	  fetchQueueCreatePo,
+	  fetchQueueEnterInvoice,
+  fetchQueueEnterCreditVoucher,
+	  fetchQueueApproveInvoice,
+  fetchQueueApproveCreditVoucher,
+	  fetchQueueLinkInvoiceGrn,
+	  fetchQueuePayment,
+  fetchQueueCreditVoucherPayment,
+	  fetchQueueTallyEntry,
+	  fetchQueueQc,
+	  fetchQueueSendPo,
+	} from '@/src/lib/queues';
 
 import RequestMaterialView from './components/views/RequestMaterialView';
 import PendingIssueView from './components/views/PendingIssueView';
@@ -200,13 +206,16 @@ export default function App() {
       fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
       fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
-	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
-	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
-	      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
-	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
-	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
-      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
-    ])
+		      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
+		      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
+          fetchQueueEnterCreditVoucher(undefined, ac.signal).then((r) => ['queueEnterCreditVoucher', r.length] as const),
+		      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
+          fetchQueueApproveCreditVoucher(undefined, ac.signal).then((r) => ['queueApproveCreditVoucher', r.length] as const),
+		      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
+		      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
+	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
+          fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
+	    ])
       .then((pairs) => {
         const next: Partial<Record<PendingQueueKey, number>> = {};
         for (const [k, v] of pairs) next[k] = v;
@@ -322,11 +331,14 @@ export default function App() {
 	        queueSendPo: 'Send PO',
 	        queueCreateGrn: 'Create GRN',
 		        queueCheckQuality: 'Check Quality',
-		        queueEnterInvoice: 'Enter Invoice',
-		        queueApproveInvoice: 'Approve Invoice',
+			        queueEnterInvoice: 'Enter Invoice',
+              queueEnterCreditVoucher: 'Enter Credit Voucher',
+			        queueApproveInvoice: 'Approve Invoice',
+              queueApproveCreditVoucher: 'Approve Credit Voucher',
 		        queueTallyEntry: 'Tally Entry',
 	        queueLinkInvoiceGrn: 'Link Invoice ↔ GRN',
-		        queuePayment: 'Pending Payment',
+			        queuePayment: 'Pending Payment',
+              queueCreditVoucherPayment: 'Pending Credit Voucher Payment',
 		      };
 	      return { title: titleByKey[view], showSearch: false };
 	    }
@@ -839,12 +851,15 @@ export default function App() {
 	          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueSendPo' ? <SendPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueApproveInvoice' ? <ApproveInvoiceQueueView onViewPr={openPrDetail} /> : null}
-			          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
-			          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
-		          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
+				          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
+				          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
+                  {view === 'queueEnterCreditVoucher' ? <EnterCreditVoucherQueueView onViewPr={openPrDetail} /> : null}
+				          {view === 'queueApproveInvoice' ? <ApproveInvoiceQueueView onViewPr={openPrDetail} /> : null}
+                  {view === 'queueApproveCreditVoucher' ? <ApproveCreditVoucherQueueView onViewPr={openPrDetail} /> : null}
+				          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
+				          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
+			          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
+                {view === 'queueCreditVoucherPayment' ? <CreditVoucherPaymentQueueView onViewPr={openPrDetail} /> : null}
 		        </div>
 		      </main>
 
