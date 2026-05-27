@@ -12093,6 +12093,22 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     };
     const textWidth = (text, size = 10, useBold = false) =>
       (useBold ? bold : font).widthOfTextAtSize(String(text ?? ''), size);
+    const wrapText = (text, maxWidth, size = 8.5) => {
+      const words = String(text ?? '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return ['-'];
+      const lines = [];
+      let current = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const candidate = `${current} ${words[i]}`;
+        if (textWidth(candidate, size, false) <= maxWidth) current = candidate;
+        else {
+          lines.push(current);
+          current = words[i];
+        }
+      }
+      lines.push(current);
+      return lines;
+    };
     const formatDateDDMMYYYY = (value) => {
       const raw = String(value ?? '').trim();
       if (!raw) return '';
@@ -12118,9 +12134,9 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     // Table (with borders)
     const tableX = 40;
-    const col1 = 350; // Item
-    const col2 = 95;  // Qty
-    const col3 = 95;  // Rate
+    const col1 = 260; // Item (wrapped)
+    const col2 = 80;  // Qty
+    const col3 = 80;  // Rate
     const col4 = 95;  // Amount
     const x1 = tableX;
     const x2 = tableX + col1;
@@ -12147,19 +12163,26 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
       const rate = Number(row?.rate ?? 0);
       const amount = Number(row?.amount ?? qty * rate);
 
+      const itemLines = wrapText(itemName, col1 - 12, 8.5);
+      const bodyRowH = Math.max(rowH, itemLines.length * 11 + 8);
       const rowTop = y;
-      const rowBottom = rowTop - rowH;
-      page.drawRectangle({ x: tableX, y: rowBottom, width: x5 - x1, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
+      const rowBottom = rowTop - bodyRowH;
+      page.drawRectangle({ x: tableX, y: rowBottom, width: x5 - x1, height: bodyRowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
       page.drawLine({ start: { x: x2, y: rowTop }, end: { x: x2, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
       page.drawLine({ start: { x: x3, y: rowTop }, end: { x: x3, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
       page.drawLine({ start: { x: x4, y: rowTop }, end: { x: x4, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
-      drawText(itemName.length > 65 ? `${itemName.slice(0, 65)}...` : itemName, x1 + 6, rowBottom + 6, 9);
+      let lineY = rowTop - 13;
+      for (const line of itemLines) {
+        drawText(line, x1 + 6, lineY, 8.5);
+        lineY -= 11;
+      }
       const qtyText = qty.toFixed(2);
       const rateText = rate.toFixed(2);
       const amountText = amount.toFixed(2);
-      drawText(qtyText, x3 - textWidth(qtyText, 9, false) - 6, rowBottom + 6, 9);
-      drawText(rateText, x4 - textWidth(rateText, 9, false) - 6, rowBottom + 6, 9);
-      drawText(amountText, x5 - textWidth(amountText, 9, false) - 6, rowBottom + 6, 9);
+      const numY = rowBottom + Math.max(6, (bodyRowH - 9) / 2 - 1);
+      drawText(qtyText, x3 - textWidth(qtyText, 9, false) - 6, numY, 9);
+      drawText(rateText, x4 - textWidth(rateText, 9, false) - 6, numY, 9);
+      drawText(amountText, x5 - textWidth(amountText, 9, false) - 6, numY, 9);
       y = rowBottom - 2;
       if (y < 70) break;
     }
