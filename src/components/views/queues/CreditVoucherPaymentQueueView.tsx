@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import { formatPrNumber, formatPoNumber } from '@/src/lib/docNumbers';
 import { updateCreditVoucherPayment } from '@/src/lib/purchaseRequests';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { fetchQueueCreditVoucherPayment, type CreditVoucherPaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { inputClass, labelClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters, ExportCsvButton } from './shared';
 
@@ -46,6 +47,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
   const [paymentModeInput, setPaymentModeInput] = useState('Cash');
   const [paymentCopyInput, setPaymentCopyInput] = useState('');
+  const [paymentCopyUploading, setPaymentCopyUploading] = useState(false);
   const [voucherItems, setVoucherItems] = useState<Array<{ itemName: string; quantity: number; rate: number; amount: number }>>([]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -202,7 +204,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
             <button type="button" className="btn btn-sm" onClick={closeModal} disabled={saving}>
               Cancel
             </button>
-            <button type="button" className="btn-primary btn-sm" onClick={save} disabled={!canSave || saving}>
+            <button type="button" className="btn-primary btn-sm" onClick={save} disabled={!canSave || saving || paymentCopyUploading}>
               {saving ? 'Saving...' : 'Save'}
             </button>
           </>
@@ -234,6 +236,31 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
           <label className="space-y-1 md:col-span-3">
             <div className={labelClass}>Payment Copy <span className="text-red-600">*</span></div>
             <input className={inputClass} value={paymentCopyInput} onChange={(e) => setPaymentCopyInput(e.target.value)} placeholder="Ref no / URL / file link" />
+            <div className="pt-1">
+              <label className={`btn btn-sm cursor-pointer ${paymentCopyUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Uploaded' : 'Upload'}
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={saving || paymentCopyUploading}
+                  onChange={async (e) => {
+                    const inputEl = e.currentTarget;
+                    const file = inputEl.files?.[0];
+                    if (!file) return;
+                    try {
+                      setPaymentCopyUploading(true);
+                      const { url } = await uploadFileToServer(file);
+                      setPaymentCopyInput(url);
+                    } catch (err) {
+                      setModalError(err instanceof Error ? err.message : String(err));
+                    } finally {
+                      setPaymentCopyUploading(false);
+                      if (inputEl?.isConnected) inputEl.value = '';
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </label>
         </div>
         {voucherItems.length ? (

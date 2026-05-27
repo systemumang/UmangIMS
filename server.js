@@ -12054,11 +12054,9 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
         cv.status,
         cv.po_id AS poId,
         po.po_number AS poNumber,
-        pr.pr_number AS prNumber,
         s.name AS supplierName
       FROM credit_vouchers cv
       LEFT JOIN purchase_orders po ON po.id = cv.po_id
-      LEFT JOIN purchase_requests pr ON pr.id = po.pr_id
       LEFT JOIN suppliers s ON s.id = cv.supplier_id
       WHERE cv.id = ?
       LIMIT 1
@@ -12100,7 +12098,6 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     drawText(`Date: ${String(header.voucherDate ?? '')}`, 400, y, 10, true);
     y -= 18;
     drawText(`PO: ${String(header.poNumber ?? header.poId ?? '')}`, 40, y, 10);
-    drawText(`PR: ${String(header.prNumber ?? '')}`, 260, y, 10);
     y -= 18;
     drawText(`Supplier: ${String(header.supplierName ?? '')}`, 40, y, 10);
     drawText(`Status: ${String(header.status ?? '')}`, 400, y, 10);
