@@ -2397,12 +2397,14 @@ app.get('/api/queues/check-quality', async (req, res) => {
       where.push('DATE(g.received_date) <= ?');
       params.push(f.to);
     }
-    if (f.q) {
-      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
-      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
-    }
+	    if (f.q) {
+	      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+	      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+	    }
+	    // If supplier is configured for Credit Voucher (invoice not required), do not show invoice↔GRN linking queue.
+	    where.push('COALESCE(s.credit_voucher_applicable, 0) = 0');
 
-    const [rows] = await pool.query(
+	    const [rows] = await pool.query(
       `
       SELECT
         g.id AS grnId,

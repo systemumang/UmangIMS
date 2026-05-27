@@ -6,6 +6,7 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { inputClass, LoadingCard, QueueCard } from '@/src/components/views/queues/shared';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 
 export default function PendingSupplierRateView() {
   const [rows, setRows] = useState<PendingSupplierRateRow[]>([]);
@@ -179,7 +180,7 @@ export default function PendingSupplierRateView() {
                   filteredRows.map((r) => (
                     <tr key={r.rfqItemId}>
                       <td className="px-3 py-2 text-sm text-primary border border-outline-variant">{r.rfqNumber || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.rfqDate || '-'}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.rfqDate ? formatDateDDMMYYYYOnly(r.rfqDate) : '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
                         {formatItemInline(r.item, r.specification, specNameById)}
                       </td>

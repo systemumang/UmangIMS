@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { fetchPendingMaterialRequests, type MaterialRequest } from '@/src/lib/materialRequests';
 import Spinner from '@/src/components/common/Spinner';
 import { ArrowUpRight, Search } from 'lucide-react';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 
 export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRequest) => void }) {
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
@@ -73,7 +74,7 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
               return (
                 <tr key={mr.id}>
                   <td className="px-3 py-2 border border-outline-variant/20 font-semibold text-primary">{mr.requestNo}</td>
-                  <td className="px-3 py-2 border border-outline-variant/20">{mr.date ? new Date(mr.date).toLocaleDateString() : '-'}</td>
+	                  <td className="px-3 py-2 border border-outline-variant/20">{mr.date ? formatDateDDMMYYYYOnly(mr.date) : '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.projectName || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.customerName || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20">{mr.firmName || '-'}</td>

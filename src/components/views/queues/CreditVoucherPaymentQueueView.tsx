@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import { formatPrNumber, formatPoNumber } from '@/src/lib/docNumbers';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { updateCreditVoucherPayment } from '@/src/lib/purchaseRequests';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { fetchQueueCreditVoucherPayment, type CreditVoucherPaymentQueueRow, type QueueFilters } from '@/src/lib/queues';
@@ -156,7 +157,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
               pagedRows.map((r) => (
                 <tr key={r.creditVoucherId} className="hover:bg-surface-container-low/50 transition-colors">
                   <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
-                  <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.voucherDate}</td>
+	                  <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.voucherDate ? formatDateDDMMYYYYOnly(r.voucherDate) : '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPoNumber((r as any).poNumber ?? r.poId) || r.poId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || r.prId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.supplierName}</td>

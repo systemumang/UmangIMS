@@ -3,6 +3,7 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
+import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
   createDepartment,
@@ -4916,8 +4917,8 @@ export default function MastersView({
 				                    </td>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.clientName ?? ''}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.startDate ?? ''}</td>
-			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.endDate ?? ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.startDate ? formatDateDDMMYYYYOnly(p.startDate) : ''}</td>
+				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.endDate ? formatDateDDMMYYYYOnly(p.endDate) : ''}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{p.status ?? ''}</td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 							                      <div className="flex items-center gap-2">
