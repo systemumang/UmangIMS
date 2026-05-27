@@ -901,32 +901,18 @@ export default function OperationsView({
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap">
-			        {(['prs', 'pos', 'pendingAdjustments', 'grns', 'invoices', 'creditVouchers', 'payments'] as OpsTab[]).map((k) => (
-	          <button
-	            key={k}
-	            type="button"
-	            className={tab === k ? 'btn-danger btn-sm' : 'btn btn-sm'}
-	            onClick={() => {
-	              setTab(k);
-	              setDetailOpen(false);
-	            }}
-	          >
-            {TAB_LABEL[k]}
-          </button>
-        ))}
-        <div className="flex-1" />
-		        <button
-		          type="button"
-		          className="btn btn-sm"
-		          onClick={exportCsv}
-		          disabled={loading}
-		          title={tab === 'pos' ? 'Download Excel' : 'Export'}
-		        >
-		          {tab === 'pos' ? 'Download Excel' : 'Export'}
-		        </button>
+	  return (
+	    <div className="space-y-4">
+	      <div className="flex items-center justify-end">
+	        <button
+	          type="button"
+	          className="btn btn-sm"
+	          onClick={exportCsv}
+	          disabled={loading}
+	          title={tab === 'pos' ? 'Download Excel' : 'Export'}
+	        >
+	          {tab === 'pos' ? 'Download Excel' : 'Export'}
+	        </button>
 	      </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
