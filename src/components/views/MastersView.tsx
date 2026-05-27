@@ -3593,15 +3593,19 @@ export default function MastersView({
 			                  </label>
                         <label className="space-y-1">
                           <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Type</div>
-                          <select
-                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                            value={newItemNameType}
-                            onChange={(e) => setNewItemNameType(String(e.target.value) === 'Services' ? 'Services' : 'Goods')}
-                          >
-                            <option value="Goods">Goods</option>
-                            <option value="Services">Services</option>
-                          </select>
-                        </label>
+	                          <select
+	                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+	                            value={newItemNameType}
+	                            onChange={(e) => {
+	                              const nextType = String(e.target.value) === 'Services' ? 'Services' : 'Goods';
+	                              setNewItemNameType(nextType);
+	                              if (nextType === 'Services') setNewItemNameSpecIds([]);
+	                            }}
+	                          >
+	                            <option value="Goods">Goods</option>
+	                            <option value="Services">Services</option>
+	                          </select>
+	                        </label>
 						                  <label className="space-y-1">
 						                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
 						                    <SearchableSelect
@@ -3663,7 +3667,7 @@ export default function MastersView({
 				                    {fieldErrors.itemNameUnitId ? <div className="text-xs text-error">{fieldErrors.itemNameUnitId}</div> : null}
 				                  </label>
 
-				                  <div className="space-y-1">
+				                  {newItemNameType !== 'Services' ? <div className="space-y-1">
 				                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specifications</div>
 				                    <div className="space-y-2">
 				                      {newItemNameSpecIds.map((specId, idx) => (
@@ -3712,7 +3716,7 @@ export default function MastersView({
 				                        + Add Specification
 				                      </button>
 				                    </div>
-				                  </div>
+				                  </div> : null}
                       <label className="space-y-1">
                         <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Catalogue Link</div>
                         <input
