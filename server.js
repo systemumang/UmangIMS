@@ -1942,10 +1942,10 @@ app.get('/api/queues/check-po', async (req, res) => {
 	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
 	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
 	      LEFT JOIN priorities p ON p.id = pri.priority_id
-      LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN projects proj ON proj.id = po.project_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
-      WHERE ${where.join(' AND ')}
+	      LEFT JOIN firms f ON f.id = po.firm_id
+	      LEFT JOIN projects proj ON proj.id = po.project_id
+		      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      WHERE ${where.join(' AND ')}
 	      GROUP BY po.id
 	      ORDER BY po.created_at DESC
       `,
@@ -2032,9 +2032,9 @@ app.get('/api/queues/send-po', async (req, res) => {
 	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
 	      LEFT JOIN priorities p ON p.id = pri.priority_id
       LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN projects proj ON proj.id = po.project_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
-      WHERE ${where.join(' AND ')}
+	      LEFT JOIN projects proj ON proj.id = po.project_id
+		      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      WHERE ${where.join(' AND ')}
 	      GROUP BY po.id
 	      ORDER BY po.created_at DESC
       `,
@@ -2717,13 +2717,20 @@ app.get('/api/queues/approve-credit-voucher', async (req, res) => {
         po.supplier_id AS supplierId,
         s.name AS supplierName,
         pr.remarks AS prRemarks
-      FROM credit_vouchers cv
-      INNER JOIN purchase_orders po ON po.id = cv.po_id
-      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
-      LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN projects proj ON proj.id = po.project_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
-      WHERE ${where.join(' AND ')}
+	      FROM credit_vouchers cv
+	      INNER JOIN purchase_orders po ON po.id = cv.po_id
+	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+	      LEFT JOIN firms f ON f.id = po.firm_id
+	      LEFT JOIN projects proj ON proj.id = po.project_id
+	      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      LEFT JOIN (
+	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	          AND reference_type = 'CREDIT_VOUCHER'
+	        GROUP BY invoice_id
+	      ) adj ON adj.creditVoucherId = cv.id
+	      WHERE ${where.join(' AND ')}
       ORDER BY cv.voucher_date DESC, cv.created_at DESC
       `,
       params
@@ -3150,10 +3157,17 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
       INNER JOIN purchase_orders po ON po.id = cv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN projects proj ON proj.id = po.project_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
-      WHERE ${where.join(' AND ')}
-      ORDER BY cv.voucher_date DESC, cv.created_at DESC
+	      LEFT JOIN projects proj ON proj.id = po.project_id
+	      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      LEFT JOIN (
+	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	          AND reference_type = 'CREDIT_VOUCHER'
+	        GROUP BY invoice_id
+	      ) adj ON adj.creditVoucherId = cv.id
+	      WHERE ${where.join(' AND ')}
+	      ORDER BY cv.voucher_date DESC, cv.created_at DESC
       `,
       params
     );
@@ -4769,14 +4783,7 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
 	          AND reference_type = 'CREDIT_VOUCHER'
 	        GROUP BY invoice_id
 	      ) adj ON adj.creditVoucherId = cv.id
-	      LEFT JOIN (
-	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
-	        FROM po_advance_invoice_adjustments
-	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
-	          AND reference_type = 'CREDIT_VOUCHER'
-	        GROUP BY invoice_id
-	      ) adj ON adj.creditVoucherId = cv.id
-      WHERE ${where.join(' AND ')}
+	      WHERE ${where.join(' AND ')}
       ORDER BY cv.created_at DESC
       `,
       params
