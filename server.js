@@ -12189,7 +12189,8 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     y -= 10;
     drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
-    y -= 22; // one blank row gap below total
+    y -= 36; // keep clear gap between table/total and signatures
+    drawText('Supplier/Vendor Sign: ____________________', 40, y, 10, true);
     drawText('Approved By: ____________________', 380, y, 10, true);
 
     const pdfBytes = await doc.save();
