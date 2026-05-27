@@ -23,19 +23,22 @@ import {
 import { cn } from '@/src/lib/utils';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 import { fetchRequests } from '@/src/lib/purchaseRequests';
-import {
-  fetchQueueApprovePr,
-  fetchQueueCheckPo,
-  fetchQueueCreateGrn,
-  fetchQueueCreatePo,
-  fetchQueueEnterInvoice,
-  fetchQueueApproveInvoice,
-  fetchQueueLinkInvoiceGrn,
-  fetchQueuePayment,
-  fetchQueueTallyEntry,
-  fetchQueueQc,
-  fetchQueueSendPo,
-} from '@/src/lib/queues';
+	import {
+	  fetchQueueApprovePr,
+	  fetchQueueCheckPo,
+	  fetchQueueCreateGrn,
+	  fetchQueueCreatePo,
+	  fetchQueueEnterInvoice,
+	  fetchQueueEnterCreditVoucher,
+	  fetchQueueApproveInvoice,
+	  fetchQueueApproveCreditVoucher,
+	  fetchQueueLinkInvoiceGrn,
+	  fetchQueuePayment,
+	  fetchQueueCreditVoucherPayment,
+	  fetchQueueTallyEntry,
+	  fetchQueueQc,
+	  fetchQueueSendPo,
+	} from '@/src/lib/queues';
 
 function formatDDMMYYYY(d: Date) {
   const dd = String(d.getDate()).padStart(2, '0');
@@ -95,11 +98,14 @@ export default function PowerBIDashboardView({
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
 	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
 	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
+	      fetchQueueEnterCreditVoucher(undefined, ac.signal).then((r) => ['queueEnterCreditVoucher', r.length] as const),
 	      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
+	      fetchQueueApproveCreditVoucher(undefined, ac.signal).then((r) => ['queueApproveCreditVoucher', r.length] as const),
 	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
 	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
-      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
-    ])
+	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
+	      fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
+	    ])
       .then((pairs) => {
         const next: any = {};
         for (const [k, v] of pairs) next[k] = v;
@@ -217,11 +223,14 @@ export default function PowerBIDashboardView({
       queueCreateGrn: PackagePlus,
 	      queueCheckQuality: BadgeCheck,
 	      queueEnterInvoice: Receipt,
+	      queueEnterCreditVoucher: Receipt,
 	      queueApproveInvoice: BadgeCheck,
+	      queueApproveCreditVoucher: Repeat2,
 	      queueTallyEntry: Receipt,
 	      queueLinkInvoiceGrn: Link2,
-      queuePayment: CreditCard,
-    }),
+	      queuePayment: CreditCard,
+	      queueCreditVoucherPayment: CreditCard,
+	    }),
     []
   );
 
