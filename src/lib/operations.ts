@@ -178,6 +178,26 @@ export type OperationsPaymentListRow = {
   createdAt: string;
 };
 
+export type OperationsCreditVoucherListRow = {
+  creditVoucherId: string;
+  voucherNo: string;
+  voucherDate: string;
+  poId: string;
+  poNumber: string;
+  prId: string;
+  prNumber: string;
+  firmId: string;
+  firmName: string;
+  supplierId: string;
+  supplierName: string;
+  status: string;
+  paymentStatus?: string | null;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  createdAt: string;
+};
+
 export type OperationsAdvanceListRow = {
   poId: string;
   poNumber: string;
@@ -251,6 +271,12 @@ export async function fetchOperationsInvoices(filters?: OperationsFilters, signa
 export async function fetchOperationsPayments(filters?: OperationsFilters, signal?: AbortSignal): Promise<OperationsPaymentListRow[]> {
   const res = await fetch(`/api/operations/payments${buildOpsQuery(filters)}`, { signal });
   const data = await requireOk<{ rows?: OperationsPaymentListRow[] }>(res, 'Failed to load payments');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function fetchOperationsCreditVouchers(filters?: OperationsFilters, signal?: AbortSignal): Promise<OperationsCreditVoucherListRow[]> {
+  const res = await fetch(`/api/operations/credit-vouchers${buildOpsQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: OperationsCreditVoucherListRow[] }>(res, 'Failed to load credit vouchers');
   return Array.isArray(data.rows) ? data.rows : [];
 }
 

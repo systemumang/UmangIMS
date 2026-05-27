@@ -4,8 +4,9 @@ import { createPo, createRfq, fetchLastSupplierByItemIds, fetchPos, fetchRequest
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
-import { createSupplier, fetchSpecifications, fetchSuppliers, type Specification, type Supplier } from '@/src/lib/masters';
+import { fetchSpecifications, fetchSuppliers, type Specification, type Supplier } from '@/src/lib/masters';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
@@ -84,11 +85,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
   const [supplierCreateLineIndex, setSupplierCreateLineIndex] = useState<number | null>(null);
   const [newSupplierName, setNewSupplierName] = useState('');
-  const [newSupplierCity, setNewSupplierCity] = useState('');
-  const [newSupplierState, setNewSupplierState] = useState('');
-  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
-  const [creatingSupplier, setCreatingSupplier] = useState(false);
-  const [supplierCreateError, setSupplierCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     setSupplierRows(masters.suppliers);
@@ -554,11 +550,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
                                   onCreate={async (label) => {
                                     setSupplierCreateLineIndex(idx);
-                                    setSupplierCreateError(null);
                                     setNewSupplierName(String(label ?? '').trim());
-                                    setNewSupplierCity('');
-                                    setNewSupplierState('');
-                                    setNewSupplierPaymentTerms('');
                                     setSupplierCreateOpen(true);
                                     return null;
                                   }}
@@ -673,11 +665,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
                                 onCreate={async (label) => {
                                   setSupplierCreateLineIndex(idx);
-                                  setSupplierCreateError(null);
                                   setNewSupplierName(String(label ?? '').trim());
-                                  setNewSupplierCity('');
-                                  setNewSupplierState('');
-                                  setNewSupplierPaymentTerms('');
                                   setSupplierCreateOpen(true);
                                   return null;
                                 }}
@@ -713,81 +701,29 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           </div>
         )}
 	      </Modal>
-      {supplierCreateOpen ? (
-        <div className="fixed inset-0 z-[70]">
-          <button type="button" className="absolute inset-0 bg-black/40" onClick={() => setSupplierCreateOpen(false)} aria-label="Close add supplier modal" />
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full max-w-xl rounded-xl border border-outline-variant bg-surface-container-lowest shadow-xl">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
-                <div className="text-sm font-bold text-on-surface">Add Supplier</div>
-                <button type="button" className="btn btn-sm" onClick={() => setSupplierCreateOpen(false)}>Close</button>
-              </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                {supplierCreateError ? <div className="md:col-span-2 p-2 rounded border border-error/30 bg-error/10 text-error text-xs">{supplierCreateError}</div> : null}
-                <label className="space-y-1 md:col-span-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier Name *</div>
-                  <input className={inputClass} value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
-                </label>
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">City *</div>
-                  <input className={inputClass} value={newSupplierCity} onChange={(e) => setNewSupplierCity(e.target.value)} />
-                </label>
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">State *</div>
-                  <input className={inputClass} value={newSupplierState} onChange={(e) => setNewSupplierState(e.target.value)} />
-                </label>
-                <label className="space-y-1 md:col-span-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Payment Terms</div>
-                  <input className={inputClass} value={newSupplierPaymentTerms} onChange={(e) => setNewSupplierPaymentTerms(e.target.value)} />
-                </label>
-              </div>
-              <div className="px-4 py-3 border-t border-outline-variant flex justify-end gap-2">
-                <button type="button" className="btn" onClick={() => setSupplierCreateOpen(false)}>Cancel</button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={creatingSupplier || !newSupplierName.trim() || !newSupplierCity.trim() || !newSupplierState.trim()}
-                  onClick={async () => {
-                    setSupplierCreateError(null);
-                    setCreatingSupplier(true);
-                    try {
-                      const created = await createSupplier({
-                        name: newSupplierName.trim(),
-                        city: newSupplierCity.trim(),
-                        state: newSupplierState.trim(),
-                        paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-                        createdBy: 'system',
-                      });
-                      const createdId = String(created?.supplier?.id ?? '').trim();
-                      const fresh = await fetchSuppliers();
-                      setSupplierRows(fresh);
-                      if (createdId && supplierCreateLineIndex != null) {
-                        setLines((prev) => {
-                          const next = prev.slice();
-                          const currentTerms = String(next[supplierCreateLineIndex]?.paymentTerms ?? '').trim();
-                          next[supplierCreateLineIndex] = {
-                            ...next[supplierCreateLineIndex]!,
-                            supplierId: createdId,
-                            paymentTerms: currentTerms || newSupplierPaymentTerms.trim(),
-                          };
-                          return next;
-                        });
-                      }
-                      setSupplierCreateOpen(false);
-                    } catch (e) {
-                      setSupplierCreateError(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setCreatingSupplier(false);
-                    }
-                  }}
-                >
-                  {creatingSupplier ? 'Saving...' : 'Save Supplier'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+	      {supplierCreateOpen ? (
+	        <SupplierCreateModal
+            initialName={newSupplierName}
+            onClose={() => setSupplierCreateOpen(false)}
+            onCreated={async (supplier) => {
+              const fresh = await fetchSuppliers();
+              setSupplierRows(fresh);
+              if (supplierCreateLineIndex != null) {
+                setLines((prev) => {
+                  const next = prev.slice();
+                  const currentTerms = String(next[supplierCreateLineIndex]?.paymentTerms ?? '').trim();
+                  next[supplierCreateLineIndex] = {
+                    ...next[supplierCreateLineIndex]!,
+                    supplierId: supplier.id,
+                    paymentTerms: currentTerms || String(supplier.paymentTerms ?? '').trim(),
+                  };
+                  return next;
+                });
+              }
+              setSupplierCreateOpen(false);
+            }}
+          />
+	      ) : null}
 	    </div>
 	  );
 }

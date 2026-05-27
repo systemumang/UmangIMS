@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
-import Sidebar, { type NavView, type PendingQueueKey, type StockMasterTab } from './components/Sidebar';
+import Sidebar, { type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
 import PowerBIDashboardView from './components/views/PowerBIDashboardView';
 import InventoryView from './components/views/InventoryView';
@@ -55,8 +55,9 @@ import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
   fetchUsers,
 } from '@/src/lib/masters';
 import {
-  fetchOperationsAdvances,
-  fetchOperationsGrns,
+	  fetchOperationsAdvances,
+  fetchOperationsCreditVouchers,
+	  fetchOperationsGrns,
   fetchOperationsInvoices,
   fetchOperationsPayments,
   fetchOperationsPos,
@@ -127,11 +128,11 @@ export default function App() {
 	        const [settingsExpanded, setSettingsExpanded] = useState(false);
 	        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
 	        const [quotationExpanded, setQuotationExpanded] = useState(false);
-        const [operationsTab, setOperationsTab] = useState<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments'>('prs');
+	        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
-      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments', number>>>({});
+	      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<PurchaseMastersTab, number>>>({});
 
   const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const [countsRefreshTick, setCountsRefreshTick] = useState(0);
@@ -232,12 +233,13 @@ export default function App() {
       fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
       fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
       fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
-      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
-      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
-      fetchOperationsPayments(undefined, ac.signal).then((r) => ['payments', r.length] as const),
+	      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
+	      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
+      fetchOperationsCreditVouchers(undefined, ac.signal).then((r) => ['creditVouchers', r.length] as const),
+	      fetchOperationsPayments(undefined, ac.signal).then((r) => ['payments', r.length] as const),
     ])
       .then((pairs) => {
-        const next: Partial<Record<'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments', number>> = {};
+	        const next: Partial<Record<PurchaseMastersTab, number>> = {};
         for (const [k, v] of pairs) next[k] = v;
         setPurchaseMastersCounts(next);
       })

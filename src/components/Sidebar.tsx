@@ -83,12 +83,15 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'transferMaster', label: 'Transfer Master' },
 ];
 
-export const purchaseMastersMenuItems: Array<{ key: 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments'; label: string }> = [
+export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'creditVouchers' | 'payments';
+
+export const purchaseMastersMenuItems: Array<{ key: PurchaseMastersTab; label: string }> = [
   { key: 'prs', label: 'Requisitions' },
   { key: 'pos', label: 'Purchase Orders' },
   { key: 'pendingAdjustments', label: 'Pending Advance Adjustment' },
   { key: 'grns', label: 'GRN' },
   { key: 'invoices', label: 'Invoices' },
+  { key: 'creditVouchers', label: 'Credit Voucher' },
   { key: 'payments', label: 'Payments' },
 ];
 
@@ -118,8 +121,6 @@ export const settingsMenuItems: Array<{ key: NavView; label: string }> = [
 ];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
-
-type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments';
 
 export default function Sidebar({
   activeView,

@@ -3896,15 +3896,28 @@ async function fetchGrnDetail(pool, grnId) {
     `
     SELECT
       gi.id AS id,
-      gi.grn_id AS grnId,
-      gi.item_id AS itemId,
-      iname.name AS item,
-      gi.received_qty AS quantityReceived
-    FROM grn_items gi
-    LEFT JOIN items it ON it.id = gi.item_id
-    LEFT JOIN item_names iname ON iname.id = it.item_name_id
-    WHERE gi.grn_id = ?
-    ORDER BY gi.created_at ASC
+	      gi.grn_id AS grnId,
+	      gi.item_id AS itemId,
+	      iname.name AS item,
+	      gi.received_qty AS quantityReceived,
+	      COALESCE(qc.approvedQty, gi.received_qty, 0) AS approvedQty,
+	      COALESCE(linkq.invoiceLinkQty, 0) AS invoiceLinkQty,
+	      COALESCE(qc.rejectedQty, 0) AS rejectedQty
+	    FROM grn_items gi
+	    LEFT JOIN items it ON it.id = gi.item_id
+	    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+	    LEFT JOIN (
+	      SELECT grn_id AS grnId, item_id AS itemId, SUM(COALESCE(accepted_qty, 0)) AS approvedQty, SUM(COALESCE(rejected_qty, 0)) AS rejectedQty
+	      FROM qc_records
+	      GROUP BY grn_id, item_id
+	    ) qc ON qc.grnId = gi.grn_id AND qc.itemId = gi.item_id
+	    LEFT JOIN (
+	      SELECT grn_item_id AS grnItemId, SUM(COALESCE(linked_qty, 0)) AS invoiceLinkQty
+	      FROM grn_invoice_item_links
+	      GROUP BY grn_item_id
+	    ) linkq ON linkq.grnItemId = gi.id
+	    WHERE gi.grn_id = ?
+	    ORDER BY gi.created_at ASC
     `,
     [grnId]
   );
@@ -3920,11 +3933,14 @@ async function fetchGrnDetail(pool, grnId) {
 
   const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => ({
     id: String(r.id ?? ''),
-    grnId: String(r.grnId ?? ''),
-    itemId: String(r.itemId ?? ''),
-    item: String(r.item ?? ''),
-    quantityReceived: Number(r.quantityReceived ?? 0),
-  }));
+	    grnId: String(r.grnId ?? ''),
+	    itemId: String(r.itemId ?? ''),
+	    item: String(r.item ?? ''),
+	    quantityReceived: Number(r.quantityReceived ?? 0),
+	    approvedQty: Number(r.approvedQty ?? 0),
+	    invoiceLinkQty: Number(r.invoiceLinkQty ?? 0),
+	    rejectedQty: Number(r.rejectedQty ?? 0),
+	  }));
 
   const po = {
     id: String(grnRow.poId ?? ''),
@@ -4671,6 +4687,103 @@ app.get('/api/operations/invoices', async (req, res) => {
       createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
     }));
     if (status) out = out.filter((x) => x.status === status);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/operations/credit-vouchers', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(cv.voucher_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(cv.voucher_date) <= ?');
+      params.push(f.to);
+    }
+    if (status) {
+      where.push('(cv.status = ? OR cv.payment_status = ?)');
+      params.push(status, status);
+    }
+    if (f.q) {
+      where.push('(cv.voucher_number LIKE ? OR cv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        cv.id AS creditVoucherId,
+        cv.voucher_number AS voucherNo,
+        cv.voucher_date AS voucherDate,
+        cv.total_amount AS totalAmount,
+        cv.status AS status,
+        cv.payment_status AS paymentStatus,
+        cv.payment_amount AS paidAmount,
+        cv.created_at AS createdAt,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName
+      FROM credit_vouchers cv
+      INNER JOIN purchase_orders po ON po.id = cv.po_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY cv.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const totalAmount = Number(r.totalAmount ?? 0);
+      const paidAmount = Number(r.paidAmount ?? 0);
+      return {
+        creditVoucherId: String(r.creditVoucherId ?? ''),
+        voucherNo: String(r.voucherNo ?? r.creditVoucherId ?? ''),
+        voucherDate: toIsoDate(r.voucherDate) || '',
+        poId: String(r.poId ?? ''),
+        poNumber: String(r.poNumber ?? r.poId ?? ''),
+        prId: String(r.prId ?? ''),
+        prNumber: String(r.prNumber ?? r.prId ?? ''),
+        firmId: String(r.firmId ?? ''),
+        firmName: String(r.firmName ?? ''),
+        supplierId: String(r.supplierId ?? ''),
+        supplierName: String(r.supplierName ?? ''),
+        status: String(r.status ?? ''),
+        paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+        totalAmount,
+        paidAmount,
+        balanceAmount: Math.max(0, totalAmount - paidAmount),
+        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+      };
+    });
     res.json({ rows: out });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

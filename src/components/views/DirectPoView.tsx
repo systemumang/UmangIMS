@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-	import SearchableSelect from '@/src/components/common/SearchableSelect';
-	import { createDirectPo } from '@/src/lib/purchaseRequests';
+		import SearchableSelect from '@/src/components/common/SearchableSelect';
+    import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
+		import { createDirectPo } from '@/src/lib/purchaseRequests';
 	import { fetchInventorySheet } from '@/src/lib/inventory';
 import {
-  createSupplier,
   fetchFirms,
   fetchItemNames,
   fetchItems,
@@ -65,11 +65,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [error, setError] = useState<string | null>(null);
   const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
-  const [newSupplierCity, setNewSupplierCity] = useState('');
-  const [newSupplierState, setNewSupplierState] = useState('');
-  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
-  const [creatingSupplier, setCreatingSupplier] = useState(false);
-  const [supplierCreateError, setSupplierCreateError] = useState<string | null>(null);
 
   const selectedFirm = useMemo(() => firms.find((f) => f.id === firmId) ?? null, [firmId, firms]);
   const firmTermsConditions = useMemo(() => String(selectedFirm?.termsConditions ?? '').trim(), [selectedFirm]);
@@ -400,11 +395,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                     closeOnCreate
                     createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
                     onCreate={async (label) => {
-                      setSupplierCreateError(null);
                       setNewSupplierName(String(label ?? '').trim());
-                      setNewSupplierCity('');
-                      setNewSupplierState('');
-                      setNewSupplierPaymentTerms('');
                       setSupplierCreateOpen(true);
                       return null;
                     }}
@@ -631,72 +622,19 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
           </div>
         </div>
 	      </div>
-      {supplierCreateOpen ? (
-        <div className="fixed inset-0 z-50">
-          <button type="button" className="absolute inset-0 bg-black/40" onClick={() => setSupplierCreateOpen(false)} aria-label="Close add supplier modal" />
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full max-w-xl rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-xl">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
-                <div className="text-sm font-bold text-on-surface">Add Supplier</div>
-                <button type="button" className="btn btn-sm" onClick={() => setSupplierCreateOpen(false)}>Close</button>
-              </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                {supplierCreateError ? <div className="md:col-span-2 p-2 rounded border border-error/30 bg-error/10 text-error text-xs">{supplierCreateError}</div> : null}
-                <label className="space-y-1 md:col-span-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier Name *</div>
-                  <input className={inputClass} value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
-                </label>
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">City *</div>
-                  <input className={inputClass} value={newSupplierCity} onChange={(e) => setNewSupplierCity(e.target.value)} />
-                </label>
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">State *</div>
-                  <input className={inputClass} value={newSupplierState} onChange={(e) => setNewSupplierState(e.target.value)} />
-                </label>
-                <label className="space-y-1 md:col-span-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Payment Terms</div>
-                  <input className={inputClass} value={newSupplierPaymentTerms} onChange={(e) => setNewSupplierPaymentTerms(e.target.value)} />
-                </label>
-              </div>
-              <div className="px-4 py-3 border-t border-outline-variant flex justify-end gap-2">
-                <button type="button" className="btn" onClick={() => setSupplierCreateOpen(false)}>Cancel</button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={creatingSupplier || !newSupplierName.trim() || !newSupplierCity.trim() || !newSupplierState.trim()}
-                  onClick={async () => {
-                    setSupplierCreateError(null);
-                    setCreatingSupplier(true);
-                    try {
-                      const created = await createSupplier({
-                        name: newSupplierName.trim(),
-                        city: newSupplierCity.trim(),
-                        state: newSupplierState.trim(),
-                        paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-                        createdBy: 'system',
-                      });
-                      const createdId = String(created?.supplier?.id ?? '').trim();
-                      const fresh = await fetchSuppliers();
-                      setSuppliers(fresh);
-                      if (createdId) setSupplierId(createdId);
-                      const s = fresh.find((x) => x.id === createdId);
-                      if (s?.paymentTerms) setPaymentTerms(String(s.paymentTerms).trim());
-                      setSupplierCreateOpen(false);
-                    } catch (e) {
-                      setSupplierCreateError(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setCreatingSupplier(false);
-                    }
-                  }}
-                >
-                  {creatingSupplier ? 'Saving...' : 'Save Supplier'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+	      {supplierCreateOpen ? (
+	        <SupplierCreateModal
+            initialName={newSupplierName}
+            onClose={() => setSupplierCreateOpen(false)}
+            onCreated={async (supplier) => {
+              const fresh = await fetchSuppliers();
+              setSuppliers(fresh);
+              setSupplierId(supplier.id);
+              if (supplier.paymentTerms) setPaymentTerms(String(supplier.paymentTerms).trim());
+              setSupplierCreateOpen(false);
+            }}
+          />
+	      ) : null}
 	    </div>
 	  );
 }

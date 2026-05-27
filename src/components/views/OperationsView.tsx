@@ -10,7 +10,8 @@ import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { updatePo } from '@/src/lib/purchaseRequests';
 import {
-				  fetchOperationsGrnDetail,
+          fetchOperationsCreditVouchers,
+					  fetchOperationsGrnDetail,
 				  fetchOperationsGrns,
       fetchOperationsInvoiceDetail,
       fetchInvoiceReceipts,
@@ -29,7 +30,8 @@ import {
 		  updatePoAdvances,
 		  type OperationsFilters,
       type OperationsAdvanceListRow,
-		  type OperationsGrnListRow,
+			  type OperationsGrnListRow,
+      type OperationsCreditVoucherListRow,
       type OperationsInvoiceListRow,
       type InvoiceReceiptRow,
 		  type OperationsPaymentListRow,
@@ -40,16 +42,17 @@ import {
 } from '@/src/lib/operations';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
-type OpsTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'payments';
+type OpsTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'creditVouchers' | 'payments';
 type InvoiceSubTab = 'pendingAdjustments' | 'receipts';
 
 const TAB_LABEL: Record<OpsTab, string> = {
   prs: 'Purchase Requisitions',
   pos: 'Purchase Orders',
   pendingAdjustments: 'Pending Advance Adjustment',
-  grns: 'GRN',
-  invoices: 'Invoices',
-  payments: 'Payments',
+	  grns: 'GRN',
+	  invoices: 'Invoices',
+  creditVouchers: 'Credit Voucher',
+	  payments: 'Payments',
 };
 
 const emptyOperationsFilters: OperationsFilters = {
@@ -98,8 +101,9 @@ export default function OperationsView({
 	    if (tab === 'prs') return ['', 'Pending Approval', 'Approved', 'Rejected'];
 	    if (tab === 'pos') return ['', 'Open', 'Partial', 'Closed'];
 	    if (tab === 'pendingAdjustments') return ['', 'Open', 'Partial', 'Closed'];
-	    if (tab === 'invoices') return ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
-	    if (tab === 'payments') return ['', 'ADVANCE_ADJUSTMENT', 'DIRECT_PAYMENT'];
+		    if (tab === 'invoices') return ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
+    if (tab === 'creditVouchers') return ['', 'Recorded', 'Approved', 'Paid'];
+		    if (tab === 'payments') return ['', 'ADVANCE_ADJUSTMENT', 'DIRECT_PAYMENT'];
 	    return [''];
 	  }, [tab]);
 
@@ -118,8 +122,13 @@ export default function OperationsView({
 	  const [pos, setPos] = useState<OperationsPoListRow[]>([]);
 	  const [grns, setGrns] = useState<OperationsGrnListRow[]>([]);
 	  const [invoices, setInvoices] = useState<OperationsInvoiceListRow[]>([]);
-  const [payments, setPayments] = useState<OperationsPaymentListRow[]>([]);
-  const [advancePos, setAdvancePos] = useState<OperationsAdvanceListRow[]>([]);
+	  const [payments, setPayments] = useState<OperationsPaymentListRow[]>([]);
+  const [creditVouchers, setCreditVouchers] = useState<OperationsCreditVoucherListRow[]>([]);
+	  const [advancePos, setAdvancePos] = useState<OperationsAdvanceListRow[]>([]);
+  const [expandedGrnIds, setExpandedGrnIds] = useState<string[]>([]);
+  const [inlineGrnDetailById, setInlineGrnDetailById] = useState<Record<string, any>>({});
+  const [inlineGrnLoadingById, setInlineGrnLoadingById] = useState<Record<string, boolean>>({});
+  const [inlineGrnErrorById, setInlineGrnErrorById] = useState<Record<string, string>>({});
   const [expandedInvoiceReceiptIds, setExpandedInvoiceReceiptIds] = useState<string[]>([]);
   const [inlineInvoiceReceiptsById, setInlineInvoiceReceiptsById] = useState<Record<string, InvoiceReceiptRow[]>>({});
   const [inlineInvoiceReceiptTotalsById, setInlineInvoiceReceiptTotalsById] = useState<
@@ -180,8 +189,9 @@ export default function OperationsView({
 	  const defaultSortKey = useMemo(() => {
 	    if (tab === 'prs') return 'requisitionDate';
 	    if (tab === 'pos') return 'createdAt';
-	    if (tab === 'grns') return 'createdAt';
-	    if (tab === 'invoices') return 'createdAt';
+		    if (tab === 'grns') return 'createdAt';
+		    if (tab === 'invoices') return 'createdAt';
+    if (tab === 'creditVouchers') return 'createdAt';
 	    return 'createdAt';
 	  }, [tab]);
 	  const [sort, setSort] = useState<{ key: string; dir: SortDir }>({ key: defaultSortKey, dir: 'desc' });
@@ -197,11 +207,13 @@ export default function OperationsView({
 		            ? pos
 		            : tab === 'pendingAdjustments'
 		              ? advancePos
-		            : tab === 'grns'
-		              ? grns
-		              : tab === 'invoices'
-		                ? invoices
-		                : payments;
+			            : tab === 'grns'
+			              ? grns
+			              : tab === 'invoices'
+			                ? invoices
+                    : tab === 'creditVouchers'
+                      ? creditVouchers
+			                : payments;
 	    const out = [...(list ?? [])];
 	    const key = String(sort.key ?? '');
 	    const dir = sort.dir === 'asc' ? 1 : -1;
@@ -245,7 +257,7 @@ export default function OperationsView({
 
 	    out.sort((ra, rb) => cmp(ra?.[key], rb?.[key]) * dir);
 	    return out;
-		  }, [advancePos, grns, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
+			  }, [advancePos, creditVouchers, grns, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
 
 	  const rowsCount = sortedRows.length;
 
@@ -258,8 +270,9 @@ export default function OperationsView({
     setPrs([]);
     setPos([]);
     setGrns([]);
-    setInvoices([]);
-    setPayments([]);
+	    setInvoices([]);
+      setCreditVouchers([]);
+	    setPayments([]);
     setAdvancePos([]);
     setExpandedPoIds([]);
     setInlinePoDetailById({});
@@ -272,8 +285,12 @@ export default function OperationsView({
     setExpandedInvoiceReceiptIds([]);
     setInlineInvoiceReceiptsById({});
     setInlineInvoiceReceiptTotalsById({});
-    setInlineInvoiceReceiptsLoadingById({});
-    setInlineInvoiceReceiptsErrorById({});
+	    setInlineInvoiceReceiptsLoadingById({});
+	    setInlineInvoiceReceiptsErrorById({});
+      setExpandedGrnIds([]);
+      setInlineGrnDetailById({});
+      setInlineGrnLoadingById({});
+      setInlineGrnErrorById({});
     setDetailOpen(false);
   }, [tab]);
 
@@ -302,10 +319,12 @@ export default function OperationsView({
 	          : tab === 'pendingAdjustments'
 	            ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
 	            : tab === 'grns'
-	              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
-	              : tab === 'invoices'
-	                ? fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
-	                : fetchOperationsPayments(filters, ac.signal).then(setPayments);
+		              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
+		              : tab === 'invoices'
+		                ? fetchOperationsInvoices(filters, ac.signal).then(setInvoices)
+                    : tab === 'creditVouchers'
+                      ? fetchOperationsCreditVouchers(filters, ac.signal).then(setCreditVouchers)
+		                : fetchOperationsPayments(filters, ac.signal).then(setPayments);
 
     p.catch((e) => {
       if (ac.signal.aborted) return;
@@ -473,14 +492,28 @@ export default function OperationsView({
       }
       return;
     }
-		    // GRN rows open full Purchase Request detail.
-		    if (tab === 'grns' && typeof onViewPr === 'function') {
-		      const prId = String(row?.prId ?? '').trim();
-		      if (prId) {
-		        onViewPr(prId, { view: 'full' });
-		        return;
-		      }
-		    }
+			    if (tab === 'grns') {
+			      const grnId = String(row?.grnId ?? '').trim();
+            if (!grnId) return;
+            if (expandedGrnIds.includes(grnId)) {
+              setExpandedGrnIds((prev) => prev.filter((x) => x !== grnId));
+              return;
+            }
+            setExpandedGrnIds((prev) => [...prev, grnId]);
+            if (!inlineGrnDetailById[grnId] && !inlineGrnLoadingById[grnId]) {
+              setInlineGrnLoadingById((prev) => ({ ...prev, [grnId]: true }));
+              setInlineGrnErrorById((prev) => {
+                const next = { ...prev };
+                delete next[grnId];
+                return next;
+              });
+              fetchOperationsGrnDetail(grnId)
+                .then((detail) => setInlineGrnDetailById((prev) => ({ ...prev, [grnId]: detail })))
+                .catch((e) => setInlineGrnErrorById((prev) => ({ ...prev, [grnId]: e instanceof Error ? e.message : String(e) })))
+                .finally(() => setInlineGrnLoadingById((prev) => ({ ...prev, [grnId]: false })));
+            }
+            return;
+			    }
 		    // Invoice rows can optionally open PR view focused on Recorded Invoices.
 		    if (tab === 'invoices' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
@@ -871,7 +904,7 @@ export default function OperationsView({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-	        {(['prs', 'pos', 'pendingAdjustments', 'grns', 'invoices'] as OpsTab[]).map((k) => (
+			        {(['prs', 'pos', 'pendingAdjustments', 'grns', 'invoices', 'creditVouchers', 'payments'] as OpsTab[]).map((k) => (
 	          <button
 	            key={k}
 	            type="button"
@@ -1038,8 +1071,36 @@ export default function OperationsView({
                           <SortTh label="Status" colKey="status" />
                           <SortTh label="Amount" colKey="invoiceAmount" />
 			                    </>
-		                ) : (
-                      <>
+			                ) : tab === 'creditVouchers' ? (
+                    <>
+                      <SortTh label="Voucher" colKey="voucherNo" />
+                      <SortTh label="Date" colKey="voucherDate" />
+                      <SortTh label="PO" colKey="poNumber" />
+                      <SortTh label="PR" colKey="prNumber" />
+                      <SortTh label="Firm" colKey="firmName" />
+                      <SortTh label="Supplier" colKey="supplierName" />
+                      <SortTh label="Status" colKey="status" />
+                      <SortTh label="Payment" colKey="paymentStatus" />
+                      <SortTh label="Amount" colKey="totalAmount" />
+                      <SortTh label="Paid" colKey="paidAmount" />
+                      <SortTh label="Balance" colKey="balanceAmount" />
+                    </>
+		                    ) : tab === 'creditVouchers' ? (
+	                        <>
+	                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.status || '-'}</td>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.paymentStatus || '-'}</td>
+	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
+	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.balanceAmount ?? 0).toFixed(2)}</td>
+	                        </>
+		                    ) : (
+	                      <>
                         <SortTh label="Invoice" colKey="invoiceNo" />
                         <SortTh label="PO" colKey="poNumber" />
                         <SortTh label="Firm" colKey="firmName" />
@@ -1056,13 +1117,13 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+					                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    Loading...
 		                  </td>
 		                </tr>
 		              ) : !paged.length ? (
 		                <tr>
-				                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+					                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 		                    No records.
 		                  </td>
 		                </tr>
@@ -1077,19 +1138,25 @@ export default function OperationsView({
                           ? String(r.grnId)
 		                          : tab === 'pendingAdjustments'
 		                            ? String(r.poId)
-		                            : tab === 'invoices'
-		                              ? String(r.invoiceId)
-		                            : String(r.paymentId);
-		                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+			                            : tab === 'invoices'
+			                              ? String(r.invoiceId)
+                                : tab === 'creditVouchers'
+                                  ? String(r.creditVoucherId)
+			                            : String(r.paymentId);
+			                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+                      const isGrnExpanded = tab === 'grns' ? expandedGrnIds.includes(String(r.grnId ?? '')) : false;
                       const isInvoiceReceiptExpanded =
                         tab === 'invoices' && invoiceSubTab === 'receipts'
                           ? expandedInvoiceReceiptIds.includes(String(r.invoiceId ?? ''))
                           : false;
 	                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
-	                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
-	                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
-	                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
-	                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
+		                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
+		                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
+		                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
+		                  const grnDetail = tab === 'grns' ? inlineGrnDetailById[String(r.grnId ?? '')] : null;
+		                  const grnDetailLoading = tab === 'grns' ? Boolean(inlineGrnLoadingById[String(r.grnId ?? '')]) : false;
+		                  const grnDetailError = tab === 'grns' ? inlineGrnErrorById[String(r.grnId ?? '')] : '';
+		                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
 	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
 	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
                   return (
@@ -1098,8 +1165,9 @@ export default function OperationsView({
 	                        className="hover:bg-surface-container-high/40 cursor-pointer"
 	                        onClick={() => {
 	                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
-                            if (tab === 'payments') return;
-                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
+	                            if (tab === 'payments') return;
+	                            if (tab === 'creditVouchers') return;
+	                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
 	                          openDetailForRow(r);
 	                        }}
                       >
@@ -1230,8 +1298,50 @@ export default function OperationsView({
                           </td>
                         </>
 		                    )}
-                      </tr>
-	                      {tab === 'pos' && isExpanded ? (
+	                      </tr>
+	                      {tab === 'grns' && isGrnExpanded ? (
+	                        <tr>
+	                          <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+	                            {grnDetailLoading ? <div className="text-sm text-on-surface-variant">Loading GRN items...</div> : null}
+	                            {!grnDetailLoading && grnDetailError ? <div className="text-sm text-error">{grnDetailError}</div> : null}
+	                            {!grnDetailLoading && !grnDetailError ? (
+	                              <div className="overflow-x-auto">
+	                                <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                  <thead>
+	                                    <tr className="bg-primary text-on-primary">
+	                                      <th className="px-3 py-2 border border-outline-variant">Item</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Approved Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Invoice Link Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant">Rejected</th>
+	                                    </tr>
+	                                  </thead>
+	                                  <tbody>
+	                                    {(grnDetail?.grn?.items ?? []).length ? (
+	                                      (grnDetail?.grn?.items ?? []).map((it: any, idx: number) => (
+	                                        <tr key={`${String(r.grnId ?? '')}-grn-it-${idx}`}>
+	                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.invoiceLinkQty ?? 0)}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
+	                                        </tr>
+	                                      ))
+	                                    ) : (
+	                                      <tr>
+	                                        <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+	                                          No GRN items found.
+	                                        </td>
+	                                      </tr>
+	                                    )}
+	                                  </tbody>
+	                                </table>
+	                              </div>
+	                            ) : null}
+	                          </td>
+	                        </tr>
+	                      ) : null}
+		                      {tab === 'pos' && isExpanded ? (
 	                        <tr>
 		                          <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
 	                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
