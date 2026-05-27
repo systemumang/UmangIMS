@@ -6369,8 +6369,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
           return JSON.stringify(Object.fromEntries(entries));
         };
 
-	    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
-	    if (!storeId && !projectId) return res.status(400).json({ error: 'storeId or projectId is required' });
+    if (!firmId) return res.status(400).json({ error: 'firmId is required' });
         if (!department) return res.status(400).json({ error: 'department is required' });
         if (!requestedBy) return res.status(400).json({ error: 'requestedBy is required' });
         if (!requiredDate) return res.status(400).json({ error: 'requiredDate is required' });

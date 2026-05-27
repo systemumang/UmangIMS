@@ -217,7 +217,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       if (!requestedByUserId) return false;
       if (!String(requiredDate ?? '').trim()) return false;
       if (poType === 'Goods' && !storeId && !projectId) return false;
-      if (poType === 'Services' && !projectId) return false;
         if (!String(paymentTerms ?? '').trim()) return false;
 			    const hasLine = lines.some((l) => {
 	          const qtyOk = Number(l.quantity) > 0;
