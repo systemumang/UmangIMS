@@ -425,7 +425,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
             <table className="w-full text-left border-collapse text-sm">
               <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                 <tr>
-                  <th className="px-3 py-2 border border-outline-variant">Item Name</th>
+                  <th className="px-3 py-2 border border-outline-variant">{poType === 'Services' ? 'Service Name' : 'Item Name'}</th>
                   {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant">Specifications</th> : null}
                   {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Available</th> : null}
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
@@ -453,7 +453,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                           }
                           updateLine(idx, { itemNameId, itemId: '', specs: {} });
                         }}
-                        placeholder="Search item name..."
+                        placeholder={poType === 'Services' ? 'Search service name...' : 'Search item name...'}
                       />
                     </td>
                     {poType === 'Goods' ? <td className="p-2 border border-outline-variant min-w-[280px]">
