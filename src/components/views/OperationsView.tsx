@@ -1071,35 +1071,22 @@ export default function OperationsView({
                           <SortTh label="Status" colKey="status" />
                           <SortTh label="Amount" colKey="invoiceAmount" />
 			                    </>
-			                ) : tab === 'creditVouchers' ? (
-                    <>
-                      <SortTh label="Voucher" colKey="voucherNo" />
-                      <SortTh label="Date" colKey="voucherDate" />
-                      <SortTh label="PO" colKey="poNumber" />
-                      <SortTh label="PR" colKey="prNumber" />
-                      <SortTh label="Firm" colKey="firmName" />
-                      <SortTh label="Supplier" colKey="supplierName" />
-                      <SortTh label="Status" colKey="status" />
-                      <SortTh label="Payment" colKey="paymentStatus" />
-                      <SortTh label="Amount" colKey="totalAmount" />
-                      <SortTh label="Paid" colKey="paidAmount" />
-                      <SortTh label="Balance" colKey="balanceAmount" />
-                    </>
-		                    ) : tab === 'creditVouchers' ? (
-	                        <>
-	                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{r.status || '-'}</td>
-	                          <td className="px-3 py-2 border border-outline-variant">{r.paymentStatus || '-'}</td>
-	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
-	                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.balanceAmount ?? 0).toFixed(2)}</td>
-	                        </>
-		                    ) : (
+				                ) : tab === 'creditVouchers' ? (
+	                    <>
+	                      <SortTh label="Voucher" colKey="voucherNo" />
+	                      <SortTh label="Date" colKey="voucherDate" />
+	                      <SortTh label="PO" colKey="poNumber" />
+	                      <SortTh label="PR" colKey="prNumber" />
+	                      <SortTh label="Firm" colKey="firmName" />
+	                      <SortTh label="Supplier" colKey="supplierName" />
+	                      <SortTh label="Status" colKey="status" />
+	                      <SortTh label="Payment" colKey="paymentStatus" />
+	                      <SortTh label="Amount" colKey="totalAmount" />
+	                      <SortTh label="Paid" colKey="paidAmount" />
+	                      <SortTh label="Balance" colKey="balanceAmount" />
+	                      <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">CV PDF</th>
+	                    </>
+			                    ) : (
 	                      <>
                         <SortTh label="Invoice" colKey="invoiceNo" />
                         <SortTh label="PO" colKey="poNumber" />
@@ -1117,16 +1104,16 @@ export default function OperationsView({
             <tbody>
 		              {loading ? (
 		                <tr>
-					                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-		                    Loading...
-		                  </td>
-		                </tr>
-		              ) : !paged.length ? (
-		                <tr>
-					                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-		                    No records.
-		                  </td>
-		                </tr>
+						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                    Loading...
+			                  </td>
+			                </tr>
+			              ) : !paged.length ? (
+			                <tr>
+						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 12 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+			                    No records.
+			                  </td>
+			                </tr>
 		              ) : (
                 (paged as any[]).map((r) => {
 	                  const rowId =
@@ -1260,26 +1247,54 @@ export default function OperationsView({
 	                                  </button>
 	                                </td>
 	                              </>
-	                            ) : tab === 'invoices' ? (
-				                      <>
-		                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
-			                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
-			                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-			                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-			                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
-                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
-                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
-                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td>
-                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(2)}</td>
-                              <td className="px-3 py-2 border border-outline-variant tabular-nums">
-                                {(Number(r.invoiceAmount ?? 0) - Number(r.adjustedAmount ?? 0) - Number(r.actualReceiptAmount ?? 0)).toFixed(2)}
-                              </td>
-				                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-				                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-				                      </>
-	                    ) : (
-                        <>
-                          <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
+		                            ) : tab === 'invoices' ? (
+					                      <>
+			                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
+				                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+				                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+				                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+				                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(2)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">
+	                                {(Number(r.invoiceAmount ?? 0) - Number(r.adjustedAmount ?? 0) - Number(r.actualReceiptAmount ?? 0)).toFixed(2)}
+	                              </td>
+					                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+					                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+					                      </>
+		                    ) : tab === 'creditVouchers' ? (
+		                      <>
+		                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.status || '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.paymentStatus || '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.balanceAmount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">
+		                          <button
+		                            type="button"
+		                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+		                            title="Credit Voucher PDF"
+		                            aria-label="Credit Voucher PDF"
+		                            onClick={(e) => {
+		                              e.stopPropagation();
+		                              window.location.href = `/api/credit-vouchers/${encodeURIComponent(String(r.creditVoucherId ?? ''))}.pdf?t=${Date.now()}`;
+		                            }}
+		                          >
+		                            <FileText size={16} />
+		                          </button>
+		                        </td>
+		                      </>
+		                    ) : (
+	                        <>
+	                          <td className="px-3 py-2 border border-outline-variant">{r.invoiceNo}</td>
 				                      <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 				                      <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 				                      <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
