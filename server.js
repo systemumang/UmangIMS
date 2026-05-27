@@ -2724,11 +2724,11 @@ app.get('/api/queues/approve-credit-voucher', async (req, res) => {
 	      LEFT JOIN projects proj ON proj.id = po.project_id
 	      LEFT JOIN suppliers s ON s.id = po.supplier_id
 	      LEFT JOIN (
-	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	      SELECT entry_key AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
 	        FROM po_advance_invoice_adjustments
 	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
 	          AND reference_type = 'CREDIT_VOUCHER'
-	        GROUP BY invoice_id
+	        GROUP BY entry_key
 	      ) adj ON adj.creditVoucherId = cv.id
 	      WHERE ${where.join(' AND ')}
       ORDER BY cv.voucher_date DESC, cv.created_at DESC
@@ -3160,11 +3160,11 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 	      LEFT JOIN projects proj ON proj.id = po.project_id
 	      LEFT JOIN suppliers s ON s.id = po.supplier_id
 	      LEFT JOIN (
-	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        SELECT entry_key AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
 	        FROM po_advance_invoice_adjustments
 	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
 	          AND reference_type = 'CREDIT_VOUCHER'
-	        GROUP BY invoice_id
+	        GROUP BY entry_key
 	      ) adj ON adj.creditVoucherId = cv.id
 	      WHERE ${where.join(' AND ')}
 	      ORDER BY cv.voucher_date DESC, cv.created_at DESC
@@ -4777,11 +4777,11 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
       LEFT JOIN firms f ON f.id = po.firm_id
 	      LEFT JOIN suppliers s ON s.id = po.supplier_id
 	      LEFT JOIN (
-	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        SELECT entry_key AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
 	        FROM po_advance_invoice_adjustments
 	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
 	          AND reference_type = 'CREDIT_VOUCHER'
-	        GROUP BY invoice_id
+	        GROUP BY entry_key
 	      ) adj ON adj.creditVoucherId = cv.id
 	      WHERE ${where.join(' AND ')}
       ORDER BY cv.created_at DESC
@@ -5081,18 +5081,19 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
       `;
     const [invoiceRows] = await pool.query(targetSql, [poId]);
 
-    const [adjRows] = await pool.query(
-      `
-      SELECT invoice_id AS invoiceId, adjusted_amount AS adjustedAmount
-      FROM po_advance_invoice_adjustments
-      WHERE po_id = ?
-        AND (
-          receipt_type = 'ADVANCE_ADJUSTMENT'
-          OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
-        )
-      `,
-      [poId]
-    );
+	    const [adjRows] = await pool.query(
+	      `
+	      SELECT ${useCreditVoucher ? 'entry_key' : 'invoice_id'} AS invoiceId, adjusted_amount AS adjustedAmount
+	      FROM po_advance_invoice_adjustments
+	      WHERE po_id = ?
+	        AND (
+	          receipt_type = 'ADVANCE_ADJUSTMENT'
+	          OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
+	        )
+	        ${useCreditVoucher ? "AND reference_type = 'CREDIT_VOUCHER'" : ''}
+	      `,
+	      [poId]
+	    );
 
     const adjustedByInvoiceId = (Array.isArray(adjRows) ? adjRows : []).reduce((acc, r) => {
       const id = String(r.invoiceId ?? '');
@@ -5175,19 +5176,20 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [currentRows] = await conn.query(
-        `
-        SELECT invoice_id AS invoiceId, COALESCE(SUM(adjusted_amount), 0) AS adjustedAmount
-        FROM po_advance_invoice_adjustments
-        WHERE po_id = ?
-          AND (
-            receipt_type = 'ADVANCE_ADJUSTMENT'
-            OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
-          )
-        GROUP BY invoice_id
-        `,
-        [poId]
-      );
+	      const [currentRows] = await conn.query(
+	        `
+	        SELECT ${useCreditVoucher ? 'entry_key' : 'invoice_id'} AS invoiceId, COALESCE(SUM(adjusted_amount), 0) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE po_id = ?
+	          AND (
+	            receipt_type = 'ADVANCE_ADJUSTMENT'
+	            OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
+	          )
+	          ${useCreditVoucher ? "AND reference_type = 'CREDIT_VOUCHER'" : ''}
+	        GROUP BY ${useCreditVoucher ? 'entry_key' : 'invoice_id'}
+	        `,
+	        [poId]
+	      );
       const currentByInvoiceId = Object.fromEntries(
         (Array.isArray(currentRows) ? currentRows : []).map((r) => [String(r.invoiceId ?? ''), Number(r.adjustedAmount ?? 0)])
       );
@@ -5201,9 +5203,19 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
         try {
           await conn.query(
             `INSERT INTO po_advance_invoice_adjustments
-             (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
-	             VALUES (?, ?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', ?, ?, ?, ?)`,
-	            [crypto.randomUUID(), poId, r.invoiceId, delta, r.paymentMode || null, referenceType, crypto.randomUUID(), updatedBy, updatedBy]
+	             (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
+		             VALUES (?, ?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', ?, ?, ?, ?)`,
+		            [
+		              crypto.randomUUID(),
+		              poId,
+		              useCreditVoucher ? null : r.invoiceId,
+		              delta,
+		              r.paymentMode || null,
+		              referenceType,
+		              useCreditVoucher ? r.invoiceId : crypto.randomUUID(),
+		              updatedBy,
+		              updatedBy,
+		            ]
           );
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -5218,8 +5230,8 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
 	                  reference_type = ?,
 	                  updated_by = ?,
                   updated_at = NOW()
-              WHERE po_id = ? AND invoice_id = ?
-              LIMIT 1
+	              WHERE po_id = ? AND ${useCreditVoucher ? 'entry_key' : 'invoice_id'} = ?
+	              LIMIT 1
               `,
 	              [delta, r.paymentMode || null, referenceType, updatedBy, poId, r.invoiceId]
             );
