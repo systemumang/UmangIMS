@@ -430,8 +430,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                   {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Available</th> : null}
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">Disc %</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">Tax %</th>
+                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Disc %</th> : null}
+                  {poType === 'Goods' ? <th className="px-3 py-2 border border-outline-variant text-right">Tax %</th> : null}
                   <th className="px-3 py-2 border border-outline-variant text-right">Action</th>
                 </tr>
               </thead>
@@ -516,18 +516,18 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         placeholder="0"
                       />
                     </td>
-                    <td className="p-2 border border-outline-variant text-right w-24">
+                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-24">
                       <input
                         className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
                         value={l.discountPercent}
                         onChange={(e) => updateLine(idx, { discountPercent: sanitizePercentInput(e.target.value) })}
                         placeholder="0"
                       />
-                    </td>
-	                    <td className="p-2 border border-outline-variant text-right w-24">
-	                      <select
-	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-	                        value={String(l.taxPercent ?? '')}
+                    </td> : null}
+                    {poType === 'Goods' ? <td className="p-2 border border-outline-variant text-right w-24">
+                      <select
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                        value={String(l.taxPercent ?? '')}
 	                        onChange={(e) => updateLine(idx, { taxPercent: String(e.target.value ?? '') })}
 	                      >
 	                        <option value="">Select</option>
@@ -535,9 +535,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                        <option value="5">5</option>
 	                        <option value="12">12</option>
 	                        <option value="18">18</option>
-	                        <option value="28">28</option>
-	                      </select>
-	                    </td>
+                        <option value="28">28</option>
+                      </select>
+                    </td> : null}
                     <td className="p-2 border border-outline-variant text-right w-24">
                       <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
                         Remove
