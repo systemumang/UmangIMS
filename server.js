@@ -11870,7 +11870,7 @@ async function handleCreateCreditVoucher(req, res) {
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'po id is required' });
 
-    const voucherNumber = req.body?.voucherNumber != null ? String(req.body.voucherNumber).trim() : null;
+    const requestedVoucherNumber = req.body?.voucherNumber != null ? String(req.body.voucherNumber).trim() : null;
     const voucherDateInput = String(req.body?.voucherDate ?? '').trim();
     const voucherDate = toIsoDate(voucherDateInput) || voucherDateInput;
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
@@ -11942,6 +11942,7 @@ async function handleCreateCreditVoucher(req, res) {
 
     const totalAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
     const creditVoucherId = crypto.randomUUID();
+    const voucherNumber = await allocateCreditVoucherNumber(pool, voucherDate ? new Date(voucherDate) : new Date());
 
     await pool.query(
       `
@@ -11961,7 +11962,7 @@ async function handleCreateCreditVoucher(req, res) {
         ?, NOW(), ?, NOW()
       )
       `,
-      [creditVoucherId, poId, supplierId, voucherNumber, voucherDate, totalAmount, updatedBy, updatedBy]
+      [creditVoucherId, poId, supplierId, voucherNumber || requestedVoucherNumber, voucherDate, totalAmount, updatedBy, updatedBy]
     );
 
     for (const it of normalizedItems) {
@@ -11990,7 +11991,7 @@ async function handleCreateCreditVoucher(req, res) {
         id: creditVoucherId,
         poId,
         supplierId,
-        voucherNo: voucherNumber || creditVoucherId,
+        voucherNo: voucherNumber || requestedVoucherNumber || creditVoucherId,
         voucherDate,
         status: 'Recorded',
         totalAmount,
@@ -12001,6 +12002,13 @@ async function handleCreateCreditVoucher(req, res) {
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
+}
+
+async function allocateCreditVoucherNumber(pool, date = new Date()) {
+  const allocated = await allocateDocNumber(pool, 'CV', date);
+  const seq = String(allocated).split('/').pop() || '00001';
+  const fy = fiscalYearLabel(date).replace('-', '/');
+  return `${fy}-${seq}`;
 }
 
 app.post('/api/pos/:id/credit-voucher', handleCreateCreditVoucher);
