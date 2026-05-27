@@ -1598,50 +1598,49 @@ export default function OperationsView({
 	                      </select>
 	                    </td>
 	                    <td className="px-3 py-2 border border-outline-variant">
-                        <div className="space-y-1">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={String((line as any).paymentCopy ?? '')}
-	                          onChange={(e) =>
-	                            setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: e.target.value } : x)))
-	                          }
-	                          placeholder="Paste link / URL"
-	                          disabled={advanceModalBusy}
-	                        />
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              disabled={advanceModalBusy || Boolean(advanceUploadBusyByIdx[idx])}
-                              onChange={async (e) => {
-                                const inputEl = e.currentTarget;
-                                const f = inputEl.files?.[0];
-                                if (!f) return;
-                                try {
-                                  setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: true }));
-                                  const { url } = await uploadFileToServer(f);
-                                  setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: url } : x)));
-                                } catch (err) {
-                                  setAdvanceModalError(err instanceof Error ? err.message : String(err));
-                                } finally {
-                                  setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: false }));
-                                  if (inputEl) inputEl.value = '';
-                                }
-                              }}
-                            />
-                            {String((line as any).paymentCopy ?? '').trim() ? (
-                              <a
-                                href={String((line as any).paymentCopy)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-primary underline"
-                              >
-                                View
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
-	                    </td>
-	                    <td className="px-3 py-2 border border-outline-variant">
+	                    <div className="flex flex-col gap-1.5 pt-1">
+	                    <div className="flex items-center gap-2">
+	                    <label className={`btn btn-sm cursor-pointer ${(advanceModalBusy || Boolean(advanceUploadBusyByIdx[idx])) ? 'opacity-60 pointer-events-none' : ''}`}>
+	                    {Boolean(advanceUploadBusyByIdx[idx]) ? 'Uploading...' : String((line as any).paymentCopy ?? '').trim() ? 'Change Document' : 'Upload Document'}
+	                    <input
+	                    type="file"
+	                    className="hidden"
+	                    disabled={advanceModalBusy || Boolean(advanceUploadBusyByIdx[idx])}
+	                    onChange={async (e) => {
+	                    const inputEl = e.currentTarget;
+	                    const f = inputEl.files?.[0];
+	                    if (!f) return;
+	                    try {
+	                    setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: true }));
+	                    const { url } = await uploadFileToServer(f);
+	                    setAdvanceLines((prev) => prev.map((x, i) => (i === idx ? { ...x, paymentCopy: url } : x)));
+	                    } catch (err) {
+	                    setAdvanceModalError(err instanceof Error ? err.message : String(err));
+	                    } finally {
+	                    setAdvanceUploadBusyByIdx((m) => ({ ...m, [idx]: false }));
+	                    if (inputEl) inputEl.value = '';
+	                    }
+	                    }}
+	                    />
+	                    </label>
+	                    {String((line as any).paymentCopy ?? '').trim() ? (
+	                    <div className="flex items-center gap-2">
+	                    <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
+	                    <a
+	                    href={String((line as any).paymentCopy)}
+	                    target="_blank"
+	                    rel="noreferrer"
+	                    className="text-xs text-primary underline font-medium"
+	                    >
+	                    View
+	                    </a>
+	                    </div>
+	                    ) : (
+	                    <div className="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium italic">No document</div>
+	                    )}
+	                    </div>
+	                    </div>
+	                    </td>	                    <td className="px-3 py-2 border border-outline-variant">
 	                      <button
 	                        type="button"
                         className="text-error hover:text-error/80 transition-colors"

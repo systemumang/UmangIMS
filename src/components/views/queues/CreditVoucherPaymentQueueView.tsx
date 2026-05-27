@@ -236,10 +236,9 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
           </label>
           <label className="space-y-1 md:col-span-3">
             <div className={labelClass}>Payment Copy <span className="text-red-600">*</span></div>
-            <input className={inputClass} value={paymentCopyInput} onChange={(e) => setPaymentCopyInput(e.target.value)} placeholder="Ref no / URL / file link" />
-            <div className="pt-1">
+            <div className="flex items-center gap-3 pt-1">
               <label className={`btn btn-sm cursor-pointer ${paymentCopyUploading ? 'opacity-60 pointer-events-none' : ''}`}>
-                {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Uploaded' : 'Upload'}
+                {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Change Document' : 'Upload Document'}
                 <input
                   type="file"
                   className="hidden"
@@ -261,6 +260,14 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
                   }}
                 />
               </label>
+              {paymentCopyInput.trim() ? (
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
+                  <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline font-medium">View</a>
+                </div>
+              ) : (
+                <div className="text-[11px] text-on-surface-variant uppercase tracking-wider font-medium italic">No document selected</div>
+              )}
             </div>
           </label>
         </div>

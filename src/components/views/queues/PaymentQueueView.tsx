@@ -530,7 +530,7 @@ export default function PaymentQueueView({
 	                                      (saving || paymentCopyUploading) ? 'opacity-60 pointer-events-none' : ''
 	                                    )}
 	                                  >
-	                                    {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Uploaded' : 'Upload'}
+	                                    {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Change Document' : 'Upload Document'}
 	                                    <input
 	                                      type="file"
 	                                      className="hidden"
@@ -552,7 +552,14 @@ export default function PaymentQueueView({
 	                                      }}
 	                                    />
 	                                  </label>
-	                                  {paymentCopyInput.trim() ? <div className="text-[11px] text-on-surface-variant">Uploaded</div> : null}
+	                                  {paymentCopyInput.trim() ? (
+                                      <div className="flex items-center gap-2">
+                                        <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
+                                        <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline font-medium">View</a>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[11px] text-on-surface-variant uppercase tracking-wider font-medium italic">No document</div>
+                                    )}
 	                                </div>
 	                              </td>
 		                        </>
