@@ -207,6 +207,7 @@ export type OperationsAdvanceListRow = {
   firmName: string;
   supplierId: string;
   supplierName: string;
+  creditVoucherApplicable?: boolean;
   department?: string;
   projectId?: string | null;
   projectName?: string | null;
@@ -225,6 +226,7 @@ export type PoAdvanceAdjustmentInvoiceRow = {
   invoiceAmount: number;
   adjustedAmount: number;
   paymentMode?: string;
+  referenceType?: string;
   createdAt: string;
 };
 export type PoReceiptInvoiceRow = PoAdvanceAdjustmentInvoiceRow;

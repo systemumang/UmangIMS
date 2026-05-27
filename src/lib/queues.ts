@@ -231,6 +231,7 @@ export type LinkInvoiceGrnQueueRow = {
   projectName?: string | null;
   supplierId?: string | null;
   supplierName: string;
+  creditVoucherApplicable?: boolean;
   pendingQty: number;
   pendingItems: number;
   pendingReason: string;

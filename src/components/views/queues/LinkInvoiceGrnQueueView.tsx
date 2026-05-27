@@ -39,7 +39,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
     setLoading(true);
     setError(null);
     fetchQueueLinkInvoiceGrn(filters, ac.signal)
-      .then(setRows)
+      .then((next) => setRows((next ?? []).filter((r) => !Boolean((r as any).creditVoucherApplicable))))
       .catch((e) => {
         if (ac.signal.aborted) return;
         setError(e instanceof Error ? e.message : String(e));

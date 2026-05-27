@@ -159,6 +159,7 @@ export default function OperationsView({
   const [adjustModalPoId, setAdjustModalPoId] = useState('');
   const [adjustModalPoNumber, setAdjustModalPoNumber] = useState('');
   const [adjustModalAdvanceAmount, setAdjustModalAdvanceAmount] = useState(0);
+  const [adjustModalUsesCreditVoucher, setAdjustModalUsesCreditVoucher] = useState(false);
   const [adjustInvoices, setAdjustInvoices] = useState<PoReceiptInvoiceRow[]>([]);
   const [adjustInvoiceAmounts, setAdjustInvoiceAmounts] = useState<Record<string, string>>({});
   const [adjustInvoicePaymentModes, setAdjustInvoicePaymentModes] = useState<Record<string, string>>({});
@@ -595,6 +596,7 @@ export default function OperationsView({
     setAdjustModalPoId(poId);
     setAdjustModalPoNumber(String(row.poNumber ?? poId));
     setAdjustModalAdvanceAmount(Number(row.advanceAmount ?? 0));
+    setAdjustModalUsesCreditVoucher(Boolean((row as any).creditVoucherApplicable));
     setAdjustModalOpen(true);
     setAdjustModalBusy(true);
     setAdjustModalError(null);
@@ -604,6 +606,9 @@ export default function OperationsView({
     try {
       const inv = await fetchPoReceipts(poId);
       const list = Array.isArray(inv) ? inv : [];
+      if (list.some((x) => String((x as any).referenceType ?? '').toUpperCase() === 'CREDIT_VOUCHER')) {
+        setAdjustModalUsesCreditVoucher(true);
+      }
       setAdjustInvoices(list);
       setAdjustInvoiceAmounts(Object.fromEntries(list.map((x) => [x.invoiceId, String(Number(x.adjustedAmount ?? 0) || '')])));
       setAdjustInvoicePaymentModes(Object.fromEntries(list.map((x) => [x.invoiceId, String((x as any).paymentMode ?? 'Credit') || 'Credit'])));
@@ -621,6 +626,7 @@ export default function OperationsView({
     setAdjustModalPoId('');
     setAdjustModalPoNumber('');
     setAdjustModalAdvanceAmount(0);
+    setAdjustModalUsesCreditVoucher(false);
     setAdjustInvoices([]);
     setAdjustInvoiceAmounts({});
     setAdjustInvoicePaymentModes({});
@@ -1710,9 +1716,9 @@ export default function OperationsView({
                 </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
-                  <th className="px-3 py-2 border border-outline-variant">Invoice No.</th>
-                  <th className="px-3 py-2 border border-outline-variant">Invoice Date</th>
-                  <th className="px-3 py-2 border border-outline-variant">Invoice Amount</th>
+	                  <th className="px-3 py-2 border border-outline-variant">{adjustModalUsesCreditVoucher ? 'Credit Voucher No.' : 'Invoice No.'}</th>
+	                  <th className="px-3 py-2 border border-outline-variant">{adjustModalUsesCreditVoucher ? 'Voucher Date' : 'Invoice Date'}</th>
+	                  <th className="px-3 py-2 border border-outline-variant">{adjustModalUsesCreditVoucher ? 'Voucher Amount' : 'Invoice Amount'}</th>
                   <th className="px-3 py-2 border border-outline-variant">Amount Adjustment</th>
                   <th className="px-3 py-2 border border-outline-variant">Balance</th>
                   <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
@@ -1728,7 +1734,7 @@ export default function OperationsView({
                 ) : !adjustInvoices.length ? (
                   <tr>
                     <td colSpan={6} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-                      No invoices found for this PO.
+	                      {adjustModalUsesCreditVoucher ? 'No credit vouchers found for this PO.' : 'No invoices found for this PO.'}
                     </td>
                   </tr>
                 ) : (

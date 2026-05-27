@@ -2493,33 +2493,36 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
       where.push('DATE(g.received_date) <= ?');
       params.push(f.to);
     }
-    if (f.q) {
-      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
-      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
-    }
+	    if (f.q) {
+	      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+	      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+	    }
+	    // If supplier is configured for Credit Voucher (invoice not required), do not show invoice↔GRN linking queue.
+	    where.push('COALESCE(s.credit_voucher_applicable, 0) = 0');
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        g.id AS grnId,
-        g.grn_number AS grnNumber,
-        g.received_date AS receivedDate,
-        po.id AS poId,
-        po.po_number AS poNumber,
-        pr.id AS prId,
-        pr.pr_number AS prNumber,
-        po.firm_id AS firmId,
-        f.name AS firmName,
-        pr.remarks AS prRemarks,
-        po.project_id AS projectId,
-        proj.name AS projectName,
-        po.supplier_id AS supplierId,
-        s.name AS supplierName,
-        SUM(
-          CASE
-            WHEN GREATEST(0, COALESCE(qc.accepted_qty, 0) - COALESCE(linkq.linkedQty, 0)) > 1e-9 THEN 1
-            ELSE 0
-          END
+	    const [rows] = await pool.query(
+	      `
+	      SELECT
+	        g.id AS grnId,
+	        g.grn_number AS grnNumber,
+	        g.received_date AS receivedDate,
+	        po.id AS poId,
+	        po.po_number AS poNumber,
+	        pr.id AS prId,
+	        pr.pr_number AS prNumber,
+	        po.firm_id AS firmId,
+	        f.name AS firmName,
+	        pr.remarks AS prRemarks,
+	        po.project_id AS projectId,
+	        proj.name AS projectName,
+	        po.supplier_id AS supplierId,
+	        s.name AS supplierName,
+	        COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable,
+	        SUM(
+	          CASE
+	            WHEN GREATEST(0, COALESCE(qc.accepted_qty, 0) - COALESCE(linkq.linkedQty, 0)) > 1e-9 THEN 1
+	            ELSE 0
+	          END
         ) AS pendingItems
       FROM grns g
       INNER JOIN purchase_orders po ON po.id = g.po_id
@@ -2554,12 +2557,12 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
       department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
       projectId: r.projectId ? String(r.projectId) : null,
       projectName: r.projectName ? String(r.projectName) : null,
-      supplierId: r.supplierId ? String(r.supplierId) : null,
-      supplierName: String(r.supplierName ?? ''),
-      receivedDate: toIsoDate(r.receivedDate) || '',
-      pendingItems: Number(r.pendingItems ?? 0),
-      pendingReason: 'Pending linking',
-    }));
+	          supplierId: r.supplierId ? String(r.supplierId) : null,
+	          supplierName: String(r.supplierName ?? ''),
+	      receivedDate: toIsoDate(r.receivedDate) || '',
+	      pendingItems: Number(r.pendingItems ?? 0),
+	      pendingReason: 'Pending linking',
+	    }));
 
     if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
     res.json({ rows: out });
@@ -3126,8 +3129,9 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
         cv.total_amount AS voucherAmount,
         cv.payment_status AS paymentStatus,
         cv.payment_date AS paymentDate,
-        cv.payment_amount AS paymentAmount,
-        cv.payment_mode AS paymentMode,
+	        cv.payment_amount AS paymentAmount,
+	        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+	        cv.payment_mode AS paymentMode,
         cv.tally_entry_date AS tallyEntryDate,
         cv.approved_by AS approvedBy,
         cv.approved_at AS approvedAt,
@@ -3162,7 +3166,7 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
         const paymentModeLower = paymentMode.trim().toLowerCase();
         const isCash = paymentModeLower === 'cash';
         const isFull = paymentStatus.includes('full') || isCash;
-        const paidAmount = isFull ? voucherAmount : Math.max(0, Number(r.paymentAmount ?? 0));
+	        const paidAmount = isFull ? voucherAmount : Math.max(0, Number(r.paymentAmount ?? 0) + Number(r.adjustedAmount ?? 0));
         const remainingAmount = Math.max(0, voucherAmount - paidAmount);
         return {
           creditVoucherId: String(r.creditVoucherId ?? ''),
@@ -4742,7 +4746,8 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
         cv.total_amount AS totalAmount,
         cv.status AS status,
         cv.payment_status AS paymentStatus,
-        cv.payment_amount AS paidAmount,
+	        cv.payment_amount AS paidAmount,
+	        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
         cv.created_at AS createdAt,
         po.id AS poId,
         po.po_number AS poNumber,
@@ -4756,7 +4761,21 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
       INNER JOIN purchase_orders po ON po.id = cv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      LEFT JOIN (
+	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	          AND reference_type = 'CREDIT_VOUCHER'
+	        GROUP BY invoice_id
+	      ) adj ON adj.creditVoucherId = cv.id
+	      LEFT JOIN (
+	        SELECT invoice_id AS creditVoucherId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	          AND reference_type = 'CREDIT_VOUCHER'
+	        GROUP BY invoice_id
+	      ) adj ON adj.creditVoucherId = cv.id
       WHERE ${where.join(' AND ')}
       ORDER BY cv.created_at DESC
       `,
@@ -4765,7 +4784,7 @@ app.get('/api/operations/credit-vouchers', async (req, res) => {
 
     const out = (Array.isArray(rows) ? rows : []).map((r) => {
       const totalAmount = Number(r.totalAmount ?? 0);
-      const paidAmount = Number(r.paidAmount ?? 0);
+	      const paidAmount = Number(r.paidAmount ?? 0) + Number(r.adjustedAmount ?? 0);
       return {
         creditVoucherId: String(r.creditVoucherId ?? ''),
         voucherNo: String(r.voucherNo ?? r.creditVoucherId ?? ''),
@@ -4933,15 +4952,16 @@ app.get('/api/operations/advances', async (req, res) => {
         f.name AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
-        proj.name AS projectName,
-        po.supplier_id AS supplierId,
-        s.name AS supplierName,
-        po.order_date AS orderDate,
-        po.advance_date AS advanceDate,
-        po.created_at AS createdAt,
-        po.status AS status,
-        po.advance_amount AS advanceAmount,
-        COALESCE(adj.amountAdjusted, 0) AS amountAdjusted
+	        proj.name AS projectName,
+	        po.supplier_id AS supplierId,
+	        s.name AS supplierName,
+	        COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable,
+	        po.order_date AS orderDate,
+	        po.advance_date AS advanceDate,
+	        po.created_at AS createdAt,
+	        po.status AS status,
+	        po.advance_amount AS advanceAmount,
+	        COALESCE(adj.amountAdjusted, 0) AS amountAdjusted
       FROM purchase_orders po
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
@@ -4976,11 +4996,12 @@ app.get('/api/operations/advances', async (req, res) => {
           firmName: String(r.firmName ?? ''),
           department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
           projectId: r.projectId ? String(r.projectId) : null,
-          projectName: r.projectName ? String(r.projectName) : null,
-          supplierId: String(r.supplierId ?? ''),
-          supplierName: String(r.supplierName ?? ''),
-          orderDate: toIsoDate(r.orderDate) || null,
-          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+	          projectName: r.projectName ? String(r.projectName) : null,
+	          supplierId: String(r.supplierId ?? ''),
+	          supplierName: String(r.supplierName ?? ''),
+	          creditVoucherApplicable: Boolean(r.creditVoucherApplicable),
+	          orderDate: toIsoDate(r.orderDate) || null,
+	          createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
           status: mappedStatus,
           advanceAmount,
           advanceDate: toIsoDate(r.advanceDate) || null,
@@ -5003,8 +5024,34 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'po id is required' });
 
-    const [invoiceRows] = await pool.query(
+    const [[poMeta]] = await pool.query(
       `
+      SELECT po.id, COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poMeta) return res.status(404).json({ error: 'PO not found' });
+    const useCreditVoucher = Boolean(Number(poMeta.creditVoucherApplicable ?? 0));
+
+    const targetSql = useCreditVoucher
+      ? `
+      SELECT
+        cv.id AS invoiceId,
+        cv.voucher_number AS invoiceNo,
+        cv.voucher_date AS invoiceDate,
+        cv.total_amount AS invoiceAmount,
+        COALESCE(cv.payment_mode, 'Credit') AS paymentMode,
+        cv.created_at AS createdAt,
+        'CREDIT_VOUCHER' AS referenceType
+      FROM credit_vouchers cv
+      WHERE cv.po_id = ?
+      ORDER BY cv.voucher_date DESC, cv.created_at DESC
+      `
+      : `
       SELECT
         inv.id AS invoiceId,
         inv.invoice_number AS invoiceNo,
@@ -5019,13 +5066,13 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
           ORDER BY pa.advance_date DESC, pa.created_at DESC
           LIMIT 1
         ) AS paymentMode,
-        inv.created_at AS createdAt
+        inv.created_at AS createdAt,
+        'INVOICE' AS referenceType
       FROM invoices inv
       WHERE inv.po_id = ?
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
-      `,
-      [poId]
-    );
+      `;
+    const [invoiceRows] = await pool.query(targetSql, [poId]);
 
     const [adjRows] = await pool.query(
       `
@@ -5056,6 +5103,7 @@ app.get('/api/pos/:id/advance-adjustments', async (req, res) => {
         invoiceAmount: Number(r.invoiceAmount ?? 0),
         adjustedAmount: Number(adjustedByInvoiceId[invoiceId] ?? 0),
         paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
+        referenceType: r.referenceType != null ? String(r.referenceType) : useCreditVoucher ? 'CREDIT_VOUCHER' : 'INVOICE',
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
       };
     });
@@ -5091,12 +5139,31 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
     const invoiceIds = Array.from(new Set(rows.map((r) => r.invoiceId)));
     if (!invoiceIds.length) return res.json({ ok: true });
 
+    const [[poMeta]] = await pool.query(
+      `
+      SELECT po.id, COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poMeta) return res.status(404).json({ error: 'PO not found' });
+    const useCreditVoucher = Boolean(Number(poMeta.creditVoucherApplicable ?? 0));
+    const referenceType = useCreditVoucher ? 'CREDIT_VOUCHER' : 'INVOICE';
+
     const placeholders = invoiceIds.map(() => '?').join(',');
-    const [invRows] = await pool.query(`SELECT id, po_id AS poId FROM invoices WHERE id IN (${placeholders})`, invoiceIds);
+    const [invRows] = await pool.query(
+      useCreditVoucher
+        ? `SELECT id, po_id AS poId FROM credit_vouchers WHERE id IN (${placeholders})`
+        : `SELECT id, po_id AS poId FROM invoices WHERE id IN (${placeholders})`,
+      invoiceIds
+    );
     const invalid = invoiceIds.filter(
       (id) => !((Array.isArray(invRows) ? invRows : []).some((r) => String(r.id) === id && String(r.poId) === poId))
     );
-    if (invalid.length) return res.status(400).json({ error: `Some invoices do not belong to this PO.` });
+    if (invalid.length) return res.status(400).json({ error: `Some ${useCreditVoucher ? 'credit vouchers' : 'invoices'} do not belong to this PO.` });
 
     const conn = await pool.getConnection();
     try {
@@ -5120,7 +5187,7 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
       for (const r of rows) {
         const current = Number(currentByInvoiceId[r.invoiceId] ?? 0);
         if (r.adjustedAmount + 1e-9 < current) {
-          throw new Error(`Adjusted amount cannot be reduced for invoice ${r.invoiceId}. Historical receipt rows are append-only.`);
+	          throw new Error(`Adjusted amount cannot be reduced for ${useCreditVoucher ? 'credit voucher' : 'invoice'} ${r.invoiceId}. Historical receipt rows are append-only.`);
         }
         const delta = Math.max(0, r.adjustedAmount - current);
         if (!(delta > 1e-9)) continue;
@@ -5128,8 +5195,8 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
           await conn.query(
             `INSERT INTO po_advance_invoice_adjustments
              (id, po_id, invoice_id, adjusted_amount, payment_mode, receipt_type, reference_type, entry_key, created_by, updated_by)
-             VALUES (?, ?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', 'INVOICE', ?, ?, ?)`,
-            [crypto.randomUUID(), poId, r.invoiceId, delta, r.paymentMode || null, crypto.randomUUID(), updatedBy, updatedBy]
+	             VALUES (?, ?, ?, ?, ?, 'ADVANCE_ADJUSTMENT', ?, ?, ?, ?)`,
+	            [crypto.randomUUID(), poId, r.invoiceId, delta, r.paymentMode || null, referenceType, crypto.randomUUID(), updatedBy, updatedBy]
           );
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -5141,13 +5208,13 @@ app.put('/api/pos/:id/advance-adjustments', async (req, res) => {
               SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
                   payment_mode = COALESCE(?, payment_mode),
                   receipt_type = 'ADVANCE_ADJUSTMENT',
-                  reference_type = 'INVOICE',
-                  updated_by = ?,
+	                  reference_type = ?,
+	                  updated_by = ?,
                   updated_at = NOW()
               WHERE po_id = ? AND invoice_id = ?
               LIMIT 1
               `,
-              [delta, r.paymentMode || null, updatedBy, poId, r.invoiceId]
+	              [delta, r.paymentMode || null, referenceType, updatedBy, poId, r.invoiceId]
             );
           } else {
             throw e;
