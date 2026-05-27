@@ -12189,11 +12189,11 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     y -= 10;
     drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
-    const signatureY = 90; // fixed bottom area so signatures are always visible
-    drawText('Supplier/Vendor Sign:', 40, signatureY, 10, true);
-    page.drawLine({ start: { x: 160, y: signatureY + 2 }, end: { x: 320, y: signatureY + 2 }, thickness: 1, color: rgb(0, 0, 0) });
-    drawText('Approved By:', 380, signatureY, 10, true);
-    page.drawLine({ start: { x: 465, y: signatureY + 2 }, end: { x: 560, y: signatureY + 2 }, thickness: 1, color: rgb(0, 0, 0) });
+    const signatureY = Math.max(80, y - 34); // keep it below total and still inside page
+    drawText('Supplier/Vendor Sign:', 40, signatureY, 10.5, true);
+    page.drawLine({ start: { x: 170, y: signatureY + 2 }, end: { x: 330, y: signatureY + 2 }, thickness: 1.2, color: rgb(0, 0, 0) });
+    drawText('Approved By:', 380, signatureY, 10.5, true);
+    page.drawLine({ start: { x: 465, y: signatureY + 2 }, end: { x: 560, y: signatureY + 2 }, thickness: 1.2, color: rgb(0, 0, 0) });
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
