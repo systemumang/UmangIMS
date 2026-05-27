@@ -12189,7 +12189,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     y -= 10;
     drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
-    const signatureY = Math.max(80, y - 34); // keep it below total and still inside page
+    const signatureY = 110; // fixed visible zone above page bottom
     drawText('Supplier/Vendor Sign:', 40, signatureY, 10.5, true);
     page.drawLine({ start: { x: 170, y: signatureY + 2 }, end: { x: 330, y: signatureY + 2 }, thickness: 1.2, color: rgb(0, 0, 0) });
     drawText('Approved By:', 380, signatureY, 10.5, true);
