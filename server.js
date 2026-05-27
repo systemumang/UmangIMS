@@ -12121,7 +12121,8 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     };
 
     let y = 810;
-    drawText('CREDIT VOUCHER', 40, y, 16, true);
+    const heading = 'CREDIT VOUCHER';
+    drawText(heading, (595.28 - textWidth(heading, 16, true)) / 2, y, 16, true);
     y -= 26;
     drawText(`Voucher No: ${String(header.voucherNo ?? creditVoucherId)}`, 40, y, 10, true);
     drawText(`Date: ${formatDateDDMMYYYY(header.voucherDate)}`, 400, y, 10, true);
