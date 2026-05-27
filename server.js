@@ -12189,11 +12189,11 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     y -= 10;
     drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
-    y -= 40; // keep clear gap between table/total and signatures
-    drawText('Supplier/Vendor Sign:', 40, y, 10, true);
-    page.drawLine({ start: { x: 160, y: y + 2 }, end: { x: 320, y: y + 2 }, thickness: 1, color: rgb(0, 0, 0) });
-    drawText('Approved By:', 380, y, 10, true);
-    page.drawLine({ start: { x: 465, y: y + 2 }, end: { x: 560, y: y + 2 }, thickness: 1, color: rgb(0, 0, 0) });
+    const signatureY = 90; // fixed bottom area so signatures are always visible
+    drawText('Supplier/Vendor Sign:', 40, signatureY, 10, true);
+    page.drawLine({ start: { x: 160, y: signatureY + 2 }, end: { x: 320, y: signatureY + 2 }, thickness: 1, color: rgb(0, 0, 0) });
+    drawText('Approved By:', 380, signatureY, 10, true);
+    page.drawLine({ start: { x: 465, y: signatureY + 2 }, end: { x: 560, y: signatureY + 2 }, thickness: 1, color: rgb(0, 0, 0) });
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
