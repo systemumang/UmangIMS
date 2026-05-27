@@ -203,9 +203,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                 <col className="w-[140px]" />
                 <col className="w-[190px]" />
                 <col className="w-[200px]" />
-	                <col className="w-[120px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[260px]" />
+                <col className="w-[120px]" />
+                <col className="w-[140px]" />
               </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
