@@ -12129,7 +12129,6 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     drawText(`PO: ${String(header.poNumber ?? header.poId ?? '')}`, 40, y, 10);
     y -= 18;
     drawText(`Supplier: ${String(header.supplierName ?? '')}`, 40, y, 10);
-    drawText(`Status: ${String(header.status ?? '')}`, 400, y, 10);
     y -= 24;
 
     // Table (with borders)
