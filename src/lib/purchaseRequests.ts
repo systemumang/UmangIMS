@@ -283,6 +283,7 @@ export async function createPurchaseRequest(input: {
   requestType?: 'Stock' | 'Project';
   projectId?: string | null;
   department: string;
+  remarks?: string;
   requestedBy: string;
   requiredDate: string;
   items: Array<
@@ -396,6 +397,7 @@ export async function createDirectPo(input: {
   projectId?: string | null;
   poType?: 'Goods' | 'Services';
   department?: string;
+  remarks?: string;
   requestedBy?: string;
   requiredDate?: string; // YYYY-MM-DD
   supplierId: string;

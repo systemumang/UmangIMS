@@ -111,9 +111,10 @@ export default function NewPurchaseRequestView({
 	  const [newItemUnit, setNewItemUnit] = useState('');
 	  const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string }>>([{ specificationId: '', value: '' }]);
-  const [creatingItem, setCreatingItem] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+		  const [creatingItem, setCreatingItem] = useState(false);
+		  const [saving, setSaving] = useState(false);
+		  const [error, setError] = useState<string | null>(null);
+		  const [remarks, setRemarks] = useState('');
 
 	  const [createItemNameInlineOpen, setCreateItemNameInlineOpen] = useState(false);
 	  const [createItemNameTargetRowIndex, setCreateItemNameTargetRowIndex] = useState<number | null>(null);
@@ -700,7 +701,7 @@ export default function NewPurchaseRequestView({
 		        </div>
 
 				          {requestType === 'Project' ? (
-				            <label className="space-y-1 block mt-4">
+					            <label className="space-y-1 block mt-4">
 			              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project Name</div>
 			              <SearchableSelect
 			                value={projectId}
@@ -709,9 +710,19 @@ export default function NewPurchaseRequestView({
 		                disabled={loadingProjects}
 			                placeholder={loadingProjects ? 'Loading...' : projectOptions.length ? 'Select' : 'No options'}
 		              />
-			            </label>
-			          ) : null}
-			      </div>
+				            </label>
+				          ) : null}
+                  <label className="space-y-1 block mt-4">
+                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Remarks</div>
+                    <textarea
+                      className={inputClass}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Enter remarks..."
+                      rows={2}
+                    />
+                  </label>
+				      </div>
 
 						      <div className="bg-surface-container-low rounded-2xl p-2 shadow-sm space-y-2">
 				        <div className="flex items-center justify-between">
@@ -999,11 +1010,12 @@ export default function NewPurchaseRequestView({
 					                  setSaving(true);
 						                  createPurchaseRequest({
 						                    firmId,
-						                    requestType,
-						                    projectId: requestType === 'Project' ? projectId.trim() : null,
-						                    store,
-						                    department,
-						                    requestedBy,
+							                    requestType,
+							                    projectId: requestType === 'Project' ? projectId.trim() : null,
+							                    store,
+							                    department,
+                                      remarks: remarks.trim() || undefined,
+							                    requestedBy,
 						                    requiredDate,
 						                    items: normalizedItems,
 						                  })

@@ -4,7 +4,7 @@ import { createPo, createRfq, fetchLastSupplierByItemIds, fetchPos, fetchRequest
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
-import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { createSupplier, fetchSpecifications, fetchSuppliers, type Specification, type Supplier } from '@/src/lib/masters';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
@@ -78,16 +78,29 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-	  const [modalLoading, setModalLoading] = useState(false);
+		  const [modalLoading, setModalLoading] = useState(false);
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
+  const [supplierRows, setSupplierRows] = useState<Supplier[]>([]);
+  const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
+  const [supplierCreateLineIndex, setSupplierCreateLineIndex] = useState<number | null>(null);
+  const [newSupplierName, setNewSupplierName] = useState('');
+  const [newSupplierCity, setNewSupplierCity] = useState('');
+  const [newSupplierState, setNewSupplierState] = useState('');
+  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [supplierCreateError, setSupplierCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSupplierRows(masters.suppliers);
+  }, [masters.suppliers]);
 
   const supplierOptions = useMemo(
     () =>
-      masters.suppliers
+      supplierRows
         .slice()
         .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' }))
         .map((s) => ({ value: s.id, label: s.name })),
-    [masters.suppliers]
+    [supplierRows]
   );
   const gstPercentOptions = ['0', '0.25', '3', '5', '12', '18', '28', '40'];
 
@@ -376,10 +389,10 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                    setModalError('Invalid tax percent');
 	                    return;
 	                  }
-	                  if (!masters.suppliers.some((s) => s.id === it.supplierId)) {
-	                    setModalError('Select a valid supplier for all PO lines.');
-	                    return;
-	                  }
+		                  if (!supplierRows.some((s) => s.id === it.supplierId)) {
+		                    setModalError('Select a valid supplier for all PO lines.');
+		                    return;
+		                  }
 	                }
 
 		                const groups = new Map<
@@ -392,7 +405,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		                  }
 		                >();
 	                for (const it of picked) {
-	                  const supplierName = String(masters.suppliers.find((s) => s.id === it.supplierId)?.name ?? '').trim();
+		                  const supplierName = String(supplierRows.find((s) => s.id === it.supplierId)?.name ?? '').trim();
 	                  if (!supplierName) {
 	                    setModalError('Supplier name is missing for a selected supplier.');
 	                    return;
@@ -525,16 +538,31 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                              options={supplierOptions}
 	                              allowClear
 	                              disabled={masters.loading}
-	                              placeholder=""
-	                              onChange={(nextId) => {
-	                                const safeId = String(nextId ?? '').trim();
-	                                setLines((prev) => {
-	                                  const next = prev.slice();
-	                                  next[idx] = { ...next[idx]!, supplierId: safeId };
-	                                  return next;
-	                                });
-	                              }}
-	                            />
+		                              placeholder=""
+		                              onChange={(nextId) => {
+		                                const safeId = String(nextId ?? '').trim();
+		                                setLines((prev) => {
+		                                  const next = prev.slice();
+		                                  next[idx] = { ...next[idx]!, supplierId: safeId };
+		                                  return next;
+		                                });
+		                              }}
+                                  showCreateWhenEmpty
+                                  alwaysShowCreate
+                                  allowEmptyCreate
+                                  closeOnCreate
+                                  createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
+                                  onCreate={async (label) => {
+                                    setSupplierCreateLineIndex(idx);
+                                    setSupplierCreateError(null);
+                                    setNewSupplierName(String(label ?? '').trim());
+                                    setNewSupplierCity('');
+                                    setNewSupplierState('');
+                                    setNewSupplierPaymentTerms('');
+                                    setSupplierCreateOpen(true);
+                                    return null;
+                                  }}
+		                            />
 	                          </td>
 	                        </>
 	                      ) : (
@@ -632,13 +660,28 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                     next[idx] = { ...next[idx]!, supplierId: '', paymentTerms: '' };
                                     return next;
                                   }
-                                  const suggested = String(masters.suppliers.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
+	                                  const suggested = String(supplierRows.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
                                   const currentTerms = String(next[idx]?.paymentTerms ?? '').trim();
                                   next[idx] = { ...next[idx]!, supplierId: safeId, paymentTerms: currentTerms || suggested };
                                   return next;
-                                });
-                              }}
-                            />
+	                                });
+	                              }}
+                                showCreateWhenEmpty
+                                alwaysShowCreate
+                                allowEmptyCreate
+                                closeOnCreate
+                                createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
+                                onCreate={async (label) => {
+                                  setSupplierCreateLineIndex(idx);
+                                  setSupplierCreateError(null);
+                                  setNewSupplierName(String(label ?? '').trim());
+                                  setNewSupplierCity('');
+                                  setNewSupplierState('');
+                                  setNewSupplierPaymentTerms('');
+                                  setSupplierCreateOpen(true);
+                                  return null;
+                                }}
+	                            />
                           </td>
                           <td className="px-3 py-2 border border-outline-variant">
                             <input
@@ -669,7 +712,82 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           </div>
           </div>
         )}
-      </Modal>
-    </div>
-  );
+	      </Modal>
+      {supplierCreateOpen ? (
+        <div className="fixed inset-0 z-[70]">
+          <button type="button" className="absolute inset-0 bg-black/40" onClick={() => setSupplierCreateOpen(false)} aria-label="Close add supplier modal" />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-xl rounded-xl border border-outline-variant bg-surface-container-lowest shadow-xl">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+                <div className="text-sm font-bold text-on-surface">Add Supplier</div>
+                <button type="button" className="btn btn-sm" onClick={() => setSupplierCreateOpen(false)}>Close</button>
+              </div>
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {supplierCreateError ? <div className="md:col-span-2 p-2 rounded border border-error/30 bg-error/10 text-error text-xs">{supplierCreateError}</div> : null}
+                <label className="space-y-1 md:col-span-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier Name *</div>
+                  <input className={inputClass} value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">City *</div>
+                  <input className={inputClass} value={newSupplierCity} onChange={(e) => setNewSupplierCity(e.target.value)} />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">State *</div>
+                  <input className={inputClass} value={newSupplierState} onChange={(e) => setNewSupplierState(e.target.value)} />
+                </label>
+                <label className="space-y-1 md:col-span-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Payment Terms</div>
+                  <input className={inputClass} value={newSupplierPaymentTerms} onChange={(e) => setNewSupplierPaymentTerms(e.target.value)} />
+                </label>
+              </div>
+              <div className="px-4 py-3 border-t border-outline-variant flex justify-end gap-2">
+                <button type="button" className="btn" onClick={() => setSupplierCreateOpen(false)}>Cancel</button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={creatingSupplier || !newSupplierName.trim() || !newSupplierCity.trim() || !newSupplierState.trim()}
+                  onClick={async () => {
+                    setSupplierCreateError(null);
+                    setCreatingSupplier(true);
+                    try {
+                      const created = await createSupplier({
+                        name: newSupplierName.trim(),
+                        city: newSupplierCity.trim(),
+                        state: newSupplierState.trim(),
+                        paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+                        createdBy: 'system',
+                      });
+                      const createdId = String(created?.supplier?.id ?? '').trim();
+                      const fresh = await fetchSuppliers();
+                      setSupplierRows(fresh);
+                      if (createdId && supplierCreateLineIndex != null) {
+                        setLines((prev) => {
+                          const next = prev.slice();
+                          const currentTerms = String(next[supplierCreateLineIndex]?.paymentTerms ?? '').trim();
+                          next[supplierCreateLineIndex] = {
+                            ...next[supplierCreateLineIndex]!,
+                            supplierId: createdId,
+                            paymentTerms: currentTerms || newSupplierPaymentTerms.trim(),
+                          };
+                          return next;
+                        });
+                      }
+                      setSupplierCreateOpen(false);
+                    } catch (e) {
+                      setSupplierCreateError(e instanceof Error ? e.message : String(e));
+                    } finally {
+                      setCreatingSupplier(false);
+                    }
+                  }}
+                >
+                  {creatingSupplier ? 'Saving...' : 'Save Supplier'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+	    </div>
+	  );
 }

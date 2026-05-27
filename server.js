@@ -5746,6 +5746,7 @@ app.post('/api/requests', async (req, res) => {
     const firmId = String(req.body?.firmId ?? '').trim();
     const storeName = String(req.body?.store ?? '').trim();
     const department = String(req.body?.department ?? '').trim();
+    const remarksInput = String(req.body?.remarks ?? '').trim();
     const requestedBy = String(req.body?.requestedBy ?? '').trim();
     const requiredDate = String(req.body?.requiredDate ?? '').trim(); // YYYY-MM-DD
     const requestType = (String(req.body?.requestType ?? 'Stock').trim() === 'Project' ? 'Project' : 'Stock');
@@ -5765,7 +5766,7 @@ app.post('/api/requests', async (req, res) => {
 
     const prId = crypto.randomUUID();
     const prNumber = await allocateDocNumber(pool, 'PR', new Date());
-    const remarks = department ? JSON.stringify({ department }) : JSON.stringify({});
+    const remarks = JSON.stringify({ ...(department ? { department } : {}), ...(remarksInput ? { remarks: remarksInput } : {}) });
 
 	    await pool.query(
 	      `
@@ -6335,6 +6336,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		    const supplierNameRaw = String(req.body?.supplier ?? '').trim();
         const department = String(req.body?.department ?? '').trim();
         const requestedBy = String(req.body?.requestedBy ?? '').trim();
+        const remarksInput = String(req.body?.remarks ?? '').trim();
         const requiredDateInput = String(req.body?.requiredDate ?? '').trim();
 	        const requiredDate = toIsoDate(requiredDateInput);
 			    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
@@ -6410,7 +6412,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 
 	    const directPrId = crypto.randomUUID();
 	    const directPrNumber = await allocateDocNumber(pool, 'PR', new Date());
-	    const directRemarks = JSON.stringify({ department, directPo: true, requiredDate });
+	    const directRemarks = JSON.stringify({
+        department,
+        directPo: true,
+        requiredDate,
+        ...(remarksInput ? { remarks: remarksInput } : {}),
+      });
 	    const directRequestType = projectId ? 'Project' : 'Stock';
 
 	    await pool.query(
@@ -6438,7 +6445,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 				      INSERT INTO purchase_orders
 				        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
 				      VALUES
-				        (?, ?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+					        (?, ?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
 			      `,
 			      [
 		        poId,
@@ -6454,6 +6461,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	              paymentMode,
 			          advanceAmount,
 		          advanceDate,
+              remarksInput || null,
 			        'system',
 	        shippingAddress,
 	        termsConditions,
