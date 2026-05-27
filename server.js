@@ -12134,10 +12134,10 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     // Table (with borders)
     const tableX = 40;
-    const col1 = 260; // Item (wrapped)
-    const col2 = 80;  // Qty
-    const col3 = 80;  // Rate
-    const col4 = 95;  // Amount
+    const col1 = 250; // Item (wrapped)
+    const col2 = 70;  // Qty
+    const col3 = 70;  // Rate
+    const col4 = 110; // Amount
     const x1 = tableX;
     const x2 = tableX + col1;
     const x3 = x2 + col2;
@@ -12153,7 +12153,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     drawText('Item', x1 + 6, headerBottom + 6, 10, true);
     drawText('Qty', x3 - textWidth('Qty', 10, true) - 6, headerBottom + 6, 10, true);
     drawText('Rate', x4 - textWidth('Rate', 10, true) - 6, headerBottom + 6, 10, true);
-    drawText('Amount', x5 - textWidth('Amount', 10, true) - 6, headerBottom + 6, 10, true);
+    drawText('Amount', x4 + 6, headerBottom + 6, 10, true);
     y = headerBottom - 2;
 
     const rows = Array.isArray(itemRows) ? itemRows : [];
