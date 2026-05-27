@@ -12091,6 +12091,8 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     const drawText = (text, x, y, size = 10, useBold = false) => {
       page.drawText(String(text ?? ''), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
     };
+    const textWidth = (text, size = 10, useBold = false) =>
+      (useBold ? bold : font).widthOfTextAtSize(String(text ?? ''), size);
     const formatDateDDMMYYYY = (value) => {
       const raw = String(value ?? '').trim();
       if (!raw) return '';
@@ -12116,25 +12118,26 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     // Table (with borders)
     const tableX = 40;
-    const colItemX = 40;
-    const colQtyX = 340;
-    const colRateX = 410;
-    const colAmtX = 480;
-    const col1 = 320;
-    const col2 = 70;
-    const col3 = 70;
-    const col4 = 75;
+    const col1 = 350; // Item
+    const col2 = 95;  // Qty
+    const col3 = 95;  // Rate
+    const col4 = 95;  // Amount
+    const x1 = tableX;
+    const x2 = tableX + col1;
+    const x3 = x2 + col2;
+    const x4 = x3 + col3;
+    const x5 = x4 + col4;
     const rowH = 20;
     const headerTop = y + 12;
     const headerBottom = headerTop - rowH;
-    page.drawRectangle({ x: tableX, y: headerBottom, width: col1 + col2 + col3 + col4, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
-    page.drawLine({ start: { x: tableX + col1, y: headerTop }, end: { x: tableX + col1, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
-    page.drawLine({ start: { x: tableX + col1 + col2, y: headerTop }, end: { x: tableX + col1 + col2, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
-    page.drawLine({ start: { x: tableX + col1 + col2 + col3, y: headerTop }, end: { x: tableX + col1 + col2 + col3, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
-    drawText('Item', colItemX + 4, headerBottom + 6, 10, true);
-    drawText('Qty', colQtyX + 4, headerBottom + 6, 10, true);
-    drawText('Rate', colRateX + 4, headerBottom + 6, 10, true);
-    drawText('Amount', colAmtX + 4, headerBottom + 6, 10, true);
+    page.drawRectangle({ x: tableX, y: headerBottom, width: x5 - x1, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: x2, y: headerTop }, end: { x: x2, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: x3, y: headerTop }, end: { x: x3, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: x4, y: headerTop }, end: { x: x4, y: headerBottom }, thickness: 1, color: rgb(0, 0, 0) });
+    drawText('Item', x1 + 6, headerBottom + 6, 10, true);
+    drawText('Qty', x3 - textWidth('Qty', 10, true) - 6, headerBottom + 6, 10, true);
+    drawText('Rate', x4 - textWidth('Rate', 10, true) - 6, headerBottom + 6, 10, true);
+    drawText('Amount', x5 - textWidth('Amount', 10, true) - 6, headerBottom + 6, 10, true);
     y = headerBottom - 2;
 
     const rows = Array.isArray(itemRows) ? itemRows : [];
@@ -12146,14 +12149,17 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
       const rowTop = y;
       const rowBottom = rowTop - rowH;
-      page.drawRectangle({ x: tableX, y: rowBottom, width: col1 + col2 + col3 + col4, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
-      page.drawLine({ start: { x: tableX + col1, y: rowTop }, end: { x: tableX + col1, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
-      page.drawLine({ start: { x: tableX + col1 + col2, y: rowTop }, end: { x: tableX + col1 + col2, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
-      page.drawLine({ start: { x: tableX + col1 + col2 + col3, y: rowTop }, end: { x: tableX + col1 + col2 + col3, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
-      drawText(itemName.length > 55 ? `${itemName.slice(0, 55)}...` : itemName, colItemX + 4, rowBottom + 6, 9);
-      drawText(qty.toFixed(2), colQtyX + 4, rowBottom + 6, 9);
-      drawText(rate.toFixed(2), colRateX + 4, rowBottom + 6, 9);
-      drawText(amount.toFixed(2), colAmtX + 4, rowBottom + 6, 9);
+      page.drawRectangle({ x: tableX, y: rowBottom, width: x5 - x1, height: rowH, borderWidth: 1, borderColor: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: x2, y: rowTop }, end: { x: x2, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: x3, y: rowTop }, end: { x: x3, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: x4, y: rowTop }, end: { x: x4, y: rowBottom }, thickness: 1, color: rgb(0, 0, 0) });
+      drawText(itemName.length > 65 ? `${itemName.slice(0, 65)}...` : itemName, x1 + 6, rowBottom + 6, 9);
+      const qtyText = qty.toFixed(2);
+      const rateText = rate.toFixed(2);
+      const amountText = amount.toFixed(2);
+      drawText(qtyText, x3 - textWidth(qtyText, 9, false) - 6, rowBottom + 6, 9);
+      drawText(rateText, x4 - textWidth(rateText, 9, false) - 6, rowBottom + 6, 9);
+      drawText(amountText, x5 - textWidth(amountText, 9, false) - 6, rowBottom + 6, 9);
       y = rowBottom - 2;
       if (y < 70) break;
     }
