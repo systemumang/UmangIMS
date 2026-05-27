@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import { formatPrNumber, formatPoNumber } from '@/src/lib/docNumbers';
 import { updateCreditVoucherPayment } from '@/src/lib/purchaseRequests';
@@ -9,7 +10,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true });
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<CreditVoucherPaymentQueueRow[]>([]);
@@ -45,6 +46,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
   const [paymentModeInput, setPaymentModeInput] = useState('Cash');
   const [paymentCopyInput, setPaymentCopyInput] = useState('');
+  const [voucherItems, setVoucherItems] = useState<Array<{ itemName: string; quantity: number; rate: number; amount: number }>>([]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -55,6 +57,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
     setPaymentAmountInput('');
     setPaymentModeInput('Cash');
     setPaymentCopyInput('');
+    setVoucherItems([]);
     setModalError(null);
   }
 
@@ -63,6 +66,23 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
     setPaymentDate(todayIsoDate());
     setPaymentAmountInput(String(Number(active.remainingAmount ?? 0).toFixed(2)));
     setPaymentModeInput('Cash');
+    const ac = new AbortController();
+    fetch(`/api/credit-vouchers/${encodeURIComponent(String(active.creditVoucherId ?? ''))}/items`, { signal: ac.signal })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((data as any)?.error ? String((data as any).error) : 'Failed to load voucher items');
+        const rows = Array.isArray((data as any)?.items) ? (data as any).items : [];
+        setVoucherItems(
+          rows.map((r: any) => ({
+            itemName: String(r.itemName ?? ''),
+            quantity: Number(r.quantity ?? 0),
+            rate: Number(r.rate ?? 0),
+            amount: Number(r.amount ?? 0),
+          }))
+        );
+      })
+      .catch(() => setVoucherItems([]));
+    return () => ac.abort();
   }, [active, modalOpen]);
 
   const canSave = useMemo(() => {
@@ -72,8 +92,9 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
     if (!Number.isFinite(amt) || amt < 0) return false;
     if (amt - Number(active.remainingAmount ?? 0) > 1e-9) return false;
     if (!String(paymentModeInput ?? '').trim()) return false;
+    if (!String(paymentCopyInput ?? '').trim()) return false;
     return true;
-  }, [active, paymentAmountInput, paymentDate, paymentModeInput]);
+  }, [active, paymentAmountInput, paymentDate, paymentModeInput, paymentCopyInput]);
 
   async function save() {
     if (!active || !canSave) return;
@@ -145,9 +166,16 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
                       <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
                         Payment
                       </button>
-                      <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                        View PR
-                      </button>
+                      <a
+                        href={`/api/credit-vouchers/${encodeURIComponent(String(r.creditVoucherId ?? ''))}.pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 text-on-surface-variant"
+                        title="Download Credit Voucher PDF"
+                        aria-label="Download Credit Voucher PDF"
+                      >
+                        <Download size={16} />
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -192,15 +220,47 @@ export default function CreditVoucherPaymentQueueView({ onViewPr }: { onViewPr: 
           </label>
           <label className="space-y-1">
             <div className={labelClass}>Mode</div>
-            <input className={inputClass} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)} placeholder="Cash/NEFT/..." />
+            <select className={inputClass} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+              <option value="Cash">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="Cheque">Cheque</option>
+              <option value="NEFT">NEFT</option>
+              <option value="RTGS">RTGS</option>
+              <option value="IMPS">IMPS</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Other">Other</option>
+            </select>
           </label>
           <label className="space-y-1 md:col-span-3">
-            <div className={labelClass}>Payment Copy/Ref (optional)</div>
-            <input className={inputClass} value={paymentCopyInput} onChange={(e) => setPaymentCopyInput(e.target.value)} placeholder="Ref no / URL" />
+            <div className={labelClass}>Payment Copy <span className="text-red-600">*</span></div>
+            <input className={inputClass} value={paymentCopyInput} onChange={(e) => setPaymentCopyInput(e.target.value)} placeholder="Ref no / URL / file link" />
           </label>
         </div>
+        {voucherItems.length ? (
+          <div className="mt-3 overflow-auto rounded-xl border border-outline-variant">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                <tr>
+                  <th className="px-3 py-2 border border-outline-variant">Service Name</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {voucherItems.map((it, idx) => (
+                  <tr key={`${it.itemName}-${idx}`}>
+                    <td className="px-3 py-2 border border-outline-variant">{it.itemName || '-'}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.amount ?? 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </Modal>
     </QueueCard>
   );
 }
-

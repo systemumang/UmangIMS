@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import { formatPrNumber, formatPoNumber } from '@/src/lib/docNumbers';
 import { fetchQueueApproveCreditVoucher, updateQueueApproveCreditVoucher, type ApproveCreditVoucherQueueRow, type QueueFilters } from '@/src/lib/queues';
@@ -8,7 +9,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function ApproveCreditVoucherQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<ApproveCreditVoucherQueueRow[]>([]);
@@ -123,9 +124,16 @@ export default function ApproveCreditVoucherQueueView({ onViewPr }: { onViewPr: 
                       <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
                         Approve
                       </button>
-                      <button type="button" className="btn btn-sm" onClick={() => onViewPr(r.prId)}>
-                        View PR
-                      </button>
+                      <a
+                        href={`/api/credit-vouchers/${encodeURIComponent(String(r.creditVoucherId ?? ''))}.pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 text-on-surface-variant"
+                        title="Download Credit Voucher PDF"
+                        aria-label="Download Credit Voucher PDF"
+                      >
+                        <Download size={16} />
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -179,4 +187,3 @@ export default function ApproveCreditVoucherQueueView({ onViewPr }: { onViewPr: 
     </QueueCard>
   );
 }
-

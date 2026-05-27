@@ -322,6 +322,11 @@ export default function PaymentQueueView({
                   setSaving(false);
                   return;
                 }
+                if (mode === 'payment' && !String(paymentCopyInput ?? '').trim()) {
+                  setModalError('Payment Copy is required.');
+                  setSaving(false);
+                  return;
+                }
                 const savePromise =
                   mode === 'tally'
                     ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })

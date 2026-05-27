@@ -12037,6 +12037,148 @@ app.get('/api/credit-vouchers/next-number', async (req, res) => {
   }
 });
 
+app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const creditVoucherId = String(req.params.id ?? '').trim();
+    if (!creditVoucherId) return res.status(400).json({ error: 'credit voucher id is required' });
+
+    const [headRows] = await pool.query(
+      `
+      SELECT
+        cv.id,
+        cv.voucher_number AS voucherNo,
+        cv.voucher_date AS voucherDate,
+        cv.total_amount AS totalAmount,
+        cv.status,
+        cv.po_id AS poId,
+        po.po_number AS poNumber,
+        pr.pr_number AS prNumber,
+        s.name AS supplierName
+      FROM credit_vouchers cv
+      LEFT JOIN purchase_orders po ON po.id = cv.po_id
+      LEFT JOIN purchase_requests pr ON pr.id = po.pr_id
+      LEFT JOIN suppliers s ON s.id = cv.supplier_id
+      WHERE cv.id = ?
+      LIMIT 1
+      `,
+      [creditVoucherId]
+    );
+    const header = Array.isArray(headRows) ? headRows[0] : null;
+    if (!header) return res.status(404).json({ error: 'Credit Voucher not found' });
+
+    const [itemRows] = await pool.query(
+      `
+      SELECT
+        cvi.quantity,
+        cvi.rate,
+        cvi.amount,
+        i.item_name AS itemName,
+        i.specifications_json AS specificationsJson
+      FROM credit_voucher_items cvi
+      LEFT JOIN items i ON i.id = cvi.item_id
+      WHERE cvi.credit_voucher_id = ?
+      ORDER BY cvi.created_at ASC
+      `,
+      [creditVoucherId]
+    );
+
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([595.28, 841.89]); // A4
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const drawText = (text, x, y, size = 10, useBold = false) => {
+      page.drawText(String(text ?? ''), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
+    };
+
+    let y = 810;
+    drawText('CREDIT VOUCHER', 40, y, 16, true);
+    y -= 26;
+    drawText(`Voucher No: ${String(header.voucherNo ?? creditVoucherId)}`, 40, y, 10, true);
+    drawText(`Date: ${String(header.voucherDate ?? '')}`, 400, y, 10, true);
+    y -= 18;
+    drawText(`PO: ${String(header.poNumber ?? header.poId ?? '')}`, 40, y, 10);
+    drawText(`PR: ${String(header.prNumber ?? '')}`, 260, y, 10);
+    y -= 18;
+    drawText(`Supplier: ${String(header.supplierName ?? '')}`, 40, y, 10);
+    drawText(`Status: ${String(header.status ?? '')}`, 400, y, 10);
+    y -= 24;
+
+    // Table header
+    drawText('Item', 40, y, 10, true);
+    drawText('Qty', 340, y, 10, true);
+    drawText('Rate', 410, y, 10, true);
+    drawText('Amount', 480, y, 10, true);
+    y -= 14;
+
+    const rows = Array.isArray(itemRows) ? itemRows : [];
+    for (const row of rows) {
+      const itemName = String(row?.itemName ?? '').trim() || '-';
+      const qty = Number(row?.quantity ?? 0);
+      const rate = Number(row?.rate ?? 0);
+      const amount = Number(row?.amount ?? qty * rate);
+
+      drawText(itemName.length > 55 ? `${itemName.slice(0, 55)}...` : itemName, 40, y, 9);
+      drawText(qty.toFixed(2), 340, y, 9);
+      drawText(rate.toFixed(2), 410, y, 9);
+      drawText(amount.toFixed(2), 480, y, 9);
+      y -= 14;
+      if (y < 70) break;
+    }
+
+    y -= 10;
+    drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
+
+    const pdfBytes = await doc.save();
+    res.setHeader('Content-Type', 'application/pdf');
+    const fileName = `${String(header.voucherNo ?? creditVoucherId).replace(/[^\w\-\/]+/g, '_')}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/credit-vouchers/:id/items', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const creditVoucherId = String(req.params.id ?? '').trim();
+    if (!creditVoucherId) return res.status(400).json({ error: 'credit voucher id is required' });
+    const [rows] = await pool.query(
+      `
+      SELECT
+        cvi.id,
+        cvi.item_id AS itemId,
+        COALESCE(iname.name, i.item_name, '') AS itemName,
+        cvi.quantity,
+        cvi.rate,
+        cvi.amount
+      FROM credit_voucher_items cvi
+      LEFT JOIN items i ON i.id = cvi.item_id
+      LEFT JOIN item_names iname ON iname.id = i.item_name_id
+      WHERE cvi.credit_voucher_id = ?
+      ORDER BY cvi.created_at ASC
+      `,
+      [creditVoucherId]
+    );
+    res.json({
+      items: (Array.isArray(rows) ? rows : []).map((r) => ({
+        id: String(r.id ?? ''),
+        itemId: String(r.itemId ?? ''),
+        itemName: String(r.itemName ?? ''),
+        quantity: Number(r.quantity ?? 0),
+        rate: Number(r.rate ?? 0),
+        amount: Number(r.amount ?? 0),
+      })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.put('/api/credit-vouchers/:id/approve-entry', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -12085,6 +12227,8 @@ app.put('/api/credit-vouchers/:id/payment', async (req, res) => {
 
     if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
     if (!paymentMode) return res.status(400).json({ error: 'paymentMode is required' });
+    if (!paymentCopy) return res.status(400).json({ error: 'paymentCopy is required' });
+    if (!paymentCopy) return res.status(400).json({ error: 'paymentCopy is required' });
     if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
 
     const [[meta]] = await pool.query(
