@@ -96,6 +96,15 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   }, [firmId, storeId, stores]);
 
   useEffect(() => {
+    if (!firmId) {
+      setProjectId('');
+      return;
+    }
+    const projectOk = projects.some((p) => p.id === projectId && p.firmId === firmId);
+    if (!projectOk) setProjectId('');
+  }, [firmId, projectId, projects]);
+
+  useEffect(() => {
     if (!supplierId) return;
     const s = suppliers.find((x) => x.id === supplierId);
     const next = String(s?.paymentTerms ?? '').trim();
@@ -139,10 +148,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
     return list.slice().sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({ value: s.id, label: s.name }));
   }, [firmId, stores]);
 
-  const projectOptions = useMemo(
-    () => projects.slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ value: p.id, label: p.name })),
-    [projects]
-  );
+  const projectOptions = useMemo(() => {
+    const list = firmId ? projects.filter((p) => p.firmId === firmId) : projects;
+    return list
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((p) => ({ value: p.id, label: p.name }));
+  }, [firmId, projects]);
 
   const supplierOptions = useMemo(
     () => suppliers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({ value: s.id, label: s.name })),
