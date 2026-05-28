@@ -84,7 +84,23 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
     if (!Number.isFinite(l) || l <= 0) return NaN;
     if (!Number.isFinite(b) || b <= 0) return NaN;
     if (!Number.isFinite(p) || p < 1) return NaN;
-    return l * b * p;
+    return round2(l * b * p);
+  }
+
+  function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    return null;
+  }
+
+  function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    return null;
   }
 
   const masters = useQueueMasters({ includeUsers: true });
@@ -339,6 +355,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                                  <col className="w-[420px]" />
 	                                  <col className="w-[160px]" />
 	                                  <col className="w-[120px]" />
+	                                  <col className="w-[100px]" />
 	                                  <col className="w-[120px]" />
 	                                </colgroup>
 	                                <thead>
@@ -346,6 +363,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
                                       <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
 	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
 	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
 	                                  </tr>
                                 </thead>
@@ -357,6 +375,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                                      </td>
                                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).priority ?? '').trim() || '-'}</td>
 	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).unit ?? '').trim() || '-'}</td>
 	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
 	                                        {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
                                       </td>
@@ -504,26 +523,28 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	              <div className="text-sm text-on-surface-variant inline-flex items-center gap-2"><Spinner className="h-4 w-4" /> Loading items...</div>
 	            ) : (
 	              <div className="overflow-x-auto">
-		                <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant">
+		                <table className="w-full min-w-[1100px] table-fixed text-left border-collapse border border-outline-variant">
 			                  <colgroup>
-			                    <col className="w-[420px]" />
-                              <col className="w-[160px]" />
-			                    <col className="w-[130px]" />
-			                    <col className="w-[130px]" />
+			                    <col className="w-[400px]" />
+                              <col className="w-[140px]" />
+			                    <col className="w-[110px]" />
+			                    <col className="w-[100px]" />
 			                    <col className="w-[110px]" />
 			                    <col className="w-[110px]" />
-			                    <col className="w-[90px]" />
-			                    <col className="w-[140px]" />
+			                    <col className="w-[110px]" />
+			                    <col className="w-[80px]" />
+			                    <col className="w-[130px]" />
 			                  </colgroup>
 		                  <thead>
 		                    <tr className="bg-surface-container-high">
 		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
                               <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
 		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
 		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
-                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
-                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
-                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Length</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Breadth</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">PCs</th>
 			                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
 		                    </tr>
 	                  </thead>
@@ -534,6 +555,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                           const isArea = !!areaUnit;
                           const dimUnit = baseDimUnitForAreaUnit(areaUnit);
                           const d = dimsByItemId[it.id] ?? { length: '', breadth: '', pcs: '1' };
+                          const qtyVal = qtyByItemId[it.id] ?? '';
                           return (
 		                      <tr key={it.id}>
 			                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
@@ -541,49 +563,62 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 			                        </td>
                                 <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).priority ?? '').trim() || '-'}</td>
 			                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
+			                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).unit ?? '').trim() || '-'}</td>
 		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
 		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
 		                        </td>
                             <td className="px-3 py-2 border border-outline-variant">
                               {isArea ? (
-                                <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={d.length}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), length: v } }));
-                                    const q = computeAreaQty(Number(v), Number((dimsByItemId[it.id] ?? d).breadth), Number((dimsByItemId[it.id] ?? d).pcs));
-                                    setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
-                                  }}
-                                  inputMode="decimal"
-                                  placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
-                                />
+                                <div className="space-y-1">
+                                  <input
+                                    className={cn(inputClass, 'py-1')}
+                                    value={d.length}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), length: v } }));
+                                      const q = computeAreaQty(Number(v), Number((dimsByItemId[it.id] ?? d).breadth), Number((dimsByItemId[it.id] ?? d).pcs));
+                                      setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                    }}
+                                    inputMode="decimal"
+                                    placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                  />
+                                  {(() => {
+                                    const conv = getConvertedDim(d.length, dimUnit);
+                                    return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
+                                  })()}
+                                </div>
                               ) : (
-                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 border border-outline-variant">
+                              {isArea ? (
+                                <div className="space-y-1">
+                                  <input
+                                    className={cn(inputClass, 'py-1')}
+                                    value={d.breadth}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), breadth: v } }));
+                                      const q = computeAreaQty(Number((dimsByItemId[it.id] ?? d).length), Number(v), Number((dimsByItemId[it.id] ?? d).pcs));
+                                      setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                    }}
+                                    inputMode="decimal"
+                                    placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                  />
+                                  {(() => {
+                                    const conv = getConvertedDim(d.breadth, dimUnit);
+                                    return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
                               )}
                             </td>
                             <td className="px-3 py-2 border border-outline-variant">
                               {isArea ? (
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={d.breadth}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), breadth: v } }));
-                                    const q = computeAreaQty(Number((dimsByItemId[it.id] ?? d).length), Number(v), Number((dimsByItemId[it.id] ?? d).pcs));
-                                    setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
-                                  }}
-                                  inputMode="decimal"
-                                  placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
-                                />
-                              ) : (
-                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 border border-outline-variant">
-                              {isArea ? (
-                                <input
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1')}
                                   value={d.pcs}
                                   onChange={(e) => {
                                     const v = e.target.value;
@@ -595,18 +630,24 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   placeholder="PCs"
                                 />
                               ) : (
-                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
                               )}
                             </td>
-		                        <td className="px-3 py-2 border border-outline-variant">
-	                          <input
-	                            className={cn(inputClass, 'py-1.5')}
-                            value={qtyByItemId[it.id] ?? ''}
-                            disabled={isArea}
-                            onChange={(e) => (isArea ? null : setQtyByItemId((prev) => ({ ...prev, [it.id]: e.target.value })))}
-                            inputMode="decimal"
-                          />
-                        </td>
+		                        <td className={cn('px-3 py-2 border border-outline-variant', isArea && 'bg-surface-container-high/50')}>
+                              <div className="space-y-1">
+                                <input
+                                  className={cn(inputClass, 'py-1')}
+                                  value={qtyVal}
+                                  disabled={isArea}
+                                  onChange={(e) => (isArea ? null : setQtyByItemId((prev) => ({ ...prev, [it.id]: e.target.value })))}
+                                  inputMode="decimal"
+                                />
+                                {(() => {
+                                  const conv = getConvertedArea(qtyVal, areaUnit);
+                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
+                                })()}
+                              </div>
+                            </td>
 	                      </tr>
                           );
                         })()
