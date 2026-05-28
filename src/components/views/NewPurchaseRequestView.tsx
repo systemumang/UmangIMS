@@ -42,7 +42,45 @@ export default function NewPurchaseRequestView({
   onCreated: (newId?: string) => void;
   onCancel: () => void;
 }) {
-  type ItemDraft = { itemNameId: string; quantity: string; priorityId: string; specs: Record<string, string> };
+  type ItemDraft = {
+    itemNameId: string;
+    length: string;
+    breadth: string;
+    pcs: string;
+    quantity: string;
+    priorityId: string;
+    specs: Record<string, string>;
+  };
+
+  function normalizeAreaUnitName(unitName: string) {
+    const u = String(unitName ?? '').trim().toLowerCase();
+    if (!u) return null;
+    if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+    if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+      return 'sqm';
+    return null;
+  }
+
+  function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+    if (areaUnit === 'sqft') return 'ft';
+    if (areaUnit === 'sqm') return 'm';
+    return '';
+  }
+
+  function round2(n: number) {
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100) / 100;
+  }
+
+  function computeAreaQty(length: number, breadth: number, pcs: number) {
+    const l = round2(length);
+    const b = round2(breadth);
+    const p = Math.trunc(pcs);
+    if (!Number.isFinite(l) || l <= 0) return NaN;
+    if (!Number.isFinite(b) || b <= 0) return NaN;
+    if (!Number.isFinite(p) || p < 1) return NaN;
+    return l * b * p;
+  }
 
   function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
     try {
@@ -85,7 +123,7 @@ export default function NewPurchaseRequestView({
 				  const [requestedByUserId, setRequestedByUserId] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
-				  const [items, setItems] = useState<ItemDraft[]>([{ itemNameId: '', quantity: '', priorityId: '', specs: {} }]);
+				  const [items, setItems] = useState<ItemDraft[]>([{ itemNameId: '', length: '', breadth: '', pcs: '1', quantity: '', priorityId: '', specs: {} }]);
 		  const [itemRowErrors, setItemRowErrors] = useState<string[]>([]);
 		  const [reqCreateValueRowIndex, setReqCreateValueRowIndex] = useState<number | null>(null);
 		  const [reqCreateValueSpecId, setReqCreateValueSpecId] = useState<string>('');
@@ -103,6 +141,16 @@ export default function NewPurchaseRequestView({
 	  const [specs, setSpecs] = useState<Specification[]>([]);
 	  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 	  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+
+    const unitNameById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u.name])), [units]);
+
+    function getRowUnitName(itemNameId: string) {
+      const row = itemNames.find((n) => n.id === itemNameId);
+      const direct = String((row as any)?.unitName ?? '').trim();
+      if (direct) return direct;
+      const unitId = String((row as any)?.unitId ?? '').trim();
+      return unitId ? String(unitNameById[unitId] ?? '') : '';
+    }
 
 	  const [createItemOpen, setCreateItemOpen] = useState(false);
 	  const [createItemRowIndex, setCreateItemRowIndex] = useState<number | null>(null);
@@ -749,17 +797,24 @@ export default function NewPurchaseRequestView({
                                     <div className="px-2 py-2 border-r border-outline-variant">Specifications</div>
                                   )}
                                   <div className="px-2 py-2 border-r border-outline-variant">Priority</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant">Length</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant">Breadth</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant">PCs</div>
                                   <div className="px-2 py-2 border-r border-outline-variant">Qty</div>
                                   <div className="px-2 py-2 text-right">Action</div>
                                 </div>
 
 							          {items.map((row, idx) => {
 							            const specIds = row.itemNameId ? getItemNameSpecIds(row.itemNameId) : [];
+                              const unitName = row.itemNameId ? getRowUnitName(row.itemNameId) : '';
+                              const areaUnit = normalizeAreaUnitName(unitName);
+                              const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+                              const isAreaUnit = !!areaUnit;
 							            return (
 							              <div
 							                key={idx}
                                   className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 80px` }}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 80px` }}
 							              >
 							                <div className="px-2 py-2 border-r border-outline-variant space-y-2">
 							                  <SearchableSelect
@@ -767,7 +822,21 @@ export default function NewPurchaseRequestView({
 							                    options={itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => ({ value: n.id, label: n.name }))}
 						                    onChange={(id) => {
 						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-						                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, itemNameId: id, specs: {} } : p)));
+                                  setItems((prev) =>
+                                    prev.map((p, i) => {
+                                      if (i !== idx) return p;
+                                      const unitName = id ? getRowUnitName(id) : '';
+                                      const isArea = !!normalizeAreaUnitName(unitName);
+                                      const pcs = String(p.pcs ?? '').trim() ? p.pcs : '1';
+                                      const next = { ...p, itemNameId: id, specs: {}, pcs: isArea ? pcs : p.pcs };
+                                      if (!isArea) return next;
+                                      const l = Number(next.length ?? 0);
+                                      const b = Number(next.breadth ?? 0);
+                                      const pc = Number(next.pcs ?? 1);
+                                      const qty = computeAreaQty(l, b, pc);
+                                      return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                    })
+                                  );
 
 						                      // Preload spec values for this Item Name + its linked specifications.
 						                      const specIdsToLoad = id ? getItemNameSpecIds(id) : [];
@@ -910,6 +979,96 @@ export default function NewPurchaseRequestView({
 	                                  allowClear
 	                                />
 	                              </div>
+                              <div className="px-2 py-2 border-r border-outline-variant space-y-1">
+                                {isAreaUnit ? (
+                                  <input
+                                    className={inputClass}
+                                    placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                    type="number"
+                                    inputMode="decimal"
+                                    min={0}
+                                    step={0.01}
+                                    value={row.length}
+                                    onChange={(e) => {
+                                      const v = String(e.target.value ?? '');
+                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+                                      setItems((prev) =>
+                                        prev.map((p, i) => {
+                                          if (i !== idx) return p;
+                                          const next = { ...p, length: v };
+                                          const l = Number(next.length ?? 0);
+                                          const b = Number(next.breadth ?? 0);
+                                          const pc = Number(next.pcs ?? 1);
+                                          const qty = computeAreaQty(l, b, pc);
+                                          return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                        })
+                                      );
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                )}
+                              </div>
+                              <div className="px-2 py-2 border-r border-outline-variant space-y-1">
+                                {isAreaUnit ? (
+                                  <input
+                                    className={inputClass}
+                                    placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                    type="number"
+                                    inputMode="decimal"
+                                    min={0}
+                                    step={0.01}
+                                    value={row.breadth}
+                                    onChange={(e) => {
+                                      const v = String(e.target.value ?? '');
+                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+                                      setItems((prev) =>
+                                        prev.map((p, i) => {
+                                          if (i !== idx) return p;
+                                          const next = { ...p, breadth: v };
+                                          const l = Number(next.length ?? 0);
+                                          const b = Number(next.breadth ?? 0);
+                                          const pc = Number(next.pcs ?? 1);
+                                          const qty = computeAreaQty(l, b, pc);
+                                          return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                        })
+                                      );
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                )}
+                              </div>
+                              <div className="px-2 py-2 border-r border-outline-variant space-y-1">
+                                {isAreaUnit ? (
+                                  <input
+                                    className={inputClass}
+                                    placeholder="PCs"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    step={1}
+                                    value={row.pcs}
+                                    onChange={(e) => {
+                                      const v = String(e.target.value ?? '');
+                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+                                      setItems((prev) =>
+                                        prev.map((p, i) => {
+                                          if (i !== idx) return p;
+                                          const next = { ...p, pcs: v };
+                                          const l = Number(next.length ?? 0);
+                                          const b = Number(next.breadth ?? 0);
+                                          const pc = Number(next.pcs ?? 1);
+                                          const qty = computeAreaQty(l, b, pc);
+                                          return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                        })
+                                      );
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                )}
+                              </div>
 								                <div className="px-2 py-2 border-r border-outline-variant space-y-1">
 						                  <input
 						                    className={inputClass}
@@ -919,7 +1078,9 @@ export default function NewPurchaseRequestView({
 						                    min={0}
 						                    step={1}
 						                    value={row.quantity}
+                                disabled={isAreaUnit}
 						                    onChange={(e) => {
+                                  if (isAreaUnit) return;
 						                      const v = String(e.target.value ?? '');
 						                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
 						                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: v } : p)));
@@ -948,7 +1109,9 @@ export default function NewPurchaseRequestView({
 										              <button
 									                type="button"
 									                className="btn-primary"
-									                onClick={() => setItems((prev) => [...prev, { itemNameId: '', quantity: '', priorityId: '', specs: {} }])}
+									                onClick={() =>
+                                    setItems((prev) => [...prev, { itemNameId: '', length: '', breadth: '', pcs: '1', quantity: '', priorityId: '', specs: {} }])
+                                  }
 								              >
 							                + Add Item
 							              </button>
@@ -972,7 +1135,13 @@ export default function NewPurchaseRequestView({
 						                  const normalizedItems = items
 						                    .map((it, i) => {
 						                      const itemNameId = String(it.itemNameId ?? '').trim();
-						                      const quantityNumber = Number(it.quantity);
+                                  const unitName = itemNameId ? getRowUnitName(itemNameId) : '';
+                                  const areaUnit = normalizeAreaUnitName(unitName);
+                                  const isAreaUnit = !!areaUnit;
+                                  const lengthNumber = Number(it.length ?? 0);
+                                  const breadthNumber = Number(it.breadth ?? 0);
+                                  const pcsNumber = String(it.pcs ?? '').trim() ? Number(it.pcs) : 1;
+						                      const quantityNumber = isAreaUnit ? computeAreaQty(lengthNumber, breadthNumber, pcsNumber) : Number(it.quantity);
 						                      const specIds = itemNameId ? getItemNameSpecIds(itemNameId) : [];
 						                      const specsObj: Record<string, string> = {};
 						                      for (const specId of specIds) {
@@ -981,7 +1150,8 @@ export default function NewPurchaseRequestView({
 						                      }
 
 						                      if (!itemNameId) rowMessages[i] = 'Select Item Name.';
-						                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+						                      else if (isAreaUnit && (!Number.isFinite(quantityNumber) || quantityNumber <= 0)) rowMessages[i] = 'Enter valid Length, Breadth and PCs.';
+						                      else if (!isAreaUnit && (!Number.isFinite(quantityNumber) || quantityNumber <= 0)) rowMessages[i] = 'Enter valid Qty.';
 							                      else {
 							                        const missing = specIds.find((sid) => !String(specsObj[sid] ?? '').trim());
 							                        if (missing) rowMessages[i] = '';
@@ -990,7 +1160,15 @@ export default function NewPurchaseRequestView({
 						                      const dedupeKey = itemNameId ? `${itemNameId}:${JSON.stringify(specsObj)}` : '';
 						                      if (itemNameId && usedKeys.has(dedupeKey)) rowMessages[i] = 'Duplicate item specification row.';
 						                      if (dedupeKey) usedKeys.add(dedupeKey);
-						                      return { itemNameId, quantity: quantityNumber, priorityId: String(it.priorityId ?? '').trim() || null, specs: specsObj };
+						                      return {
+                                    itemNameId,
+                                    quantity: quantityNumber,
+                                    priorityId: String(it.priorityId ?? '').trim() || null,
+                                    specs: specsObj,
+                                    ...(isAreaUnit
+                                      ? { length: lengthNumber, breadth: breadthNumber, pcs: Math.trunc(Number.isFinite(pcsNumber) ? pcsNumber : 1) }
+                                      : {}),
+                                  };
 						                    })
 						                    .filter((_, i) => !rowMessages[i]);
 						                  setItemRowErrors(rowMessages);

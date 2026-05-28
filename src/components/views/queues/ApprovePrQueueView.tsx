@@ -57,6 +57,36 @@ function formatItemWithSpecification(item: string, specification: string, specNa
 }
 
 export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+  function normalizeAreaUnitName(unitName: string) {
+    const u = String(unitName ?? '').trim().toLowerCase();
+    if (!u) return null;
+    if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+    if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+      return 'sqm';
+    return null;
+  }
+
+  function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+    if (areaUnit === 'sqft') return 'ft';
+    if (areaUnit === 'sqm') return 'm';
+    return '';
+  }
+
+  function round2(n: number) {
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100) / 100;
+  }
+
+  function computeAreaQty(length: number, breadth: number, pcs: number) {
+    const l = round2(length);
+    const b = round2(breadth);
+    const p = Math.trunc(pcs);
+    if (!Number.isFinite(l) || l <= 0) return NaN;
+    if (!Number.isFinite(b) || b <= 0) return NaN;
+    if (!Number.isFinite(p) || p < 1) return NaN;
+    return l * b * p;
+  }
+
   const masters = useQueueMasters({ includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', from: '', to: '' });
@@ -73,6 +103,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [approverUserId, setApproverUserId] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
+  const [dimsByItemId, setDimsByItemId] = useState<Record<string, { length: string; breadth: string; pcs: string }>>({});
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [expandedPrId, setExpandedPrId] = useState<string | null>(null);
@@ -141,8 +172,23 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
       .then(async (d) => {
         setActiveDetail(d);
         const next: Record<string, string> = {};
-        for (const it of d.items) next[it.id] = String(it.quantity ?? 0);
+        const dimsNext: Record<string, { length: string; breadth: string; pcs: string }> = {};
+        for (const it of d.items) {
+          const areaUnit = normalizeAreaUnitName(String((it as any).unit ?? ''));
+          const isArea = !!areaUnit;
+          const length = String((it as any).approvedDimLength ?? (it as any).dimLength ?? '').trim();
+          const breadth = String((it as any).approvedDimBreadth ?? (it as any).dimBreadth ?? '').trim();
+          const pcs = String((it as any).approvedDimPcs ?? (it as any).dimPcs ?? '1').trim() || '1';
+          if (isArea) {
+            dimsNext[it.id] = { length, breadth, pcs };
+            const q = computeAreaQty(Number(length), Number(breadth), Number(pcs));
+            next[it.id] = Number.isFinite(q) && q > 0 ? String(q) : '';
+          } else {
+            next[it.id] = String((it as any).approvedQty ?? it.quantity ?? 0);
+          }
+        }
         setQtyByItemId(next);
+        setDimsByItemId(dimsNext);
         const invRows = await fetchInventorySheet(String(d.pr.firmId ?? ''), undefined, ac.signal, { includeEmpty: true });
         const byItem: Record<string, number> = {};
         for (const row of invRows ?? []) {
@@ -380,7 +426,20 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                     ?.map((it) => {
                       const raw = qtyByItemId[it.id];
                       const q = raw != null && String(raw).trim() ? Number(raw) : 0;
-                      return { id: it.id, quantity: q, itemId: it.itemId, item: it.item, specification: it.specification };
+                      const areaUnit = normalizeAreaUnitName(String((it as any).unit ?? ''));
+                      const isArea = !!areaUnit;
+                      const d = dimsByItemId[it.id];
+                      const length = d?.length != null && String(d.length).trim() ? Number(d.length) : NaN;
+                      const breadth = d?.breadth != null && String(d.breadth).trim() ? Number(d.breadth) : NaN;
+                      const pcs = d?.pcs != null && String(d.pcs).trim() ? Number(d.pcs) : 1;
+                      return {
+                        id: it.id,
+                        quantity: q,
+                        ...(isArea ? { length, breadth, pcs } : {}),
+                        itemId: it.itemId,
+                        item: it.item,
+                        specification: it.specification,
+                      };
                     })
 	                    .filter((it) => Number.isFinite(it.quantity) && it.quantity > 0) ?? [];
 	                approvePr(prId, approverName.trim(), items)
@@ -451,6 +510,9 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                               <col className="w-[160px]" />
 			                    <col className="w-[130px]" />
 			                    <col className="w-[130px]" />
+			                    <col className="w-[110px]" />
+			                    <col className="w-[110px]" />
+			                    <col className="w-[90px]" />
 			                    <col className="w-[140px]" />
 			                  </colgroup>
 		                  <thead>
@@ -459,11 +521,20 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                               <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
 		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
 		                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
+                              <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
 			                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Approve Qty</th>
 		                    </tr>
 	                  </thead>
 	                  <tbody>
 	                    {activeDetail.items.map((it) => (
+                        (() => {
+                          const areaUnit = normalizeAreaUnitName(String((it as any).unit ?? ''));
+                          const isArea = !!areaUnit;
+                          const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+                          const d = dimsByItemId[it.id] ?? { length: '', breadth: '', pcs: '1' };
+                          return (
 		                      <tr key={it.id}>
 			                        <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
 			                          {formatItemWithSpecification(it.item, it.specification, specNameById)}
@@ -473,15 +544,72 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
 		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
 		                        </td>
+                            <td className="px-3 py-2 border border-outline-variant">
+                              {isArea ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={d.length}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), length: v } }));
+                                    const q = computeAreaQty(Number(v), Number((dimsByItemId[it.id] ?? d).breadth), Number((dimsByItemId[it.id] ?? d).pcs));
+                                    setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                  }}
+                                  inputMode="decimal"
+                                  placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                />
+                              ) : (
+                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 border border-outline-variant">
+                              {isArea ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={d.breadth}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), breadth: v } }));
+                                    const q = computeAreaQty(Number((dimsByItemId[it.id] ?? d).length), Number(v), Number((dimsByItemId[it.id] ?? d).pcs));
+                                    setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                  }}
+                                  inputMode="decimal"
+                                  placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                />
+                              ) : (
+                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 border border-outline-variant">
+                              {isArea ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={d.pcs}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDimsByItemId((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? d), pcs: v } }));
+                                    const q = computeAreaQty(Number((dimsByItemId[it.id] ?? d).length), Number((dimsByItemId[it.id] ?? d).breadth), Number(v));
+                                    setQtyByItemId((prev) => ({ ...prev, [it.id]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                  }}
+                                  inputMode="numeric"
+                                  placeholder="PCs"
+                                />
+                              ) : (
+                                <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                              )}
+                            </td>
 		                        <td className="px-3 py-2 border border-outline-variant">
 	                          <input
 	                            className={cn(inputClass, 'py-1.5')}
                             value={qtyByItemId[it.id] ?? ''}
-                            onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                            disabled={isArea}
+                            onChange={(e) => (isArea ? null : setQtyByItemId((prev) => ({ ...prev, [it.id]: e.target.value })))}
                             inputMode="decimal"
                           />
                         </td>
 	                      </tr>
+                          );
+                        })()
                     ))}
                   </tbody>
                 </table>

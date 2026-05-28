@@ -338,6 +338,32 @@ function getMysqlPool() {
       await ensureColumn('users', 'deleted_by', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_requisition_items', 'priority_id', 'VARCHAR(255) NULL');
 
+      // Area-unit dimensions (Sq Ft / Sq Mtr) for PR → Approval → PO → GRN → Invoice workflows.
+      await ensureColumn('purchase_requisition_items', 'dim_length', 'DOUBLE NULL');
+      await ensureColumn('purchase_requisition_items', 'dim_breadth', 'DOUBLE NULL');
+      await ensureColumn('purchase_requisition_items', 'dim_pcs', 'INT NULL');
+      await ensureColumn('purchase_requisition_items', 'dim_unit', 'VARCHAR(8) NULL');
+      await ensureColumn('purchase_requisition_items', 'approved_dim_length', 'DOUBLE NULL');
+      await ensureColumn('purchase_requisition_items', 'approved_dim_breadth', 'DOUBLE NULL');
+      await ensureColumn('purchase_requisition_items', 'approved_dim_pcs', 'INT NULL');
+      await ensureColumn('purchase_requisition_items', 'approved_dim_unit', 'VARCHAR(8) NULL');
+
+      await ensureColumn('purchase_order_items', 'dim_length', 'DOUBLE NULL');
+      await ensureColumn('purchase_order_items', 'dim_breadth', 'DOUBLE NULL');
+      await ensureColumn('purchase_order_items', 'dim_pcs', 'INT NULL');
+      await ensureColumn('purchase_order_items', 'dim_unit', 'VARCHAR(8) NULL');
+
+      await ensureColumn('grn_items', 'recv_dim_length', 'DOUBLE NULL');
+      await ensureColumn('grn_items', 'recv_dim_breadth', 'DOUBLE NULL');
+      await ensureColumn('grn_items', 'recv_dim_pcs', 'INT NULL');
+      await ensureColumn('grn_items', 'recv_dim_input_unit', 'VARCHAR(8) NULL');
+      await ensureColumn('grn_items', 'recv_dim_po_unit', 'VARCHAR(8) NULL');
+
+      await ensureColumn('invoice_items', 'dim_length', 'DOUBLE NULL');
+      await ensureColumn('invoice_items', 'dim_breadth', 'DOUBLE NULL');
+      await ensureColumn('invoice_items', 'dim_pcs', 'INT NULL');
+      await ensureColumn('invoice_items', 'dim_input_unit', 'VARCHAR(8) NULL');
+
       // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
       await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
 
@@ -1016,11 +1042,20 @@ async function fetchPrDetail(pool, id) {
       pri.pr_id AS prId,
       pri.item_id AS itemId,
       iname.name AS item,
+      it.unit AS unit,
       pri.requested_qty AS quantity,
       COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
       pri.priority_id AS priorityId,
       p.name AS priority,
-      pri.remarks AS specification
+      pri.remarks AS specification,
+      pri.dim_length AS dimLength,
+      pri.dim_breadth AS dimBreadth,
+      pri.dim_pcs AS dimPcs,
+      pri.dim_unit AS dimUnit,
+      pri.approved_dim_length AS approvedDimLength,
+      pri.approved_dim_breadth AS approvedDimBreadth,
+      pri.approved_dim_pcs AS approvedDimPcs,
+      pri.approved_dim_unit AS approvedDimUnit
     FROM purchase_requisition_items pri
     LEFT JOIN items it ON it.id = pri.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -1051,11 +1086,20 @@ async function fetchPrDetail(pool, id) {
     prId: String(r.prId),
     itemId: String(r.itemId),
     item: String(r.item || ''),
+    unit: r.unit != null ? String(r.unit) : null,
     quantity: Number(r.quantity ?? 0),
     approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
     priorityId: r.priorityId ? String(r.priorityId) : null,
     priority: r.priority ? String(r.priority) : null,
     specification: String(r.specification ?? ''),
+    dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+    dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+    dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+    dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+    approvedDimLength: r.approvedDimLength != null ? Number(r.approvedDimLength) : null,
+    approvedDimBreadth: r.approvedDimBreadth != null ? Number(r.approvedDimBreadth) : null,
+    approvedDimPcs: r.approvedDimPcs != null ? Number(r.approvedDimPcs) : null,
+    approvedDimUnit: r.approvedDimUnit != null ? String(r.approvedDimUnit) : null,
   }));
 
   return { pr, items };
@@ -1450,11 +1494,20 @@ app.get('/api/requests/:id', async (req, res) => {
         pri.pr_id AS prId,
         pri.item_id AS itemId,
         iname.name AS item,
+        it.unit AS unit,
 	        pri.requested_qty AS quantity,
 	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
           pri.priority_id AS priorityId,
           p.name AS priority,
-        pri.remarks AS specification
+        pri.remarks AS specification,
+        pri.dim_length AS dimLength,
+        pri.dim_breadth AS dimBreadth,
+        pri.dim_pcs AS dimPcs,
+        pri.dim_unit AS dimUnit,
+        pri.approved_dim_length AS approvedDimLength,
+        pri.approved_dim_breadth AS approvedDimBreadth,
+        pri.approved_dim_pcs AS approvedDimPcs,
+        pri.approved_dim_unit AS approvedDimUnit
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -1485,11 +1538,20 @@ app.get('/api/requests/:id', async (req, res) => {
 	      prId: String(r.prId),
 	      itemId: String(r.itemId),
 	      item: String(r.item || ''),
+        unit: r.unit != null ? String(r.unit) : null,
 		      quantity: Number(r.quantity ?? 0),
 		      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
           priorityId: r.priorityId ? String(r.priorityId) : null,
           priority: r.priority ? String(r.priority) : null,
 	      specification: String(r.specification ?? ''),
+        dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+        dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+        approvedDimLength: r.approvedDimLength != null ? Number(r.approvedDimLength) : null,
+        approvedDimBreadth: r.approvedDimBreadth != null ? Number(r.approvedDimBreadth) : null,
+        approvedDimPcs: r.approvedDimPcs != null ? Number(r.approvedDimPcs) : null,
+        approvedDimUnit: r.approvedDimUnit != null ? String(r.approvedDimUnit) : null,
 	    }));
 
     res.json({ request: { pr, items } });
@@ -1542,11 +1604,20 @@ app.get('/api/workflow/:id', async (req, res) => {
         pri.pr_id AS prId,
         pri.item_id AS itemId,
         iname.name AS item,
+        it.unit AS unit,
 	        pri.requested_qty AS quantity,
 	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
           pri.priority_id AS priorityId,
           p.name AS priority,
-        pri.remarks AS specification
+        pri.remarks AS specification,
+        pri.dim_length AS dimLength,
+        pri.dim_breadth AS dimBreadth,
+        pri.dim_pcs AS dimPcs,
+        pri.dim_unit AS dimUnit,
+        pri.approved_dim_length AS approvedDimLength,
+        pri.approved_dim_breadth AS approvedDimBreadth,
+        pri.approved_dim_pcs AS approvedDimPcs,
+        pri.approved_dim_unit AS approvedDimUnit
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -1577,11 +1648,20 @@ app.get('/api/workflow/:id', async (req, res) => {
 	      prId: String(r.prId),
 	      itemId: String(r.itemId),
 	      item: String(r.item || ''),
+        unit: r.unit != null ? String(r.unit) : null,
 		      quantity: Number(r.quantity ?? 0),
 		      approvedQty: Number(r.approvedQty ?? r.quantity ?? 0),
           priorityId: r.priorityId ? String(r.priorityId) : null,
           priority: r.priority ? String(r.priority) : null,
 	      specification: String(r.specification ?? ''),
+        dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+        dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+        approvedDimLength: r.approvedDimLength != null ? Number(r.approvedDimLength) : null,
+        approvedDimBreadth: r.approvedDimBreadth != null ? Number(r.approvedDimBreadth) : null,
+        approvedDimPcs: r.approvedDimPcs != null ? Number(r.approvedDimPcs) : null,
+        approvedDimUnit: r.approvedDimUnit != null ? String(r.approvedDimUnit) : null,
 	    }));
 
     const [firmRows] = await pool.query('SELECT id, name, address, terms_conditions AS termsConditions FROM firms WHERE id = ? LIMIT 1', [
@@ -1637,6 +1717,7 @@ app.get('/api/workflow/:id', async (req, res) => {
           poi.po_id AS poId,
           poi.item_id AS itemId,
           iname.name AS item,
+          it.unit AS unit,
           it.specifications_json AS specificationsJson,
           poi.quantity AS quantity,
           poi.rate AS rate,
@@ -1644,7 +1725,11 @@ app.get('/api/workflow/:id', async (req, res) => {
           poi.tax_percent AS taxPercent,
           poi.goods_amount AS goodsAmount,
           poi.tax_amount AS taxAmount,
-          poi.total_amount AS totalAmount
+          poi.total_amount AS totalAmount,
+          poi.dim_length AS dimLength,
+          poi.dim_breadth AS dimBreadth,
+          poi.dim_pcs AS dimPcs,
+          poi.dim_unit AS dimUnit
         FROM purchase_order_items poi
         LEFT JOIN items it ON it.id = poi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -1685,6 +1770,7 @@ app.get('/api/workflow/:id', async (req, res) => {
         poId: String(r.poId ?? ''),
         itemId: String(r.itemId ?? ''),
         item: String(r.item ?? ''),
+        unit: r.unit != null ? String(r.unit) : null,
         specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
         quantity: Number(r.quantity ?? 0),
         rate: Number(r.rate ?? 0),
@@ -1693,6 +1779,10 @@ app.get('/api/workflow/:id', async (req, res) => {
         goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
         taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
         totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+        dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+        dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
       }));
 
       po = { po: poHeader, items: poItems };
@@ -5451,6 +5541,7 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           poi.po_id AS poId,
           poi.item_id AS itemId,
           iname.name AS item,
+          it.unit AS unit,
           it.specifications_json AS specificationsJson,
           poi.quantity AS quantity,
           poi.rate AS rate,
@@ -5460,7 +5551,11 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           poi.cancel_reason AS cancelReason,
           poi.goods_amount AS goodsAmount,
           poi.tax_amount AS taxAmount,
-          poi.total_amount AS totalAmount
+          poi.total_amount AS totalAmount,
+          poi.dim_length AS dimLength,
+          poi.dim_breadth AS dimBreadth,
+          poi.dim_pcs AS dimPcs,
+          poi.dim_unit AS dimUnit
         FROM purchase_order_items poi
         LEFT JOIN items it ON it.id = poi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -5479,6 +5574,7 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           poId,
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+          unit: r.unit != null ? String(r.unit) : null,
           specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
           quantity: Number(r.quantity ?? 0),
           rate: Number(r.rate ?? 0),
@@ -5489,6 +5585,10 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
           taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
           totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+          dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+          dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+          dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+          dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
         });
       }
     }
@@ -6016,9 +6116,13 @@ app.post('/api/requests', async (req, res) => {
 	    for (const row of items) {
 	      let itemId = String(row?.itemId ?? '').trim();
 	      const itemNameId = String(row?.itemNameId ?? '').trim();
-	      const quantity = Number(row?.quantity ?? 0);
+	      const quantityInput = Number(row?.quantity ?? 0);
         const priorityId = row?.priorityId != null ? String(row.priorityId).trim() : '';
 	      let specification = String(row?.specification ?? '').trim();
+        const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+        const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+        const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+        let unitNameForRow = null;
 
 	      // New format: Item Name + spec selections (server resolves/creates the item id).
 	      if (!itemId && itemNameId) {
@@ -6045,6 +6149,7 @@ app.post('/api/requests', async (req, res) => {
 	            [itemNameId]
 	          );
 	          const unitName = meta?.unitName != null ? String(meta.unitName) : null;
+            unitNameForRow = unitName;
 	          await pool.query(
 	            `
 	            INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
@@ -6060,18 +6165,48 @@ app.post('/api/requests', async (req, res) => {
 	      }
 
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
-	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires a valid quantity' });
 	      if (!specification) return res.status(400).json({ error: 'Each item requires specification' });
+
+        if (unitNameForRow == null) {
+          const [[urow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
+          unitNameForRow = urow?.unit != null ? String(urow.unit) : null;
+        }
+
+        const areaUnit = normalizeAreaUnitName(unitNameForRow);
+        const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+        const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+        const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+        const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+
+        const quantity = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+        if (areaUnit) {
+          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each area-unit item requires valid length, breadth and PCs' });
+        } else {
+          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires a valid quantity' });
+        }
 
       const prItemId = crypto.randomUUID();
       await pool.query(
 	        `
 	        INSERT INTO purchase_requisition_items
-	          (id, pr_id, item_id, requested_qty, approved_qty, required_date, priority_id, remarks, status, created_by, created_at, updated_at)
+	          (id, pr_id, item_id, requested_qty, approved_qty, required_date, priority_id, remarks, status, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit)
 	        VALUES
-	          (?, ?, ?, ?, NULL, ?, ?, ?, 'pending', ?, NOW(), NOW())
+	          (?, ?, ?, ?, NULL, ?, ?, ?, 'pending', ?, NOW(), NOW(), ?, ?, ?, ?)
 	        `,
-	        [prItemId, prId, itemId, quantity, requiredDate, priorityId || null, specification, 'system']
+	        [
+            prItemId,
+            prId,
+            itemId,
+            quantity,
+            requiredDate,
+            priorityId || null,
+            specification,
+            'system',
+            areaUnit ? round2(dimLength) : null,
+            areaUnit ? round2(dimBreadth) : null,
+            areaUnit ? Math.trunc(Number(dimPcs)) : null,
+            areaUnit ? dimUnit : null,
+          ]
 	      );
 	    }
 
@@ -6083,10 +6218,19 @@ app.post('/api/requests', async (req, res) => {
 	        pri.pr_id AS prId,
 	        pri.item_id AS itemId,
 	        iname.name AS item,
+          it.unit AS unit,
 	        pri.requested_qty AS quantity,
           pri.priority_id AS priorityId,
           p.name AS priority,
-	        pri.remarks AS specification
+	        pri.remarks AS specification,
+          pri.dim_length AS dimLength,
+          pri.dim_breadth AS dimBreadth,
+          pri.dim_pcs AS dimPcs,
+          pri.dim_unit AS dimUnit,
+          pri.approved_dim_length AS approvedDimLength,
+          pri.approved_dim_breadth AS approvedDimBreadth,
+          pri.approved_dim_pcs AS approvedDimPcs,
+          pri.approved_dim_unit AS approvedDimUnit
 	      FROM purchase_requisition_items pri
 	      LEFT JOIN items it ON it.id = pri.item_id
 	      LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -6115,10 +6259,19 @@ app.post('/api/requests', async (req, res) => {
 	      prId: String(r.prId),
 	      itemId: String(r.itemId),
 	      item: String(r.item || ''),
+        unit: r.unit != null ? String(r.unit) : null,
 	      quantity: Number(r.quantity ?? 0),
           priorityId: r.priorityId ? String(r.priorityId) : null,
           priority: r.priority ? String(r.priority) : null,
 	      specification: String(r.specification ?? ''),
+        dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+        dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+        approvedDimLength: r.approvedDimLength != null ? Number(r.approvedDimLength) : null,
+        approvedDimBreadth: r.approvedDimBreadth != null ? Number(r.approvedDimBreadth) : null,
+        approvedDimPcs: r.approvedDimPcs != null ? Number(r.approvedDimPcs) : null,
+        approvedDimUnit: r.approvedDimUnit != null ? String(r.approvedDimUnit) : null,
 	    }));
 
     res.status(201).json({ request: { pr, items: outItems } });
@@ -6156,19 +6309,64 @@ app.post('/api/requests/:id/approve', async (req, res) => {
 
     for (const row of approveItems) {
       const prItemId = String(row?.id ?? '').trim();
-      const approvedQty = Number(row?.quantity ?? 0);
       if (!prItemId) continue;
-      if (!Number.isFinite(approvedQty) || approvedQty < 0) {
-        await conn.rollback();
-        return res.status(400).json({ error: 'Invalid approved quantity' });
+
+      const [[meta]] = await conn.query(
+        `
+        SELECT
+          it.unit AS unit,
+          pri.dim_length AS dimLength,
+          pri.dim_breadth AS dimBreadth,
+          pri.dim_pcs AS dimPcs,
+          pri.dim_unit AS dimUnit
+        FROM purchase_requisition_items pri
+        LEFT JOIN items it ON it.id = pri.item_id
+        WHERE pri.id = ? AND pri.pr_id = ?
+        LIMIT 1
+        `,
+        [prItemId, prId]
+      );
+      const unitNameForRow = meta?.unit != null ? String(meta.unit) : null;
+      const areaUnit = normalizeAreaUnitName(unitNameForRow);
+      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+
+      const approvedLengthInput = row?.length ?? row?.dimLength ?? row?.approvedDimLength ?? row?.approved_dim_length;
+      const approvedBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.approvedDimBreadth ?? row?.approved_dim_breadth;
+      const approvedPcsInput = row?.pcs ?? row?.dimPcs ?? row?.approvedDimPcs ?? row?.approved_dim_pcs;
+
+      const approvedLength = approvedLengthInput != null && String(approvedLengthInput).trim() !== '' ? num(approvedLengthInput, NaN) : NaN;
+      const approvedBreadth =
+        approvedBreadthInput != null && String(approvedBreadthInput).trim() !== '' ? num(approvedBreadthInput, NaN) : NaN;
+      const approvedPcs = approvedPcsInput != null && String(approvedPcsInput).trim() !== '' ? num(approvedPcsInput, NaN) : 1;
+
+      const approvedQty = areaUnit ? computeAreaQty(approvedLength, approvedBreadth, approvedPcs) : Number(row?.quantity ?? 0);
+      if (areaUnit) {
+        if (!Number.isFinite(approvedQty) || approvedQty <= 0) {
+          await conn.rollback();
+          return res.status(400).json({ error: 'Invalid approved dimensions for area-unit item' });
+        }
+      } else {
+        if (!Number.isFinite(approvedQty) || approvedQty < 0) {
+          await conn.rollback();
+          return res.status(400).json({ error: 'Invalid approved quantity' });
+        }
       }
       await conn.query(
         `
         UPDATE purchase_requisition_items
-        SET approved_qty=?, status='approved', approved_by=?, approved_at=NOW(), updated_at=NOW()
+        SET approved_qty=?, approved_dim_length=?, approved_dim_breadth=?, approved_dim_pcs=?, approved_dim_unit=?, status='approved', approved_by=?, approved_at=NOW(), updated_at=NOW()
         WHERE id=? AND pr_id=?
         `,
-        [approvedQty, approver, prItemId, prId]
+        [
+          approvedQty,
+          areaUnit ? round2(approvedLength) : null,
+          areaUnit ? round2(approvedBreadth) : null,
+          areaUnit ? Math.trunc(Number(approvedPcs)) : null,
+          areaUnit ? dimUnit : null,
+          approver,
+          prItemId,
+          prId,
+        ]
       );
     }
 
@@ -6376,15 +6574,42 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    }
 
 	    const outItems = [];
+      const itemIds = items.map((x) => String(x?.itemId ?? '').trim()).filter(Boolean);
+      const itemMetaById = new Map();
+      if (itemIds.length) {
+        const [metaRows] = await pool.query(`SELECT id, unit FROM items WHERE id IN (${itemIds.map(() => '?').join(',')})`, itemIds);
+        for (const r of Array.isArray(metaRows) ? metaRows : []) {
+          const id = String(r.id ?? '').trim();
+          if (!id) continue;
+          itemMetaById.set(id, { unit: r.unit != null ? String(r.unit) : null });
+        }
+      }
+
 	    for (const row of items) {
 	      const itemId = String(row?.itemId ?? '').trim();
-	      const quantity = Number(row?.quantity ?? 0);
+	      const quantityInput = Number(row?.quantity ?? 0);
 	      const rate = Number(row?.rate ?? 0);
 	      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
 	      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
 	      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+
+        const unitNameForRow = itemMetaById.get(itemId)?.unit ?? null;
+        const areaUnit = normalizeAreaUnitName(unitNameForRow);
+        const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+        const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+        const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+        const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+        const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+        const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+        const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+
+        const quantity = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+        if (areaUnit) {
+          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
+        } else {
+          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+        }
 
 	      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
 	      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
@@ -6397,11 +6622,27 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	      await pool.query(
 	        `
 	        INSERT INTO purchase_order_items
-	          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at)
+	          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit)
 	        VALUES
-	          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)
 	        `,
-	        [poItemId, poId, itemId, quantity, rate, disc || null, tax || null, goodsAmount, taxAmount, totalAmount, 'system']
+	        [
+            poItemId,
+            poId,
+            itemId,
+            quantity,
+            rate,
+            disc || null,
+            tax || null,
+            goodsAmount,
+            taxAmount,
+            totalAmount,
+            'system',
+            areaUnit ? round2(dimLength) : null,
+            areaUnit ? round2(dimBreadth) : null,
+            areaUnit ? Math.trunc(Number(dimPcs)) : null,
+            areaUnit ? dimUnit : null,
+          ]
 	      );
 
 	      outItems.push({
@@ -6416,6 +6657,10 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	        goodsAmount,
 	        taxAmount,
 	        totalAmount,
+          dimLength: areaUnit ? round2(dimLength) : null,
+          dimBreadth: areaUnit ? round2(dimBreadth) : null,
+          dimPcs: areaUnit ? Math.trunc(Number(dimPcs)) : null,
+          dimUnit: areaUnit ? dimUnit : null,
 	      });
 	    }
 
@@ -6467,9 +6712,28 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    );
 	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
 
-	    const [poItemRows] = await pool.query('SELECT item_id AS itemId, quantity FROM purchase_order_items WHERE po_id = ?', [poId]);
-	    const orderedByItemId = new Map(
-	      (Array.isArray(poItemRows) ? poItemRows : []).map((r) => [String(r.itemId), Number(r.quantity ?? 0)])
+	    const [poItemRows] = await pool.query(
+        `
+        SELECT
+          poi.item_id AS itemId,
+          poi.quantity AS quantity,
+          poi.dim_unit AS poDimUnit,
+          it.unit AS unit
+        FROM purchase_order_items poi
+        LEFT JOIN items it ON it.id = poi.item_id
+        WHERE poi.po_id = ?
+        `,
+        [poId]
+      );
+	    const orderedMetaByItemId = new Map(
+	      (Array.isArray(poItemRows) ? poItemRows : []).map((r) => [
+          String(r.itemId),
+          {
+            orderedQty: Number(r.quantity ?? 0),
+            poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : null,
+            unit: r.unit != null ? String(r.unit) : null,
+          },
+        ])
 	    );
 
 	    const grnId = crypto.randomUUID();
@@ -6500,25 +6764,77 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    const outItems = [];
 	    for (const row of items) {
 	      const itemId = String(row?.itemId ?? '').trim();
-	      const qtyReceived = Number(row?.quantityReceived ?? 0);
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-	      if (!Number.isFinite(qtyReceived) || qtyReceived <= 0) return res.status(400).json({ error: 'Each item requires valid quantityReceived' });
 
-	      const orderedQty = Number(orderedByItemId.get(itemId) ?? 0);
+        const meta = orderedMetaByItemId.get(itemId);
+        const orderedQty = Number(meta?.orderedQty ?? 0);
+        const poDimUnitFromRow = meta?.poDimUnit != null ? String(meta.poDimUnit) : null;
+        const areaUnit = normalizeAreaUnitName(meta?.unit);
+        const poDimUnit = poDimUnitFromRow || baseDimUnitForAreaUnit(areaUnit);
+        const isArea = !!poDimUnit;
+
+        const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+        const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+        const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+        const inputUnitRaw = row?.inputUnit ?? row?.dimInputUnit ?? row?.dim_input_unit ?? row?.recvDimInputUnit;
+        const inputUnit = String(inputUnitRaw ?? '').trim().toLowerCase() || (poDimUnit ? String(poDimUnit).trim().toLowerCase() : '');
+
+        const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+        const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+        const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+
+        const qtyReceivedInput = Number(row?.quantityReceived ?? 0);
+        const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
+        const qtyReceived = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : qtyReceivedInput;
+
+        if (isArea) {
+          if (!poDimUnit || (inputUnit !== 'ft' && inputUnit !== 'm')) return res.status(400).json({ error: 'Invalid GRN input unit for area-unit item' });
+          if (!Number.isFinite(qtyInputUnit) || qtyInputUnit <= 0) return res.status(400).json({ error: 'Each area-unit GRN item requires valid length, breadth and PCs' });
+          if (!Number.isFinite(qtyReceived) || qtyReceived <= 0) return res.status(400).json({ error: 'Invalid converted GRN quantity for area-unit item' });
+        } else {
+          if (!Number.isFinite(qtyReceived) || qtyReceived <= 0) return res.status(400).json({ error: 'Each item requires valid quantityReceived' });
+        }
+
 	      const shortQty = Math.max(0, orderedQty - qtyReceived);
 	      const grnItemId = crypto.randomUUID();
 
 	      await pool.query(
 	        `
 	        INSERT INTO grn_items
-	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at)
+	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit)
 	        VALUES
-	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW())
+	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?)
 	        `,
-	        [grnItemId, grnId, itemId, orderedQty, qtyReceived, shortQty, 'system', updatedBy || null]
+	        [
+            grnItemId,
+            grnId,
+            itemId,
+            orderedQty,
+            qtyReceived,
+            shortQty,
+            'system',
+            updatedBy || null,
+            isArea ? round2(dimLength) : null,
+            isArea ? round2(dimBreadth) : null,
+            isArea ? Math.trunc(Number(dimPcs)) : null,
+            isArea ? inputUnit : null,
+            isArea ? String(poDimUnit).trim().toLowerCase() : null,
+          ]
 	      );
 
-	      outItems.push({ id: grnItemId, grnId, itemId, item: '', specificationsJson: undefined, quantityReceived: qtyReceived });
+	      outItems.push({
+          id: grnItemId,
+          grnId,
+          itemId,
+          item: '',
+          specificationsJson: undefined,
+          quantityReceived: qtyReceived,
+          recvDimLength: isArea ? round2(dimLength) : null,
+          recvDimBreadth: isArea ? round2(dimBreadth) : null,
+          recvDimPcs: isArea ? Math.trunc(Number(dimPcs)) : null,
+          recvDimInputUnit: isArea ? inputUnit : null,
+          recvDimPoUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
+        });
 	    }
 
 	    res.status(201).json({
@@ -11245,6 +11561,50 @@ function num(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeAreaUnitName(unitName) {
+  const u = String(unitName ?? '').trim().toLowerCase();
+  if (!u) return null;
+  if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+  if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+    return 'sqm';
+  return null;
+}
+
+function baseDimUnitForAreaUnit(areaUnit) {
+  if (areaUnit === 'sqft') return 'ft';
+  if (areaUnit === 'sqm') return 'm';
+  return null;
+}
+
+function round2(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return NaN;
+  return Math.round(x * 100) / 100;
+}
+
+function computeAreaQty(length, breadth, pcs) {
+  const l = round2(length);
+  const b = round2(breadth);
+  const p = Math.trunc(Number(pcs));
+  if (!Number.isFinite(l) || l <= 0) return NaN;
+  if (!Number.isFinite(b) || b <= 0) return NaN;
+  if (!Number.isFinite(p) || p < 1) return NaN;
+  return l * b * p;
+}
+
+function convertAreaQty(qty, fromDimUnit, toDimUnit) {
+  const q = Number(qty);
+  const fromU = String(fromDimUnit ?? '').trim().toLowerCase();
+  const toU = String(toDimUnit ?? '').trim().toLowerCase();
+  if (!Number.isFinite(q)) return NaN;
+  if (!fromU || !toU || fromU === toU) return q;
+  // Convert area units via m² <-> ft²
+  const M2_TO_FT2 = 10.7639104167;
+  if (fromU === 'm' && toU === 'ft') return q * M2_TO_FT2;
+  if (fromU === 'ft' && toU === 'm') return q / M2_TO_FT2;
+  return NaN;
+}
+
 // --- Stock Transactions (Issues, Returns, Damages, Transfers) ---
 
 async function getNextTransactionNo(pool, table, prefix) {
@@ -11940,21 +12300,83 @@ async function handleCreateInvoice(req, res) {
     const paymentModeRaw = String(req.body?.paymentMode ?? '').trim().toLowerCase();
     const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : paymentModeRaw === 'credit' ? 'Credit' : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
+    const paymentModeRaw = String(req.body?.paymentMode ?? '').trim().toLowerCase();
+    const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : paymentModeRaw === 'credit' ? 'Credit' : null;
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : null;
     const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : null;
     const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : null;
     const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : null;
     const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : null;
     const transporterName = req.body?.transporterName != null ? String(req.body.transporterName).trim() : null;
+
+    const [poItemMetaRows] = await pool.query(
+      `
+      SELECT
+        poi.item_id AS itemId,
+        poi.dim_unit AS poDimUnit,
+        it.unit AS unit
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      WHERE poi.po_id = ?
+      `,
+      [poId]
+    );
+    const poMetaByItemId = new Map();
+    for (const r of Array.isArray(poItemMetaRows) ? poItemMetaRows : []) {
+      const itemId = String(r.itemId ?? '').trim();
+      if (!itemId) continue;
+      poMetaByItemId.set(itemId, { poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : null, unit: r.unit != null ? String(r.unit) : null });
+    }
+
     const normalizedItems = items
-      .map((it) => ({
-        itemId: String(it?.itemId ?? '').trim(),
-        quantity: Math.max(0, num(it?.quantity, 0)),
-        rate: Math.max(0, num(it?.rate, 0)),
-        taxPercent: Math.max(0, num(it?.taxPercent, 0)),
-      }))
-      .filter((it) => it.itemId && it.quantity > 0);
+      .map((it) => {
+        const itemId = String(it?.itemId ?? '').trim();
+        if (!itemId) return null;
+        const meta = poMetaByItemId.get(itemId) ?? {};
+        const areaUnit = normalizeAreaUnitName(meta.unit);
+        const poDimUnit = meta.poDimUnit || baseDimUnitForAreaUnit(areaUnit);
+        const isArea = !!poDimUnit;
+
+        const dimLengthInput = it?.length ?? it?.dimLength ?? it?.dim_length;
+        const dimBreadthInput = it?.breadth ?? it?.dimBreadth ?? it?.dim_breadth;
+        const dimPcsInput = it?.pcs ?? it?.dimPcs ?? it?.dim_pcs;
+        const inputUnitRaw = it?.inputUnit ?? it?.dimInputUnit ?? it?.dim_input_unit ?? it?.dimInputUnit;
+        const inputUnit = String(inputUnitRaw ?? '').trim().toLowerCase() || (poDimUnit ? String(poDimUnit).trim().toLowerCase() : '');
+
+        const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+        const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+        const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+
+        const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
+        const quantityInput = Math.max(0, num(it?.quantity, 0));
+        const quantity = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : quantityInput;
+
+        return {
+          itemId,
+          quantity: Math.max(0, quantity),
+          rate: Math.max(0, num(it?.rate, 0)),
+          taxPercent: Math.max(0, num(it?.taxPercent, 0)),
+          dimLength: isArea ? round2(dimLength) : null,
+          dimBreadth: isArea ? round2(dimBreadth) : null,
+          dimPcs: isArea ? Math.trunc(Number(dimPcs)) : null,
+          dimInputUnit: isArea ? inputUnit : null,
+          poDimUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
+          isArea,
+          qtyInputUnit,
+        };
+      })
+      .filter((it) => it && it.itemId && it.quantity > 0);
     if (!normalizedItems.length) return res.status(400).json({ error: 'No valid invoice items' });
+
+    for (const it of normalizedItems) {
+      if (it.isArea) {
+        if (!it.poDimUnit) return res.status(400).json({ error: 'PO is missing dimension unit for area-unit invoice item' });
+        if (it.dimInputUnit !== 'ft' && it.dimInputUnit !== 'm') return res.status(400).json({ error: 'Invalid invoice input unit for area-unit item' });
+        if (!Number.isFinite(it.qtyInputUnit) || it.qtyInputUnit <= 0) return res.status(400).json({ error: 'Each area-unit invoice item requires valid length, breadth and PCs' });
+        if (!Number.isFinite(it.quantity) || it.quantity <= 0) return res.status(400).json({ error: 'Invalid converted invoice quantity for area-unit item' });
+      }
+    }
 
     const goodsAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
     const taxAmount = normalizedItems.reduce((sum, it) => sum + (it.quantity * it.rate * it.taxPercent) / 100, 0);
@@ -12021,9 +12443,10 @@ async function handleCreateInvoice(req, res) {
     for (const it of normalizedItems) {
       await pool.query(
         `
-        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
-        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW()
+        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at, dim_length, dim_breadth, dim_pcs, dim_input_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW(),
+          dim_length=VALUES(dim_length), dim_breadth=VALUES(dim_breadth), dim_pcs=VALUES(dim_pcs), dim_input_unit=VALUES(dim_input_unit)
         `,
         [
           crypto.randomUUID(),
@@ -12034,6 +12457,10 @@ async function handleCreateInvoice(req, res) {
           it.taxPercent,
           updatedBy,
           updatedBy,
+          it.isArea ? it.dimLength : null,
+          it.isArea ? it.dimBreadth : null,
+          it.isArea ? it.dimPcs : null,
+          it.isArea ? it.dimInputUnit : null,
         ]
       );
     }
@@ -12585,15 +13012,77 @@ app.put('/api/invoices/:id', async (req, res) => {
     const otherCharge = Math.max(0, num(req.body?.otherCharge, 0));
     const chargesGstAmount = Math.max(0, num(req.body?.chargesGstAmount, 0));
 
+    const [[invRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
+    if (!invRow?.poId) return res.status(404).json({ error: 'Invoice not found' });
+    const poId = String(invRow.poId);
+
+    const [poItemMetaRows] = await pool.query(
+      `
+      SELECT
+        poi.item_id AS itemId,
+        poi.dim_unit AS poDimUnit,
+        it.unit AS unit
+      FROM purchase_order_items poi
+      LEFT JOIN items it ON it.id = poi.item_id
+      WHERE poi.po_id = ?
+      `,
+      [poId]
+    );
+    const poMetaByItemId = new Map();
+    for (const r of Array.isArray(poItemMetaRows) ? poItemMetaRows : []) {
+      const itemId = String(r.itemId ?? '').trim();
+      if (!itemId) continue;
+      poMetaByItemId.set(itemId, { poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : null, unit: r.unit != null ? String(r.unit) : null });
+    }
+
     const normalizedItems = items
-      .map((it) => ({
-        itemId: String(it?.itemId ?? '').trim(),
-        quantity: Math.max(0, num(it?.quantity, 0)),
-        rate: Math.max(0, num(it?.rate, 0)),
-        taxPercent: Math.max(0, num(it?.taxPercent, 0)),
-      }))
-      .filter((it) => it.itemId && it.quantity > 0);
+      .map((it) => {
+        const itemId = String(it?.itemId ?? '').trim();
+        if (!itemId) return null;
+        const meta = poMetaByItemId.get(itemId) ?? {};
+        const areaUnit = normalizeAreaUnitName(meta.unit);
+        const poDimUnit = meta.poDimUnit || baseDimUnitForAreaUnit(areaUnit);
+        const isArea = !!poDimUnit;
+
+        const dimLengthInput = it?.length ?? it?.dimLength ?? it?.dim_length;
+        const dimBreadthInput = it?.breadth ?? it?.dimBreadth ?? it?.dim_breadth;
+        const dimPcsInput = it?.pcs ?? it?.dimPcs ?? it?.dim_pcs;
+        const inputUnitRaw = it?.inputUnit ?? it?.dimInputUnit ?? it?.dim_input_unit;
+        const inputUnit = String(inputUnitRaw ?? '').trim().toLowerCase() || (poDimUnit ? String(poDimUnit).trim().toLowerCase() : '');
+
+        const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+        const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+        const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+
+        const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
+        const quantityInput = Math.max(0, num(it?.quantity, 0));
+        const quantity = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : quantityInput;
+
+        return {
+          itemId,
+          quantity: Math.max(0, quantity),
+          rate: Math.max(0, num(it?.rate, 0)),
+          taxPercent: Math.max(0, num(it?.taxPercent, 0)),
+          dimLength: isArea ? round2(dimLength) : null,
+          dimBreadth: isArea ? round2(dimBreadth) : null,
+          dimPcs: isArea ? Math.trunc(Number(dimPcs)) : null,
+          dimInputUnit: isArea ? inputUnit : null,
+          poDimUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
+          isArea,
+          qtyInputUnit,
+        };
+      })
+      .filter((it) => it && it.itemId && it.quantity > 0);
     if (!normalizedItems.length) return res.status(400).json({ error: 'No valid invoice items' });
+
+    for (const it of normalizedItems) {
+      if (it.isArea) {
+        if (!it.poDimUnit) return res.status(400).json({ error: 'PO is missing dimension unit for area-unit invoice item' });
+        if (it.dimInputUnit !== 'ft' && it.dimInputUnit !== 'm') return res.status(400).json({ error: 'Invalid invoice input unit for area-unit item' });
+        if (!Number.isFinite(it.qtyInputUnit) || it.qtyInputUnit <= 0) return res.status(400).json({ error: 'Each area-unit invoice item requires valid length, breadth and PCs' });
+        if (!Number.isFinite(it.quantity) || it.quantity <= 0) return res.status(400).json({ error: 'Invalid converted invoice quantity for area-unit item' });
+      }
+    }
 
     const goodsAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
     const taxAmount = normalizedItems.reduce((sum, it) => sum + (it.quantity * it.rate * it.taxPercent) / 100, 0);
@@ -12633,9 +13122,10 @@ app.put('/api/invoices/:id', async (req, res) => {
     for (const it of normalizedItems) {
       await pool.query(
         `
-        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
-        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW()
+        INSERT INTO invoice_items (id, invoice_id, item_id, quantity, rate, tax_percent, created_by, created_at, updated_by, updated_at, dim_length, dim_breadth, dim_pcs, dim_input_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE quantity=VALUES(quantity), rate=VALUES(rate), tax_percent=VALUES(tax_percent), updated_by=VALUES(updated_by), updated_at=NOW(),
+          dim_length=VALUES(dim_length), dim_breadth=VALUES(dim_breadth), dim_pcs=VALUES(dim_pcs), dim_input_unit=VALUES(dim_input_unit)
         `,
         [
           crypto.randomUUID(),
@@ -12646,6 +13136,10 @@ app.put('/api/invoices/:id', async (req, res) => {
           it.taxPercent,
           updatedBy,
           updatedBy,
+          it.isArea ? it.dimLength : null,
+          it.isArea ? it.dimBreadth : null,
+          it.isArea ? it.dimPcs : null,
+          it.isArea ? it.dimInputUnit : null,
         ]
       );
     }

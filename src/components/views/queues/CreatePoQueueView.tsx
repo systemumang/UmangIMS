@@ -17,6 +17,7 @@ type Line = {
   item: string;
   specification: string;
   prItemId: string;
+  unit?: string | null;
   approvedQty: number;
   orderedQty: number;
   remainingQty: number;
@@ -24,6 +25,9 @@ type Line = {
   lastRate: number;
   supplierId: string;
   paymentTerms: string;
+  length?: string;
+  breadth?: string;
+  pcs?: string;
   quantity: string;
   rate: string;
   discountPercent: string;
@@ -31,6 +35,36 @@ type Line = {
 };
 
 export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+  function normalizeAreaUnitName(unitName: string) {
+    const u = String(unitName ?? '').trim().toLowerCase();
+    if (!u) return null;
+    if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+    if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+      return 'sqm';
+    return null;
+  }
+
+  function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+    if (areaUnit === 'sqft') return 'ft';
+    if (areaUnit === 'sqm') return 'm';
+    return '';
+  }
+
+  function round2(n: number) {
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100) / 100;
+  }
+
+  function computeAreaQty(length: number, breadth: number, pcs: number) {
+    const l = round2(length);
+    const b = round2(breadth);
+    const p = Math.trunc(pcs);
+    if (!Number.isFinite(l) || l <= 0) return NaN;
+    if (!Number.isFinite(b) || b <= 0) return NaN;
+    if (!Number.isFinite(p) || p < 1) return NaN;
+    return l * b * p;
+  }
+
   const masters = useQueueMasters({ includeSuppliers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
@@ -165,11 +199,20 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
           const suggestedTerms = suggestedSupplierId
             ? String(masters.suppliers.find((s) => s.id === suggestedSupplierId)?.paymentTerms ?? '').trim()
             : '';
+          const unit = (it as any).unit != null ? String((it as any).unit) : null;
+          const areaUnit = normalizeAreaUnitName(unit || '');
+          const isArea = !!areaUnit;
+          const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+          const length = String((it as any).approvedDimLength ?? (it as any).dimLength ?? '').trim();
+          const breadth = String((it as any).approvedDimBreadth ?? (it as any).dimBreadth ?? '').trim();
+          const pcs = String((it as any).approvedDimPcs ?? (it as any).dimPcs ?? '1').trim() || '1';
+          const qty = isArea ? computeAreaQty(Number(length), Number(breadth), Number(pcs)) : remainingQty;
 	          return {
             itemId: it.itemId,
             item: it.item,
             specification: it.specification ?? '',
             prItemId: it.id,
+            unit,
             approvedQty,
             orderedQty,
             remainingQty,
@@ -177,7 +220,10 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
             lastRate: Number(suggested?.rate ?? 0),
             supplierId: suggestedSupplierId,
             paymentTerms: suggestedTerms,
-	            quantity: remainingQty > 0 ? String(remainingQty) : '',
+            length: isArea ? length : '',
+            breadth: isArea ? breadth : '',
+            pcs: isArea ? pcs : '',
+	            quantity: isArea ? (Number.isFinite(qty) && qty > 0 ? String(qty) : '') : remainingQty > 0 ? String(remainingQty) : '',
 	            rate: suggested && Number.isFinite(suggested.rate) ? String(suggested.rate) : '',
 	            discountPercent: '',
 		            taxPercent: '0',
@@ -354,16 +400,24 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       return;
                     }
 		                const picked = lines
-		                  .map((l) => ({
-	                    itemId: l.itemId,
-	                    supplierId: String(l.supplierId ?? '').trim(),
-	                    paymentTerms: String(l.paymentTerms ?? '').trim(),
-	                    quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
-	                    rate: String(l.rate ?? '').trim() ? Number(l.rate) : 0,
-	                    discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
-	                    taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
-	                    remainingQty: l.remainingQty,
-	                  }))
+		                  .map((l) => {
+                        const areaUnit = normalizeAreaUnitName(String(l.unit ?? ''));
+                        const isAreaUnit = !!areaUnit;
+                        const length = String(l.length ?? '').trim() ? Number(l.length) : NaN;
+                        const breadth = String(l.breadth ?? '').trim() ? Number(l.breadth) : NaN;
+                        const pcs = String(l.pcs ?? '').trim() ? Number(l.pcs) : 1;
+                        return {
+                          itemId: l.itemId,
+                          supplierId: String(l.supplierId ?? '').trim(),
+                          paymentTerms: String(l.paymentTerms ?? '').trim(),
+                          quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
+                          rate: String(l.rate ?? '').trim() ? Number(l.rate) : 0,
+                          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
+                          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
+                          remainingQty: l.remainingQty,
+                          ...(isAreaUnit ? { length, breadth, pcs } : {}),
+                        };
+                      })
 	                  .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
 
 	                const missingSupplier = picked.find((x) => !x.supplierId);
@@ -382,6 +436,13 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                    setModalError('PO quantity cannot exceed remaining PR quantity');
 	                    return;
 	                  }
+                    if ('length' in it || 'breadth' in it || 'pcs' in it) {
+                      const q = computeAreaQty(Number((it as any).length), Number((it as any).breadth), Number((it as any).pcs ?? 1));
+                      if (!Number.isFinite(q) || q <= 0) {
+                        setModalError('Enter valid Length, Breadth and PCs for area-unit items.');
+                        return;
+                      }
+                    }
 	                  if (!Number.isFinite(it.rate) || it.rate < 0) {
 	                    setModalError('Invalid rate');
 	                    return;
@@ -406,7 +467,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		                    supplierId: string;
 		                    supplierName: string;
 		                    paymentTerms: string;
-		                    items: Array<{ itemId: string; quantity: number; rate: number; discountPercent: number; taxPercent: number }>;
+		                    items: Array<{
+                          itemId: string;
+                          quantity: number;
+                          rate: number;
+                          discountPercent: number;
+                          taxPercent: number;
+                          length?: number;
+                          breadth?: number;
+                          pcs?: number;
+                        }>;
 		                  }
 		                >();
 	                for (const it of picked) {
@@ -417,7 +487,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  }
 		                  const key = `${it.supplierId}||${it.paymentTerms}`;
 		                  const existing = groups.get(key);
-		                  const itemLine = { itemId: it.itemId, quantity: it.quantity, rate: it.rate, discountPercent: it.discountPercent, taxPercent: it.taxPercent };
+		                  const itemLine = {
+                        itemId: it.itemId,
+                        quantity: it.quantity,
+                        rate: it.rate,
+                        discountPercent: it.discountPercent,
+                        taxPercent: it.taxPercent,
+                        ...(('length' in it || 'breadth' in it || 'pcs' in it)
+                          ? { length: (it as any).length, breadth: (it as any).breadth, pcs: (it as any).pcs }
+                          : {}),
+                      };
 		                  if (existing) existing.items.push(itemLine);
 		                  else groups.set(key, { supplierId: it.supplierId, supplierName, paymentTerms: it.paymentTerms, items: [itemLine] });
 		                }
@@ -472,6 +551,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     <col className="w-[110px]" />
                     <col className="w-[90px]" />
                     <col className="w-[90px]" />
+                    <col className="w-[80px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[90px]" />
                     <col className="w-[90px]" />
                     <col className="w-[90px]" />
                     <col className="w-[150px]" />
@@ -500,6 +582,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
 	                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
+                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
+                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
+                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
@@ -518,6 +603,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     .filter((l) => !selectedLineId || l.itemId === selectedLineId)
                     .map((l) => {
                       const idx = lines.findIndex((x) => x.itemId === l.itemId);
+                      const areaUnit = normalizeAreaUnitName(String(l.unit ?? ''));
+                      const isAreaUnit = !!areaUnit;
+                      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
                       return (
                         <tr
                           key={l.itemId}
@@ -582,11 +670,97 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                {isAreaUnit ? (
+                                  <input
+                                    className={cn(inputClass, 'py-1.5')}
+                                    value={String(l.length ?? '')}
+                                    onChange={(e) =>
+                                      setLines((prev) => {
+                                        const next = prev.slice();
+                                        const nextLength = e.target.value;
+                                        const breadth = String(next[idx]?.breadth ?? '');
+                                        const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                        const qty = computeAreaQty(Number(nextLength), Number(breadth), Number(pcs));
+                                        next[idx] = {
+                                          ...next[idx]!,
+                                          length: nextLength,
+                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
+                                        };
+                                        return next;
+                                      })
+                                    }
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                {isAreaUnit ? (
+                                  <input
+                                    className={cn(inputClass, 'py-1.5')}
+                                    value={String(l.breadth ?? '')}
+                                    onChange={(e) =>
+                                      setLines((prev) => {
+                                        const next = prev.slice();
+                                        const nextBreadth = e.target.value;
+                                        const length = String(next[idx]?.length ?? '');
+                                        const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                        const qty = computeAreaQty(Number(length), Number(nextBreadth), Number(pcs));
+                                        next[idx] = {
+                                          ...next[idx]!,
+                                          breadth: nextBreadth,
+                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
+                                        };
+                                        return next;
+                                      })
+                                    }
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                {isAreaUnit ? (
+                                  <input
+                                    className={cn(inputClass, 'py-1.5')}
+                                    value={String(l.pcs ?? '1')}
+                                    onChange={(e) =>
+                                      setLines((prev) => {
+                                        const next = prev.slice();
+                                        const nextPcs = e.target.value;
+                                        const length = String(next[idx]?.length ?? '');
+                                        const breadth = String(next[idx]?.breadth ?? '');
+                                        const qty = computeAreaQty(Number(length), Number(breadth), Number(nextPcs || 1));
+                                        next[idx] = {
+                                          ...next[idx]!,
+                                          pcs: nextPcs,
+                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
+                                        };
+                                        return next;
+                                      })
+                                    }
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="PCs"
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   className={cn(inputClass, 'py-1.5')}
                                   value={l.quantity}
+                                  disabled={isAreaUnit}
                                   onChange={(e) =>
                                     setLines((prev) => {
+                                      if (isAreaUnit) return prev;
                                       const next = prev.slice();
                                       next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
                                       return next;

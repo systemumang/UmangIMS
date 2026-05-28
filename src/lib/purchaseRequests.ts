@@ -27,11 +27,20 @@ export type PurchaseRequestItem = {
   prId: string;
   itemId: string;
   item: string;
+  unit?: string | null;
   quantity: number;
   approvedQty?: number;
   priorityId?: string | null;
   priority?: string | null;
   specification: string;
+  dimLength?: number | null;
+  dimBreadth?: number | null;
+  dimPcs?: number | null;
+  dimUnit?: 'ft' | 'm' | string | null;
+  approvedDimLength?: number | null;
+  approvedDimBreadth?: number | null;
+  approvedDimPcs?: number | null;
+  approvedDimUnit?: 'ft' | 'm' | string | null;
 };
 
 export type PurchaseRequestDetail = { pr: PurchaseRequest; items: PurchaseRequestItem[] };
@@ -71,6 +80,7 @@ export type PoItem = {
   poId: string;
   itemId: string;
   item: string;
+  unit?: string | null;
   specificationsJson?: string;
   quantity: number;
   rate: number;
@@ -81,6 +91,10 @@ export type PoItem = {
   totalAmount?: number;
   cancelledQty?: number;
   cancelReason?: string | null;
+  dimLength?: number | null;
+  dimBreadth?: number | null;
+  dimPcs?: number | null;
+  dimUnit?: 'ft' | 'm' | string | null;
 };
 
 	export type Invoice = {
@@ -114,7 +128,19 @@ export type PoItem = {
 		  updatedAt?: string;
 		};
 
-export type InvoiceItem = { invoiceId: string; id: string; itemId: string; item: string; quantity: number; rate: number; taxPercent?: number };
+export type InvoiceItem = {
+  invoiceId: string;
+  id: string;
+  itemId: string;
+  item: string;
+  quantity: number;
+  rate: number;
+  taxPercent?: number;
+  dimLength?: number | null;
+  dimBreadth?: number | null;
+  dimPcs?: number | null;
+  dimInputUnit?: 'ft' | 'm' | string | null;
+};
 export type Logistics = { invoiceId: string; dispatchProof: string; cnOrCourierNo: string; transporterName: string };
 
 export type Grn = {
@@ -133,8 +159,14 @@ export type GrnItem = {
   grnId: string;
   itemId: string;
   item: string;
+  unit?: string | null;
   specificationsJson?: string;
   quantityReceived: number;
+  recvDimLength?: number | null;
+  recvDimBreadth?: number | null;
+  recvDimPcs?: number | null;
+  recvDimInputUnit?: 'ft' | 'm' | string | null;
+  recvDimPoUnit?: 'ft' | 'm' | string | null;
 };
 export type GrnWithItems = { grn: Grn; items: GrnItem[] };
 
@@ -288,7 +320,15 @@ export async function createPurchaseRequest(input: {
   requiredDate: string;
   items: Array<
     | { itemId: string; item?: string; quantity: number; priorityId?: string | null; specification: string }
-    | { itemNameId: string; quantity: number; priorityId?: string | null; specs: Record<string, string> }
+    | {
+        itemNameId: string;
+        quantity: number;
+        priorityId?: string | null;
+        specs: Record<string, string>;
+        length?: number;
+        breadth?: number;
+        pcs?: number;
+      }
   >;
 }): Promise<PurchaseRequestDetail> {
   const res = await fetch('/api/requests', {
@@ -304,6 +344,9 @@ export async function createPurchaseRequest(input: {
 export type ApprovePrItemInput = {
   id: string;
   quantity: number;
+  length?: number;
+  breadth?: number;
+  pcs?: number;
   itemId?: string;
   item?: string;
   specification?: string;
@@ -338,7 +381,16 @@ export async function createPo(
     advanceDate?: string | null;
     shippingAddress?: string;
     termsConditions?: string;
-    items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
+    items: Array<{
+      itemId: string;
+      quantity: number;
+      rate: number;
+      discountPercent?: number;
+      taxPercent?: number;
+      length?: number;
+      breadth?: number;
+      pcs?: number;
+    }>;
   }
 ) {
   const res = await fetch(`/api/requests/${encodeURIComponent(prId)}/po`, {
@@ -444,7 +496,17 @@ export async function createInvoice(poId: string, input: {
 				  transporterName?: string;
           paymentMode?: 'Cash' | 'Credit';
           tallyEntryDate?: string;
-				  items: Array<{ itemId: string; item?: string; quantity: number; rate: number; taxPercent?: number }> 
+				  items: Array<{
+            itemId: string;
+            item?: string;
+            quantity: number;
+            rate: number;
+            taxPercent?: number;
+            length?: number;
+            breadth?: number;
+            pcs?: number;
+            inputUnit?: 'ft' | 'm' | string;
+          }> 
 			}) {
 			  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/invoice`, {
 			    method: 'POST',
@@ -483,7 +545,17 @@ export async function updateInvoice(
     otherCharge?: number;
     chargesGstAmount?: number;
     updatedBy?: string;
-    items: Array<{ itemId: string; item?: string; quantity: number; rate: number; taxPercent?: number }>;
+    items: Array<{
+      itemId: string;
+      item?: string;
+      quantity: number;
+      rate: number;
+      taxPercent?: number;
+      length?: number;
+      breadth?: number;
+      pcs?: number;
+      inputUnit?: 'ft' | 'm' | string;
+    }>;
   }
 ) {
   const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}`, {
@@ -547,7 +619,22 @@ export async function saveLogistics(invoiceId: string, input: { dispatchProof: s
   return requireOk<{ logistics?: Logistics; error?: string }>(res, 'Failed to save logistics');
 }
 
-export async function createGrn(invoiceId: string, input: { receivedDate: string; updatedBy?: string; items: Array<{ itemId: string; item?: string; quantityReceived: number }> }) {
+export async function createGrn(
+  invoiceId: string,
+  input: {
+    receivedDate: string;
+    updatedBy?: string;
+    items: Array<{
+      itemId: string;
+      item?: string;
+      quantityReceived: number;
+      length?: number;
+      breadth?: number;
+      pcs?: number;
+      inputUnit?: 'ft' | 'm' | string;
+    }>;
+  }
+) {
 		  const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/grn`, {
 		    method: 'POST',
 		    headers: { 'Content-Type': 'application/json' },
@@ -563,7 +650,15 @@ export async function createGrnForPo(
     updatedBy?: string;
     materialReceivedBy?: string | null;
     goodsCollectedBy?: string | null;
-    items: Array<{ itemId: string; item?: string; quantityReceived: number }>;
+    items: Array<{
+      itemId: string;
+      item?: string;
+      quantityReceived: number;
+      length?: number;
+      breadth?: number;
+      pcs?: number;
+      inputUnit?: 'ft' | 'm' | string;
+    }>;
   }
 ) {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/grn`, {

@@ -23,12 +23,61 @@ type InvoiceLine = {
   poQty: number;
   poRate: number;
   discountPercent: number;
+  unit?: string | null;
+  poDimUnit?: 'ft' | 'm' | string | null;
+  inputUnit?: 'ft' | 'm';
+  length?: string;
+  breadth?: string;
+  pcs?: string;
+  isAreaUnit?: boolean;
   invoiceQty: string;
   invRate: string;
   gstPercent: string;
 };
 
 export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+  function normalizeAreaUnitName(unitName: string) {
+    const u = String(unitName ?? '').trim().toLowerCase();
+    if (!u) return null;
+    if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+    if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+      return 'sqm';
+    return null;
+  }
+
+  function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+    if (areaUnit === 'sqft') return 'ft';
+    if (areaUnit === 'sqm') return 'm';
+    return '';
+  }
+
+  function round2(n: number) {
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100) / 100;
+  }
+
+  function computeAreaQty(length: number, breadth: number, pcs: number) {
+    const l = round2(length);
+    const b = round2(breadth);
+    const p = Math.trunc(pcs);
+    if (!Number.isFinite(l) || l <= 0) return NaN;
+    if (!Number.isFinite(b) || b <= 0) return NaN;
+    if (!Number.isFinite(p) || p < 1) return NaN;
+    return l * b * p;
+  }
+
+  function convertAreaQty(qty: number, fromDimUnit: string, toDimUnit: string) {
+    const q = Number(qty);
+    const fromU = String(fromDimUnit ?? '').trim().toLowerCase();
+    const toU = String(toDimUnit ?? '').trim().toLowerCase();
+    if (!Number.isFinite(q)) return NaN;
+    if (!fromU || !toU || fromU === toU) return q;
+    const M2_TO_FT2 = 10.7639104167;
+    if (fromU === 'm' && toU === 'ft') return q * M2_TO_FT2;
+    if (fromU === 'ft' && toU === 'm') return q / M2_TO_FT2;
+    return NaN;
+  }
+
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true, includeTransporters: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
@@ -158,6 +207,14 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
             const pending = pendingByItemId.get(itemId);
             const pendingQty = Number(pending?.pendingQty ?? 0);
             if (!Number.isFinite(pendingQty) || pendingQty <= 0) return null;
+            const unit = (poi as any).unit != null ? String((poi as any).unit) : null;
+            const poDimUnit = String((poi as any).dimUnit ?? '').trim() || baseDimUnitForAreaUnit(normalizeAreaUnitName(unit || ''));
+            const isAreaUnit = poDimUnit === 'ft' || poDimUnit === 'm';
+            const length = String((poi as any).dimLength ?? '').trim();
+            const breadth = String((poi as any).dimBreadth ?? '').trim();
+            const pcs = String((poi as any).dimPcs ?? '1').trim() || '1';
+            const inputUnit = (poDimUnit === 'm' ? 'm' : 'ft') as 'ft' | 'm';
+            const qtyPoUnit = isAreaUnit ? convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inputUnit, poDimUnit) : pendingQty;
 	            return {
 	              itemId,
 	              item: String((poi as any).item ?? pending?.item ?? ''),
@@ -166,7 +223,14 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	              poQty: Number((poi as any).quantity ?? 0),
 	              poRate: Number((poi as any).rate ?? 0),
 	              discountPercent: Number((poi as any).discountPercent ?? 0),
-	              invoiceQty: String(pendingQty),
+                unit,
+                poDimUnit: poDimUnit || null,
+                inputUnit,
+                length: isAreaUnit ? length : '',
+                breadth: isAreaUnit ? breadth : '',
+                pcs: isAreaUnit ? pcs : '',
+                isAreaUnit,
+	              invoiceQty: isAreaUnit ? (Number.isFinite(qtyPoUnit) && qtyPoUnit > 0 ? String(qtyPoUnit) : '') : String(pendingQty),
               invRate: String((poi as any).rate ?? pending?.rate ?? 0),
 	              gstPercent: (() => {
 	                const pct = Number((poi as any).taxPercent ?? 0);
@@ -236,13 +300,31 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
         const quantity = String(ln.invoiceQty ?? '').trim() ? Number(ln.invoiceQty) : 0;
         const rate = String(ln.invRate ?? '').trim() ? Number(ln.invRate) : 0;
         const taxPercent = String(ln.gstPercent ?? '').trim() ? Number(ln.gstPercent) : 0;
-        return { itemId: ln.itemId, item: ln.item, quantity, rate, taxPercent, pendingQty: ln.pendingQty };
+        const length = String(ln.length ?? '').trim() ? Number(ln.length) : NaN;
+        const breadth = String(ln.breadth ?? '').trim() ? Number(ln.breadth) : NaN;
+        const pcs = String(ln.pcs ?? '').trim() ? Number(ln.pcs) : 1;
+        return {
+          itemId: ln.itemId,
+          item: ln.item,
+          quantity,
+          rate,
+          taxPercent,
+          pendingQty: ln.pendingQty,
+          ...(ln.isAreaUnit ? { length, breadth, pcs, inputUnit: ln.inputUnit ?? 'ft' } : {}),
+        };
       })
       .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
 
     if (!items.length) errors.items = 'Enter at least one Invoice Qty.';
 
     for (const it of items) {
+      if ('length' in it || 'breadth' in it || 'pcs' in it) {
+        const q = computeAreaQty(Number((it as any).length), Number((it as any).breadth), Number((it as any).pcs ?? 1));
+        if (!Number.isFinite(q) || q <= 0) {
+          errors.items = 'Enter valid Length, Breadth and PCs for area-unit invoice items.';
+          break;
+        }
+      }
       if (it.quantity > it.pendingQty + 1e-9) {
         errors.items = 'Invoice qty cannot exceed pending qty.';
         break;
@@ -508,7 +590,16 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                      cnCopyUrl,
 	                      updatedBy: updatedBy.trim(),
 	                      paymentMode: 'Credit',
-	                      items: items.map((it) => ({ itemId: it.itemId, item: it.item, quantity: it.quantity, rate: it.rate, taxPercent: supplierHasGst ? it.taxPercent : 0 })),
+	                      items: items.map((it) => ({
+                          itemId: it.itemId,
+                          item: it.item,
+                          quantity: it.quantity,
+                          rate: it.rate,
+                          taxPercent: supplierHasGst ? it.taxPercent : 0,
+                          ...(('length' in it || 'breadth' in it || 'pcs' in it)
+                            ? { length: (it as any).length, breadth: (it as any).breadth, pcs: (it as any).pcs, inputUnit: (it as any).inputUnit }
+                            : {}),
+                        })),
 	                    });
 	                    await fetchQueueEnterInvoice(filters).then(setRows);
 	                    closeModal();
@@ -774,19 +865,101 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                             </td>
                           ) : null}
                           <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={ln.invoiceQty}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
+                            {ln.isAreaUnit ? (
+                              <div className="grid grid-cols-4 gap-1">
+                                <select
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={ln.inputUnit ?? 'ft'}
+                                  onChange={(e) => {
+                                    const v = e.target.value === 'm' ? 'm' : 'ft';
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const poDimUnit = String(next[idx]?.poDimUnit ?? '').trim();
+                                      const length = String(next[idx]?.length ?? '');
+                                      const breadth = String(next[idx]?.breadth ?? '');
+                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), v, poDimUnit);
+                                      next[idx] = { ...next[idx]!, inputUnit: v as any, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <option value="ft">ft</option>
+                                  <option value="m">m</option>
+                                </select>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={ln.length ?? ''}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const length = e.target.value;
+                                      const breadth = String(next[idx]?.breadth ?? '');
+                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[idx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
+                                      next[idx] = { ...next[idx]!, length, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="decimal"
+                                  placeholder={`L (${ln.inputUnit ?? 'ft'})`}
+                                />
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={ln.breadth ?? ''}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const breadth = e.target.value;
+                                      const length = String(next[idx]?.length ?? '');
+                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[idx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
+                                      next[idx] = { ...next[idx]!, breadth, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="decimal"
+                                  placeholder={`B (${ln.inputUnit ?? 'ft'})`}
+                                />
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={ln.pcs ?? '1'}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const pcs = e.target.value;
+                                      const length = String(next[idx]?.length ?? '');
+                                      const breadth = String(next[idx]?.breadth ?? '');
+                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[idx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs || 1)), inU, poU);
+                                      next[idx] = { ...next[idx]!, pcs, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="numeric"
+                                  placeholder="PCs"
+                                />
+                              </div>
+                            ) : (
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={ln.invoiceQty}
+                                onChange={(e) =>
+                                  setLines((prev) => {
+                                    const next = prev.slice();
+                                    next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
+                                    return next;
+                                  })
+                                }
+                                type="text"
+                                inputMode="decimal"
+                              />
+                            )}
                           </td>
                         </tr>
                       );

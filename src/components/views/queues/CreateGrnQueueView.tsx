@@ -16,6 +16,48 @@ function todayIsoDate() {
 type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+  function normalizeAreaUnitName(unitName: string) {
+    const u = String(unitName ?? '').trim().toLowerCase();
+    if (!u) return null;
+    if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+    if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+      return 'sqm';
+    return null;
+  }
+
+  function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+    if (areaUnit === 'sqft') return 'ft';
+    if (areaUnit === 'sqm') return 'm';
+    return '';
+  }
+
+  function round2(n: number) {
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100) / 100;
+  }
+
+  function computeAreaQty(length: number, breadth: number, pcs: number) {
+    const l = round2(length);
+    const b = round2(breadth);
+    const p = Math.trunc(pcs);
+    if (!Number.isFinite(l) || l <= 0) return NaN;
+    if (!Number.isFinite(b) || b <= 0) return NaN;
+    if (!Number.isFinite(p) || p < 1) return NaN;
+    return l * b * p;
+  }
+
+  function convertAreaQty(qty: number, fromDimUnit: string, toDimUnit: string) {
+    const q = Number(qty);
+    const fromU = String(fromDimUnit ?? '').trim().toLowerCase();
+    const toU = String(toDimUnit ?? '').trim().toLowerCase();
+    if (!Number.isFinite(q)) return NaN;
+    if (!fromU || !toU || fromU === toU) return q;
+    const M2_TO_FT2 = 10.7639104167;
+    if (fromU === 'm' && toU === 'ft') return q * M2_TO_FT2;
+    if (fromU === 'ft' && toU === 'm') return q / M2_TO_FT2;
+    return NaN;
+  }
+
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
@@ -77,6 +119,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [updatedByUserId, setUpdatedByUserId] = useState('');
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
+  const [dimsByItemId, setDimsByItemId] = useState<Record<string, { length: string; breadth: string; pcs: string }>>({});
+  const [inputUnitByItemId, setInputUnitByItemId] = useState<Record<string, 'ft' | 'm'>>({});
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -93,6 +137,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     setActivePoDetails(null);
     setPendingItems([]);
     setQtyByItemId({});
+    setDimsByItemId({});
+    setInputUnitByItemId({});
     setReceivedDate(todayIsoDate());
     setMaterialReceivedByUserId('');
     setGoodsCollectedByUserId('');
@@ -428,9 +474,25 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                 }
                 const items = pendingItems
                   .map((it) => {
-                    const raw = qtyByItemId[it.itemId];
-                    const q = raw != null && String(raw).trim() ? Number(raw) : 0;
-                    return { itemId: it.itemId, item: it.item, quantityReceived: q, pendingQty: it.pendingQty };
+                    const poItem = (activePoDetails.items ?? []).find((x) => String(x.itemId ?? '').trim() === String(it.itemId ?? '').trim());
+                    const poDimUnit =
+                      String((poItem as any)?.dimUnit ?? '').trim() ||
+                      baseDimUnitForAreaUnit(normalizeAreaUnitName(String((poItem as any)?.unit ?? '')));
+                    const isArea = poDimUnit === 'ft' || poDimUnit === 'm';
+                    const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
+                    const inputUnit = (inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft')) as 'ft' | 'm';
+                    const qtyInputUnit = isArea ? computeAreaQty(Number(dims.length), Number(dims.breadth), Number(dims.pcs || 1)) : NaN;
+                    const q = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : (() => {
+                      const raw = qtyByItemId[it.itemId];
+                      return raw != null && String(raw).trim() ? Number(raw) : 0;
+                    })();
+                    return {
+                      itemId: it.itemId,
+                      item: it.item,
+                      quantityReceived: q,
+                      pendingQty: it.pendingQty,
+                      ...(isArea ? { length: Number(dims.length), breadth: Number(dims.breadth), pcs: Number(dims.pcs || 1), inputUnit } : {}),
+                    };
                   })
                   .filter((x) => Number.isFinite(x.quantityReceived) && x.quantityReceived > 0);
                 for (const it of items) {
@@ -447,7 +509,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   materialReceivedBy: materialReceivedByUserId,
                   goodsCollectedBy: goodsCollectedByUserId,
                   updatedBy: updatedByName,
-                  items: items.map((x) => ({ itemId: x.itemId, item: x.item, quantityReceived: x.quantityReceived })),
+                  items: items.map((x) => ({
+                    itemId: x.itemId,
+                    item: x.item,
+                    quantityReceived: x.quantityReceived,
+                    ...(('length' in x || 'breadth' in x || 'pcs' in x) ? { length: (x as any).length, breadth: (x as any).breadth, pcs: (x as any).pcs, inputUnit: (x as any).inputUnit } : {}),
+                  })),
                 })
                   .then(() => fetchQueueCreateGrn(filters).then(setRows))
                   .then(() => closeModal())
@@ -503,6 +570,11 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                    const rowSpan = activePoDetails.items.length || 1;
 	                    const pendingRow = pendingItems.find((p) => String(p.itemId ?? '').trim() === String(it.itemId ?? '').trim());
 	                    const pendingQty = pendingRow ? Number(pendingRow.pendingQty ?? 0) : 0;
+                      const poDimUnit =
+                        String((it as any).dimUnit ?? '').trim() || baseDimUnitForAreaUnit(normalizeAreaUnitName(String((it as any).unit ?? '')));
+                      const isAreaUnit = poDimUnit === 'ft' || poDimUnit === 'm';
+                      const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
+                      const inputUnit = inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft');
 	                    const checkedByName = displayUserName(activePoDetails.po.checkPoUserId);
 	                    const sentByName = displayUserName(activePoDetails.po.sentBy);
 	                    return (
@@ -529,12 +601,61 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.discountPercent ?? '-'}</td>
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>
                         <td className="px-2 py-2 border border-black align-top">
-                          <input
-                            className={cn(inputClass, 'py-1.5')}
-                            value={qtyByItemId[it.itemId] ?? String(pendingQty)}
-                            onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
-                            inputMode="decimal"
-                          />
+                          {isAreaUnit ? (
+                            <div className="grid grid-cols-4 gap-1">
+                              <select
+                                className={cn(inputClass, 'py-1.5')}
+                                value={inputUnit}
+                                onChange={(e) => setInputUnitByItemId((prev) => ({ ...prev, [it.itemId]: (e.target.value === 'm' ? 'm' : 'ft') as any }))}
+                              >
+                                <option value="ft">ft</option>
+                                <option value="m">m</option>
+                              </select>
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={dims.length}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), length: v } }));
+                                  const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                }}
+                                inputMode="decimal"
+                                placeholder={`L (${inputUnit})`}
+                              />
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={dims.breadth}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), breadth: v } }));
+                                  const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                }}
+                                inputMode="decimal"
+                                placeholder={`B (${inputUnit})`}
+                              />
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={dims.pcs}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), pcs: v } }));
+                                  const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(dims.breadth), Number(v || 1)), inputUnit, poDimUnit);
+                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                }}
+                                inputMode="numeric"
+                                placeholder="PCs"
+                              />
+                            </div>
+                          ) : (
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={qtyByItemId[it.itemId] ?? String(pendingQty)}
+                              onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
+                              inputMode="decimal"
+                            />
+                          )}
                         </td>
                         {idx === 0 ? (
                           <>
