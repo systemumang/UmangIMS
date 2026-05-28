@@ -82,6 +82,22 @@ export default function NewPurchaseRequestView({
     return l * b * p;
   }
 
+  function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    return null;
+  }
+
+  function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    return null;
+  }
+
   function formatSpecsLines(specificationsJson: string, specNameById?: Record<string, string>) {
     try {
       const obj = JSON.parse(specificationsJson) as Record<string, unknown>;
@@ -982,60 +998,72 @@ export default function NewPurchaseRequestView({
 	                              </div>
                               <div className="px-2 py-2 border-r border-outline-variant space-y-1">
                                 {isAreaUnit ? (
-                                  <input
-                                    className={inputClass}
-                                    placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
-                                    type="number"
-                                    inputMode="decimal"
-                                    min={0}
-                                    step={0.01}
-                                    value={row.length}
-                                    onChange={(e) => {
-                                      const v = String(e.target.value ?? '');
-                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-                                      setItems((prev) =>
-                                        prev.map((p, i) => {
-                                          if (i !== idx) return p;
-                                          const next = { ...p, length: v };
-                                          const l = Number(next.length ?? 0);
-                                          const b = Number(next.breadth ?? 0);
-                                          const pc = Number(next.pcs ?? 1);
-                                          const qty = computeAreaQty(l, b, pc);
-                                          return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                        })
-                                      );
-                                    }}
-                                  />
+                                  <>
+                                    <input
+                                      className={inputClass}
+                                      placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      step={0.01}
+                                      value={row.length}
+                                      onChange={(e) => {
+                                        const v = String(e.target.value ?? '');
+                                        setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+                                        setItems((prev) =>
+                                          prev.map((p, i) => {
+                                            if (i !== idx) return p;
+                                            const next = { ...p, length: v };
+                                            const l = Number(next.length ?? 0);
+                                            const b = Number(next.breadth ?? 0);
+                                            const pc = Number(next.pcs ?? 1);
+                                            const qty = computeAreaQty(l, b, pc);
+                                            return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                          })
+                                        );
+                                      }}
+                                    />
+                                    {(() => {
+                                      const conv = getConvertedDim(row.length, dimUnit);
+                                      return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                    })()}
+                                  </>
                                 ) : (
                                   <div className="text-xs text-on-surface-variant opacity-80">-</div>
                                 )}
                               </div>
                               <div className="px-2 py-2 border-r border-outline-variant space-y-1">
                                 {isAreaUnit ? (
-                                  <input
-                                    className={inputClass}
-                                    placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
-                                    type="number"
-                                    inputMode="decimal"
-                                    min={0}
-                                    step={0.01}
-                                    value={row.breadth}
-                                    onChange={(e) => {
-                                      const v = String(e.target.value ?? '');
-                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
-                                      setItems((prev) =>
-                                        prev.map((p, i) => {
-                                          if (i !== idx) return p;
-                                          const next = { ...p, breadth: v };
-                                          const l = Number(next.length ?? 0);
-                                          const b = Number(next.breadth ?? 0);
-                                          const pc = Number(next.pcs ?? 1);
-                                          const qty = computeAreaQty(l, b, pc);
-                                          return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                        })
-                                      );
-                                    }}
-                                  />
+                                  <>
+                                    <input
+                                      className={inputClass}
+                                      placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      step={0.01}
+                                      value={row.breadth}
+                                      onChange={(e) => {
+                                        const v = String(e.target.value ?? '');
+                                        setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
+                                        setItems((prev) =>
+                                          prev.map((p, i) => {
+                                            if (i !== idx) return p;
+                                            const next = { ...p, breadth: v };
+                                            const l = Number(next.length ?? 0);
+                                            const b = Number(next.breadth ?? 0);
+                                            const pc = Number(next.pcs ?? 1);
+                                            const qty = computeAreaQty(l, b, pc);
+                                            return { ...next, quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                          })
+                                        );
+                                      }}
+                                    />
+                                    {(() => {
+                                      const conv = getConvertedDim(row.breadth, dimUnit);
+                                      return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                    })()}
+                                  </>
                                 ) : (
                                   <div className="text-xs text-on-surface-variant opacity-80">-</div>
                                 )}
@@ -1088,6 +1116,10 @@ export default function NewPurchaseRequestView({
 						                    }}
 						                  />
 						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
+                                {(() => {
+                                  const conv = getConvertedArea(row.quantity, areaUnit);
+                                  return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                })()}
 						                </div>
                                 <div className="px-2 py-2 border-r border-outline-variant flex items-center justify-center text-[11px] text-on-surface-variant font-medium">
                                   {unitName || '-'}
