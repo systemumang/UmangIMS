@@ -801,6 +801,7 @@ export default function NewPurchaseRequestView({
                                   <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
                                   <div className="px-2 py-2 border-r border-outline-variant text-center">PCs</div>
                                   <div className="px-2 py-2 border-r border-outline-variant text-center">Qty</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Unit</div>
                                   <div className="px-2 py-2 text-right">Action</div>
                                 </div>
 
@@ -814,7 +815,7 @@ export default function NewPurchaseRequestView({
 							              <div
 							                key={idx}
                                   className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 80px` }}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 100px 80px` }}
 							              >
 							                <div className="px-2 py-2 border-r border-outline-variant space-y-2">
 							                  <SearchableSelect
@@ -1088,6 +1089,9 @@ export default function NewPurchaseRequestView({
 						                  />
 						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
 						                </div>
+                                <div className="px-2 py-2 border-r border-outline-variant flex items-center justify-center text-[11px] text-on-surface-variant font-medium">
+                                  {unitName || '-'}
+                                </div>
 							                <div className="px-2 py-2 flex justify-end">
 						                  <button
 						                    type="button"
