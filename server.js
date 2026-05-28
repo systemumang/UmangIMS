@@ -12300,9 +12300,6 @@ async function handleCreateInvoice(req, res) {
     const paymentModeRaw = String(req.body?.paymentMode ?? '').trim().toLowerCase();
     const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : paymentModeRaw === 'credit' ? 'Credit' : null;
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
-    const paymentModeRaw = String(req.body?.paymentMode ?? '').trim().toLowerCase();
-    const paymentMode = paymentModeRaw === 'cash' ? 'Cash' : paymentModeRaw === 'credit' ? 'Credit' : null;
-    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : null;
     const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : null;
     const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : null;
