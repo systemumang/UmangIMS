@@ -182,6 +182,8 @@ export default function OperationsView({
   const [adjustInvoicePaymentModes, setAdjustInvoicePaymentModes] = useState<Record<string, string>>({});
   const [advanceUploadBusyByIdx, setAdvanceUploadBusyByIdx] = useState<Record<number, boolean>>({});
 
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+
   const [editPoOpen, setEditPoOpen] = useState(false);
   const [editPoBusy, setEditPoBusy] = useState(false);
   const [editPoError, setEditPoError] = useState<string | null>(null);
@@ -309,8 +311,9 @@ export default function OperationsView({
       setInlineGrnDetailById({});
       setInlineGrnLoadingById({});
       setInlineGrnErrorById({});
-    setDetailOpen(false);
-  }, [tab]);
+      setSelectedRowId(null);
+      setDetailOpen(false);
+      }, [tab]);
 
 	  useEffect(() => setPage(1), [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
 
@@ -1201,11 +1204,16 @@ export default function OperationsView({
 		                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
 	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
 	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
+                  const isSelected = selectedRowId === rowId;
                   return (
                     <React.Fragment key={rowId}>
 	                      <tr
-	                        className="hover:bg-surface-container-high/40 cursor-pointer"
+	                        className={cn(
+                            "hover:bg-surface-container-high/40 cursor-pointer transition-colors",
+                            isSelected ? "bg-amber-100/60" : ""
+                          )}
 	                        onClick={() => {
+                            setSelectedRowId(rowId);
 	                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
 	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);
