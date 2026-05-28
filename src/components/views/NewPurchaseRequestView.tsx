@@ -783,26 +783,26 @@ export default function NewPurchaseRequestView({
                             <div className="overflow-x-auto">
                               <div className="min-w-[1280px]">
                                 <div
-                                  className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 80px` }}
+                                  className="grid gap-0 text-[11px] font-bold text-white uppercase tracking-wider bg-primary border-b border-outline-variant"
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 100px 80px` }}
                                 >
-                                  <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
+                                  <div className="px-2 py-3 border-r border-white/20">Item Name</div>
                                   {specColumnIds.length ? (
                                     specColumnIds.map((specId) => (
-                                      <div key={`hdr-${specId}`} className="px-2 py-2 border-r border-outline-variant">
+                                      <div key={`hdr-${specId}`} className="px-2 py-3 border-r border-white/20">
                                         {specNameById?.[specId] ?? 'Specification'}
                                       </div>
                                     ))
                                   ) : (
-                                    <div className="px-2 py-2 border-r border-outline-variant">Specifications</div>
+                                    <div className="px-2 py-3 border-r border-white/20">Specifications</div>
                                   )}
-                                  <div className="px-2 py-2 border-r border-outline-variant">Priority</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Length</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant text-center">PCs</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Qty</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Unit</div>
-                                  <div className="px-2 py-2 text-right">Action</div>
+                                  <div className="px-2 py-3 border-r border-white/20">Priority</div>
+                                  <div className="px-2 py-3 border-r border-white/20 text-center">Length</div>
+                                  <div className="px-2 py-3 border-r border-white/20 text-center">Breadth</div>
+                                  <div className="px-2 py-3 border-r border-white/20 text-center">PCs</div>
+                                  <div className="px-2 py-3 border-r border-white/20 text-center">Qty</div>
+                                  <div className="px-2 py-3 border-r border-white/20 text-center">Unit</div>
+                                  <div className="px-2 py-3 text-right">Action</div>
                                 </div>
 
 							          {items.map((row, idx) => {
