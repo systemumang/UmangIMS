@@ -22,6 +22,8 @@ export function formatPrNumber(raw: string) {
   const s = formatDocNumber(raw, 'PR');
   // Hide short random suffixes like `20260508-5b69e5`.
   const t = String(s ?? '').trim();
+  // Hide UUID-looking values completely.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return '';
   const m = /^PR-(\d{8})-([0-9a-f]{6})$/i.exec(t);
   if (m?.[1]) return `PR-${m[1]}`;
   return s;

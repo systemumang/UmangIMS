@@ -192,16 +192,22 @@ function formatItemWithSpecText(itemName: string, specification: string, specNam
   // Newer PR flow stores specification as JSON: {"<specId>":"<value>"}
   if (specText.startsWith('{') && specText.endsWith('}')) {
     const specs = formatSpecsLines(specText, specNameById);
-    const cleaned = [base, ...specs].map((s) => String(s ?? '').trim()).filter(Boolean);
-    return cleaned.join(' - ') || base || '-';
+    const cleaned = [base, ...specs]
+      .map((s) => String(s ?? '').trim())
+      .filter(Boolean)
+      .filter((s) => !(isUuidLike(s) || isShortHexLike(s)));
+    return cleaned.join(' - ') || '-';
   }
 
   const specs = specText
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (!specs.length) return base || '-';
-  return [base, ...specs].filter(Boolean).join(' - ');
+  const cleaned = [base, ...specs]
+    .map((s) => String(s ?? '').trim())
+    .filter(Boolean)
+    .filter((s) => !(isUuidLike(s) || isShortHexLike(s)));
+  return cleaned.join(' - ') || '-';
 }
 
 function renderSpecificationLines(specification: string) {
@@ -1057,8 +1063,8 @@ export default function PurchaseRequestDetailView({
 
 				        const checkedById = String((p.po as any)?.checkPoUserId ?? '').trim();
 				        const sentById = String((p.po as any)?.sentBy ?? '').trim();
-				        const checkedByName = checkedById ? userNameById.get(checkedById) ?? checkedById : '';
-				        const sentByName = sentById ? userNameById.get(sentById) ?? sentById : '';
+				        const checkedByName = checkedById ? userNameById.get(checkedById) ?? (isUuidLike(checkedById) ? '-' : checkedById) : '';
+				        const sentByName = sentById ? userNameById.get(sentById) ?? (isUuidLike(sentById) ? '-' : sentById) : '';
 
 				        return {
 				          poId,
@@ -1963,7 +1969,9 @@ export default function PurchaseRequestDetailView({
   const firmName = useMemo(() => {
     const firmId = pr?.firmId;
     if (!firmId) return '';
-    return firms.find((f) => f.id === firmId)?.name ?? firmId;
+    const name = firms.find((f) => f.id === firmId)?.name;
+    if (name) return name;
+    return isUuidLike(firmId) ? '-' : firmId;
   }, [firms, pr?.firmId]);
 
   const orderedQtyByItemId = useMemo(() => {
@@ -2812,7 +2820,7 @@ export default function PurchaseRequestDetailView({
 	                                  {(() => {
 	                                    const checkedById = String((p as any)?.po?.checkPoUserId ?? '').trim();
 	                                    if (!checkedById) return '-';
-	                                    return userNameById.get(checkedById) ?? checkedById;
+	                                    return userNameById.get(checkedById) ?? (isUuidLike(checkedById) ? '-' : checkedById);
 	                                  })()}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
@@ -2822,7 +2830,7 @@ export default function PurchaseRequestDetailView({
 	                                  {(() => {
 	                                    const sentById = String((p as any)?.po?.sentBy ?? '').trim();
 	                                    if (!sentById) return '-';
-	                                    return userNameById.get(sentById) ?? sentById;
+	                                    return userNameById.get(sentById) ?? (isUuidLike(sentById) ? '-' : sentById);
 	                                  })()}
 	                                </td>
 	                                <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-outline-variant align-top">
@@ -3187,7 +3195,7 @@ export default function PurchaseRequestDetailView({
 	              {pr.requestType === 'Project' ? (
 	                <span className="whitespace-nowrap">
 	                  <span className="font-bold text-on-surface-variant">Project Name:</span>{' '}
-	                  <span className="text-on-surface">{pr.projectName ?? pr.projectId ?? '-'}</span>
+	                  <span className="text-on-surface">{pr.projectName || (pr.projectId && !isUuidLike(pr.projectId) ? pr.projectId : '-')}</span>
 	                </span>
 	              ) : null}
 	            </div>
