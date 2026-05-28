@@ -889,7 +889,7 @@ export default function NewPurchaseRequestView({
                                   {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => {
                                     if (specId === '__no_specs__') {
                                       return (
-                                        <div key={`${idx}-spec-empty`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-80">
+                                        <div key={`${idx}-spec-empty`} className="px-2 py-2 border-r border-outline-variant text-xs text-red-600 font-medium opacity-90">
                                           Select Item Name to load specifications.
                                         </div>
                                       );
@@ -981,7 +981,7 @@ export default function NewPurchaseRequestView({
 							                      })()}
 							                    </div>
 							                  ) : (
-							                    <div className="text-xs text-on-surface-variant opacity-80">{row.itemNameId ? '-' : 'Select Item Name'}</div>
+							                    <div className="text-xs text-red-600 font-medium opacity-90">{row.itemNameId ? '-' : 'Select Item Name'}</div>
 							                  )}
                                       </div>
                                     );
@@ -1025,11 +1025,11 @@ export default function NewPurchaseRequestView({
                                     />
                                     {(() => {
                                       const conv = getConvertedDim(row.length, dimUnit);
-                                      return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                  <div className="text-xs text-red-600 font-medium opacity-90">-</div>
                                 )}
                               </div>
                               <div className="px-2 py-2 border-r border-outline-variant space-y-1">
@@ -1061,11 +1061,11 @@ export default function NewPurchaseRequestView({
                                     />
                                     {(() => {
                                       const conv = getConvertedDim(row.breadth, dimUnit);
-                                      return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                  <div className="text-xs text-red-600 font-medium opacity-90">-</div>
                                 )}
                               </div>
                               <div className="px-2 py-2 border-r border-outline-variant space-y-1">
@@ -1095,7 +1095,7 @@ export default function NewPurchaseRequestView({
                                     }}
                                   />
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-80">-</div>
+                                  <div className="text-xs text-red-600 font-medium opacity-90">-</div>
                                 )}
                               </div>
 								                <div className="px-2 py-2 border-r border-outline-variant space-y-1 bg-surface-container-high/50">
@@ -1118,7 +1118,7 @@ export default function NewPurchaseRequestView({
 						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
                                 {(() => {
                                   const conv = getConvertedArea(row.quantity, areaUnit);
-                                  return conv ? <div className="text-[10px] text-on-surface-variant/60 font-medium px-1">≈ {conv}</div> : null;
+                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
                                 })()}
 						                </div>
                                 <div className="px-2 py-2 border-r border-outline-variant flex items-center justify-center text-[11px] text-on-surface-variant font-medium">
