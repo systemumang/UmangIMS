@@ -22,7 +22,7 @@ import {
 import type { QueueFilters } from '@/src/lib/queues';
 
 export const inputClass =
-  'w-full h-10 bg-surface-container-low border border-black rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-black';
+  'w-full h-10 bg-surface-container-low border border-black rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:ring-1 focus:ring-black disabled:bg-surface-container-high disabled:opacity-80';
 
 export const labelClass = 'text-[11px] font-bold text-on-surface-variant uppercase tracking-widest';
 

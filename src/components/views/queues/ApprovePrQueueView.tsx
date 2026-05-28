@@ -567,7 +567,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
 		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
 		                        </td>
-                            <td className="px-3 py-2 border border-outline-variant">
+                            <td className="px-3 py-2 border border-outline-variant bg-surface-container-high/40">
                               {isArea ? (
                                 <div className="space-y-1">
                                   <input
@@ -591,7 +591,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
                               )}
                             </td>
-                            <td className="px-3 py-2 border border-outline-variant">
+                            <td className="px-3 py-2 border border-outline-variant bg-surface-container-high/40">
                               {isArea ? (
                                 <div className="space-y-1">
                                   <input
@@ -615,7 +615,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
                               )}
                             </td>
-                            <td className="px-3 py-2 border border-outline-variant">
+                            <td className="px-3 py-2 border border-outline-variant bg-surface-container-high/40">
                               {isArea ? (
                                 <input
                                   className={cn(inputClass, 'py-1')}
@@ -633,7 +633,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 <div className="text-xs text-red-600 font-medium opacity-90 text-center">-</div>
                               )}
                             </td>
-		                        <td className={cn('px-3 py-2 border border-outline-variant', isArea && 'bg-surface-container-high/50')}>
+		                        <td className={cn('px-3 py-2 border border-outline-variant bg-surface-container-high/40')}>
                               <div className="space-y-1">
                                 <input
                                   className={cn(inputClass, 'py-1')}
