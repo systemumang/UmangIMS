@@ -148,6 +148,24 @@ export default function OperationsView({
   >({});
   const [inlineInvoiceReceiptsLoadingById, setInlineInvoiceReceiptsLoadingById] = useState<Record<string, boolean>>({});
   const [inlineInvoiceReceiptsErrorById, setInlineInvoiceReceiptsErrorById] = useState<Record<string, string>>({});
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+
+  const getRowId = (r: any, currentTab: OpsTab) => {
+    if (!r) return '';
+    return currentTab === 'prs'
+      ? String(r.prId)
+      : currentTab === 'pos'
+        ? String(r.poId)
+        : currentTab === 'grns'
+          ? String(r.grnId)
+          : currentTab === 'pendingAdjustments'
+            ? String(r.poId)
+            : currentTab === 'invoices'
+              ? String(r.invoiceId)
+              : currentTab === 'creditVouchers'
+                ? String(r.creditVoucherId)
+                : String(r.paymentId);
+  };
 
   const [expandedCreditVoucherReceiptIds, setExpandedCreditVoucherReceiptIds] = useState<string[]>([]);
   const [inlineCreditVoucherReceiptsById, setInlineCreditVoucherReceiptsById] = useState<Record<string, InvoiceReceiptRow[]>>({});
@@ -320,9 +338,13 @@ export default function OperationsView({
       setInlineGrnLoadingById({});
       setInlineGrnErrorById({});
       setDetailOpen(false);
+      setSelectedRowId(null);
       }, [tab]);
 
-	  useEffect(() => setPage(1), [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
+	  useEffect(() => {
+	    setPage(1);
+	    setSelectedRowId(null);
+	  }, [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(rowsCount / pageSize));
@@ -1179,21 +1201,10 @@ export default function OperationsView({
 			                  </td>
 			                </tr>
 		              ) : (
-                (paged as any[]).map((r) => {
-	                  const rowId =
-                    tab === 'prs'
-                      ? String(r.prId)
-                      : tab === 'pos'
-                        ? String(r.poId)
-                        : tab === 'grns'
-                          ? String(r.grnId)
-		                          : tab === 'pendingAdjustments'
-		                            ? String(r.poId)
-			                            : tab === 'invoices'
-			                              ? String(r.invoiceId)
-                                : tab === 'creditVouchers'
-                                  ? String(r.creditVoucherId)
-			                            : String(r.paymentId);
+                (paged as any[])
+                  .filter((r) => !selectedRowId || getRowId(r, tab) === selectedRowId)
+                  .map((r) => {
+	                  const rowId = getRowId(r, tab);
 			                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
                       const isGrnExpanded = tab === 'grns' ? expandedGrnIds.includes(String(r.grnId ?? '')) : false;
                       const isInvoiceReceiptExpanded =
@@ -1214,8 +1225,9 @@ export default function OperationsView({
                   return (
                     <React.Fragment key={rowId}>
 		                      <tr
-		                        className="cursor-pointer"
+		                        className={cn("cursor-pointer", selectedRowId === rowId && "bg-primary/10")}
 		                        onClick={() => {
+		                          setSelectedRowId((prev) => (prev === rowId ? null : rowId));
 		                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
 	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);

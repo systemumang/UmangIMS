@@ -72,15 +72,19 @@ export default function PurchaseTable({
 
 	  const pageSize = 20;
 	  const [page, setPage] = useState(1);
+    const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
 	  useEffect(() => {
 	    setPage(1);
+      setSelectedRequestId(null);
 	  }, [statusFilter, dateFrom, dateTo]);
 
 		  const pagedRequests = useMemo(() => {
 		    const start = (page - 1) * pageSize;
-		    return filteredRequests.slice(start, start + pageSize);
-		  }, [filteredRequests, page, pageSize]);
+		    return filteredRequests
+          .filter(r => !selectedRequestId || r.id === selectedRequestId)
+          .slice(start, start + pageSize);
+		  }, [filteredRequests, page, pageSize, selectedRequestId]);
 
       const exportCsv = () => {
         if (onExportExcel) return onExportExcel();
@@ -174,15 +178,21 @@ export default function PurchaseTable({
 	                  animate={{ opacity: 1, y: 0 }}
 	                  transition={{ delay: idx * 0.05 }}
 	                  tabIndex={onSelectRequest ? 0 : -1}
-	                  onClick={() => onSelectRequest?.(req.id)}
+	                  onClick={() => {
+                      setSelectedRequestId(prev => prev === req.id ? null : req.id);
+                      onSelectRequest?.(req.id);
+                    }}
 	                  onKeyDown={(e) => {
 	                    if (!onSelectRequest) return;
-	                    if (e.key === 'Enter' || e.key === ' ') onSelectRequest(req.id);
+	                    if (e.key === 'Enter' || e.key === ' ') {
+                        setSelectedRequestId(prev => prev === req.id ? null : req.id);
+                        onSelectRequest(req.id);
+                      }
 	                  }}
 	                  className={cn(
 	                    "hover:bg-surface-container/30 transition-colors group",
 	                    onSelectRequest && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-inset",
-	                    idx === 2 && "bg-surface-container-low/20"
+	                    selectedRequestId === req.id && "bg-primary/10"
 		                  )}
 		                >
 			                  <td className="px-6 py-4 font-headline font-bold text-sm text-primary border border-blue-600">{formatPrNumber(req.prNumber ?? req.id)}</td>

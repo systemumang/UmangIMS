@@ -13,13 +13,17 @@ function todayIsoDate() {
 export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<ApproveCreditVoucherQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
   const [page, setPage] = useState(1);
 
-  useEffect(() => setPage(1), [filters]);
+  useEffect(() => {
+    setPage(1);
+    setSelectedRowId(null);
+  }, [filters]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -37,8 +41,12 @@ export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: {
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [page, rows]);
+    const slice = rows.slice(start, start + pageSize);
+    if (selectedRowId) {
+      return slice.filter((r) => r.creditVoucherId === selectedRowId);
+    }
+    return slice;
+  }, [page, rows, selectedRowId]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<ApproveCreditVoucherQueueRow | null>(null);
@@ -113,7 +121,11 @@ export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: {
           <tbody>
             {pagedRows.length ? (
               pagedRows.map((r) => (
-                <tr key={r.creditVoucherId} className="hover:bg-surface-container-low/50 transition-colors">
+                <tr
+                  key={r.creditVoucherId}
+                  className={cn('cursor-pointer hover:bg-surface-container-low/50 transition-colors', selectedRowId === r.creditVoucherId && 'bg-primary/10')}
+                  onClick={() => setSelectedRowId(selectedRowId === r.creditVoucherId ? null : r.creditVoucherId)}
+                >
                   <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
 	                  <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.voucherDate ? formatDateDDMMYYYYOnly(r.voucherDate) : '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPoNumber((r as any).poNumber ?? r.poId) || r.poId}</td>

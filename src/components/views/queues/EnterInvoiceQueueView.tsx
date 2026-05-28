@@ -32,6 +32,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true, includeTransporters: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<EnterInvoiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
   useEffect(() => {
     setPage(1);
+    setSelectedRowId(null);
   }, [filters]);
 
   useEffect(() => {
@@ -76,8 +78,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [page, pageSize, rows]);
+    const slice = rows.slice(start, start + pageSize);
+    if (selectedRowId) {
+      return slice.filter((r) => r.poId === selectedRowId);
+    }
+    return slice;
+  }, [page, pageSize, rows, selectedRowId]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<EnterInvoiceQueueRow | null>(null);
@@ -336,7 +342,16 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                     const expandedError = expandedErrorByPoId[poId];
                     return (
                     <React.Fragment key={r.poId}>
-                    <tr onClick={() => toggleExpandRow(r)} className={cn('cursor-pointer', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-high/40')}>
+                    <tr
+                      onClick={() => {
+                        toggleExpandRow(r);
+                        setSelectedRowId(selectedRowId === r.poId ? null : r.poId);
+                      }}
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        isExpanded || selectedRowId === r.poId ? 'bg-primary/10' : 'hover:bg-surface-container-high/40'
+                      )}
+                    >
 	                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>

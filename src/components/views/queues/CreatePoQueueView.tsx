@@ -34,6 +34,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const masters = useQueueMasters({ includeSuppliers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<CreatePoQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
   useEffect(() => {
     setPage(1);
+    setSelectedRowId(null);
   }, [filters]);
 
   useEffect(() => {
@@ -70,8 +72,12 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [page, pageSize, rows]);
+    const slice = rows.slice(start, start + pageSize);
+    if (selectedRowId) {
+      return slice.filter((r) => r.prId === selectedRowId);
+    }
+    return slice;
+  }, [page, pageSize, rows, selectedRowId]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalKind, setModalKind] = useState<'po' | 'rfq'>('po');
@@ -230,7 +236,11 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
               <tbody>
                 {pagedRows.length ? (
                   pagedRows.map((r) => (
-                    <tr key={r.prId}>
+                    <tr
+                      key={r.prId}
+                      className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedRowId === r.prId && 'bg-primary/10')}
+                      onClick={() => setSelectedRowId(selectedRowId === r.prId ? null : r.prId)}
+                    >
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>

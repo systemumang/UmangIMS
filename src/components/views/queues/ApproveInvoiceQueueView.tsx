@@ -3,11 +3,13 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchQueueApproveInvoice, updateQueueApproveInvoice, type ApproveInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { fetchInvoicesByPrId, type InvoiceWithItems } from '@/src/lib/purchaseRequests';
 import { formatPoNumber } from '@/src/lib/docNumbers';
+import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
 export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<ApproveInvoiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,10 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setLoading(true);
     setError(null);
     fetchQueueApproveInvoice(filters, ac.signal)
-      .then(setRows)
+      .then((data) => {
+        setRows(data);
+        setSelectedRowId(null);
+      })
       .catch((e) => {
         if (ac.signal.aborted) return;
         setError(e instanceof Error ? e.message : String(e));
@@ -30,6 +35,13 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
       .finally(() => setLoading(false));
     return () => ac.abort();
   }, [filters]);
+
+  const displayRows = useMemo(() => {
+    if (selectedRowId) {
+      return rows.filter((r) => r.invoiceId === selectedRowId);
+    }
+    return rows;
+  }, [rows, selectedRowId]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<ApproveInvoiceQueueRow | null>(null);
@@ -121,9 +133,13 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                 </tr>
               </thead>
               <tbody>
-                {rows.length ? (
-                  rows.map((r) => (
-                    <tr key={r.invoiceId}>
+                {displayRows.length ? (
+                  displayRows.map((r) => (
+                    <tr
+                      key={r.invoiceId}
+                      className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedRowId === r.invoiceId && 'bg-primary/10')}
+                      onClick={() => setSelectedRowId(selectedRowId === r.invoiceId ? null : r.invoiceId)}
+                    >
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.invoiceNo ?? r.invoiceId}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.invoiceDate ? formatDateDDMMYYYYOnly(r.invoiceDate) : '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
