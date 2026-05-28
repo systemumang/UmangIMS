@@ -784,7 +784,7 @@ export default function NewPurchaseRequestView({
                               <div className="min-w-[1280px]">
                                 <div
                                   className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 80px` }}
+                                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 170px 110px 110px 80px 110px 80px` }}
                                 >
                                   <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                                   {specColumnIds.length ? (
@@ -797,10 +797,10 @@ export default function NewPurchaseRequestView({
                                     <div className="px-2 py-2 border-r border-outline-variant">Specifications</div>
                                   )}
                                   <div className="px-2 py-2 border-r border-outline-variant">Priority</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant">Length</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant">Breadth</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant">PCs</div>
-                                  <div className="px-2 py-2 border-r border-outline-variant">Qty</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Length</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant text-center">PCs</div>
+                                  <div className="px-2 py-2 border-r border-outline-variant text-center">Qty</div>
                                   <div className="px-2 py-2 text-right">Action</div>
                                 </div>
 
