@@ -1025,7 +1025,7 @@ export default function NewPurchaseRequestView({
                                     />
                                     {(() => {
                                       const conv = getConvertedDim(row.length, dimUnit);
-                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
@@ -1061,7 +1061,7 @@ export default function NewPurchaseRequestView({
                                     />
                                     {(() => {
                                       const conv = getConvertedDim(row.breadth, dimUnit);
-                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
@@ -1118,7 +1118,7 @@ export default function NewPurchaseRequestView({
 						                  {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
                                 {(() => {
                                   const conv = getConvertedArea(row.quantity, areaUnit);
-                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1">≈ {conv}</div> : null;
+                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1">{conv}</div> : null;
                                 })()}
 						                </div>
                                 <div className="px-2 py-2 border-r border-outline-variant flex items-center justify-center text-[11px] text-on-surface-variant font-medium">
