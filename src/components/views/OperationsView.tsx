@@ -1210,7 +1210,7 @@ export default function OperationsView({
 	                      <tr
 	                        className={cn(
                             "hover:bg-surface-container-high/40 cursor-pointer transition-colors",
-                            isSelected ? "bg-amber-100/60" : ""
+                            isSelected ? "bg-orange-500 text-white" : ""
                           )}
 	                        onClick={() => {
                             setSelectedRowId(rowId);
@@ -1223,7 +1223,7 @@ export default function OperationsView({
                       >
                     {tab === 'prs' ? (
                       <>
-            <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+            <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.store ?? '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
@@ -1233,7 +1233,7 @@ export default function OperationsView({
 	                      </>
 	                    ) : tab === 'pos' ? (
 	                      <>
-	                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
+	                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.poNumber}</td>
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
@@ -1288,7 +1288,7 @@ export default function OperationsView({
 			                      </>
 	                    ) : tab === 'grns' ? (
                       <>
-                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.grnNumber}</td>
+                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.grnNumber}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
@@ -1298,7 +1298,7 @@ export default function OperationsView({
 	                      </>
 				                    ) : tab === 'pendingAdjustments' ? (
 	                              <>
-                                <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.poNumber}</td>
+                                <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.poNumber}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
@@ -1312,7 +1312,7 @@ export default function OperationsView({
 	                              </>
 		                            ) : tab === 'invoices' ? (
 					                      <>
-			                          <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.invoiceNo}</td>
+			                          <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.invoiceNo}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
@@ -1329,7 +1329,7 @@ export default function OperationsView({
 					                      </>
 		                    ) : tab === 'creditVouchers' ? (
 		                      <>
-		                        <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{r.voucherNo}</td>
+		                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.voucherNo}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.firmShortName || r.firmName}</td>
@@ -1366,7 +1366,7 @@ export default function OperationsView({
                           <td className="px-3 py-2 border border-outline-variant">{String((r as any).mode ?? '') || '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">
                             {String((r as any).paymentCopy ?? '').trim() ? (
-                              <a href={String((r as any).paymentCopy)} target="_blank" rel="noreferrer" className="text-primary underline">
+                              <a href={String((r as any).paymentCopy)} target="_blank" rel="noreferrer" className={cn("underline", isSelected ? "text-white" : "text-primary")}>
                                 View
                               </a>
                             ) : (

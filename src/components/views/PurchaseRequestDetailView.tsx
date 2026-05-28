@@ -5166,7 +5166,8 @@ export default function PurchaseRequestDetailView({
 	            )}
           </Section>
 
-		          <Section>
+	          {false ? (
+			          <Section>
 		            <div className="text-center text-2xl font-bold text-blue-600">Invoices</div>
 			            {invoiceCreateOpen && selectedPo ? (
 		              <div className="space-y-4">
@@ -7064,8 +7065,9 @@ export default function PurchaseRequestDetailView({
 		            ) : null}
 
 	          </Section>
+	          ) : null}
 
-			          <Section>
+				          <Section>
 				            <div className="text-center text-2xl font-bold text-blue-600">GRN</div>
 				            {selectedPo ? (
 				              <div className="space-y-2">
