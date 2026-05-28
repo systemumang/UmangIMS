@@ -22,6 +22,22 @@ app.use(express.json({ limit: '25mb' }));
 
 app.use('/uploads', express.static(uploadsDir, { index: false }));
 
+app.get('/api/uploads/:fileName', async (req, res) => {
+  try {
+    const fileName = decodeURIComponent(String(req.params.fileName ?? '')).replace(/[\\/]/g, '');
+    if (!fileName) return res.status(400).send('fileName is required');
+    const filePath = path.join(uploadsDir, fileName);
+    const resolved = path.resolve(filePath);
+    const uploadsRoot = path.resolve(uploadsDir);
+    if (!resolved.startsWith(`${uploadsRoot}${path.sep}`)) return res.status(400).send('Invalid fileName');
+    await fs.access(resolved);
+    res.setHeader('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
+    res.sendFile(resolved);
+  } catch {
+    res.status(404).send('File not found');
+  }
+});
+
 // Lightweight process-level health check (no DB dependency).
 app.get('/health', (_req, res) => {
   res.status(200).json({
@@ -885,7 +901,7 @@ app.post('/api/uploads', async (req, res) => {
     await fs.mkdir(uploadsDir, { recursive: true });
     await fs.writeFile(path.join(uploadsDir, storedName), buf);
 
-    res.json({ url: `/uploads/${encodeURIComponent(storedName)}`, fileName });
+    res.json({ url: `/api/uploads/${encodeURIComponent(storedName)}`, fileName });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

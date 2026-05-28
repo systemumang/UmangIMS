@@ -73,6 +73,16 @@ function formatDateShort(s: string) {
   return formatDateDDMMYYYYOnly(t) || '-';
 }
 
+function uploadDocumentHref(value: unknown) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+  if (raw.startsWith('/api/uploads/')) return raw;
+  if (raw.startsWith('/uploads/')) return `/api${raw}`;
+  if (raw.startsWith('uploads/')) return `/api/${raw}`;
+  return raw;
+}
+
 export default function OperationsView({
   onViewPr,
   initialTab = 'prs',
@@ -181,8 +191,6 @@ export default function OperationsView({
   const [adjustInvoiceAmounts, setAdjustInvoiceAmounts] = useState<Record<string, string>>({});
   const [adjustInvoicePaymentModes, setAdjustInvoicePaymentModes] = useState<Record<string, string>>({});
   const [advanceUploadBusyByIdx, setAdvanceUploadBusyByIdx] = useState<Record<number, boolean>>({});
-
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   const [editPoOpen, setEditPoOpen] = useState(false);
   const [editPoBusy, setEditPoBusy] = useState(false);
@@ -311,7 +319,6 @@ export default function OperationsView({
       setInlineGrnDetailById({});
       setInlineGrnLoadingById({});
       setInlineGrnErrorById({});
-      setSelectedRowId(null);
       setDetailOpen(false);
       }, [tab]);
 
@@ -1204,17 +1211,12 @@ export default function OperationsView({
 		                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
 	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
 	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
-                  const isSelected = selectedRowId === rowId;
                   return (
                     <React.Fragment key={rowId}>
-	                      <tr
-	                        className={cn(
-                            "hover:bg-surface-container-high/40 cursor-pointer transition-colors",
-                            isSelected ? "bg-orange-500 text-white" : ""
-                          )}
-	                        onClick={() => {
-                            setSelectedRowId(rowId);
-	                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
+		                      <tr
+		                        className="cursor-pointer"
+		                        onClick={() => {
+		                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
 	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);
 	                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
@@ -1223,7 +1225,7 @@ export default function OperationsView({
                       >
                     {tab === 'prs' ? (
                       <>
-            <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{formatPrNumber(r.prNumber ?? r.prId)}</td>
+	            <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{formatPrNumber(r.prNumber ?? r.prId)}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.store ?? '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant">{r.projectName ?? '-'}</td>
@@ -1233,7 +1235,7 @@ export default function OperationsView({
 	                      </>
 	                    ) : tab === 'pos' ? (
 	                      <>
-	                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.poNumber}</td>
+	                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
@@ -1288,7 +1290,7 @@ export default function OperationsView({
 			                      </>
 	                    ) : tab === 'grns' ? (
                       <>
-                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.grnNumber}</td>
+                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.grnNumber}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
@@ -1298,7 +1300,7 @@ export default function OperationsView({
 	                      </>
 				                    ) : tab === 'pendingAdjustments' ? (
 	                              <>
-                                <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.poNumber}</td>
+                                <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
@@ -1312,7 +1314,7 @@ export default function OperationsView({
 	                              </>
 		                            ) : tab === 'invoices' ? (
 					                      <>
-			                          <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.invoiceNo}</td>
+			                          <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.invoiceNo}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
@@ -1329,7 +1331,7 @@ export default function OperationsView({
 					                      </>
 		                    ) : tab === 'creditVouchers' ? (
 		                      <>
-		                        <td className={cn("px-3 py-2 border border-outline-variant font-semibold", isSelected ? "text-white" : "text-primary")}>{r.voucherNo}</td>
+		                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.voucherNo}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.voucherDate)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.firmShortName || r.firmName}</td>
@@ -1366,7 +1368,7 @@ export default function OperationsView({
                           <td className="px-3 py-2 border border-outline-variant">{String((r as any).mode ?? '') || '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">
                             {String((r as any).paymentCopy ?? '').trim() ? (
-                              <a href={String((r as any).paymentCopy)} target="_blank" rel="noreferrer" className={cn("underline", isSelected ? "text-white" : "text-primary")}>
+	                              <a href={uploadDocumentHref((r as any).paymentCopy)} target="_blank" rel="noreferrer" className="underline text-primary">
                                 View
                               </a>
                             ) : (
@@ -1504,7 +1506,7 @@ export default function OperationsView({
 	                                        <td className="px-3 py-2 border border-outline-variant">{String((a as any).paymentMode ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant">
 	                                          {String((a as any).paymentCopy ?? '').trim() ? (
-	                                            <a className="text-primary underline" href={String((a as any).paymentCopy)} target="_blank" rel="noreferrer">
+		                                            <a className="text-primary underline" href={uploadDocumentHref((a as any).paymentCopy)} target="_blank" rel="noreferrer">
 	                                              View
 	                                            </a>
 	                                          ) : (
@@ -1829,7 +1831,7 @@ export default function OperationsView({
 	                    <div className="flex items-center gap-2">
 	                    <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
 	                    <a
-	                    href={String((line as any).paymentCopy)}
+		                    href={uploadDocumentHref((line as any).paymentCopy)}
 	                    target="_blank"
 	                    rel="noreferrer"
 	                    className="text-xs text-primary underline font-medium"
