@@ -57,7 +57,10 @@
 		  }
 
 		  table thead th,
-		  table thead td {
+		  table thead td,
+		  table thead th button,
+		  table thead th span,
+		  table thead th svg {
 		    color: var(--color-on-primary) !important;
 		  }
 
