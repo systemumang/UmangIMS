@@ -65,12 +65,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const slice = rows.slice(start, start + pageSize);
-    if (selectedRowId) {
-      return slice.filter((r) => r.poId === selectedRowId);
-    }
-    return slice;
-  }, [page, pageSize, rows, selectedRowId]);
+    return rows.slice(start, start + pageSize);
+  }, [page, pageSize, rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<CreateGrnQueueRow | null>(null);
@@ -89,6 +85,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [expandedItemsByPoId, setExpandedItemsByPoId] = useState<Record<string, PendingItem[]>>({});
   const [expandedLoadingPoId, setExpandedLoadingPoId] = useState('');
   const [expandedErrorByPoId, setExpandedErrorByPoId] = useState<Record<string, string>>({});
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   function closeModal() {
     setModalOpen(false);
@@ -171,9 +168,11 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     if (!poId) return;
     if (expandedPoId === poId) {
       setExpandedPoId('');
+      setSelectedItemId(null);
       return;
     }
     setExpandedPoId(poId);
+    setSelectedItemId(null);
     if (expandedItemsByPoId[poId] || expandedLoadingPoId === poId) return;
     setExpandedLoadingPoId(poId);
     setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: '' }));
@@ -279,8 +278,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                                </thead>
 	                                <tbody>
 	                                  {expandedItems.length ? (
-	                                    expandedItems.map((it) => (
-	                                      <tr key={it.itemId}>
+	                                    expandedItems
+                                        .filter((it) => !selectedItemId || it.itemId === selectedItemId)
+                                        .map((it) => (
+	                                      <tr
+                                          key={it.itemId}
+                                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
+                                          onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+                                        >
 	                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
                                         <td className="px-3 py-2 border border-outline-variant">{String((it as any).priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>

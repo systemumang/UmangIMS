@@ -81,10 +81,8 @@ export default function PurchaseTable({
 
 		  const pagedRequests = useMemo(() => {
 		    const start = (page - 1) * pageSize;
-		    return filteredRequests
-          .filter(r => !selectedRequestId || r.id === selectedRequestId)
-          .slice(start, start + pageSize);
-		  }, [filteredRequests, page, pageSize, selectedRequestId]);
+		    return filteredRequests.slice(start, start + pageSize);
+		  }, [filteredRequests, page, pageSize]);
 
       const exportCsv = () => {
         if (onExportExcel) return onExportExcel();

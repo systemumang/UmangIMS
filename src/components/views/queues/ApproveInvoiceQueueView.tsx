@@ -37,17 +37,15 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
   }, [filters]);
 
   const displayRows = useMemo(() => {
-    if (selectedRowId) {
-      return rows.filter((r) => r.invoiceId === selectedRowId);
-    }
     return rows;
-  }, [rows, selectedRowId]);
+  }, [rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<ApproveInvoiceQueueRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [invoiceDetail, setInvoiceDetail] = useState<InvoiceWithItems | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [approvedBy, setApprovedBy] = useState('');
   const [approveDate, setApproveDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -58,6 +56,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setSaving(false);
     setModalError(null);
     setInvoiceDetail(null);
+    setSelectedItemId(null);
     setDetailLoading(false);
     setApprovedBy('');
     setApproveDate(new Date().toISOString().slice(0, 10));
@@ -75,6 +74,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     let canceled = false;
     setDetailLoading(true);
     setInvoiceDetail(null);
+    setSelectedItemId(null);
     fetchInvoicesByPrId(active.prId)
       .then((all) => {
         if (canceled) return;
@@ -260,14 +260,20 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                       </tr>
                     </thead>
                     <tbody>
-                      {invoiceDetail.items.map((it) => (
-                        <tr key={it.id || `${it.itemId}-${it.item}`}>
-                          <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
-                          <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.quantity ?? 0).toFixed(2)}</td>
-                          <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.rate ?? 0).toFixed(2)}</td>
-                          <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
-                        </tr>
-                      ))}
+                      {invoiceDetail.items
+                        .filter((it) => !selectedItemId || it.itemId === selectedItemId)
+                        .map((it) => (
+                          <tr
+                            key={it.id || `${it.itemId}-${it.item}`}
+                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
+                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+                          >
+                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.quantity ?? 0).toFixed(2)}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.rate ?? 0).toFixed(2)}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>

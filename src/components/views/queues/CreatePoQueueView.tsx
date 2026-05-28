@@ -72,17 +72,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const slice = rows.slice(start, start + pageSize);
-    if (selectedRowId) {
-      return slice.filter((r) => r.prId === selectedRowId);
-    }
-    return slice;
-  }, [page, pageSize, rows, selectedRowId]);
+    return rows.slice(start, start + pageSize);
+  }, [page, pageSize, rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalKind, setModalKind] = useState<'po' | 'rfq'>('po');
   const [activePrId, setActivePrId] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 		  const [modalLoading, setModalLoading] = useState(false);
@@ -119,6 +116,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
       setModalKind('po');
 		    setActivePrId(null);
 		    setLines([]);
+      setSelectedLineId(null);
 	    setModalError(null);
 	    setSaving(false);
 	    setModalLoading(false);
@@ -130,6 +128,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     const ac = new AbortController();
     setModalError(null);
     setModalLoading(true);
+    setSelectedLineId(null);
     Promise.all([fetchRequest(activePrId, ac.signal), fetchPos(activePrId, ac.signal)])
       .then(async ([pr, pos]) => {
         const activeRow = rows.find((r) => r.prId === activePrId);
@@ -515,44 +514,52 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
               </thead>
               <tbody>
                 {lines.length ? (
-                  lines.map((l, idx) => (
-                    <tr key={l.itemId}>
-	                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-	                        {formatItemInline(l.item, l.specification, specNameById)}
-		                      </td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
-	                      {modalKind === 'rfq' ? (
-	                        <>
-	                          <td className="px-3 py-2 border border-outline-variant">
-	                            <input
-	                              className={cn(inputClass, 'py-1.5')}
-	                              value={l.quantity}
-	                              onChange={(e) =>
-	                                setLines((prev) => {
-	                                  const next = prev.slice();
-	                                  next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
-	                                  return next;
-	                                })
-	                              }
-	                              type="text"
-	                              inputMode="decimal"
-	                            />
-	                          </td>
-	                          <td className="px-3 py-2 border border-outline-variant">
-	                            <SearchableSelect
-	                              value={l.supplierId}
-	                              options={supplierOptions}
-	                              allowClear
-	                              disabled={masters.loading}
-		                              placeholder=""
-		                              onChange={(nextId) => {
-		                                const safeId = String(nextId ?? '').trim();
-		                                setLines((prev) => {
-		                                  const next = prev.slice();
-		                                  next[idx] = { ...next[idx]!, supplierId: safeId };
-		                                  return next;
-		                                });
-		                              }}
+                  lines
+                    .filter((l) => !selectedLineId || l.itemId === selectedLineId)
+                    .map((l) => {
+                      const idx = lines.findIndex((x) => x.itemId === l.itemId);
+                      return (
+                        <tr
+                          key={l.itemId}
+                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedLineId === l.itemId && 'bg-primary/10')}
+                          onClick={() => setSelectedLineId(selectedLineId === l.itemId ? null : l.itemId)}
+                        >
+                          <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+                            {formatItemInline(l.item, l.specification, specNameById)}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
+                          {modalKind === 'rfq' ? (
+                            <>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.quantity}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <SearchableSelect
+                                  value={l.supplierId}
+                                  options={supplierOptions}
+                                  allowClear
+                                  disabled={masters.loading}
+                                  placeholder=""
+                                  onChange={(nextId) => {
+                                    const safeId = String(nextId ?? '').trim();
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, supplierId: safeId };
+                                      return next;
+                                    });
+                                  }}
                                   showCreateWhenEmpty
                                   alwaysShowCreate
                                   allowEmptyCreate
@@ -564,140 +571,141 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                     setSupplierCreateOpen(true);
                                     return null;
                                   }}
-		                            />
-	                          </td>
-	                        </>
-	                      ) : (
-	                        <>
-	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
-	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
-	                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-                            {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={l.quantity}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={l.rate}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, rate: sanitizeDecimalInput(e.target.value) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={l.discountPercent}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, discountPercent: sanitizePercentInput(e.target.value) };
-                                  return next;
-                                })
-                              }
-                              onBlur={() =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, discountPercent: clampPercentString(next[idx]!.discountPercent) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant">
-	                            <select
-	                              className={cn(inputClass, 'py-1.5')}
-	                              value={String(l.taxPercent ?? '')}
-	                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, taxPercent: clampPercentString(e.target.value) };
-                                  return next;
-                                })
-                              }
-                            >
-	                              {gstPercentOptions.map((v) => (
-	                                <option key={v} value={v}>
-	                                  {v}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <SearchableSelect
-                              value={l.supplierId}
-                              options={supplierOptions}
-                              allowClear
-                              disabled={masters.loading}
-	                              placeholder=""
-                              onChange={(nextId) => {
-                                const safeId = String(nextId ?? '').trim();
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  if (!safeId) {
-                                    next[idx] = { ...next[idx]!, supplierId: '', paymentTerms: '' };
-                                    return next;
+                                />
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.quantity}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+                                      return next;
+                                    })
                                   }
-	                                  const suggested = String(supplierRows.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
-                                  const currentTerms = String(next[idx]?.paymentTerms ?? '').trim();
-                                  next[idx] = { ...next[idx]!, supplierId: safeId, paymentTerms: currentTerms || suggested };
-                                  return next;
-	                                });
-	                              }}
-                                showCreateWhenEmpty
-                                alwaysShowCreate
-                                allowEmptyCreate
-                                closeOnCreate
-                                createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
-                                onCreate={async (label) => {
-                                  setSupplierCreateLineIndex(idx);
-                                  setNewSupplierName(String(label ?? '').trim());
-                                  setSupplierCreateOpen(true);
-                                  return null;
-                                }}
-	                            />
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={l.paymentTerms}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, paymentTerms: e.target.value };
-                                  return next;
-                                })
-                              }
-	                            />
-	                          </td>
-		                        </>
-		                      )}
-	                    </tr>
-                  ))
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.rate}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, rate: sanitizeDecimalInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.discountPercent}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, discountPercent: sanitizePercentInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  onBlur={() =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, discountPercent: clampPercentString(next[idx]!.discountPercent) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={String(l.taxPercent ?? '')}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, taxPercent: clampPercentString(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                >
+                                  {gstPercentOptions.map((v) => (
+                                    <option key={v} value={v}>
+                                      {v}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <SearchableSelect
+                                  value={l.supplierId}
+                                  options={supplierOptions}
+                                  allowClear
+                                  disabled={masters.loading}
+                                  placeholder=""
+                                  onChange={(nextId) => {
+                                    const safeId = String(nextId ?? '').trim();
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      if (!safeId) {
+                                        next[idx] = { ...next[idx]!, supplierId: '', paymentTerms: '' };
+                                        return next;
+                                      }
+                                      const suggested = String(supplierRows.find((s) => s.id === safeId)?.paymentTerms ?? '').trim();
+                                      const currentTerms = String(next[idx]?.paymentTerms ?? '').trim();
+                                      next[idx] = { ...next[idx]!, supplierId: safeId, paymentTerms: currentTerms || suggested };
+                                      return next;
+                                    });
+                                  }}
+                                  showCreateWhenEmpty
+                                  alwaysShowCreate
+                                  allowEmptyCreate
+                                  closeOnCreate
+                                  createLabel={(q) => (q ? `+ Add Supplier "${q}"` : '+ Add Supplier')}
+                                  onCreate={async (label) => {
+                                    setSupplierCreateLineIndex(idx);
+                                    setNewSupplierName(String(label ?? '').trim());
+                                    setSupplierCreateOpen(true);
+                                    return null;
+                                  }}
+                                />
+                              </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.paymentTerms}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, paymentTerms: e.target.value };
+                                      return next;
+                                    })
+                                  }
+                                />
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })
 			                ) : (
 			                  <tr>
 					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 13}>

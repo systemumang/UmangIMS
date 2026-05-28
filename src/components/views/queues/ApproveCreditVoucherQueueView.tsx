@@ -41,12 +41,8 @@ export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: {
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const slice = rows.slice(start, start + pageSize);
-    if (selectedRowId) {
-      return slice.filter((r) => r.creditVoucherId === selectedRowId);
-    }
-    return slice;
-  }, [page, rows, selectedRowId]);
+    return rows.slice(start, start + pageSize);
+  }, [page, rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<ApproveCreditVoucherQueueRow | null>(null);

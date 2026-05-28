@@ -149,6 +149,7 @@ export default function OperationsView({
   const [inlineInvoiceReceiptsLoadingById, setInlineInvoiceReceiptsLoadingById] = useState<Record<string, boolean>>({});
   const [inlineInvoiceReceiptsErrorById, setInlineInvoiceReceiptsErrorById] = useState<Record<string, string>>({});
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedNestedRowId, setSelectedNestedRowId] = useState<string | null>(null);
 
   const getRowId = (r: any, currentTab: OpsTab) => {
     if (!r) return '';
@@ -339,11 +340,13 @@ export default function OperationsView({
       setInlineGrnErrorById({});
       setDetailOpen(false);
       setSelectedRowId(null);
+      setSelectedNestedRowId(null);
       }, [tab]);
 
 	  useEffect(() => {
 	    setPage(1);
 	    setSelectedRowId(null);
+      setSelectedNestedRowId(null);
 	  }, [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
 
   useEffect(() => {
@@ -1201,9 +1204,7 @@ export default function OperationsView({
 			                  </td>
 			                </tr>
 		              ) : (
-                (paged as any[])
-                  .filter((r) => !selectedRowId || getRowId(r, tab) === selectedRowId)
-                  .map((r) => {
+                (paged as any[]).map((r) => {
 	                  const rowId = getRowId(r, tab);
 			                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
                       const isGrnExpanded = tab === 'grns' ? expandedGrnIds.includes(String(r.grnId ?? '')) : false;
@@ -1228,6 +1229,7 @@ export default function OperationsView({
 		                        className={cn("cursor-pointer", selectedRowId === rowId && "bg-primary/10")}
 		                        onClick={() => {
 		                          setSelectedRowId((prev) => (prev === rowId ? null : rowId));
+                              setSelectedNestedRowId(null);
 		                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
 	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);
@@ -1409,8 +1411,17 @@ export default function OperationsView({
 	                                  </thead>
 	                                  <tbody>
 	                                    {(grnDetail?.grn?.items ?? []).length ? (
-	                                      (grnDetail?.grn?.items ?? []).map((it: any, idx: number) => (
-	                                        <tr key={`${String(r.grnId ?? '')}-grn-it-${idx}`}>
+	                                      (grnDetail?.grn?.items ?? [])
+                                          .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
+                                          .map((it: any, idx: number) => (
+	                                        <tr
+                                            key={`${String(r.grnId ?? '')}-grn-it-${idx}`}
+                                            className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+                                            }}
+                                          >
 	                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
@@ -1459,14 +1470,23 @@ export default function OperationsView({
                                     </thead>
                                     <tbody>
                                       {(detail?.po?.items ?? []).length ? (
-                                        (detail?.po?.items ?? []).map((it: any, idx: number) => {
+                                        (detail?.po?.items ?? [])
+                                          .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
+                                          .map((it: any, idx: number) => {
                                           const qty = Number(it?.quantity ?? 0);
                                           const rate = Number(it?.rate ?? 0);
                                           const disc = Number(it?.discountPercent ?? 0);
                                           const base = qty * rate;
                                           const total = base - base * (disc / 100);
                                           return (
-	                                            <tr key={`${String(r.poId ?? '')}-it-${idx}`}>
+	                                            <tr
+                                                key={`${String(r.poId ?? '')}-it-${idx}`}
+                                                className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+                                                }}
+                                              >
 	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
@@ -1511,8 +1531,17 @@ export default function OperationsView({
 	                                    </tr>
 	                                  </thead>
 	                                  <tbody>
-	                                    {advanceRows.map((a) => (
-	                                      <tr key={String(a.id)}>
+	                                    {advanceRows
+                                        .filter((a) => !selectedNestedRowId || String(a.id) === selectedNestedRowId)
+                                        .map((a) => (
+	                                      <tr
+                                          key={String(a.id)}
+                                          className={cn("cursor-pointer", selectedNestedRowId === String(a.id) && "bg-primary/10")}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedNestedRowId(prev => prev === String(a.id) ? null : String(a.id));
+                                          }}
+                                        >
 	                                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant">{String((a as any).paymentMode ?? '').trim() || '-'}</td>
@@ -1562,8 +1591,17 @@ export default function OperationsView({
                                         </thead>
                                         <tbody>
                                           {(inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).length ? (
-                                            (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).map((x) => (
-                                              <tr key={x.id}>
+                                            (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? [])
+                                              .filter((x) => !selectedNestedRowId || String(x.id) === selectedNestedRowId)
+                                              .map((x) => (
+                                              <tr
+                                                key={x.id}
+                                                className={cn("cursor-pointer", selectedNestedRowId === String(x.id) && "bg-primary/10")}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedNestedRowId(prev => prev === String(x.id) ? null : String(x.id));
+                                                }}
+                                              >
                                                 <td className="px-3 py-2 border border-outline-variant">
                                                   {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Advance'}
                                                 </td>
@@ -1631,8 +1669,18 @@ export default function OperationsView({
                                           </thead>
                                           <tbody>
                                             {(inlineCreditVoucherItemsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
-                                              (inlineCreditVoucherItemsById[String(r.creditVoucherId ?? '')] ?? []).map((it, idx) => (
-                                                <tr key={idx} className="hover:bg-surface-container-high/20">
+                                              (inlineCreditVoucherItemsById[String(r.creditVoucherId ?? '')] ?? [])
+                                                .filter((it) => !selectedNestedRowId || `${it.itemName}-${it.quantity}` === selectedNestedRowId)
+                                                .map((it, idx) => (
+                                                <tr
+                                                  key={idx}
+                                                  className={cn("cursor-pointer", selectedNestedRowId === `${it.itemName}-${it.quantity}` && "bg-primary/10")}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const nid = `${it.itemName}-${it.quantity}`;
+                                                    setSelectedNestedRowId(prev => prev === nid ? null : nid);
+                                                  }}
+                                                >
                                                   <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.itemName || '-'}</td>
                                                   <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
                                                   <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
@@ -1684,8 +1732,18 @@ export default function OperationsView({
                                           </thead>
                                           <tbody>
                                             {(inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
-                                              (inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).map((x) => (
-                                                <tr key={String(x.id ?? '')} className="hover:bg-surface-container-high/40">
+                                              (inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? [])
+                                                .filter((x) => !selectedNestedRowId || String(x.id ?? '') === selectedNestedRowId)
+                                                .map((x) => (
+                                                <tr
+                                                  key={String(x.id ?? '')}
+                                                  className={cn("cursor-pointer", selectedNestedRowId === String(x.id ?? '') && "bg-primary/10")}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const nid = String(x.id ?? '');
+                                                    setSelectedNestedRowId(prev => prev === nid ? null : nid);
+                                                  }}
+                                                >
                                                   <td className="px-3 py-2 border border-outline-variant">{formatDateShort(x.createdAt || '')}</td>
                                                   <td className="px-3 py-2 border border-outline-variant">
                                                     <span className={cn(

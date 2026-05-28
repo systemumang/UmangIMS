@@ -78,12 +78,8 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const slice = rows.slice(start, start + pageSize);
-    if (selectedRowId) {
-      return slice.filter((r) => r.poId === selectedRowId);
-    }
-    return slice;
-  }, [page, pageSize, rows, selectedRowId]);
+    return rows.slice(start, start + pageSize);
+  }, [page, pageSize, rows]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<EnterInvoiceQueueRow | null>(null);
@@ -108,6 +104,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const [invPdfFile, setInvPdfFile] = useState<File | null>(null);
   const [cnCopyFile, setCnCopyFile] = useState<File | null>(null);
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -134,6 +131,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	    setInvPdfFile(null);
 		    setCnCopyFile(null);
 		    setLines([]);
+      setSelectedItemId(null);
 	    setModalLoading(false);
 	    setSaving(false);
 	    setModalError(null);
@@ -145,6 +143,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     const ac = new AbortController();
 	    setModalError(null);
 	    setModalLoading(true);
+      setSelectedItemId(null);
 	    Promise.all([fetchPendingInvoiceItems(active.poId, ac.signal), fetchWorkflow(active.prId, ac.signal, active.poId)])
 	      .then(([pendingItems, wf]) => {
 	        if (ac.signal.aborted) return;
@@ -281,9 +280,11 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     if (!poId) return;
     if (expandedPoId === poId) {
       setExpandedPoId('');
+      setSelectedItemId(null);
       return;
     }
     setExpandedPoId(poId);
+    setSelectedItemId(null);
     if (expandedItemsByPoId[poId] || expandedLoadingPoId === poId) return;
     setExpandedLoadingPoId(poId);
     setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: '' }));
@@ -389,13 +390,19 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                 </thead>
                                 <tbody>
                                   {expandedItems.length ? (
-                                    expandedItems.map((it) => (
-                                      <tr key={it.itemId}>
-                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
-                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
-                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
-                                      </tr>
-                                    ))
+                                    expandedItems
+                                      .filter((it) => !selectedItemId || it.itemId === selectedItemId)
+                                      .map((it) => (
+                                        <tr
+                                          key={it.itemId}
+                                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
+                                          onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+                                        >
+                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                                        </tr>
+                                      ))
                                   ) : (
                                     <tr>
                                       <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
@@ -714,67 +721,76 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
               </thead>
               <tbody>
                 {lines.length ? (
-	                  lines.map((ln, idx) => (
-	                    <tr key={ln.itemId}>
-	                      <td className="px-3 py-2 text-sm border border-outline-variant/30">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
-	                      <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.pendingQty}</td>
-	                      <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.poRate}</td>
-		                      <td className="px-3 py-2 border border-outline-variant/30">
-		                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={ln.invRate}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, invRate: sanitizeDecimalInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-                        {supplierHasGst ? (
-		                      <td className="px-3 py-2 border border-outline-variant/30">
-		                        <input
-		                          className={cn(inputClass, 'py-1.5')}
-		                          value={ln.gstPercent}
-		                          onChange={(e) =>
-		                            setLines((prev) => {
-		                              const next = prev.slice();
-		                              next[idx] = { ...next[idx]!, gstPercent: sanitizePercentInput(e.target.value) };
-		                              return next;
-		                            })
-		                          }
-		                          onBlur={() =>
-		                            setLines((prev) => {
-		                              const next = prev.slice();
-		                              next[idx] = { ...next[idx]!, gstPercent: clampPercentString(next[idx]!.gstPercent) };
-		                              return next;
-		                            })
-		                          }
-		                          type="text"
-		                          inputMode="decimal"
-		                        />
-		                      </td>
-                        ) : null}
-	                      <td className="px-3 py-2 border border-outline-variant/30">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-	                          value={ln.invoiceQty}
-	                          onChange={(e) =>
-	                            setLines((prev) => {
-	                              const next = prev.slice();
-	                              next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
-	                              return next;
-	                            })
-	                          }
-	                          type="text"
-	                          inputMode="decimal"
-	                        />
-	                      </td>
-                    </tr>
-                  ))
+                  lines
+                    .filter((ln) => !selectedItemId || ln.itemId === selectedItemId)
+                    .map((ln) => {
+                      const idx = lines.findIndex((x) => x.itemId === ln.itemId);
+                      return (
+                        <tr
+                          key={ln.itemId}
+                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === ln.itemId && 'bg-primary/10')}
+                          onClick={() => setSelectedItemId(selectedItemId === ln.itemId ? null : ln.itemId)}
+                        >
+                          <td className="px-3 py-2 text-sm border border-outline-variant/30">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.pendingQty}</td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.poRate}</td>
+                          <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={ln.invRate}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, invRate: sanitizeDecimalInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          {supplierHasGst ? (
+                            <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={ln.gstPercent}
+                                onChange={(e) =>
+                                  setLines((prev) => {
+                                    const next = prev.slice();
+                                    next[idx] = { ...next[idx]!, gstPercent: sanitizePercentInput(e.target.value) };
+                                    return next;
+                                  })
+                                }
+                                onBlur={() =>
+                                  setLines((prev) => {
+                                    const next = prev.slice();
+                                    next[idx] = { ...next[idx]!, gstPercent: clampPercentString(next[idx]!.gstPercent) };
+                                    return next;
+                                  })
+                                }
+                                type="text"
+                                inputMode="decimal"
+                              />
+                            </td>
+                          ) : null}
+                          <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={ln.invoiceQty}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
                 ) : (
                   <tr>
                     <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant/30" colSpan={6}>
