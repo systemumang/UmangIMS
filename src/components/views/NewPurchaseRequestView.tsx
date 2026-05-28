@@ -79,7 +79,7 @@ export default function NewPurchaseRequestView({
     if (!Number.isFinite(l) || l <= 0) return NaN;
     if (!Number.isFinite(b) || b <= 0) return NaN;
     if (!Number.isFinite(p) || p < 1) return NaN;
-    return l * b * p;
+    return round2(l * b * p);
   }
 
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
@@ -1098,14 +1098,14 @@ export default function NewPurchaseRequestView({
                                   <div className="text-xs text-on-surface-variant opacity-80">-</div>
                                 )}
                               </div>
-								                <div className="px-2 py-2 border-r border-outline-variant space-y-1">
+								                <div className="px-2 py-2 border-r border-outline-variant space-y-1 bg-surface-container-high/50">
 						                  <input
 						                    className={inputClass}
 						                    placeholder="Qty"
 						                    type="number"
-						                    inputMode="numeric"
+						                    inputMode="decimal"
 						                    min={0}
-						                    step={1}
+						                    step={0.01}
 						                    value={row.quantity}
                                 disabled={isAreaUnit}
 						                    onChange={(e) => {
