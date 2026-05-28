@@ -15,6 +15,8 @@ import {
 				  fetchOperationsGrns,
       fetchOperationsInvoiceDetail,
       fetchInvoiceReceipts,
+      fetchCreditVoucherReceipts,
+      fetchCreditVoucherItems,
       deleteReceiptRow,
       fetchOperationsAdvances,
 	  fetchOperationsInvoices,
@@ -144,6 +146,12 @@ export default function OperationsView({
   >({});
   const [inlineCreditVoucherReceiptsLoadingById, setInlineCreditVoucherReceiptsLoadingById] = useState<Record<string, boolean>>({});
   const [inlineCreditVoucherReceiptsErrorById, setInlineCreditVoucherReceiptsErrorById] = useState<Record<string, string>>({});
+
+  const [inlineCreditVoucherItemsById, setInlineCreditVoucherItemsById] = useState<
+    Record<string, Array<{ itemName: string; quantity: number; rate: number; amount: number }>>
+  >({});
+  const [inlineCreditVoucherItemsLoadingById, setInlineCreditVoucherItemsLoadingById] = useState<Record<string, boolean>>({});
+  const [inlineCreditVoucherItemsErrorById, setInlineCreditVoucherItemsErrorById] = useState<Record<string, string>>({});
 
   const [expandedPoIds, setExpandedPoIds] = useState<string[]>([]);
   const [inlinePoDetailById, setInlinePoDetailById] = useState<Record<string, any>>({});
@@ -924,29 +932,42 @@ export default function OperationsView({
       setExpandedCreditVoucherReceiptIds((prev) => prev.filter((x) => x !== cvId));
       return;
     }
-    if (inlineCreditVoucherReceiptsById[cvId]) {
+    if (inlineCreditVoucherReceiptsById[cvId] && inlineCreditVoucherItemsById[cvId]) {
       setExpandedCreditVoucherReceiptIds((prev) => (prev.includes(cvId) ? prev : [...prev, cvId]));
       return;
     }
     if (inlineCreditVoucherReceiptsLoadingById[cvId]) return;
     setInlineCreditVoucherReceiptsLoadingById((prev) => ({ ...prev, [cvId]: true }));
+    setInlineCreditVoucherItemsLoadingById((prev) => ({ ...prev, [cvId]: true }));
     setInlineCreditVoucherReceiptsErrorById((prev) => {
       const next = { ...prev };
       delete next[cvId];
       return next;
     });
+    setInlineCreditVoucherItemsErrorById((prev) => {
+      const next = { ...prev };
+      delete next[cvId];
+      return next;
+    });
     try {
-      const payload = await fetchCreditVoucherReceipts(cvId);
+      const [payload, items] = await Promise.all([
+        fetchCreditVoucherReceipts(cvId),
+        fetchCreditVoucherItems(cvId),
+      ]);
       setInlineCreditVoucherReceiptsById((prev) => ({ ...prev, [cvId]: payload.receipts ?? [] }));
       setInlineCreditVoucherReceiptTotalsById((prev) => ({
         ...prev,
         [cvId]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 },
       }));
+      setInlineCreditVoucherItemsById((prev) => ({ ...prev, [cvId]: items }));
       setExpandedCreditVoucherReceiptIds((prev) => (prev.includes(cvId) ? prev : [...prev, cvId]));
     } catch (e) {
-      setInlineCreditVoucherReceiptsErrorById((prev) => ({ ...prev, [cvId]: e instanceof Error ? e.message : String(e) }));
+      const msg = e instanceof Error ? e.message : String(e);
+      setInlineCreditVoucherReceiptsErrorById((prev) => ({ ...prev, [cvId]: msg }));
+      setInlineCreditVoucherItemsErrorById((prev) => ({ ...prev, [cvId]: msg }));
     } finally {
       setInlineCreditVoucherReceiptsLoadingById((prev) => ({ ...prev, [cvId]: false }));
+      setInlineCreditVoucherItemsLoadingById((prev) => ({ ...prev, [cvId]: false }));
     }
   };
 
@@ -1567,104 +1588,132 @@ export default function OperationsView({
                           {tab === 'creditVouchers' && isCreditVoucherReceiptExpanded ? (
                             <tr>
                               <td colSpan={11} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
-                                {inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] ? (
-                                  <div className="text-sm text-on-surface-variant">Loading credit voucher receipts...</div>
-                                ) : null}
-                                {!inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] &&
-                                inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')] ? (
-                                  <div className="text-sm text-error">
-                                    {inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')]}
-                                  </div>
-                                ) : null}
-                                {!inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] &&
-                                !inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')] ? (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                                      <div>
-                                        Adjusted Amount:{' '}
-                                        <span className="text-primary tabular-nums">
-                                          {Number(
-                                            inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.adjustedAmount ?? 0
-                                          ).toFixed(2)}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        Actual Payment:{' '}
-                                        <span className="text-emerald-600 tabular-nums">
-                                          {Number(
-                                            inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.actualReceiptAmount ?? 0
-                                          ).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm bg-surface">
-                                        <thead>
-                                          <tr className="bg-primary text-on-primary">
-                                            <th className="px-3 py-2 border border-outline-variant">Date</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Receipt Type</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Amount</th>
-                                            <th className="px-3 py-2 border border-outline-variant w-[80px]">Action</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {(inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
-                                            (inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).map((x) => (
-                                              <tr key={String(x.id ?? '')} className="hover:bg-surface-container-high/40">
-                                                <td className="px-3 py-2 border border-outline-variant">
-                                                  {formatDateShort(x.createdAt || '')}
-                                                </td>
-                                                <td className="px-3 py-2 border border-outline-variant">{x.receiptType}</td>
-                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
-                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">
-                                                  {Number(x.amount ?? 0).toFixed(2)}
-                                                </td>
-                                                <td className="px-3 py-2 border border-outline-variant">
-                                                  <button
-                                                    type="button"
-                                                    className="text-error hover:text-error/80 transition-colors"
-                                                    title="Delete"
-                                                    aria-label="Delete"
-                                                    onClick={async (e) => {
-                                                      e.stopPropagation();
-                                                      const id = String(x.id ?? '').trim();
-                                                      if (!id) return;
-                                                      await deleteReceiptRow(id);
-                                                      // Refresh this CV's receipt list.
-                                                      const payload = await fetchCreditVoucherReceipts(
-                                                        String(r.creditVoucherId ?? '').trim()
-                                                      );
-                                                      setInlineCreditVoucherReceiptsById((prev) => ({
-                                                        ...prev,
-                                                        [String(r.creditVoucherId ?? '')]: payload.receipts ?? [],
-                                                      }));
-                                                      setInlineCreditVoucherReceiptTotalsById((prev) => ({
-                                                        ...prev,
-                                                        [String(r.creditVoucherId ?? '')]: payload.totals ?? {
-                                                          adjustedAmount: 0,
-                                                          actualReceiptAmount: 0,
-                                                        },
-                                                      }));
-                                                    }}
-                                                  >
-                                                    <Trash2 size={16} />
-                                                  </button>
-                                                </td>
-                                              </tr>
-                                            ))
-                                          ) : (
-                                            <tr>
-                                              <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-                                                No receipt rows found.
-                                              </td>
+                                <div className="space-y-6">
+                                  {/* Voucher Items Section */}
+                                  <div>
+                                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Voucher Items</div>
+                                    {inlineCreditVoucherItemsLoadingById[String(r.creditVoucherId ?? '')] ? (
+                                      <div className="text-sm text-on-surface-variant">Loading items...</div>
+                                    ) : inlineCreditVoucherItemsErrorById[String(r.creditVoucherId ?? '')] ? (
+                                      <div className="text-sm text-error">{inlineCreditVoucherItemsErrorById[String(r.creditVoucherId ?? '')]}</div>
+                                    ) : (
+                                      <div className="overflow-x-auto rounded border border-outline-variant/30">
+                                        <table className="w-full min-w-[600px] table-fixed text-left border-collapse text-sm bg-surface">
+                                          <thead>
+                                            <tr className="bg-surface-container-high text-on-surface-variant">
+                                              <th className="px-3 py-2 border border-outline-variant">Service/Item Name</th>
+                                              <th className="px-3 py-2 border border-outline-variant text-right w-[100px]">Qty</th>
+                                              <th className="px-3 py-2 border border-outline-variant text-right w-[120px]">Rate</th>
+                                              <th className="px-3 py-2 border border-outline-variant text-right w-[120px]">Total</th>
                                             </tr>
-                                          )}
-                                        </tbody>
-                                      </table>
-                                    </div>
+                                          </thead>
+                                          <tbody>
+                                            {(inlineCreditVoucherItemsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
+                                              (inlineCreditVoucherItemsById[String(r.creditVoucherId ?? '')] ?? []).map((it, idx) => (
+                                                <tr key={idx} className="hover:bg-surface-container-high/20">
+                                                  <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.itemName || '-'}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">{Number(it.amount ?? 0).toFixed(2)}</td>
+                                                </tr>
+                                              ))
+                                            ) : (
+                                              <tr>
+                                                <td colSpan={4} className="px-3 py-3 text-center text-on-surface-variant italic">No items found.</td>
+                                              </tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
                                   </div>
-                                ) : null}
+
+                                  {/* Receipts Section */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Adjustment & Payment Details</div>
+                                      <div className="flex items-center gap-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="w-2 h-2 rounded-full bg-primary" />
+                                          Adjusted: <span className="text-primary tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.adjustedAmount ?? 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                          Paid: <span className="text-emerald-600 tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {inlineCreditVoucherReceiptsLoadingById[String(r.creditVoucherId ?? '')] ? (
+                                      <div className="text-sm text-on-surface-variant">Loading receipts...</div>
+                                    ) : inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')] ? (
+                                      <div className="text-sm text-error">{inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')]}</div>
+                                    ) : (
+                                      <div className="overflow-x-auto rounded border border-outline-variant/30">
+                                        <table className="w-full min-w-[720px] table-fixed text-left border-collapse text-sm bg-surface">
+                                          <thead>
+                                            <tr className="bg-surface-container-high text-on-surface-variant">
+                                              <th className="px-3 py-2 border border-outline-variant w-[120px]">Date</th>
+                                              <th className="px-3 py-2 border border-outline-variant">Type</th>
+                                              <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+                                              <th className="px-3 py-2 border border-outline-variant text-right w-[150px]">Amount</th>
+                                              <th className="px-3 py-2 border border-outline-variant w-[80px] text-center">Action</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
+                                              (inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).map((x) => (
+                                                <tr key={String(x.id ?? '')} className="hover:bg-surface-container-high/40">
+                                                  <td className="px-3 py-2 border border-outline-variant">{formatDateShort(x.createdAt || '')}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant">
+                                                    <span className={cn(
+                                                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                                      x.receiptType === 'DIRECT_PAYMENT' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                                                    )}>
+                                                      {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Adjustment'}
+                                                    </span>
+                                                  </td>
+                                                  <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">
+                                                    {Number(x.amount ?? 0).toFixed(2)}
+                                                  </td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-center">
+                                                    <button
+                                                      type="button"
+                                                      className="p-1 text-error hover:bg-error/10 rounded-md transition-colors"
+                                                      title="Delete Receipt"
+                                                      onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        const id = String(x.id ?? '').trim();
+                                                        if (!id || !confirm('Are you sure you want to delete this receipt row?')) return;
+                                                        await deleteReceiptRow(id);
+                                                        const payload = await fetchCreditVoucherReceipts(String(r.creditVoucherId ?? '').trim());
+                                                        setInlineCreditVoucherReceiptsById((prev) => ({
+                                                          ...prev,
+                                                          [String(r.creditVoucherId ?? '')]: payload.receipts ?? [],
+                                                        }));
+                                                        setInlineCreditVoucherReceiptTotalsById((prev) => ({
+                                                          ...prev,
+                                                          [String(r.creditVoucherId ?? '')]: payload.totals ?? { adjustedAmount: 0, actualReceiptAmount: 0 },
+                                                        }));
+                                                      }}
+                                                    >
+                                                      <Trash2 size={14} />
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                              ))
+                                            ) : (
+                                              <tr>
+                                                <td colSpan={5} className="px-3 py-3 text-center text-on-surface-variant italic">No receipt rows found.</td>
+                                              </tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               </td>
                             </tr>
                           ) : null}

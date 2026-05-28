@@ -405,6 +405,20 @@ export async function fetchCreditVoucherReceipts(
   };
 }
 
+export async function fetchCreditVoucherItems(
+  cvId: string,
+  signal?: AbortSignal
+): Promise<Array<{ itemName: string; quantity: number; rate: number; amount: number }>> {
+  const res = await fetch(`/api/credit-vouchers/${encodeURIComponent(cvId)}/items`, { signal });
+  const data = await requireOk<{ items?: any[] }>(res, 'Failed to load credit voucher items');
+  return (data.items ?? []).map((r: any) => ({
+    itemName: String(r.itemName ?? ''),
+    quantity: Number(r.quantity ?? 0),
+    rate: Number(r.rate ?? 0),
+    amount: Number(r.amount ?? 0),
+  }));
+}
+
 export async function deleteReceiptRow(receiptId: string): Promise<{ ok: boolean; invoiceId?: string }> {
   const res = await fetch(`/api/receipts/${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
   return requireOk<{ ok: boolean; invoiceId?: string }>(res, 'Failed to delete receipt row');
