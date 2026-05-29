@@ -62,7 +62,23 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     if (!Number.isFinite(l) || l <= 0) return NaN;
     if (!Number.isFinite(b) || b <= 0) return NaN;
     if (!Number.isFinite(p) || p < 1) return NaN;
-    return l * b * p;
+    return round2(l * b * p);
+  }
+
+  function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    return null;
+  }
+
+  function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
+    const n = Number(val);
+    if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    return null;
   }
 
   const masters = useQueueMasters({ includeSuppliers: true });
@@ -542,61 +558,65 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		              )}
 		            >
 	              <colgroup>
-	                <col className="w-[420px]" />
-	                <col className="w-[90px]" />
+	                <col className="w-[400px]" />
 	                {modalKind === 'po' ? (
-                  <>
-                    <col className="w-[130px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[80px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[150px]" />
-                    <col className="w-[90px]" />
-	                    <col className="w-[220px]" />
-	                    <col className="w-[140px]" />
-			                  </>
-		                ) : (
-	                  <>
-	                    <col className="w-[160px]" />
-	                    <col className="w-[220px]" />
-	                  </>
-	                )}
+                    <>
+                      <col className="w-[80px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[80px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[80px]" />
+                      <col className="w-[80px]" />
+                      <col className="w-[200px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[90px]" />
+                      <col className="w-[120px]" />
+                    </>
+                  ) : (
+                    <>
+                      <col className="w-[90px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[220px]" />
+                    </>
+                  )}
 	              </colgroup>
 	              <thead>
 	                <tr className="bg-surface-container-high">
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
-	                  {modalKind === 'rfq' ? (
-	                    <>
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
-	                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-	                    </>
-	                  ) : (
-	                    <>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty (Already Created)</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
-	                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Available Stock</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
-                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GST %</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Supplier</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Rate</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
-		                    </>
-		                  )}
-                </tr>
-              </thead>
+	                  {modalKind === 'po' ? (
+                      <>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GST %</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Avail Stock</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Supplier</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Rate</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Done</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
+                      </>
+                    )}
+	                </tr>
+	              </thead>
               <tbody>
                 {lines.length ? (
                   lines
@@ -615,9 +635,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
                             {formatItemInline(l.item, l.specification, specNameById)}
                           </td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
                           {modalKind === 'rfq' ? (
                             <>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.approvedQty}</td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   className={cn(inputClass, 'py-1.5')}
@@ -664,65 +684,93 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.orderedQty}</td>
-                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.remainingQty}</td>
-                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-                                {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                              <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant text-center">{l.unit || '-'}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center font-semibold">{l.remainingQty}</td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5')}
+                                  value={l.quantity}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                                {(() => {
+                                  const conv = getConvertedArea(l.quantity, areaUnit);
+                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
+                                })()}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
-                                  <input
-                                    className={cn(inputClass, 'py-1.5')}
-                                    value={String(l.length ?? '')}
-                                    onChange={(e) =>
-                                      setLines((prev) => {
-                                        const next = prev.slice();
-                                        const nextLength = e.target.value;
-                                        const breadth = String(next[idx]?.breadth ?? '');
-                                        const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                        const qty = computeAreaQty(Number(nextLength), Number(breadth), Number(pcs));
-                                        next[idx] = {
-                                          ...next[idx]!,
-                                          length: nextLength,
-                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
-                                        };
-                                        return next;
-                                      })
-                                    }
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
-                                  />
+                                  <>
+                                    <input
+                                      className={cn(inputClass, 'py-1.5')}
+                                      value={String(l.length ?? '')}
+                                      onChange={(e) =>
+                                        setLines((prev) => {
+                                          const next = prev.slice();
+                                          const nextLength = e.target.value;
+                                          const breadth = String(next[idx]?.breadth ?? '');
+                                          const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                          const qty = computeAreaQty(Number(nextLength), Number(breadth), Number(pcs));
+                                          next[idx] = {
+                                            ...next[idx]!,
+                                            length: nextLength,
+                                            quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
+                                          };
+                                          return next;
+                                        })
+                                      }
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
+                                    />
+                                    {(() => {
+                                      const conv = getConvertedDim(String(l.length ?? ''), dimUnit);
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
+                                    })()}
+                                  </>
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                  <div className="text-xs text-on-surface-variant opacity-70 text-center">-</div>
                                 )}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
-                                  <input
-                                    className={cn(inputClass, 'py-1.5')}
-                                    value={String(l.breadth ?? '')}
-                                    onChange={(e) =>
-                                      setLines((prev) => {
-                                        const next = prev.slice();
-                                        const nextBreadth = e.target.value;
-                                        const length = String(next[idx]?.length ?? '');
-                                        const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                        const qty = computeAreaQty(Number(length), Number(nextBreadth), Number(pcs));
-                                        next[idx] = {
-                                          ...next[idx]!,
-                                          breadth: nextBreadth,
-                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
-                                        };
-                                        return next;
-                                      })
-                                    }
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
-                                  />
+                                  <>
+                                    <input
+                                      className={cn(inputClass, 'py-1.5')}
+                                      value={String(l.breadth ?? '')}
+                                      onChange={(e) =>
+                                        setLines((prev) => {
+                                          const next = prev.slice();
+                                          const nextBreadth = e.target.value;
+                                          const length = String(next[idx]?.length ?? '');
+                                          const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                          const qty = computeAreaQty(Number(length), Number(nextBreadth), Number(pcs));
+                                          next[idx] = {
+                                            ...next[idx]!,
+                                            breadth: nextBreadth,
+                                            quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
+                                          };
+                                          return next;
+                                        })
+                                      }
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
+                                    />
+                                    {(() => {
+                                      const conv = getConvertedDim(String(l.breadth ?? ''), dimUnit);
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
+                                    })()}
+                                  </>
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                  <div className="text-xs text-on-surface-variant opacity-70 text-center">-</div>
                                 )}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
@@ -740,7 +788,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                         next[idx] = {
                                           ...next[idx]!,
                                           pcs: nextPcs,
-                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : '',
+                                          quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
                                         };
                                         return next;
                                       })
@@ -750,25 +798,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                     placeholder="PCs"
                                   />
                                 ) : (
-                                  <div className="text-xs text-on-surface-variant opacity-70">-</div>
+                                  <div className="text-xs text-on-surface-variant opacity-70 text-center">-</div>
                                 )}
-                              </td>
-                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={l.quantity}
-                                  disabled={isAreaUnit}
-                                  onChange={(e) =>
-                                    setLines((prev) => {
-                                      if (isAreaUnit) return prev;
-                                      const next = prev.slice();
-                                      next[idx] = { ...next[idx]!, quantity: sanitizeDecimalInput(e.target.value) };
-                                      return next;
-                                    })
-                                  }
-                                  type="text"
-                                  inputMode="decimal"
-                                />
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
@@ -826,8 +857,6 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   ))}
                                 </select>
                               </td>
-                              <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
-                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(l.lastRate ?? 0) || '-'}</td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <SearchableSelect
                                   value={l.supplierId}
@@ -875,6 +904,13 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   }
                                 />
                               </td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
+                                {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{Number(l.lastRate ?? 0) || '-'}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{l.approvedQty}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{l.orderedQty}</td>
                             </>
                           )}
                         </tr>
@@ -882,7 +918,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     })
 			                ) : (
 			                  <tr>
-					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 13}>
+					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 17}>
 				                      No remaining items to order.
 				                    </td>
 			                  </tr>
