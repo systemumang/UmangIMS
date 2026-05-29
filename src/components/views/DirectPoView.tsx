@@ -36,11 +36,15 @@ function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
   if (areaUnit === 'sqm') return 'm';
   return '';
 }
+function round2(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 function computeAreaQty(length: number, breadth: number, pcs: number) {
-  const l = Math.round((length + Number.EPSILON) * 100) / 100;
-  const b = Math.round((breadth + Number.EPSILON) * 100) / 100;
+  const l = round2(length);
+  const b = round2(breadth);
   const p = Math.trunc(pcs);
-  if (l > 0 && b > 0 && p > 0) return Math.round((l * b * p + Number.EPSILON) * 100) / 100;
+  if (l > 0 && b > 0 && p > 0) return round2(l * b * p);
   return 0;
 }
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {

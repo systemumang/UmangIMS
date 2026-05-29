@@ -43,7 +43,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     if (!Number.isFinite(l) || l <= 0) return NaN;
     if (!Number.isFinite(b) || b <= 0) return NaN;
     if (!Number.isFinite(p) || p < 1) return NaN;
-    return l * b * p;
+    return round2(l * b * p);
   }
 
   function convertAreaQty(qty: number, fromDimUnit: string, toDimUnit: string) {
@@ -51,10 +51,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     const fromU = String(fromDimUnit ?? '').trim().toLowerCase();
     const toU = String(toDimUnit ?? '').trim().toLowerCase();
     if (!Number.isFinite(q)) return NaN;
-    if (!fromU || !toU || fromU === toU) return q;
+    if (!fromU || !toU || fromU === toU) return round2(q);
     const M2_TO_FT2 = 10.7639104167;
-    if (fromU === 'm' && toU === 'ft') return q * M2_TO_FT2;
-    if (fromU === 'ft' && toU === 'm') return q / M2_TO_FT2;
+    if (fromU === 'm' && toU === 'ft') return round2(q * M2_TO_FT2);
+    if (fromU === 'ft' && toU === 'm') return round2(q / M2_TO_FT2);
     return NaN;
   }
 
