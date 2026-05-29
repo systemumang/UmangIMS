@@ -731,18 +731,23 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         <td className="px-1 py-2 border border-black align-top">
                           {isAreaUnit ? (
                             <div className="space-y-1">
-                              <input
-                                className={cn(inputClass, 'py-1 px-2 h-8 text-xs')}
-                                value={dims.length}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), length: v } }));
-                                  const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
-                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
-                                }}
-                                inputMode="decimal"
-                                placeholder={`L (${inputUnit})`}
-                              />
+                              <div className="relative">
+                                <input
+                                  className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
+                                  value={dims.length}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), length: v } }));
+                                    const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+                                    setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                  }}
+                                  inputMode="decimal"
+                                  placeholder="L"
+                                />
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                  {inputUnit === 'm' ? 'm' : 'Ft'}
+                                </div>
+                              </div>
                               {(() => {
                                 const convL = getConvertedDim(dims.length, inputUnit);
                                 return convL ? <div className="text-[10px] text-red-600 font-medium leading-tight">{convL}</div> : null;
@@ -753,18 +758,23 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         <td className="px-1 py-2 border border-black align-top">
                           {isAreaUnit ? (
                             <div className="space-y-1">
-                              <input
-                                className={cn(inputClass, 'py-1 px-2 h-8 text-xs')}
-                                value={dims.breadth}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), breadth: v } }));
-                                  const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
-                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
-                                }}
-                                inputMode="decimal"
-                                placeholder={`B (${inputUnit})`}
-                              />
+                              <div className="relative">
+                                <input
+                                  className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
+                                  value={dims.breadth}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), breadth: v } }));
+                                    const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+                                    setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                                  }}
+                                  inputMode="decimal"
+                                  placeholder="B"
+                                />
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                  {inputUnit === 'm' ? 'm' : 'Ft'}
+                                </div>
+                              </div>
                               {(() => {
                                 const convB = getConvertedDim(dims.breadth, inputUnit);
                                 return convB ? <div className="text-[10px] text-red-600 font-medium leading-tight">{convB}</div> : null;

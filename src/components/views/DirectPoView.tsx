@@ -587,16 +587,21 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? (
                           <div className="space-y-1">
-                            <input
-                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
-                              value={l.length}
-                              onChange={(e) => {
-                                const val = sanitizeDecimalInput(e.target.value);
-                                const q = computeAreaQty(Number(val), Number(l.breadth), Number(l.pcs || 1));
-                                updateLine(idx, { length: val, quantity: String(q) });
-                              }}
-                              placeholder={`L (${dimUnit})`}
-                            />
+                            <div className="relative">
+                              <input
+                                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-2 pr-6 py-1 text-sm h-8"
+                                value={l.length}
+                                onChange={(e) => {
+                                  const val = sanitizeDecimalInput(e.target.value);
+                                  const q = computeAreaQty(Number(val), Number(l.breadth), Number(l.pcs || 1));
+                                  updateLine(idx, { length: val, quantity: String(q) });
+                                }}
+                                placeholder="L"
+                              />
+                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                {dimUnit === 'm' ? 'm' : 'Ft'}
+                              </div>
+                            </div>
                             {(() => {
                               const conv = getConvertedDim(l.length, dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight">{conv}</div> : null;
@@ -607,16 +612,21 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? (
                           <div className="space-y-1">
-                            <input
-                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
-                              value={l.breadth}
-                              onChange={(e) => {
-                                const val = sanitizeDecimalInput(e.target.value);
-                                const q = computeAreaQty(Number(l.length), Number(val), Number(l.pcs || 1));
-                                updateLine(idx, { breadth: val, quantity: String(q) });
-                              }}
-                              placeholder={`B (${dimUnit})`}
-                            />
+                            <div className="relative">
+                              <input
+                                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-2 pr-6 py-1 text-sm h-8"
+                                value={l.breadth}
+                                onChange={(e) => {
+                                  const val = sanitizeDecimalInput(e.target.value);
+                                  const q = computeAreaQty(Number(l.length), Number(val), Number(l.pcs || 1));
+                                  updateLine(idx, { breadth: val, quantity: String(q) });
+                                }}
+                                placeholder="B"
+                              />
+                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                {dimUnit === 'm' ? 'm' : 'Ft'}
+                              </div>
+                            </div>
                             {(() => {
                               const conv = getConvertedDim(l.breadth, dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight">{conv}</div> : null;

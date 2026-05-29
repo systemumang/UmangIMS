@@ -806,31 +806,36 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
                                   <>
-                                    <input
-                                      className={cn(inputClass, 'py-1.5')}
-                                      value={String(l.length ?? '')}
-                                      onChange={(e) =>
-                                        setLines((prev) => {
-                                          const next = prev.slice();
-                                          const nextLength = e.target.value;
-                                          const breadth = String(next[idx]?.breadth ?? '');
-                                          const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                          const qty = computeAreaQty(Number(nextLength), Number(breadth), Number(pcs));
-                                          next[idx] = {
-                                            ...next[idx]!,
-                                            length: nextLength,
-                                            quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
-                                          };
-                                          return next;
-                                        })
-                                      }
-                                      type="text"
-                                      inputMode="decimal"
-                                      placeholder={dimUnit ? `L (${dimUnit})` : 'Length'}
-                                    />
+                                    <div className="relative">
+                                      <input
+                                        className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
+                                        value={String(l.length ?? '')}
+                                        onChange={(e) =>
+                                          setLines((prev) => {
+                                            const next = prev.slice();
+                                            const nextLength = e.target.value;
+                                            const breadth = String(next[idx]?.breadth ?? '');
+                                            const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                            const qty = computeAreaQty(Number(nextLength), Number(breadth), Number(pcs));
+                                            next[idx] = {
+                                              ...next[idx]!,
+                                              length: nextLength,
+                                              quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
+                                            };
+                                            return next;
+                                          })
+                                        }
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="L"
+                                      />
+                                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                        {dimUnit === 'm' ? 'm' : 'Ft'}
+                                      </div>
+                                    </div>
                                     {(() => {
                                       const conv = getConvertedDim(String(l.length ?? ''), dimUnit);
-                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight px-1 mt-0.5">{conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
@@ -840,31 +845,36 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
                                   <>
-                                    <input
-                                      className={cn(inputClass, 'py-1.5')}
-                                      value={String(l.breadth ?? '')}
-                                      onChange={(e) =>
-                                        setLines((prev) => {
-                                          const next = prev.slice();
-                                          const nextBreadth = e.target.value;
-                                          const length = String(next[idx]?.length ?? '');
-                                          const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                          const qty = computeAreaQty(Number(length), Number(nextBreadth), Number(pcs));
-                                          next[idx] = {
-                                            ...next[idx]!,
-                                            breadth: nextBreadth,
-                                            quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
-                                          };
-                                          return next;
-                                        })
-                                      }
-                                      type="text"
-                                      inputMode="decimal"
-                                      placeholder={dimUnit ? `B (${dimUnit})` : 'Breadth'}
-                                    />
+                                    <div className="relative">
+                                      <input
+                                        className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
+                                        value={String(l.breadth ?? '')}
+                                        onChange={(e) =>
+                                          setLines((prev) => {
+                                            const next = prev.slice();
+                                            const nextBreadth = e.target.value;
+                                            const length = String(next[idx]?.length ?? '');
+                                            const pcs = String(next[idx]?.pcs ?? '1') || '1';
+                                            const qty = computeAreaQty(Number(length), Number(nextBreadth), Number(pcs));
+                                            next[idx] = {
+                                              ...next[idx]!,
+                                              breadth: nextBreadth,
+                                              quantity: Number.isFinite(qty) && qty > 0 ? String(qty) : next[idx]!.quantity,
+                                            };
+                                            return next;
+                                          })
+                                        }
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="B"
+                                      />
+                                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                        {dimUnit === 'm' ? 'm' : 'Ft'}
+                                      </div>
+                                    </div>
                                     {(() => {
                                       const conv = getConvertedDim(String(l.breadth ?? ''), dimUnit);
-                                      return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
+                                      return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight px-1 mt-0.5">{conv}</div> : null;
                                     })()}
                                   </>
                                 ) : (
@@ -874,7 +884,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
                                   <input
-                                    className={cn(inputClass, 'py-1.5')}
+                                    className={cn(inputClass, 'py-1.5 h-8 text-xs')}
                                     value={String(l.pcs ?? '1')}
                                     onChange={(e) =>
                                       setLines((prev) => {
@@ -901,7 +911,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs text-right bg-surface-container-low')}
                                   value={l.quantity}
                                   disabled={isAreaUnit}
                                   onChange={(e) =>
@@ -920,12 +930,12 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   const poAreaUnitLabel = areaUnit;
                                   
                                   return (
-                                    <div className="flex flex-col gap-0.5 mt-0.5">
-                                      <div className="text-[10px] text-blue-700 font-bold px-1">
-                                        Total: {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                    <div className="flex flex-col gap-0.5 mt-0.5 items-end">
+                                      <div className="text-[10px] text-blue-700 font-bold px-1 leading-tight">
+                                        {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
                                       </div>
                                       {inputAreaUnitLabel !== poAreaUnitLabel && (
-                                        <div className="text-[10px] text-red-600 font-medium px-1">
+                                        <div className="text-[10px] text-red-600 font-medium px-1 leading-tight text-right">
                                           (= {Number(l.quantity).toFixed(2)} {poAreaUnitLabel})
                                         </div>
                                       )}
@@ -935,7 +945,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
                                   value={l.rate}
                                   onChange={(e) =>
                                     setLines((prev) => {
@@ -950,7 +960,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
                                   value={l.discountPercent}
                                   onChange={(e) =>
                                     setLines((prev) => {
@@ -972,7 +982,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <select
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
                                   value={String(l.taxPercent ?? '')}
                                   onChange={(e) =>
                                     setLines((prev) => {
@@ -1027,7 +1037,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs')}
                                   value={l.paymentTerms}
                                   onChange={(e) =>
                                     setLines((prev) => {
