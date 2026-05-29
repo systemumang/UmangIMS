@@ -25,6 +25,39 @@ import {
 	} from '@/src/lib/masters';
 	import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
 
+function normalizeAreaUnitName(unitName: string) {
+  const u = String(unitName ?? '').trim().toLowerCase();
+  if (['sqft', 'sq.ft.', 'sq.ft', 'square feet', 'sq ft'].includes(u)) return 'sqft' as const;
+  if (['sqm', 'sq.m.', 'sq.m', 'square meter', 'sq mtr', 'sq m'].includes(u)) return 'sqm' as const;
+  return null;
+}
+function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+  if (areaUnit === 'sqft') return 'ft';
+  if (areaUnit === 'sqm') return 'm';
+  return '';
+}
+function computeAreaQty(length: number, breadth: number, pcs: number) {
+  const l = Math.round((length + Number.EPSILON) * 100) / 100;
+  const b = Math.round((breadth + Number.EPSILON) * 100) / 100;
+  const p = Math.trunc(pcs);
+  if (l > 0 && b > 0 && p > 0) return Math.round((l * b * p + Number.EPSILON) * 100) / 100;
+  return 0;
+}
+function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+  const n = Number(val);
+  if (!n || n <= 0) return '';
+  if (from === 'ft') return `${(n * 0.3048).toFixed(3)} m`;
+  if (from === 'm') return `${(n / 0.3048).toFixed(2)} ft`;
+  return '';
+}
+function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
+  const n = Number(val);
+  if (!n || n <= 0) return '';
+  if (from === 'sqft') return `${(n * 0.092903).toFixed(3)} sqm`;
+  if (from === 'sqm') return `${(n / 0.092903).toFixed(2)} sqft`;
+  return '';
+}
+
 type Line = {
   itemId: string;
   itemNameId: string;
@@ -33,6 +66,10 @@ type Line = {
   rate: string;
   discountPercent: string;
   taxPercent: string;
+  unit: string;
+  length: string;
+  breadth: string;
+  pcs: string;
 };
 
 export default function DirectPoView({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
@@ -60,7 +97,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
-  const [lines, setLines] = useState<Line[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+  const [lines, setLines] = useState<Line[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
@@ -236,17 +273,26 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       }, [firmId, projectId, requiredDate, requestedByUserId, storeId, supplierId, paymentTerms, lines, poType]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+    setLines((prev) => prev.map((l, i) => {
+      if (i !== idx) return l;
+      const next = { ...l, ...patch };
+      if (patch.itemNameId !== undefined || patch.specs !== undefined) {
+        const matched = resolveSelectedItem(next.itemNameId, next.specs);
+        next.itemId = matched?.id ?? '';
+        next.unit = matched?.unit ?? (itemNames.find(x => x.id === next.itemNameId) as any)?.unit ?? '';
+      }
+      return next;
+    }));
   };
 
   const removeLine = (idx: number) => {
     setLines((prev) => {
       const next = prev.filter((_, i) => i !== idx);
-      return next.length ? next : [{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }];
+      return next.length ? next : [{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }];
     });
   };
 
-  const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+  const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }]);
 
   const save = async () => {
     if (!canSave) return;
@@ -270,6 +316,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          rate: Number(l.rate),
 	          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
 	          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
+            length: String(l.length).trim() ? Number(l.length) : undefined,
+            breadth: String(l.breadth).trim() ? Number(l.breadth) : undefined,
+            pcs: String(l.pcs).trim() ? Number(l.pcs) : undefined,
 	        }));
 
 		      await createDirectPo({
@@ -323,7 +372,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 onChange={(e) => {
                   const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
                   setPoType(next);
-                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '' }]);
+                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }]);
                 }}
               >
                 <option value="Goods">Goods</option>
@@ -445,10 +494,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
 	          <div className="overflow-x-auto rounded-xl border border-outline-variant">
               {poType === 'Goods' ? (
-                <div className="min-w-[1120px]">
+                <div className="min-w-[1500px]">
                   <div
                     className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 110px 110px 100px 100px 90px 90px` }}
+                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 100px 100px 100px 100px 80px 110px 100px 100px 90px 90px` }}
                   >
                     <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                     {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
@@ -456,6 +505,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         {specId === '__no_specs__' ? 'Specifications' : specNameById?.[specId] ?? 'Specification'}
                       </div>
                     ))}
+                    <div className="px-2 py-2 border-r border-outline-variant">Unit</div>
+                    <div className="px-2 py-2 border-r border-outline-variant">Length</div>
+                    <div className="px-2 py-2 border-r border-outline-variant">Breadth</div>
+                    <div className="px-2 py-2 border-r border-outline-variant">PCs</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Available</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Qty</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Rate</div>
@@ -466,11 +519,15 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
                   {lines.map((l, idx) => {
                     const specIds = l.itemNameId ? getItemNameSpecIds(l.itemNameId) : [];
+                    const areaUnit = normalizeAreaUnitName(l.unit);
+                    const isAreaUnit = !!areaUnit;
+                    const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+
                     return (
                       <div
                         key={idx}
                         className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 110px 110px 100px 100px 90px 90px` }}
+                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 100px 100px 100px 100px 80px 110px 100px 100px 90px 90px` }}
                       >
 	                    <div className="p-2 border-r border-outline-variant">
 	                      <SearchableSelect
@@ -513,33 +570,87 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                                 options={options}
                                 placeholder="Select"
                                 onChange={(selectedValue) => {
-                                  setLines((prev) =>
-                                    prev.map((p, i) => {
-                                      if (i !== idx) return p;
-                                      const nextSpecs = { ...(p.specs ?? {}), [specId]: selectedValue };
-                                      const matched = resolveSelectedItem(p.itemNameId, nextSpecs);
-                                      return {
-                                        ...p,
-                                        specs: nextSpecs,
-                                        itemId: matched?.id ?? '',
-                                      };
-                                    })
-                                  );
+                                  const nextSpecs = { ...(l.specs ?? {}), [specId]: selectedValue };
+                                  updateLine(idx, { specs: nextSpecs });
                                 }}
                               />
                             </div>
                           );
                         })}
+                      <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant">
+                        {l.unit || '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? (
+                          <div className="space-y-1">
+                            <input
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                              value={l.length}
+                              onChange={(e) => {
+                                const val = sanitizeDecimalInput(e.target.value);
+                                const q = computeAreaQty(Number(val), Number(l.breadth), Number(l.pcs || 1));
+                                updateLine(idx, { length: val, quantity: String(q) });
+                              }}
+                              placeholder={`L (${dimUnit})`}
+                            />
+                            {(() => {
+                              const conv = getConvertedDim(l.length, dimUnit);
+                              return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                            })()}
+                          </div>
+                        ) : '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? (
+                          <div className="space-y-1">
+                            <input
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                              value={l.breadth}
+                              onChange={(e) => {
+                                const val = sanitizeDecimalInput(e.target.value);
+                                const q = computeAreaQty(Number(l.length), Number(val), Number(l.pcs || 1));
+                                updateLine(idx, { breadth: val, quantity: String(q) });
+                              }}
+                              placeholder={`B (${dimUnit})`}
+                            />
+                            {(() => {
+                              const conv = getConvertedDim(l.breadth, dimUnit);
+                              return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                            })()}
+                          </div>
+                        ) : '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? (
+                          <input
+                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                            value={l.pcs}
+                            onChange={(e) => {
+                              const val = sanitizeDecimalInput(e.target.value);
+                              const q = computeAreaQty(Number(l.length), Number(l.breadth), Number(val || 1));
+                              updateLine(idx, { pcs: val, quantity: String(q) });
+                            }}
+                            placeholder="PCs"
+                          />
+                        ) : '-'}
+                      </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
 	                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
 	                    </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
-	                      <input
-	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-	                        value={l.quantity}
-                        onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
-                        placeholder="0"
-                      />
+                        <div className="space-y-1">
+                          <input
+                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70"
+                            value={l.quantity}
+                            onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
+                            placeholder="0"
+                            disabled={isAreaUnit}
+                          />
+                          {isAreaUnit ? (() => {
+                            const conv = getConvertedArea(l.quantity, areaUnit);
+                            return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                          })() : null}
+                        </div>
 	                    </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
 	                      <input

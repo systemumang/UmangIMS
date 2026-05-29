@@ -468,6 +468,9 @@ export async function createDirectPo(input: {
     rate: number;
     discountPercent?: number;
     taxPercent?: number;
+    length?: number;
+    breadth?: number;
+    pcs?: number;
   }>;
 }) {
   const res = await fetch('/api/pos', {
