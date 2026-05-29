@@ -596,21 +596,16 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
-	                <col className="w-[100px]" />
 	                <col className="w-[300px]" />
                   <col className="w-[80px]" />
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
                   <col className="w-[80px]" />
 	                <col className="w-[110px]" />
-	                <col className="w-[100px]" />
-	                <col className="w-[100px]" />
-	                <col className="w-[80px]" />
-	                <col className="w-[80px]" />
                   <col className="w-[70px]" />
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
@@ -622,17 +617,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                 <tr className="bg-blue-700">
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO No</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Supplier</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Terms</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Items</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Unit</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Length</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Breadth</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">PCs</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Priority</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Rate</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">Disc %</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">GST %</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Unit</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN L</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN B</th>
@@ -673,9 +663,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
                               {activePoDetails.po.supplier || '-'}
                             </td>
-                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top break-words">
-                              {activePoDetails.po.paymentTerms || '-'}
-                            </td>
                           </>
                         ) : null}
               <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
@@ -697,7 +684,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{Number(dimP) || '-'}</td>
-              <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String(it.priority ?? raw.priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
 	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
                             {Number(it.quantity ?? 0)}
                             {(() => {
@@ -705,9 +691,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{Number(it.rate ?? 0)}</td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{it.discountPercent ?? '-'}</td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{it.taxPercent ?? '-'}</td>
                         
                         {/* GRN INPUT COLUMNS */}
                         <td className="px-1 py-2 border border-black align-top">
