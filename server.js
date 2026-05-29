@@ -7073,72 +7073,124 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		        if (poType === 'Services' && itemType === 'Goods') return res.status(400).json({ error: 'PO Type is Services. Goods item is not allowed.' });
 		      }
 
-		      const quantity = Number(row?.quantity ?? 0);
+		      const quantityInput = Number(row?.quantity ?? 0);
 		      const rate = Number(row?.rate ?? 0);
-	      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
-	      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
-	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
-	      if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
-	      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+		      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
+		      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
+		      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
 
-      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
-      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
-      const gross = quantity * rate;
-      const goodsAmount = gross * (1 - disc / 100);
-      const taxAmount = goodsAmount * (tax / 100);
-      const totalAmount = goodsAmount + taxAmount;
+		      // Fetch unit for dimension logic
+		      const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
+		      const unitNameForRow = unitRow?.unit != null ? String(unitRow.unit) : null;
+		      const areaUnit = normalizeAreaUnitName(unitNameForRow);
+		      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+		      const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+		      const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+		      const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+		      const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+		      const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+		      const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
-      // Create a placeholder PR item so PR-based screens can still show item/spec details.
-      let prSpecText = '';
-      try {
-        const [[itRow]] = await pool.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
-        const rawSpecs = itRow?.specificationsJson != null ? String(itRow.specificationsJson) : '';
-        if (rawSpecs.trim()) {
-          try {
-            const obj = JSON.parse(rawSpecs) || {};
-            if (obj && typeof obj === 'object') {
-              const lines = [];
-              for (const [specId, v] of Object.entries(obj)) {
-                const k = String(specId ?? '').trim();
-                const val = String(v ?? '').trim();
-                if (!k || !val) continue;
-                const specName = specNameById.get(k) || k;
-                lines.push(`${specName}: ${val}`);
-              }
-              prSpecText = lines.join('\n');
-            }
-          } catch {
-            // Fallback: treat as newline-separated specification text.
-            prSpecText = rawSpecs
-              .split(/\r?\n/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-              .join('\n');
-          }
-        }
-      } catch {}
+		      const quantity = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+		      if (areaUnit) {
+		        if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
+		      } else {
+		        if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+		      }
 
-	      const prItemId = crypto.randomUUID();
-	      await pool.query(
-	        `
-	        INSERT INTO purchase_requisition_items
-	          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at)
-	        VALUES
-	          (?, ?, ?, ?, ?, ?, ?, 'approved', ?, NOW(), NOW())
-	        `,
-	        [prItemId, directPrId, itemId, quantity, quantity, requiredDate, prSpecText, 'system']
-	      );
+		      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
 
-      const poItemId = crypto.randomUUID();
-      await pool.query(
-        `
-        INSERT INTO purchase_order_items
-          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at)
-        VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-        `,
-        [poItemId, poId, itemId, quantity, rate, disc || null, tax || null, goodsAmount, taxAmount, totalAmount, 'system']
-      );
+		      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
+		      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
+		      const gross = quantity * rate;
+		      const goodsAmount = gross * (1 - disc / 100);
+		      const taxAmount = goodsAmount * (tax / 100);
+		      const totalAmount = goodsAmount + taxAmount;
+
+		      // Create a placeholder PR item so PR-based screens can still show item/spec details.
+		      let prSpecText = '';
+		      try {
+		        const [[itRow]] = await pool.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
+		        const rawSpecs = itRow?.specificationsJson != null ? String(itRow.specificationsJson) : '';
+		        if (rawSpecs.trim()) {
+		          try {
+		            const obj = JSON.parse(rawSpecs) || {};
+		            if (obj && typeof obj === 'object') {
+		              const lines = [];
+		              for (const [specId, v] of Object.entries(obj)) {
+		                const k = String(specId ?? '').trim();
+		                const val = String(v ?? '').trim();
+		                if (!k || !val) continue;
+		                const specName = specNameById.get(k) || k;
+		                lines.push(`${specName}: ${val}`);
+		              }
+		              prSpecText = lines.join('\n');
+		            }
+		          } catch {
+		            // Fallback: treat as newline-separated specification text.
+		            prSpecText = rawSpecs
+		              .split(/\r?\n/)
+		              .map((s) => s.trim())
+		              .filter(Boolean)
+		              .join('\n');
+		          }
+		        }
+		      } catch {}
+
+		      const prItemId = crypto.randomUUID();
+		      await pool.query(
+		        `
+		        INSERT INTO purchase_requisition_items
+		          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, approved_dim_length, approved_dim_breadth, approved_dim_pcs, approved_dim_unit)
+		        VALUES
+		          (?, ?, ?, ?, ?, ?, ?, 'approved', ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?)
+		        `,
+		        [
+		          prItemId,
+		          directPrId,
+		          itemId,
+		          quantity,
+		          quantity,
+		          requiredDate,
+		          prSpecText,
+		          'system',
+		          areaUnit ? round2(dimLength) : null,
+		          areaUnit ? round2(dimBreadth) : null,
+		          areaUnit ? Math.trunc(Number(dimPcs)) : null,
+		          areaUnit ? dimUnit : null,
+		          areaUnit ? round2(dimLength) : null,
+		          areaUnit ? round2(dimBreadth) : null,
+		          areaUnit ? Math.trunc(Number(dimPcs)) : null,
+		          areaUnit ? dimUnit : null,
+		        ]
+		      );
+
+		      const poItemId = crypto.randomUUID();
+		      await pool.query(
+		        `
+		        INSERT INTO purchase_order_items
+		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit)
+		        VALUES
+		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)
+		        `,
+		        [
+		          poItemId,
+		          poId,
+		          itemId,
+		          quantity,
+		          rate,
+		          disc || null,
+		          tax || null,
+		          goodsAmount,
+		          taxAmount,
+		          totalAmount,
+		          'system',
+		          areaUnit ? round2(dimLength) : null,
+		          areaUnit ? round2(dimBreadth) : null,
+		          areaUnit ? Math.trunc(Number(dimPcs)) : null,
+		          areaUnit ? dimUnit : null,
+		        ]
+		      );
 
       outItems.push({
         poId,
