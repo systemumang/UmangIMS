@@ -269,7 +269,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          const itemNameId = String(l.itemNameId ?? '').trim();
 	          if (!itemNameId) return false;
 	          const specIds = getItemNameSpecIds(itemNameId);
-	          if (!specIds.length) return poType === 'Services';
+	          if (!specIds.length) return true;
 	          if (specIds.some((sid) => !String(l.specs?.[sid] ?? '').trim())) return false;
 	          return true;
 	        });
@@ -768,6 +768,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
               )}
 	          </div>
 
+          <div className="text-[11px] text-red-600 font-bold px-1">
+            Note: It is mandatory to fill all specifications (Required Specifications if Item Name has Specifications, otherwise not).
+          </div>
           <div className="text-xs text-on-surface-variant">
             Note: Direct PO is not linked to any Purchase Request.
           </div>

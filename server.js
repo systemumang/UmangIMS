@@ -6129,8 +6129,6 @@ app.post('/api/requests', async (req, res) => {
 	      // New format: Item Name + spec selections (server resolves/creates the item id).
 	      if (!itemId && itemNameId) {
 	        const specsObj = normalizeSpecsObject(row?.specs);
-	        const specIds = Object.keys(specsObj);
-	        if (!specIds.length) return res.status(400).json({ error: 'Each item requires specs for selected item name' });
 	        const specificationsJson = stableJsonStringify(specsObj);
 	        const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
@@ -7023,11 +7021,6 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		          if (!itemNameId) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
 
 		          const [[iname]] = await pool.query('SELECT type FROM item_names WHERE id=? LIMIT 1', [itemNameId]);
-		          const itemNameType = String(iname?.type ?? '').trim() || 'Goods';
-		          const allowNoSpecs = poType === 'Services' || itemNameType === 'Services';
-		          if (!specIds.length && !allowNoSpecs) {
-		            return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
-		          }
 		          const specificationsJson = stableJsonStringify(specsObj);
 		          const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 

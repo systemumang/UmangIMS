@@ -481,6 +481,9 @@ export default function RequestMaterialView() {
                 </tbody>
               </table>
             </div>
+            <div className="text-[11px] text-red-600 font-bold px-1">
+              Note: It is mandatory to fill all specifications (Required Specifications if Item Name has Specifications, otherwise not).
+            </div>
           </div>
         </div>
 

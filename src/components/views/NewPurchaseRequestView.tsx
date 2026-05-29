@@ -1251,7 +1251,7 @@ export default function NewPurchaseRequestView({
 						              </button>
 										          </div>
 										        </div>
-                        <div className="text-sm text-red-600 font-semibold px-1">Note: It is mandatory to fill all specifications.</div>
+                        <div className="text-[11px] text-red-600 font-bold px-1 mt-2">Note: It is mandatory to fill all specifications (Required Specifications if Item Name has Specifications, otherwise not).</div>
 				      </div>
 	      </div>
 
