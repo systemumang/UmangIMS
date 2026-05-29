@@ -350,40 +350,74 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                             <div className="text-sm text-on-surface-variant">Loading items...</div>
                           ) : (
                             <div className="overflow-x-auto">
-	                              <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant">
-	                                <colgroup>
-	                                  <col className="w-[420px]" />
-	                                  <col className="w-[160px]" />
-	                                  <col className="w-[120px]" />
-	                                  <col className="w-[100px]" />
-	                                  <col className="w-[120px]" />
-	                                </colgroup>
-	                                <thead>
-	                                  <tr className="bg-surface-container-high">
-	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+                            <table className="w-full min-w-[1060px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                            <colgroup>
+                            <col className="w-[420px]" />
+                                    <col className="w-[80px]" />
+                                    <col className="w-[100px]" />
+                                    <col className="w-[100px]" />
+                                    <col className="w-[100px]" />
+                            <col className="w-[120px]" />
+                            <col className="w-[120px]" />
+                            </colgroup>
+                            <thead>
+                            <tr className="bg-surface-container-high">
+                            <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
+                                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
+                                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
+                                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
                                       <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
-	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
-	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
-	                                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
-	                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {expandedItems.map((it) => (
-	                                    <tr key={it.id}>
-	                                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
-	                                        {formatItemWithSpecification(it.item, it.specification, specNameById)}
-	                                      </td>
-                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).priority ?? '').trim() || '-'}</td>
-	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
-	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).unit ?? '').trim() || '-'}</td>
-	                                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-	                                        {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested Qty</th>
+                            <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Current Stock</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {expandedItems.map((it) => {
+                                      const rawIt = it as any;
+                                      const unit = String(it.unit ?? rawIt.item_unit ?? '').trim();
+                                      const areaUnit = normalizeAreaUnitName(unit);
+                                      const dimL = it.dimLength ?? rawIt.dim_length;
+                                      const dimB = it.dimBreadth ?? rawIt.dim_breadth;
+                                      const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
+                                      const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
+                                      return (
+                            <tr key={it.id}>
+                            <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
+                            {formatItemWithSpecification(it.item, it.specification, specNameById)}
+                            </td>
+                                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{unit || '-'}</td>
+                                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
+                                          {Number(dimL) || '-'}
+                                          {(() => {
+                                            const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
+                                            return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                          })()}
+                                        </td>
+                                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
+                                          {Number(dimB) || '-'}
+                                          {(() => {
+                                            const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
+                                            return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                          })()}
+                                        </td>
+                                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String(it.priority ?? '').trim() || '-'}</td>
+                            <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                          {it.quantity}
+                                          {(() => {
+                                            const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
+                                            return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                          })()}
+                                        </td>
+                            <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                            {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
+                            </td>
+                            </tr>
+                            )})}
+                            </tbody>
+                            </table>
                             </div>
+
                           )}
                         </td>
                       </tr>
