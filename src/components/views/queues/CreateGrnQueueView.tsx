@@ -13,7 +13,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number; priority?: string | null };
+type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   function normalizeAreaUnitName(unitName: string) {
@@ -174,7 +174,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     setModalLoading(true);
     fetchPendingGrnItems(active.poId, ac.signal)
       .then((items) => {
-        setPendingItems(items);
+        setPendingItems(items as any);
         const draft: Record<string, string> = {};
         for (const it of items) draft[it.itemId] = String(it.pendingQty ?? 0);
         setQtyByItemId(draft);
@@ -242,7 +242,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: '' }));
     try {
       const items = await fetchPendingGrnItems(poId);
-      setExpandedItemsByPoId((prev) => ({ ...prev, [poId]: Array.isArray(items) ? items : [] }));
+      setExpandedItemsByPoId((prev) => ({ ...prev, [poId]: Array.isArray(items) ? (items as any) : [] }));
     } catch (e) {
       setExpandedErrorByPoId((prev) => ({ ...prev, [poId]: e instanceof Error ? e.message : String(e) }));
     } finally {
@@ -350,12 +350,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                         .filter((it) => !selectedItemId || it.itemId === selectedItemId)
                                         .map((it) => {
                                           const rawIt = it as any;
-                                          const unit = String(it.unit ?? rawIt.item_unit ?? '').trim();
+                                          const unit = String(rawIt.item_unit ?? '').trim();
                                           const areaUnit = normalizeAreaUnitName(unit);
-                                          const dimL = it.dimLength ?? rawIt.dim_length;
-                                          const dimB = it.dimBreadth ?? rawIt.dim_breadth;
-                                          const dimP = it.dimPcs ?? rawIt.dim_pcs;
-                                          const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
+                                          const dimL = rawIt.dim_length;
+                                          const dimB = rawIt.dim_breadth;
+                                          const dimP = rawIt.dim_pcs;
+                                          const rawDimUnit = String(rawIt.dim_unit ?? '').trim();
                                           const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
 
                                           return (
@@ -381,10 +381,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                             })()}
                                           </td>
                                           <td className="px-3 py-2 border border-outline-variant">{Number(dimP) || '-'}</td>
-                                          <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
+                                          <td className="px-3 py-2 border border-outline-variant">{String(rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                             {Number(it.pendingQty ?? 0)}
-                                            {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                                             {(() => {
                                               const conv = getConvertedArea(String(it.pendingQty ?? ''), areaUnit);
                                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
@@ -640,13 +639,13 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
               const pendingQty = pendingRow ? Number(pendingRow.pendingQty ?? 0) : 0;
 
                       const raw = it as any;
-                      const unit = String(it.unit ?? raw.item_unit ?? '').trim();
+                      const unit = String(raw.item_unit ?? '').trim();
                       const areaUnit = normalizeAreaUnitName(unit);
 
-                      const dimL = it.dimLength ?? raw.dim_length;
-                      const dimB = it.dimBreadth ?? raw.dim_breadth;
-                      const dimP = it.dimPcs ?? raw.dim_pcs;
-                      const rawDimUnit = String(it.dimUnit ?? raw.dim_unit ?? '').trim();
+                      const dimL = raw.dim_length;
+                      const dimB = raw.dim_breadth;
+                      const dimP = raw.dim_pcs;
+                      const rawDimUnit = String(raw.dim_unit ?? '').trim();
                       const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
 
                       const poDimUnit = dimUnit;
@@ -802,9 +801,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 inputMode="decimal"
                                 disabled={isAreaUnit}
                               />
-                              {(isAreaUnit || unit) && (
-                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
-                                  {isAreaUnit ? (poAreaUnitLabel === 'sqm' ? 'Sq Mtr' : 'Sq Ft') : unit}
+                              {isAreaUnit && (
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                  {poDimUnit === 'm' ? 'Sq Mtr' : 'Sq Ft'}
                                 </div>
                               )}
                             </div>
