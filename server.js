@@ -8144,6 +8144,7 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
       SELECT
         poi.item_id AS itemId,
         iname.name AS item,
+        u.name AS unit,
         GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(linkq.linkQty, 0)) AS pendingQty,
         poi.rate AS rate
       FROM purchase_order_items poi
@@ -8156,6 +8157,7 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
       ) linkq ON linkq.poId = poi.po_id AND linkq.itemId = poi.item_id
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       WHERE poi.po_id = ?
       HAVING pendingQty > 1e-9
       ORDER BY iname.name ASC
@@ -8166,6 +8168,7 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
     const items = (Array.isArray(rows) ? rows : []).map((r) => ({
       itemId: String(r.itemId ?? ''),
       item: String(r.item ?? ''),
+      unit: r.unit != null ? String(r.unit) : null,
       pendingQty: Number(r.pendingQty ?? 0),
       rate: Number(r.rate ?? 0),
     }));
@@ -8189,6 +8192,7 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
       SELECT
         poi.item_id AS itemId,
         iname.name AS item,
+        u.name AS unit,
         GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0)) AS pendingQty,
         poi.rate AS rate
       FROM purchase_order_items poi
@@ -8200,6 +8204,7 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
       ) grnq ON grnq.poId = poi.po_id AND grnq.itemId = poi.item_id
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       WHERE poi.po_id = ?
       HAVING pendingQty > 1e-9
       ORDER BY iname.name ASC
@@ -8210,6 +8215,7 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
     const items = (Array.isArray(rows) ? rows : []).map((r) => ({
       itemId: String(r.itemId ?? ''),
       item: String(r.item ?? ''),
+      unit: r.unit != null ? String(r.unit) : null,
       pendingQty: Number(r.pendingQty ?? 0),
       rate: Number(r.rate ?? 0),
     }));

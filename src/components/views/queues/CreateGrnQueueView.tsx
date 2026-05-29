@@ -13,7 +13,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
+type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number; priority?: string | null };
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   function normalizeAreaUnitName(unitName: string) {
@@ -384,6 +384,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                           <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                             {Number(it.pendingQty ?? 0)}
+                                            {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                                             {(() => {
                                               const conv = getConvertedArea(String(it.pendingQty ?? ''), areaUnit);
                                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
@@ -801,9 +802,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 inputMode="decimal"
                                 disabled={isAreaUnit}
                               />
-                              {isAreaUnit && (
-                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none">
-                                  {poDimUnit === 'm' ? 'Sq Mtr' : 'Sq Ft'}
+                              {(isAreaUnit || unit) && (
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+                                  {isAreaUnit ? (poAreaUnitLabel === 'sqm' ? 'Sq Mtr' : 'Sq Ft') : unit}
                                 </div>
                               )}
                             </div>

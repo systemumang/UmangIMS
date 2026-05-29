@@ -903,15 +903,15 @@ export async function deletePo(poId: string, input?: { deletedBy?: string; cance
   return requireOk<{ ok: boolean }>(res, 'Failed to delete PO');
 }
 
-export async function fetchPendingInvoiceItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; pendingQty: number; rate: number }>> {
-		  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/pending-invoice-items`, { signal });
-		  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; pendingQty: number; rate: number }> }>(res, 'Failed to load pending invoice items');
-		  return Array.isArray(data.items) ? data.items : [];
-		}
+export async function fetchPendingInvoiceItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number }>> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/pending-invoice-items`, { signal });
+  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number }> }>(res, 'Failed to load pending invoice items');
+  return Array.isArray(data.items) ? data.items : [];
+}
 
-export async function fetchPendingGrnItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; pendingQty: number; rate: number }>> {
+export async function fetchPendingGrnItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number }>> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/pending-grn-items`, { signal });
-  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; pendingQty: number; rate: number }> }>(res, 'Failed to load pending GRN items');
+  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number }> }>(res, 'Failed to load pending GRN items');
   return Array.isArray(data.items) ? data.items : [];
 }
 

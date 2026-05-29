@@ -14,7 +14,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
+type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
 type InvoiceLine = {
   itemId: string;
   item: string;
@@ -481,7 +481,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                           onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
                                         >
                                           <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
-                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                            {Number(it.pendingQty ?? 0)}
+                                            {it.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{it.unit}</span> : null}
+                                          </td>
                                           <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                                         </tr>
                                       ))
@@ -822,8 +825,11 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                           className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === ln.itemId && 'bg-primary/10')}
                           onClick={() => setSelectedItemId(selectedItemId === ln.itemId ? null : ln.itemId)}
                         >
-                          <td className="px-3 py-2 text-sm border border-outline-variant/30">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.pendingQty}</td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant/30 font-medium">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">
+                            {ln.pendingQty}
+                            {ln.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{ln.unit}</span> : null}
+                          </td>
                           <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.poRate}</td>
                           <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
                             <input
@@ -946,19 +952,26 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                 />
                               </div>
                             ) : (
-                              <input
-                                className={cn(inputClass, 'py-1.5')}
-                                value={ln.invoiceQty}
-                                onChange={(e) =>
-                                  setLines((prev) => {
-                                    const next = prev.slice();
-                                    next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
-                                    return next;
-                                  })
-                                }
-                                type="text"
-                                inputMode="decimal"
-                              />
+                              <div className="relative">
+                                <input
+                                  className={cn(inputClass, 'py-1.5 pl-2 pr-12 text-right')}
+                                  value={ln.invoiceQty}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                                {ln.unit && (
+                                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+                                    {ln.unit}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
