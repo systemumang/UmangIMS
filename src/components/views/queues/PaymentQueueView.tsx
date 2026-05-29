@@ -479,115 +479,119 @@ export default function PaymentQueueView({
                     <tr key={l.invoiceItemId}>
                       {idx === 0 ? (
                         <>
-	                          <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
-	                            {formatPoNumber(active.poNumber ?? active.poId) || '-'}
-	                          </td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
+                            {formatPoNumber(active.poNumber ?? active.poId) || '-'}
+                          </td>
                           <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
                             {active.invoiceNo ?? active.invoiceId}
                           </td>
                           <td className="px-3 py-2 text-sm border border-outline-variant" rowSpan={lines.length}>
                             {active.invoiceDate ? formatDateDDMMYYYYOnly(active.invoiceDate) : '-'}
                           </td>
-	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-	                            {Number(active.invoiceAmount ?? 0).toFixed(2)}
-	                          </td>
-		                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-		                            {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}
-		                          </td>
-		                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-		                            {Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0).toFixed(2)}
-		                          </td>
-		                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-		                            {Math.max(
-		                              0,
-	                              Number(active.invoiceAmount ?? 0) -
-	                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
-	                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
-	                            ).toFixed(2)}
-	                          </td>
-	                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                            <input
-	                              className={cn(inputClass, 'py-1.5')}
-	                              inputMode="decimal"
-	                              value={paymentAmountInput}
-	                              onChange={(e) => setPaymentAmountInput(e.target.value)}
-	                            />
-	                          </td>
-		                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-		                            <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
-		                          </td>
-                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-                                <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
-                                  <option value="">Select</option>
-                                  <option value="Cash">Cash</option>
-                                  <option value="UPI">UPI</option>
-                                  <option value="Cheque">Cheque</option>
-                                  <option value="NEFT">NEFT</option>
-                                  <option value="RTGS">RTGS</option>
-                                  <option value="IMPS">IMPS</option>
-                                  <option value="Card">Card</option>
-                                </select>
-                              </td>
-	                              <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                                <div className="flex flex-col items-start gap-1">
-	                                  <label
-	                                    className={cn(
-	                                      'btn btn-sm cursor-pointer',
-	                                      (saving || paymentCopyUploading) ? 'opacity-60 pointer-events-none' : ''
-	                                    )}
-	                                  >
-	                                    {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Change Document' : 'Upload Document'}
-	                                    <input
-	                                      type="file"
-	                                      className="hidden"
-	                                      disabled={saving || paymentCopyUploading}
-	                                      onChange={async (e) => {
-	                                        const inputEl = e.currentTarget;
-	                                        const f = inputEl.files?.[0];
-	                                        if (!f) return;
-	                                        try {
-	                                          setPaymentCopyUploading(true);
-	                                          const { url } = await uploadFileToServer(f);
-	                                          setPaymentCopyInput(url);
-	                                        } catch (err) {
-	                                          setModalError(err instanceof Error ? err.message : String(err));
-	                                        } finally {
-	                                          setPaymentCopyUploading(false);
-	                                          if (inputEl?.isConnected) inputEl.value = '';
-	                                        }
-	                                      }}
-	                                    />
-	                                  </label>
-	                                  {paymentCopyInput.trim() ? (
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
-                                        <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline font-medium">View</a>
-                                      </div>
-                                    ) : (
-                                      <div className="text-[11px] text-on-surface-variant uppercase tracking-wider font-medium italic">No document</div>
-                                    )}
-	                                </div>
-	                              </td>
-		                        </>
-		                      <tr key={l.invoiceItemId}>
-		                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
-		                          {l.invoiceQty}
-		                          {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
-		                        </td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
-		                          {l.linkedQty}
-		                          {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
-		                        </td>
-		                      </tr>
-			                  ))
-		                ) : (
-			                  <tr>
-						                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
-					                      No records.
-					                    </td>
-			                  </tr>
-		                )}
+                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+                            {Number(active.invoiceAmount ?? 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+                            {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+                            {Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+                            {Math.max(
+                              0,
+                              Number(active.invoiceAmount ?? 0) -
+                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
+                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
+                            ).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              inputMode="decimal"
+                              value={paymentAmountInput}
+                              onChange={(e) => setPaymentAmountInput(e.target.value)}
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                            <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                            <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+                              <option value="">Select</option>
+                              <option value="Cash">Cash</option>
+                              <option value="UPI">UPI</option>
+                              <option value="Cheque">Cheque</option>
+                              <option value="NEFT">NEFT</option>
+                              <option value="RTGS">RTGS</option>
+                              <option value="IMPS">IMPS</option>
+                              <option value="Card">Card</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+                            <div className="flex flex-col items-start gap-1">
+                              <label
+                                className={cn(
+                                  'btn btn-sm cursor-pointer',
+                                  saving || paymentCopyUploading ? 'opacity-60 pointer-events-none' : ''
+                                )}
+                              >
+                                {paymentCopyUploading ? 'Uploading...' : paymentCopyInput.trim() ? 'Change Document' : 'Upload Document'}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  disabled={saving || paymentCopyUploading}
+                                  onChange={async (e) => {
+                                    const inputEl = e.currentTarget;
+                                    const f = inputEl.files?.[0];
+                                    if (!f) return;
+                                    try {
+                                      setPaymentCopyUploading(true);
+                                      const { url } = await uploadFileToServer(f);
+                                      setPaymentCopyInput(url);
+                                    } catch (err) {
+                                      setModalError(err instanceof Error ? err.message : String(err));
+                                    } finally {
+                                      setPaymentCopyUploading(false);
+                                      if (inputEl?.isConnected) inputEl.value = '';
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {paymentCopyInput.trim() ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Uploaded</div>
+                                  <a href={paymentCopyInput} target="_blank" rel="noreferrer" className="text-xs text-primary underline font-medium">
+                                    View
+                                  </a>
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-on-surface-variant uppercase tracking-wider font-medium italic">No document</div>
+                              )}
+                            </div>
+                          </td>
+                        </>
+                      ) : null}
+                      <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                        {formatItemInline(l.item, l.specificationsJson, specNameById)}
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                        {l.invoiceQty}
+                        {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+                      </td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                        {l.linkedQty}
+                        {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={13}>
+                      No records.
+                    </td>
+                  </tr>
+                )}
 		              </tbody>
             </table>
           </div>
