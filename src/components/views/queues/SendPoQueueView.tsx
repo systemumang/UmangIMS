@@ -481,8 +481,17 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                 {(activePoDetails.items.length ? activePoDetails.items : [{ poId: activePoDetails.po.id, itemId: '', item: '-', quantity: 0, rate: 0 } as any]).map(
                   (it: PoItem, idx: number) => {
                     const rowSpan = activePoDetails.items.length || 1;
-                    const areaUnit = normalizeAreaUnitName(String(it.unit ?? ''));
-                    const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+                    const raw = it as any;
+                    const unit = String(it.unit ?? raw.item_unit ?? '').trim();
+                    const areaUnit = normalizeAreaUnitName(unit);
+                    
+                    const dimL = it.dimLength ?? raw.dim_length;
+                    const dimB = it.dimBreadth ?? raw.dim_breadth;
+                    const dimP = it.dimPcs ?? raw.dim_pcs;
+                    const rawDimUnit = String(it.dimUnit ?? raw.dim_unit ?? '').trim();
+                    
+                    const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
                     return (
                       <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
                         {idx === 0 ? (
@@ -501,23 +510,23 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
 	                        <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
 	                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
 	                        </td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{it.unit || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{unit || '-'}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.dimLength) || '-'}
+                            {Number(dimL) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.dimLength ?? ''), dimUnit);
+                              const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.dimBreadth) || '-'}
+                            {Number(dimB) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.dimBreadth ?? ''), dimUnit);
+                              const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.dimPcs) || '-'}</td>
-	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(dimP) || '-'}</td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{String(it.priority ?? raw.priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
                             {Number(it.quantity ?? 0)}
                             {(() => {

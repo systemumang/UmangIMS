@@ -590,24 +590,35 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
               </thead>
               <tbody>
                 {(activePoDetails.items.length ? activePoDetails.items : ([{ poId: activePoDetails.po.id, itemId: '', item: '-', quantity: 0, rate: 0 }] as any)).map(
-	                  (it: PoItem, idx: number) => {
-	                    const rowSpan = activePoDetails.items.length || 1;
-	                    const pendingRow = pendingItems.find((p) => String(p.itemId ?? '').trim() === String(it.itemId ?? '').trim());
-	                    const pendingQty = pendingRow ? Number(pendingRow.pendingQty ?? 0) : 0;
-                      const poDimUnit =
-                        String((it as any).dimUnit ?? '').trim() || baseDimUnitForAreaUnit(normalizeAreaUnitName(String((it as any).unit ?? '')));
-                      const isAreaUnit = poDimUnit === 'ft' || poDimUnit === 'm';
+              (it: PoItem, idx: number) => {
+              const rowSpan = activePoDetails.items.length || 1;
+              const pendingRow = pendingItems.find((p) => String(p.itemId ?? '').trim() === String(it.itemId ?? '').trim());
+              const pendingQty = pendingRow ? Number(pendingRow.pendingQty ?? 0) : 0;
+
+                      const raw = it as any;
+                      const unit = String(it.unit ?? raw.item_unit ?? '').trim();
+                      const areaUnit = normalizeAreaUnitName(unit);
+
+                      const dimL = it.dimLength ?? raw.dim_length;
+                      const dimB = it.dimBreadth ?? raw.dim_breadth;
+                      const dimP = it.dimPcs ?? raw.dim_pcs;
+                      const rawDimUnit = String(it.dimUnit ?? raw.dim_unit ?? '').trim();
+                      const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
+                      const poDimUnit = dimUnit;
+                      const isAreaUnit = !!areaUnit;
                       const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
                       const inputUnit = inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft');
-	                    const checkedByName = displayUserName(activePoDetails.po.checkPoUserId);
-	                    const sentByName = displayUserName(activePoDetails.po.sentBy);
-	                    return (
-	                      <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
+
+              const checkedByName = displayUserName(activePoDetails.po.checkPoUserId);
+              const sentByName = displayUserName(activePoDetails.po.sentBy);
+              return (
+              <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
                         {idx === 0 ? (
                           <>
-	                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm font-semibold text-on-surface border border-black align-top break-words">
-	                              {formatPoNumber(activePoDetails.po.poNumber ?? activePoDetails.po.id) || '-'}
-	                            </td>
+              <td rowSpan={rowSpan} className="px-2 py-2 text-sm font-semibold text-on-surface border border-black align-top break-words">
+              {formatPoNumber(activePoDetails.po.poNumber ?? activePoDetails.po.id) || '-'}
+              </td>
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
                               {activePoDetails.po.supplier || '-'}
                             </td>
@@ -616,26 +627,26 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             </td>
                           </>
                         ) : null}
-	                        <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
-	                          {formatItemInline(it.item, it.specificationsJson, specNameById)}
-	                        </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{it.unit || '-'}</td>
+              <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
+              {formatItemInline(it.item, it.specificationsJson, specNameById)}
+              </td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{unit || '-'}</td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.dimLength) || '-'}
+                            {Number(dimL) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.dimLength ?? ''), baseDimUnitForAreaUnit(areaUnit));
+                              const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.dimBreadth) || '-'}
+                            {Number(dimB) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.dimBreadth ?? ''), baseDimUnitForAreaUnit(areaUnit));
+                              const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.dimPcs) || '-'}</td>
-	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(dimP) || '-'}</td>
+              <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String(it.priority ?? raw.priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
 	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
                             {Number(it.quantity ?? 0)}
                             {(() => {
