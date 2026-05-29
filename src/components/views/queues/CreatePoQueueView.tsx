@@ -412,14 +412,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                               </td>
                                               <td className="px-3 py-2 border border-outline-variant">{unit || '-'}</td>
                                               <td className="px-3 py-2 border border-outline-variant">
-                                                {Number(dimL) || '-'}
+                                                {dimL ? `${Number(dimL)} ${dimUnit}` : '-'}
                                                 {(() => {
                                                   const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                                                   return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                                                 })()}
                                               </td>
                                               <td className="px-3 py-2 border border-outline-variant">
-                                                {Number(dimB) || '-'}
+                                                {dimB ? `${Number(dimB)} ${dimUnit}` : '-'}
                                                 {(() => {
                                                   const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                                                   return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;

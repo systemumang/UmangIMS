@@ -689,14 +689,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
               </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{unit || '-'}</td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
-                            {Number(dimL) || '-'}
+                            {dimL ? `${Number(dimL)} ${dimUnit}` : '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
-                            {Number(dimB) || '-'}
+                            {dimB ? `${Number(dimB)} ${dimUnit}` : '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
