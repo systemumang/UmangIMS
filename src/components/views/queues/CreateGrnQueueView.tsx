@@ -585,7 +585,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	          <div className="text-sm text-on-surface-variant">Loading PO details...</div>
 	        ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1700px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[1800px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
@@ -600,7 +600,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                <col className="w-[100px]" />
 	                <col className="w-[90px]" />
 	                <col className="w-[90px]" />
-	                <col className="w-[200px]" />
+	                <col className="w-[300px]" />
                 <col className="w-[160px]" />
                 <col className="w-[160px]" />
               </colgroup>
