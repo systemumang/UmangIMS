@@ -12,6 +12,7 @@ import Pagination from '@/src/components/common/Pagination';
 type QcLine = {
   itemId: string;
   item: string;
+  unit?: string | null;
   specificationsJson?: string;
   receivedQty: number;
   acceptedQty: string;
@@ -134,6 +135,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
 	          (g.items ?? []).map((it) => ({
 	            itemId: it.itemId,
 	            item: it.item,
+              unit: String(it.unit ?? '').trim(),
 	            specificationsJson: it.specificationsJson,
 	            receivedQty: Number(it.quantityReceived ?? 0),
 	            acceptedQty: String(it.quantityReceived ?? 0),
@@ -167,6 +169,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
       const items = (g?.items ?? []).map((it) => ({
         itemId: String(it.itemId ?? ''),
         item: String(it.item ?? ''),
+        unit: String(it.unit ?? '').trim(),
         specificationsJson: it.specificationsJson,
         grnQty: Number(it.quantityReceived ?? 0),
       }));
@@ -261,7 +264,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                                 <thead>
                                   <tr className="bg-surface-container-high">
                                     <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                    <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[160px]">GRN Qty</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -269,7 +272,10 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                                     expandedItems.map((it) => (
                                       <tr key={it.itemId}>
                                         <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
-                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.grnQty ?? 0)}</td>
+                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                          {Number(it.grnQty ?? 0)}
+                                          {(it as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(it as any).unit}</span> : null}
+                                        </td>
                                       </tr>
                                     ))
                                   ) : (
@@ -438,9 +444,9 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
               <thead>
                 <tr className="bg-primary text-on-primary">
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Accepted</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Rejected</th>
+                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant text-center">GRN Qty</th>
+                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant text-center">Accepted</th>
+                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant text-center">Rejected</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Remarks</th>
                 </tr>
               </thead>
@@ -449,34 +455,51 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
 	                  lines.map((l, idx) => (
 	                    <tr key={l.itemId}>
 	                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{l.receivedQty}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
+                          {l.receivedQty}
+                          {l.unit ? <div className="text-[10px] font-bold opacity-60 mt-0.5">{l.unit}</div> : null}
+                        </td>
 	                      <td className="px-3 py-2 border border-outline-variant">
-	                        <input
-	                          className={cn(inputClass, 'py-1.5')}
-                          value={l.acceptedQty}
-                          onChange={(e) =>
-                            setLines((prev) => {
-                              const next = prev.slice();
-                              next[idx] = { ...next[idx]!, acceptedQty: e.target.value };
-                              return next;
-                            })
-                          }
-                          inputMode="decimal"
-                        />
+                          <div className="relative">
+	                          <input
+	                            className={cn(inputClass, 'py-1 pl-2 pr-12 h-8 text-xs text-right')}
+                            value={l.acceptedQty}
+                            onChange={(e) =>
+                              setLines((prev) => {
+                                const next = prev.slice();
+                                next[idx] = { ...next[idx]!, acceptedQty: e.target.value };
+                                return next;
+                              })
+                            }
+                            inputMode="decimal"
+                          />
+                          {l.unit && (
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+                              {l.unit}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 border border-outline-variant">
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={l.rejectedQty}
-                          onChange={(e) =>
-                            setLines((prev) => {
-                              const next = prev.slice();
-                              next[idx] = { ...next[idx]!, rejectedQty: e.target.value };
-                              return next;
-                            })
-                          }
-                          inputMode="decimal"
-                        />
+                        <div className="relative">
+                          <input
+                            className={cn(inputClass, 'py-1 pl-2 pr-12 h-8 text-xs text-right')}
+                            value={l.rejectedQty}
+                            onChange={(e) =>
+                              setLines((prev) => {
+                                const next = prev.slice();
+                                next[idx] = { ...next[idx]!, rejectedQty: e.target.value };
+                                return next;
+                              })
+                            }
+                            inputMode="decimal"
+                          />
+                          {l.unit && (
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+                              {l.unit}
+                            </div>
+                          )}
+                        </div>
                       </td>
 	                      <td className="px-3 py-2 border border-outline-variant">
 	                        <input
