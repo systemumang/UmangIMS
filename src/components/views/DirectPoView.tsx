@@ -494,10 +494,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
 	          <div className="overflow-x-auto rounded-xl border border-outline-variant">
               {poType === 'Goods' ? (
-                <div className="min-w-[1500px]">
+                <div className="min-w-[1700px]">
                   <div
                     className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 100px 100px 100px 100px 80px 110px 100px 100px 90px 90px` }}
+                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px 90px 90px` }}
                   >
                     <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                     {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
@@ -505,10 +505,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         {specId === '__no_specs__' ? 'Specifications' : specNameById?.[specId] ?? 'Specification'}
                       </div>
                     ))}
-                    <div className="px-2 py-2 border-r border-outline-variant">Unit</div>
-                    <div className="px-2 py-2 border-r border-outline-variant">Length</div>
-                    <div className="px-2 py-2 border-r border-outline-variant">Breadth</div>
-                    <div className="px-2 py-2 border-r border-outline-variant">PCs</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-center">Unit</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-center">Length</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
+                    <div className="px-2 py-2 border-r border-outline-variant text-center">PCs</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Available</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Qty</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Rate</div>
@@ -527,7 +527,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                       <div
                         key={idx}
                         className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 100px 100px 100px 100px 80px 110px 100px 100px 90px 90px` }}
+                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px 90px 90px` }}
                       >
 	                    <div className="p-2 border-r border-outline-variant">
 	                      <SearchableSelect
@@ -577,14 +577,14 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                             </div>
                           );
                         })}
-                      <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant">
+                      <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">
                         {l.unit || '-'}
                       </div>
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? (
                           <div className="space-y-1">
                             <input
-                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
                               value={l.length}
                               onChange={(e) => {
                                 const val = sanitizeDecimalInput(e.target.value);
@@ -595,7 +595,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                             />
                             {(() => {
                               const conv = getConvertedDim(l.length, dimUnit);
-                              return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                              return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight">{conv}</div> : null;
                             })()}
                           </div>
                         ) : '-'}
@@ -604,7 +604,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                         {isAreaUnit ? (
                           <div className="space-y-1">
                             <input
-                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
                               value={l.breadth}
                               onChange={(e) => {
                                 const val = sanitizeDecimalInput(e.target.value);
@@ -615,7 +615,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                             />
                             {(() => {
                               const conv = getConvertedDim(l.breadth, dimUnit);
-                              return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                              return conv ? <div className="text-[10px] text-red-600 font-medium leading-tight">{conv}</div> : null;
                             })()}
                           </div>
                         ) : '-'}
@@ -623,7 +623,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? (
                           <input
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
                             value={l.pcs}
                             onChange={(e) => {
                               const val = sanitizeDecimalInput(e.target.value);
@@ -634,21 +634,35 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                           />
                         ) : '-'}
                       </div>
-	                    <div className="p-2 border-r border-outline-variant text-right">
+	                    <div className="p-2 border-r border-outline-variant text-right text-xs">
 	                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
 	                    </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
                         <div className="space-y-1">
                           <input
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70"
+                            className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70 h-8"
                             value={l.quantity}
                             onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
                             placeholder="0"
                             disabled={isAreaUnit}
                           />
                           {isAreaUnit ? (() => {
-                            const conv = getConvertedArea(l.quantity, areaUnit);
-                            return conv ? <div className="text-[10px] text-red-600 font-medium">{conv}</div> : null;
+                            const areaInInputUnit = computeAreaQty(Number(l.length), Number(l.breadth), Number(l.pcs || 1));
+                            const inputAreaUnitLabel = dimUnit === 'm' ? 'sqm' : 'sqft';
+                            const poAreaUnitLabel = areaUnit; // For Direct PO, the quantity is saved in areaUnit
+                            
+                            return (
+                              <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                <div className="text-[10px] text-blue-700 font-bold leading-tight">
+                                  {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                </div>
+                                {inputAreaUnitLabel !== poAreaUnitLabel && (
+                                  <div className="text-[10px] text-red-600 font-medium leading-tight">
+                                    (= {Number(l.quantity).toFixed(2)} {poAreaUnitLabel})
+                                  </div>
+                                )}
+                              </div>
+                            );
                           })() : null}
                         </div>
 	                    </div>

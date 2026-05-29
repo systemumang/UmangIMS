@@ -672,7 +672,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		            <table
 	              className={cn(
 		                'w-full table-fixed text-left border-collapse border border-outline-variant',
-		                modalKind === 'rfq' ? 'min-w-[1060px]' : 'min-w-[1620px]'
+		                modalKind === 'rfq' ? 'min-w-[1060px]' : 'min-w-[1900px]'
 		              )}
 		            >
 	              <colgroup>
@@ -682,9 +682,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       <col className="w-[80px]" />
                       <col className="w-[100px]" />
                       <col className="w-[100px]" />
-                      <col className="w-[110px]" />
-                      <col className="w-[110px]" />
-                      <col className="w-[110px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[80px]" />
                       <col className="w-[110px]" />
                       <col className="w-[100px]" />
                       <col className="w-[80px]" />
@@ -707,25 +707,25 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item</th>
 	                  {modalKind === 'po' ? (
                       <>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Unit</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Avail Stock</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Length</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Breadth</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PCs</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty PO</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Rate</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Disc %</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GST %</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Unit</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Pending Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Avail Stock</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Length</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Breadth</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">PCs</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Qty PO</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">Rate</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">Disc %</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">GST %</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Supplier</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Rate</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Last Rate</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
                       </>
                     ) : (
                       <>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR Qty</th>
-                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Qty</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Qty</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                       </>
                     )}
@@ -914,10 +914,24 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   type="text"
                                   inputMode="decimal"
                                 />
-                                {(() => {
-                                  const conv = getConvertedArea(l.quantity, areaUnit);
-                                  return conv ? <div className="text-[10px] text-red-600 font-medium px-1 mt-0.5">{conv}</div> : null;
-                                })()}
+                                {isAreaUnit ? (() => {
+                                  const areaInInputUnit = computeAreaQty(Number(l.length), Number(l.breadth), Number(l.pcs || 1));
+                                  const inputAreaUnitLabel = dimUnit === 'm' ? 'sqm' : 'sqft';
+                                  const poAreaUnitLabel = areaUnit;
+                                  
+                                  return (
+                                    <div className="flex flex-col gap-0.5 mt-0.5">
+                                      <div className="text-[10px] text-blue-700 font-bold px-1">
+                                        Total: {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                      </div>
+                                      {inputAreaUnitLabel !== poAreaUnitLabel && (
+                                        <div className="text-[10px] text-red-600 font-medium px-1">
+                                          (= {Number(l.quantity).toFixed(2)} {poAreaUnitLabel})
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })() : null}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 <input

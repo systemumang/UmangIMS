@@ -585,24 +585,28 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	          <div className="text-sm text-on-surface-variant">Loading PO details...</div>
 	        ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1800px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[2100px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
 	                <col className="w-[100px]" />
-	                <col className="w-[320px]" />
+	                <col className="w-[300px]" />
                   <col className="w-[80px]" />
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
                   <col className="w-[80px]" />
-	                <col className="w-[110px]" />
 	                <col className="w-[110px]" />
 	                <col className="w-[100px]" />
-	                <col className="w-[90px]" />
-	                <col className="w-[90px]" />
-	                <col className="w-[300px]" />
-                <col className="w-[160px]" />
-                <col className="w-[160px]" />
+	                <col className="w-[100px]" />
+	                <col className="w-[80px]" />
+	                <col className="w-[80px]" />
+                  <col className="w-[70px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[120px]" />
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
               </colgroup>
               <thead>
                 <tr className="bg-blue-700">
@@ -610,16 +614,20 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Supplier</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Terms</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Items</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Unit</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Length</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Breadth</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PCs</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Unit</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Length</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Breadth</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">PCs</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Priority</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">PO Rate</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Disc %</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">GST %</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Pending GRN Qty</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Rate</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">Disc %</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">GST %</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Unit</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN L</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN B</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN PCs</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Total Qty</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Checked By</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Sent By</th>
                 </tr>
@@ -666,47 +674,52 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
               <td className="px-2 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
               {formatItemInline(it.item, it.specificationsJson, specNameById)}
               </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{unit || '-'}</td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{unit || '-'}</td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
                             {Number(dimL) || '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
                             {Number(dimB) || '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(dimP) || '-'}</td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{Number(dimP) || '-'}</td>
               <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String(it.priority ?? raw.priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
-	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
+	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
                             {Number(it.quantity ?? 0)}
                             {(() => {
                               const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.discountPercent ?? '-'}</td>
-                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>
-                        <td className="px-2 py-2 border border-black align-top">
+                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{Number(it.rate ?? 0)}</td>
+                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{it.discountPercent ?? '-'}</td>
+                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">{it.taxPercent ?? '-'}</td>
+                        
+                        {/* GRN INPUT COLUMNS */}
+                        <td className="px-1 py-2 border border-black align-top">
                           {isAreaUnit ? (
-                            <>
-                            <div className="grid grid-cols-4 gap-1">
-                              <select
-                                className={cn(inputClass, 'py-1.5')}
-                                value={inputUnit}
-                                onChange={(e) => setInputUnitByItemId((prev) => ({ ...prev, [it.itemId]: (e.target.value === 'm' ? 'm' : 'ft') as any }))}
-                              >
-                                <option value="ft">ft</option>
-                                <option value="m">m</option>
-                              </select>
+                            <select
+                              className={cn(inputClass, 'py-1 px-1 h-8 text-xs')}
+                              value={inputUnit}
+                              onChange={(e) => setInputUnitByItemId((prev) => ({ ...prev, [it.itemId]: (e.target.value === 'm' ? 'm' : 'ft') as any }))}
+                            >
+                              <option value="ft">ft</option>
+                              <option value="m">m</option>
+                            </select>
+                          ) : '-'}
+                        </td>
+                        <td className="px-1 py-2 border border-black align-top">
+                          {isAreaUnit ? (
+                            <div className="space-y-1">
                               <input
-                                className={cn(inputClass, 'py-1.5')}
+                                className={cn(inputClass, 'py-1 px-2 h-8 text-xs')}
                                 value={dims.length}
                                 onChange={(e) => {
                                   const v = e.target.value;
@@ -717,8 +730,18 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 inputMode="decimal"
                                 placeholder={`L (${inputUnit})`}
                               />
+                              {(() => {
+                                const convL = getConvertedDim(dims.length, inputUnit);
+                                return convL ? <div className="text-[10px] text-red-600 font-medium leading-tight">{convL}</div> : null;
+                              })()}
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="px-1 py-2 border border-black align-top">
+                          {isAreaUnit ? (
+                            <div className="space-y-1">
                               <input
-                                className={cn(inputClass, 'py-1.5')}
+                                className={cn(inputClass, 'py-1 px-2 h-8 text-xs')}
                                 value={dims.breadth}
                                 onChange={(e) => {
                                   const v = e.target.value;
@@ -729,44 +752,61 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 inputMode="decimal"
                                 placeholder={`B (${inputUnit})`}
                               />
-                              <input
-                                className={cn(inputClass, 'py-1.5')}
-                                value={dims.pcs}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), pcs: v } }));
-                                  const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(dims.breadth), Number(v || 1)), inputUnit, poDimUnit);
-                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
-                                }}
-                                inputMode="numeric"
-                                placeholder="PCs"
-                                />
-                                </div>
-                                <div className="flex flex-wrap gap-2 px-1">
-                                {(() => {
-                                const convL = getConvertedDim(dims.length, inputUnit);
-                                return convL ? <div className="text-[10px] text-red-600 font-medium">L: {convL}</div> : null;
-                                })()}
-                                {(() => {
+                              {(() => {
                                 const convB = getConvertedDim(dims.breadth, inputUnit);
-                                return convB ? <div className="text-[10px] text-red-600 font-medium">B: {convB}</div> : null;
-                                })()}
-                                {(() => {
-                                const qStr = qtyByItemId[it.itemId];
-                                const convQ = getConvertedArea(qStr, inputUnit === 'm' ? 'sqm' : 'sqft');
-                                return convQ ? <div className="text-[10px] text-red-600 font-medium">Total: {convQ}</div> : null;
-                                })()}
-                                </div>
-                            </>
-                          ) : (
+                                return convB ? <div className="text-[10px] text-red-600 font-medium leading-tight">{convB}</div> : null;
+                              })()}
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="px-1 py-2 border border-black align-top">
+                          {isAreaUnit ? (
                             <input
-                              className={cn(inputClass, 'py-1.5')}
+                              className={cn(inputClass, 'py-1 px-2 h-8 text-xs')}
+                              value={dims.pcs}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), pcs: v } }));
+                                const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(dims.breadth), Number(v || 1)), inputUnit, poDimUnit);
+                                setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+                              }}
+                              inputMode="numeric"
+                              placeholder="PCs"
+                            />
+                          ) : '-'}
+                        </td>
+                        <td className="px-1 py-2 border border-black align-top">
+                          <div className="space-y-1">
+                            <input
+                              className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right bg-surface-container-low')}
                               value={qtyByItemId[it.itemId] ?? String(pendingQty)}
                               onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
                               inputMode="decimal"
+                              disabled={isAreaUnit}
                             />
-                          )}
+                            {isAreaUnit ? (() => {
+                              const qStr = qtyByItemId[it.itemId];
+                              if (!qStr) return null;
+                              const areaInInputUnit = computeAreaQty(Number(dims.length), Number(dims.breadth), Number(dims.pcs || 1));
+                              const inputAreaUnitLabel = inputUnit === 'm' ? 'sqm' : 'sqft';
+                              const poAreaUnitLabel = poDimUnit === 'm' ? 'sqm' : 'sqft';
+                              
+                              return (
+                                <div className="space-y-0.5">
+                                  <div className="text-[10px] text-blue-700 font-bold leading-tight">
+                                    {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                  </div>
+                                  {inputAreaUnitLabel !== poAreaUnitLabel && (
+                                    <div className="text-[10px] text-red-600 font-medium leading-tight">
+                                      (= {Number(qStr).toFixed(2)} {poAreaUnitLabel})
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })() : null}
+                          </div>
                         </td>
+
                         {idx === 0 ? (
                           <>
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
