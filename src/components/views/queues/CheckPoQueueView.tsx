@@ -18,6 +18,37 @@ function displayPoNumber(raw: string) {
   return formatPoNumber(String(raw ?? '').trim()) || '-';
 }
 
+function normalizeAreaUnitName(unitName: string) {
+  const u = String(unitName ?? '').trim().toLowerCase();
+  if (!u) return null;
+  if (u === 'sq ft' || u === 'sqft' || u === 'sq. ft' || u === 'sqft.' || u === 'sq feet') return 'sqft';
+  if (u === 'sq mtr' || u === 'sq mtrs' || u === 'sqmtr' || u === 'sq. mtr' || u === 'sq meter' || u === 'sq metre' || u === 'sq m' || u === 'sqm')
+    return 'sqm';
+  return null;
+}
+
+function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+  if (areaUnit === 'sqft') return 'ft';
+  if (areaUnit === 'sqm') return 'm';
+  return '';
+}
+
+function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+  const n = Number(val);
+  if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+  if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
+  if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+  return null;
+}
+
+function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
+  const n = Number(val);
+  if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
+  if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
+  if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+  return null;
+}
+
 function itemTotalNumber(it: PoItem) {
   const qty = Number(it.quantity ?? 0);
   const rate = Number(it.rate ?? 0);
@@ -422,14 +453,18 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : active && activePoDetails ? (
           <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1300px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+	            <table className="w-full min-w-[1500px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
 	                <col className="w-[120px]" />
-	                <col className="w-[420px]" />
+	                <col className="w-[320px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[80px]" />
 	                <col className="w-[120px]" />
-	                <col className="w-[90px]" />
+	                <col className="w-[120px]" />
 	                <col className="w-[90px]" />
 	                <col className="w-[80px]" />
 	                <col className="w-[80px]" />
@@ -442,6 +477,10 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Supplier</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Terms</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Items</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Unit</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Length</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Breadth</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PCs</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">Priority</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO Qty</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-black">PO Rate</th>
@@ -455,6 +494,8 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                 {(activePoDetails.items.length ? activePoDetails.items : [{ poId: activePoDetails.po.id, itemId: '', item: '-', quantity: 0, rate: 0 } as any]).map(
                   (it: PoItem, idx: number) => {
                     const rowSpan = activePoDetails.items.length || 1;
+                    const areaUnit = normalizeAreaUnitName(String(it.unit ?? ''));
+                    const dimUnit = baseDimUnitForAreaUnit(areaUnit);
                     return (
                       <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
                         {idx === 0 ? (
@@ -473,8 +514,30 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                        <td className="px-3 py-2 text-sm text-on-surface border border-black align-top whitespace-normal break-words">
 				                        {formatItemInline(it.item, it.specificationsJson, specNameById)}
 	                        </td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{it.unit || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
+                            {Number(it.length) || '-'}
+                            {(() => {
+                              const conv = getConvertedDim(String(it.length ?? ''), dimUnit);
+                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                            })()}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
+                            {Number(it.breadth) || '-'}
+                            {(() => {
+                              const conv = getConvertedDim(String(it.breadth ?? ''), dimUnit);
+                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                            })()}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.pcs) || '-'}</td>
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
-	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.quantity ?? 0)}</td>
+	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
+                            {Number(it.quantity ?? 0)}
+                            {(() => {
+                              const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
+                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                            })()}
+                          </td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{Number(it.rate ?? 0)}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.discountPercent ?? '-'}</td>
                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>

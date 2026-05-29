@@ -140,21 +140,22 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f1f1f1;
 }
 
-	::-webkit-scrollbar-thumb {
-	  background: #dceaff;
-	  border-radius: 10px;
-	}
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 10px;
+  border: 2px solid #f1f1f1;
+}
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #93c5fd;
+  background: #333;
 }
 
 input[type='file']::file-selector-button {
