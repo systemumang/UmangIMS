@@ -596,7 +596,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[2200px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
@@ -617,8 +617,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <col className="w-[80px]" />
                   <col className="w-[100px]" />
                   <col className="w-[120px]" />
-                <col className="w-[150px]" />
-                <col className="w-[150px]" />
               </colgroup>
               <thead>
                 <tr className="bg-blue-700">
@@ -641,8 +639,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN PCs</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">Round Off</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Total Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Checked By</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Sent By</th>
                 </tr>
               </thead>
               <tbody>
@@ -667,8 +663,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                       const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
                       const inputUnit = inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft');
 
-              const checkedByName = displayUserName(activePoDetails.po.checkPoUserId);
-              const sentByName = displayUserName(activePoDetails.po.sentBy);
               return (
               <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
                         {idx === 0 ? (
@@ -809,19 +803,26 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         </td>
                         <td className="px-1 py-2 border border-black align-top">
                           <div className="space-y-1">
-                            <input
-                              className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right bg-surface-container-low font-bold')}
-                              value={(() => {
-                                const q = qtyByItemId[it.itemId] ?? String(pendingQty);
-                                if (!isAreaUnit) return q;
-                                const ro = Number(roundOffByItemId[it.itemId] || 0);
-                                if (ro === 0) return q;
-                                return (round2(Number(q) + ro)).toFixed(2);
-                              })()}
-                              onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
-                              inputMode="decimal"
-                              disabled={isAreaUnit}
-                            />
+                            <div className="relative">
+                              <input
+                                className={cn(inputClass, 'py-1 pl-2 pr-12 h-8 text-xs text-right bg-surface-container-low font-bold')}
+                                value={(() => {
+                                  const q = qtyByItemId[it.itemId] ?? String(pendingQty);
+                                  if (!isAreaUnit) return q;
+                                  const ro = Number(roundOffByItemId[it.itemId] || 0);
+                                  if (ro === 0) return q;
+                                  return (round2(Number(q) + ro)).toFixed(2);
+                                })()}
+                                onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
+                                inputMode="decimal"
+                                disabled={isAreaUnit}
+                              />
+                              {isAreaUnit && (
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none">
+                                  {poDimUnit === 'm' ? 'Sq Mtr' : 'Sq Ft'}
+                                </div>
+                              )}
+                            </div>
                             {isAreaUnit ? (() => {
                               const qStr = qtyByItemId[it.itemId];
                               if (!qStr) return null;
@@ -853,17 +854,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             })()}
                           </div>
                         </td>
-
-                        {idx === 0 ? (
-                          <>
-                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
-                              {displayUserName(activePoDetails.po.checkPoUserId)}
-                            </td>
-                            <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
-                              {displayUserName(activePoDetails.po.sentBy)}
-                            </td>
-                          </>
-                        ) : null}
                       </tr>
                     );
                   }
