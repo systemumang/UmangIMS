@@ -330,32 +330,65 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
                             <div className="overflow-x-auto">
-	                              <table className="w-full min-w-[860px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                              <table className="w-full min-w-[1060px] table-fixed text-left border-collapse border border-outline-variant text-sm">
 	                                <thead>
 	                                  <tr className="bg-surface-container-high">
 	                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                      <th className="px-3 py-2 border border-outline-variant">Priority</th>
-	                                    <th className="px-3 py-2 border border-outline-variant">Pending GRN Qty</th>
+                                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Length</th>
+                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Breadth</th>
+                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">Priority</th>
+	                                    <th className="px-3 py-2 border border-outline-variant w-[120px]">Pending GRN Qty</th>
 	                                  </tr>
 	                                </thead>
 	                                <tbody>
 	                                  {expandedItems.length ? (
 	                                    expandedItems
                                         .filter((it) => !selectedItemId || it.itemId === selectedItemId)
-                                        .map((it) => (
+                                        .map((it) => {
+                                          const rawIt = it as any;
+                                          const unit = String(it.unit ?? rawIt.item_unit ?? '').trim();
+                                          const areaUnit = normalizeAreaUnitName(unit);
+                                          const dimL = it.dimLength ?? rawIt.dim_length;
+                                          const dimB = it.dimBreadth ?? rawIt.dim_breadth;
+                                          const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
+                                          const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
+                                          return (
 	                                      <tr
-                                          key={it.itemId}
-                                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
-                                          onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
-                                        >
+                                            key={it.itemId}
+                                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
+                                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+                                          >
 	                                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
-                                        <td className="px-3 py-2 border border-outline-variant">{String((it as any).priority ?? (r as any).priority ?? '').trim() || '-'}</td>
-	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.pendingQty ?? 0)}</td>
+                                          <td className="px-3 py-2 border border-outline-variant">{unit || '-'}</td>
+                                          <td className="px-3 py-2 border border-outline-variant">
+                                            {Number(dimL) || '-'}
+                                            {(() => {
+                                              const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
+                                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                            })()}
+                                          </td>
+                                          <td className="px-3 py-2 border border-outline-variant">
+                                            {Number(dimB) || '-'}
+                                            {(() => {
+                                              const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
+                                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                            })()}
+                                          </td>
+                                          <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                            {Number(it.pendingQty ?? 0)}
+                                            {(() => {
+                                              const conv = getConvertedArea(String(it.pendingQty ?? ''), areaUnit);
+                                              return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                            })()}
+                                          </td>
 	                                      </tr>
-	                                    ))
+	                                    )})
 	                                  ) : (
 	                                    <tr>
-	                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
+	                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={6}>
 	                                        No pending items.
 	                                      </td>
 	                                    </tr>

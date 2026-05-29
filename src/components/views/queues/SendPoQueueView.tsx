@@ -307,40 +307,76 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                                     Supplier: {expandedDetails.po.supplier || '-'} | Payment Terms: {expandedDetails.po.paymentTerms || '-'}
                                   </div>
                                   <div className="overflow-x-auto">
-	                                    <table className="w-full min-w-[1060px] table-fixed border-collapse border border-outline-variant text-sm">
-	                                      <colgroup>
-	                                        <col className="w-[34%]" />
-	                                        <col className="w-[12%]" />
-	                                        <col className="w-[10%]" />
-	                                        <col className="w-[12%]" />
-	                                        <col className="w-[10%]" />
-	                                        <col className="w-[10%]" />
-	                                        <col className="w-[12%]" />
-	                                      </colgroup>
-	                                      <thead>
-	                                        <tr className="bg-surface-container-high">
-	                                          <th className="px-3 py-2 text-left border border-outline-variant">Item</th>
+                                  <table className="w-full min-w-[1260px] table-fixed border-collapse border border-outline-variant text-sm">
+                                  <colgroup>
+                                  <col className="w-[28%]" />
+                                          <col className="w-[80px]" />
+                                          <col className="w-[100px]" />
+                                          <col className="w-[100px]" />
+                                  <col className="w-[10%]" />
+                                  <col className="w-[10%]" />
+                                  <col className="w-[10%]" />
+                                  <col className="w-[8%]" />
+                                  <col className="w-[8%]" />
+                                  <col className="w-[10%]" />
+                                  </colgroup>
+                                  <thead>
+                                  <tr className="bg-surface-container-high">
+                                  <th className="px-3 py-2 text-left border border-outline-variant">Item</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Unit</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Length</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">Breadth</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">Priority</th>
-	                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
-	                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Rate</th>
+                                  <th className="px-3 py-2 text-left border border-outline-variant">PO Qty</th>
+                                          <th className="px-3 py-2 text-left border border-outline-variant">PO Rate</th>
                                           <th className="px-3 py-2 text-left border border-outline-variant">Disc %</th>
                                             {(() => {
                                               const supplierId = String((r as any)?.supplierId ?? '').trim();
                                               const s = masters.suppliers.find((x) => x.id === supplierId);
                                               const showGst = Boolean(String((s as any)?.gstNumber ?? '').trim());
                                               return showGst ? (
-	                                            <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
+                                  <th className="px-3 py-2 text-left border border-outline-variant">GST %</th>
                                               ) : null;
                                             })()}
                                           <th className="px-3 py-2 text-left border border-outline-variant">Total</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-	                                        {items.map((it, idx) => (
-	                                          <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
-	                                            <td className="px-3 py-2 border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
-                                            <td className="px-3 py-2 border border-outline-variant">{String((it as any).priority ?? (r as any).priority ?? '').trim() || '-'}</td>
-	                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+                                  {items.map((it, idx) => {
+                                            const rawIt = it as any;
+                                            const unit = String(it.unit ?? rawIt.item_unit ?? '').trim();
+                                            const areaUnit = normalizeAreaUnitName(unit);
+                                            const dimL = it.dimLength ?? rawIt.dim_length;
+                                            const dimB = it.dimBreadth ?? rawIt.dim_breadth;
+                                            const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
+                                            const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
+                                            return (
+                                  <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
+                                  <td className="px-3 py-2 border border-outline-variant">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                                            <td className="px-3 py-2 border border-outline-variant">{unit || '-'}</td>
+                                            <td className="px-3 py-2 border border-outline-variant">
+                                              {Number(dimL) || '-'}
+                                              {(() => {
+                                                const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
+                                                return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                              })()}
+                                            </td>
+                                            <td className="px-3 py-2 border border-outline-variant">
+                                              {Number(dimB) || '-'}
+                                              {(() => {
+                                                const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
+                                                return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                              })()}
+                                            </td>
+                                            <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
+                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                              {Number(it.quantity ?? 0)}
+                                              {(() => {
+                                                const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
+                                                return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                              })()}
+                                            </td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
                                               {(() => {
@@ -348,15 +384,16 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
                                                 const s = masters.suppliers.find((x) => x.id === supplierId);
                                                 const showGst = Boolean(String((s as any)?.gstNumber ?? '').trim());
                                                 return showGst ? (
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
+                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
                                                 ) : null;
                                               })()}
                                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{itemTotal(it)}</td>
-                                          </tr>
-                                        ))}
+                                  </tr>
+                                  )})}
                                       </tbody>
                                     </table>
                                   </div>
+
                                 </div>
                               ) : null}
                             </td>
