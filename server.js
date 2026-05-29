@@ -7526,7 +7526,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
         poi.tax_percent AS taxPercent,
         poi.goods_amount AS goodsAmount,
         poi.tax_amount AS taxAmount,
-        poi.total_amount AS totalAmount
+        poi.total_amount AS totalAmount,
+        poi.dim_length AS dimLength,
+        poi.dim_breadth AS dimBreadth,
+        poi.dim_pcs AS dimPcs,
+        poi.dim_unit AS dimUnit
       FROM purchase_order_items poi
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -7566,7 +7570,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
       const base = String(r.itemName ?? '').trim();
       const specs = formatSpecParts(r.specificationsJson);
-      const label = [base, ...specs].filter(Boolean).join(' - ') || '-';
+      const dims = [];
+      if (r.dimLength != null && Number(r.dimLength) > 0) dims.push(`L: ${r.dimLength}`);
+      if (r.dimBreadth != null && Number(r.dimBreadth) > 0) dims.push(`B: ${r.dimBreadth}`);
+      if (r.dimPcs != null && Number(r.dimPcs) > 0) dims.push(`Pcs: ${r.dimPcs}`);
+      if (r.dimUnit) dims.push(String(r.dimUnit));
+      const dimStr = dims.length ? `(${dims.join(', ')})` : '';
+      const label = [base, ...specs, dimStr].filter(Boolean).join(' - ') || '-';
       return {
         label,
         quantity: Number(r.quantity ?? 0),
