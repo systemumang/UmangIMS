@@ -1494,7 +1494,7 @@ app.get('/api/requests/:id', async (req, res) => {
         pri.pr_id AS prId,
         pri.item_id AS itemId,
         iname.name AS item,
-        it.unit AS unit,
+        u.name AS unit,
 	        pri.requested_qty AS quantity,
 	        COALESCE(pri.approved_qty, pri.requested_qty) AS approvedQty,
           pri.priority_id AS priorityId,
@@ -1511,6 +1511,7 @@ app.get('/api/requests/:id', async (req, res) => {
       FROM purchase_requisition_items pri
       LEFT JOIN items it ON it.id = pri.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       LEFT JOIN priorities p ON p.id = pri.priority_id
       WHERE pri.pr_id = ?
       ORDER BY pri.created_at ASC
@@ -3459,6 +3460,7 @@ app.get('/api/invoices/:id/grn-link-summary', async (req, res) => {
         ii.id AS invoiceItemId,
         ii.item_id AS itemId,
         iname.name AS item,
+        u.name AS unit,
         it.specifications_json AS specificationsJson,
         ii.quantity AS invoiceQty,
         COALESCE(grnq.receivedQty, 0) AS receivedQty,
@@ -3467,6 +3469,7 @@ app.get('/api/invoices/:id/grn-link-summary', async (req, res) => {
       INNER JOIN invoices inv ON inv.id = ii.invoice_id
       LEFT JOIN items it ON it.id = ii.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       LEFT JOIN (
         SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS receivedQty
         FROM grns g
@@ -3488,6 +3491,7 @@ app.get('/api/invoices/:id/grn-link-summary', async (req, res) => {
       invoiceItemId: String(r.invoiceItemId ?? ''),
       itemId: String(r.itemId ?? ''),
       item: String(r.item ?? ''),
+      unit: r.unit != null ? String(r.unit) : null,
       specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
       invoiceQty: Number(r.invoiceQty ?? 0),
       receivedQty: Number(r.receivedQty ?? 0),
@@ -3531,6 +3535,7 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
         gi.id AS grnItemId,
         gi.item_id AS itemId,
         iname.name AS item,
+        u.name AS unit,
         it.specifications_json AS specificationsJson,
         gi.received_qty AS grnQty,
         COALESCE(qc.accepted_qty, 0) AS approvedQty,
@@ -3544,6 +3549,7 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
       ) linkq ON linkq.grnItemId = gi.id
       LEFT JOIN items it ON it.id = gi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       WHERE gi.grn_id = ?
       ORDER BY iname.name ASC
       `,
@@ -5419,12 +5425,14 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
           ii.invoice_id AS invoiceId,
           ii.item_id AS itemId,
           iname.name AS item,
+          u.name AS unit,
           ii.quantity AS quantity,
           ii.rate AS rate,
           ii.tax_percent AS taxPercent
         FROM invoice_items ii
         LEFT JOIN items it ON it.id = ii.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        LEFT JOIN units u ON u.id = iname.unit_id
         WHERE ii.invoice_id IN (${placeholders})
         ORDER BY ii.created_at ASC
         `,
@@ -5441,6 +5449,7 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
           id: String(r.id ?? ''),
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+          unit: r.unit != null ? String(r.unit) : null,
           quantity: Number(r.quantity ?? 0),
           rate: Number(r.rate ?? 0),
           taxPercent: Number(r.taxPercent ?? 0),
@@ -5670,12 +5679,13 @@ app.get('/api/requests/:id/grns', async (req, res) => {
           gi.grn_id AS grnId,
           gi.item_id AS itemId,
           iname.name AS item,
-          it.unit AS unit,
+          u.name AS unit,
           it.specifications_json AS specificationsJson,
           gi.received_qty AS quantityReceived
         FROM grn_items gi
         LEFT JOIN items it ON it.id = gi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        LEFT JOIN units u ON u.id = iname.unit_id
         WHERE gi.grn_id IN (${placeholders})
         ORDER BY gi.created_at ASC
         `,
@@ -8263,12 +8273,13 @@ app.get('/api/pos/:id/grns', async (req, res) => {
           gi.grn_id AS grnId,
           gi.item_id AS itemId,
           iname.name AS item,
-          it.unit AS unit,
+          u.name AS unit,
           it.specifications_json AS specificationsJson,
           gi.received_qty AS quantityReceived
         FROM grn_items gi
         LEFT JOIN items it ON it.id = gi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        LEFT JOIN units u ON u.id = iname.unit_id
         WHERE gi.grn_id IN (${placeholders})
         ORDER BY gi.created_at ASC
         `,

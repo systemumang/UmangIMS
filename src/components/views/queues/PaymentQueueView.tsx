@@ -261,8 +261,14 @@ export default function PaymentQueueView({
                                 {expandedLines.map((l) => (
                                   <tr key={l.invoiceItemId}>
                                     <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.invoiceQty}</td>
-                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">{l.linkedQty}</td>
+                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                      {l.invoiceQty}
+                                      {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+                                    </td>
+                                    <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                      {l.linkedQty}
+                                      {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -563,11 +569,17 @@ export default function PaymentQueueView({
 	                                </div>
 	                              </td>
 		                        </>
-		                      ) : null}
-			                      <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-			                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.invoiceQty}</td>
-			                      <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{l.linkedQty}</td>
-			                    </tr>
+		                      <tr key={l.invoiceItemId}>
+		                        <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
+		                          {l.invoiceQty}
+		                          {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+		                        </td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
+		                          {l.linkedQty}
+		                          {(l as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(l as any).unit}</span> : null}
+		                        </td>
+		                      </tr>
 			                  ))
 		                ) : (
 			                  <tr>

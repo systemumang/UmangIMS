@@ -403,6 +403,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                                             <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                            <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                               {Number(it.quantity ?? 0)}
+                                              {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                                               {(() => {
                                                 const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
                                                 return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;

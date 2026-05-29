@@ -404,6 +404,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                         <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String(it.priority ?? '').trim() || '-'}</td>
                             <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
                                           {it.quantity}
+                                          {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                                           {(() => {
                                             const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
                                             return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
@@ -411,6 +412,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                         </td>
                             <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
                             {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
+                            {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                             </td>
                             </tr>
                             )})}

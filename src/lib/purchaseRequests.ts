@@ -777,6 +777,7 @@ export type PendingGrnInvoiceLinkRow = {
   poNumber: string;
   itemId: string;
   item: string;
+  unit?: string | null;
   specificationsJson?: string;
   grnQty: number;
   approvedQty: number;

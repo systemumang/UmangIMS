@@ -289,50 +289,72 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.poNumber}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson, specNameById)}</td>
-	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{r.grnQty}</td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+	                          {r.grnQty}
+	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+	                        </td>
 	                        <td className="px-3 py-2 border border-outline-variant">
 	                          <select
-                            className={cn(inputClass, 'py-1.5')}
-                            value={d.invoiceItemId}
-                            onChange={(e) => {
-                              const invoiceItemId = e.target.value;
-                              setDraftByGrnItemId((prev) => ({
-                                ...prev,
-                                [r.grnItemId]: {
-                                  invoiceItemId,
-                                  linkQty: invoiceItemId
-                                    ? String(
-                                        Math.min(
-                                          Number(r.pendingLinkingQty ?? 0),
-                                          Number((r.candidates ?? []).find((c) => c.invoiceItemId === invoiceItemId)?.pendingLinkingQty ?? 0)
-                                        )
-                                      )
-                                    : '',
-                                },
-                              }));
-                            }}
-                          >
-                            <option value="">Select invoice</option>
-                            {(r.candidates ?? []).map((c) => (
-                              <option key={c.invoiceItemId} value={c.invoiceItemId}>
-                                {c.invoiceNo}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant">{cand?.invoiceDate ? formatDateDDMMYYYYOnly(cand.invoiceDate) : '-'}</td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{cand ? cand.invoiceQty : '-'}</td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{cand ? cand.alreadyLinkedQty : '-'}</td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{r.approvedQty}</td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{r.pendingLinkingQty}</td>
-                        <td className="px-3 py-2 border border-outline-variant">
-                          <input
-                            className={cn(inputClass, 'py-1.5')}
-                            value={d.linkQty}
-                            onChange={(e) => setDraftByGrnItemId((prev) => ({ ...prev, [r.grnItemId]: { ...d, linkQty: e.target.value } }))}
-                            inputMode="decimal"
-                          />
-                        </td>
+	                            className={cn(inputClass, 'py-1.5')}
+	                            value={d.invoiceItemId}
+	                            onChange={(e) => {
+	                              const invoiceItemId = e.target.value;
+	                              setDraftByGrnItemId((prev) => ({
+	                                ...prev,
+	                                [r.grnItemId]: {
+	                                  invoiceItemId,
+	                                  linkQty: invoiceItemId
+	                                    ? String(
+	                                        Math.min(
+	                                          Number(r.pendingLinkingQty ?? 0),
+	                                          Number((r.candidates ?? []).find((c) => c.invoiceItemId === invoiceItemId)?.pendingLinkingQty ?? 0)
+	                                        )
+	                                      )
+	                                    : '',
+	                                },
+	                              }));
+	                            }}
+	                          >
+	                            <option value="">Select invoice</option>
+	                            {(r.candidates ?? []).map((c) => (
+	                              <option key={c.invoiceItemId} value={c.invoiceItemId}>
+	                                {c.invoiceNo}
+	                              </option>
+	                            ))}
+	                          </select>
+	                        </td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant">{cand?.invoiceDate ? formatDateDDMMYYYYOnly(cand.invoiceDate) : '-'}</td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+	                          {cand ? cand.invoiceQty : '-'}
+	                          {cand && r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+	                        </td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+	                          {cand ? cand.alreadyLinkedQty : '-'}
+	                          {cand && r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+	                        </td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+	                          {r.approvedQty}
+	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+	                        </td>
+	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
+	                          {r.pendingLinkingQty}
+	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+	                        </td>
+	                        <td className="px-3 py-2 border border-outline-variant">
+	                          <div className="relative">
+	                            <input
+	                              className={cn(inputClass, 'py-1.5 pl-2 pr-12 text-right')}
+	                              value={d.linkQty}
+	                              onChange={(e) => setDraftByGrnItemId((prev) => ({ ...prev, [r.grnItemId]: { ...d, linkQty: e.target.value } }))}
+	                              inputMode="decimal"
+	                            />
+	                            {r.unit && (
+	                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+	                                {r.unit}
+	                              </div>
+	                            )}
+	                          </div>
+	                        </td>
                       </tr>
                     );
                   })

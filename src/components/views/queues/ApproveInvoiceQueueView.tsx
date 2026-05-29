@@ -269,9 +269,12 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                             onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
                           >
                             <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
-                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.quantity ?? 0).toFixed(2)}</td>
-                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.rate ?? 0).toFixed(2)}</td>
-                            <td className="px-2 py-1 border border-outline-variant text-right">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
+                              {Number(it.quantity ?? 0).toFixed(2)}
+                              {it.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{it.unit}</span> : null}
+                            </td>
+                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
                           </tr>
                         ))}
                     </tbody>

@@ -2792,6 +2792,7 @@ export default function PurchaseRequestDetailView({
 	                            </td>
 	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
 	                              {it ? Number((it as any)?.quantity ?? 0) : 0}
+	                              {it && (it as any).item_unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(it as any).item_unit}</span> : null}
 	                            </td>
 	                            <td className="px-2 py-2 text-sm text-on-surface border border-outline-variant tabular-nums align-top">
 	                              {it ? Number((it as any)?.rate ?? 0) : 0}
@@ -2930,7 +2931,7 @@ export default function PurchaseRequestDetailView({
 	                            .filter(Boolean)
 	                            .join(' - ');
 	                          const label = it ? [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ') : '-';
-	                          const qtyCell = it ? Number(it.quantityReceived ?? 0) : '-';
+	                          const unit = it ? String(it.unit ?? '').trim() : '';
 
 		                          return (
 		                            <tr
@@ -2954,7 +2955,10 @@ export default function PurchaseRequestDetailView({
 	                              <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
 	                                <div className="whitespace-normal break-words">{renderInlineWithBoldSpecNames(label)}</div>
 	                              </td>
-	                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{qtyCell}</td>
+	                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                  {it ? Number(it.quantityReceived ?? 0) : '-'}
+                                  {it && unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
+                                </td>
 	                              {idx === 0 ? (
 		                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
 		                                  {updatedByCell}
