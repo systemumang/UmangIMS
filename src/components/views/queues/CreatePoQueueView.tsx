@@ -257,6 +257,38 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     return () => ac.abort();
   }, [activePrId, modalOpen, rows]);
 
+  const [expandedPrId, setExpandedPrId] = useState<string>('');
+  const [expandedLoadingPrId, setExpandedLoadingPrId] = useState<string>('');
+  const [expandedItemsByPrId, setExpandedItemsByPrId] = useState<Record<string, any[]>>({});
+  const [expandedErrorByPrId, setExpandedErrorByPrId] = useState<Record<string, string>>({});
+
+  async function toggleExpandRow(row: CreatePoQueueRow) {
+    const prId = String(row.prId ?? '').trim();
+    if (!prId) return;
+    if (expandedPrId === prId) {
+      setExpandedPrId('');
+      return;
+    }
+    setExpandedPrId(prId);
+    if (expandedItemsByPrId[prId] || expandedLoadingPrId === prId) return;
+    setExpandedLoadingPrId(prId);
+    setExpandedErrorByPrId((prev) => ({ ...prev, [prId]: '' }));
+    try {
+      const detail = await fetchRequest(prId);
+      setExpandedItemsByPrId((prev) => ({
+        ...prev,
+        [prId]: Array.isArray(detail.items) ? detail.items : [],
+      }));
+    } catch (e) {
+      setExpandedErrorByPrId((prev) => ({
+        ...prev,
+        [prId]: e instanceof Error ? e.message : String(e),
+      }));
+    } finally {
+      setExpandedLoadingPrId((prev) => (prev === prId ? '' : prev));
+    }
+  }
+
 	  return (
 	    <div className="space-y-6">
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
@@ -296,53 +328,139 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
               </thead>
               <tbody>
                 {pagedRows.length ? (
-                  pagedRows.map((r) => (
-                    <tr
-                      key={r.prId}
-                      className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedRowId === r.prId && 'bg-primary/10')}
-                      onClick={() => setSelectedRowId(selectedRowId === r.prId ? null : r.prId)}
-                    >
-                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
-		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
-		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
-		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
-	                      <td className="px-3 py-2 border border-outline-variant">
-		                        <div className="flex items-center gap-2 flex-wrap">
-		                        <button
-	                          type="button"
-	                          className="btn-primary btn-sm"
-	                          onClick={() => {
-	                            setModalKind('po');
-	                            setActivePrId(r.prId);
-	                            setModalOpen(true);
-	                          }}
-	                        >
-	                          Create PO
-	                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            setModalKind('rfq');
-                            setActivePrId(r.prId);
-                            setModalOpen(true);
-                          }}
+                  pagedRows.map((r) => {
+                    const prId = String(r.prId ?? '').trim();
+                    const isExpanded = expandedPrId === prId;
+                    const expandedItems = expandedItemsByPrId[prId] ?? [];
+                    const expandedError = expandedErrorByPrId[prId];
+                    const isExpandedLoading = expandedLoadingPrId === prId;
+                    
+                    return (
+                      <React.Fragment key={r.prId}>
+                        <tr
+                          className={cn('cursor-pointer transition-colors', isExpanded ? 'bg-primary/5' : 'hover:bg-surface-container-low')}
+                          onClick={() => toggleExpandRow(r)}
                         >
-                          RFQ
-                        </button>
-	                      </div>
+                          <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
+                          <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                className="btn-primary btn-sm"
+                                onClick={() => {
+                                  setModalKind('po');
+                                  setActivePrId(r.prId);
+                                  setModalOpen(true);
+                                }}
+                              >
+                                Create PO
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={() => {
+                                  setModalKind('rfq');
+                                  setActivePrId(r.prId);
+                                  setModalOpen(true);
+                                }}
+                              >
+                                RFQ
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                              {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading items...</div> : null}
+                              {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
+                              {!isExpandedLoading && !expandedError ? (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full min-w-[1060px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                    <thead>
+                                      <tr className="bg-surface-container-high">
+                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Length</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Breadth</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">PCs</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Priority</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Qty</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {expandedItems.length ? (
+                                        expandedItems.map((it) => {
+                                          const rawIt = it as any;
+                                          const unit = String(it.unit ?? rawIt.item_unit ?? '').trim();
+                                          const areaUnit = normalizeAreaUnitName(unit);
+                                          const dimL = it.dimLength ?? rawIt.dim_length;
+                                          const dimB = it.dimBreadth ?? rawIt.dim_breadth;
+                                          const dimP = it.dimPcs ?? rawIt.dim_pcs;
+                                          const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
+                                          const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
+
+                                          return (
+                                            <tr key={it.id}>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                                                {formatItemInline(it.item, it.specification, specNameById)}
+                                              </td>
+                                              <td className="px-3 py-2 border border-outline-variant">{unit || '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant">
+                                                {Number(dimL) || '-'}
+                                                {(() => {
+                                                  const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
+                                                  return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                                })()}
+                                              </td>
+                                              <td className="px-3 py-2 border border-outline-variant">
+                                                {Number(dimB) || '-'}
+                                                {(() => {
+                                                  const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
+                                                  return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                                })()}
+                                              </td>
+                                              <td className="px-3 py-2 border border-outline-variant">{Number(dimP) || '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? '').trim() || '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">
+                                                {Number(it.quantity ?? 0)}
+                                                {(() => {
+                                                  const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
+                                                  return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
+                                                })()}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })
+                                      ) : (
+                                        <tr>
+                                          <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={7}>
+                                            No items.
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
+                      No records.
                     </td>
                   </tr>
-                ))
-              ) : (
-	                  <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
-	                      No records.
-	                    </td>
-	                  </tr>
-	                )}
+                )}
               </tbody>
             </table>
 	          </div>

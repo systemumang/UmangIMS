@@ -330,13 +330,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
                             <div className="overflow-x-auto">
-	                              <table className="w-full min-w-[1060px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                              <table className="w-full min-w-[1140px] table-fixed text-left border-collapse border border-outline-variant text-sm">
 	                                <thead>
 	                                  <tr className="bg-surface-container-high">
 	                                    <th className="px-3 py-2 border border-outline-variant">Item</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[120px]">Length</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[120px]">Breadth</th>
+                                      <th className="px-3 py-2 border border-outline-variant w-[80px]">PCs</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[100px]">Priority</th>
 	                                    <th className="px-3 py-2 border border-outline-variant w-[120px]">Pending GRN Qty</th>
 	                                  </tr>
@@ -351,6 +352,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                           const areaUnit = normalizeAreaUnitName(unit);
                                           const dimL = it.dimLength ?? rawIt.dim_length;
                                           const dimB = it.dimBreadth ?? rawIt.dim_breadth;
+                                          const dimP = it.dimPcs ?? rawIt.dim_pcs;
                                           const rawDimUnit = String(it.dimUnit ?? rawIt.dim_unit ?? '').trim();
                                           const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
 
@@ -376,6 +378,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                                             })()}
                                           </td>
+                                          <td className="px-3 py-2 border border-outline-variant">{Number(dimP) || '-'}</td>
                                           <td className="px-3 py-2 border border-outline-variant">{String(it.priority ?? rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                             {Number(it.pendingQty ?? 0)}
@@ -388,7 +391,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                                    )})
 	                                  ) : (
 	                                    <tr>
-	                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={6}>
+	                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={7}>
 	                                        No pending items.
 	                                      </td>
 	                                    </tr>
