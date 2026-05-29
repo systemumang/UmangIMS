@@ -810,8 +810,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         <td className="px-1 py-2 border border-black align-top">
                           <div className="space-y-1">
                             <input
-                              className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right bg-surface-container-low')}
-                              value={qtyByItemId[it.itemId] ?? String(pendingQty)}
+                              className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right bg-surface-container-low font-bold')}
+                              value={(() => {
+                                const q = qtyByItemId[it.itemId] ?? String(pendingQty);
+                                if (!isAreaUnit) return q;
+                                const ro = Number(roundOffByItemId[it.itemId] || 0);
+                                if (ro === 0) return q;
+                                return (round2(Number(q) + ro)).toFixed(2);
+                              })()}
                               onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
                               inputMode="decimal"
                               disabled={isAreaUnit}
@@ -826,7 +832,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               return (
                                 <div className="space-y-0.5">
                                   <div className="text-[10px] text-blue-700 font-bold leading-tight">
-                                    {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                    Area: {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
                                   </div>
                                   {inputAreaUnitLabel !== poAreaUnitLabel && (
                                     <div className="text-[10px] text-red-600 font-medium leading-tight">
@@ -835,7 +841,16 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   )}
                                 </div>
                               );
-                            })() : null}
+                            })() : (() => {
+                              const q = Number(qtyByItemId[it.itemId] ?? pendingQty);
+                              const ro = Number(roundOffByItemId[it.itemId] || 0);
+                              if (ro === 0) return null;
+                              return (
+                                <div className="text-[10px] text-blue-800 font-bold text-right pr-1">
+                                  Total: {round2(q + ro).toFixed(2)}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
 
