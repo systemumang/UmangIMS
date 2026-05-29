@@ -695,6 +695,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">{it.taxPercent ?? '-'}</td>
                         <td className="px-2 py-2 border border-black align-top">
                           {isAreaUnit ? (
+                            <>
                             <div className="grid grid-cols-4 gap-1">
                               <select
                                 className={cn(inputClass, 'py-1.5')}
@@ -756,8 +757,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 return convQ ? <div className="text-[10px] text-red-600 font-medium">Total: {convQ}</div> : null;
                                 })()}
                                 </div>
-                              </div>
-                            </div>
+                            </>
                           ) : (
                             <input
                               className={cn(inputClass, 'py-1.5')}
