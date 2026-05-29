@@ -81,7 +81,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [expandedGrnId, setExpandedGrnId] = useState('');
-  const [expandedItemsByGrnId, setExpandedItemsByGrnId] = useState<Record<string, Array<{ itemId: string; item: string; specificationsJson?: string; grnQty: number }>>>({});
+  const [expandedItemsByGrnId, setExpandedItemsByGrnId] = useState<Record<string, Array<{ itemId: string; item: string; unit?: string; specificationsJson?: string; grnQty: number }>>>({});
   const [expandedLoadingGrnId, setExpandedLoadingGrnId] = useState('');
   const [expandedErrorByGrnId, setExpandedErrorByGrnId] = useState<Record<string, string>>({});
 
@@ -274,7 +274,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                                         <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
                                         <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                           {Number(it.grnQty ?? 0)}
-                                          {(it as any).unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{(it as any).unit}</span> : null}
+                                          {it.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{it.unit}</span> : null}
                                         </td>
                                       </tr>
                                     ))
@@ -457,7 +457,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
 	                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
                           {l.receivedQty}
-                          {l.unit ? <div className="text-[10px] font-bold opacity-60 mt-0.5">{l.unit}</div> : null}
+                          {l.unit ? <span className="ml-1 text-[10px] font-bold opacity-60 uppercase">{l.unit}</span> : null}
                         </td>
 	                      <td className="px-3 py-2 border border-outline-variant">
                           <div className="relative">
