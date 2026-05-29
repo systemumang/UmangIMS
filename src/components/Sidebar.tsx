@@ -238,7 +238,7 @@ export default function Sidebar({
 	        'w-72 fixed inset-y-0 left-0 bg-surface-container-low flex flex-col z-40 transition-transform duration-200 border-r-2 border-[#1f2937] shadow-lg',
 	        open ? 'translate-x-0' : '-translate-x-full'
 	      )}
-	      aria-hidden={!open}
+	      inert={!open ? true : undefined}
 	    >
 	      <div className="px-6 pt-8 pb-6 shrink-0 border-b-2 border-[#1f2937]">
         <div className="flex items-center gap-3">
