@@ -516,20 +516,20 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	                        </td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{it.unit || '-'}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.length) || '-'}
+                            {Number(it.dimLength) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.length ?? ''), dimUnit);
+                              const conv = getConvertedDim(String(it.dimLength ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.breadth) || '-'}
+                            {Number(it.dimBreadth) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.breadth ?? ''), dimUnit);
+                              const conv = getConvertedDim(String(it.dimBreadth ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.pcs) || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.dimPcs) || '-'}</td>
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
                             {Number(it.quantity ?? 0)}

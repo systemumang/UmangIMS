@@ -621,20 +621,20 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                        </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{it.unit || '-'}</td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.length) || '-'}
+                            {Number(it.dimLength) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.length ?? ''), baseDimUnitForAreaUnit(areaUnit));
+                              const conv = getConvertedDim(String(it.dimLength ?? ''), baseDimUnitForAreaUnit(areaUnit));
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">
-                            {Number(it.breadth) || '-'}
+                            {Number(it.dimBreadth) || '-'}
                             {(() => {
-                              const conv = getConvertedDim(String(it.breadth ?? ''), baseDimUnitForAreaUnit(areaUnit));
+                              const conv = getConvertedDim(String(it.dimBreadth ?? ''), baseDimUnitForAreaUnit(areaUnit));
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.pcs) || '-'}</td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{Number(it.dimPcs) || '-'}</td>
 	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top">{String((it as any).priority ?? (active as any)?.priority ?? '').trim() || '-'}</td>
 	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums">
                             {Number(it.quantity ?? 0)}
@@ -709,8 +709,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 return convQ ? <div className="text-[10px] text-red-600 font-medium">Total: {convQ}</div> : null;
                                 })()}
                                 </div>
-                                </div>
-
+                              </div>
+                            </div>
+                          ) : (
                             <input
                               className={cn(inputClass, 'py-1.5')}
                               value={qtyByItemId[it.itemId] ?? String(pendingQty)}
