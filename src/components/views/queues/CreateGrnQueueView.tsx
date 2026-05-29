@@ -777,11 +777,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         </td>
                         <td className="px-1 py-2 border border-black align-top">
                           <input
-                            className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right')}
+                            className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right disabled:bg-surface-container-low disabled:opacity-50')}
                             value={roundOffByItemId[it.itemId] ?? ''}
                             onChange={(e) => setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
                             inputMode="decimal"
-                            placeholder="0.00"
+                            placeholder={isAreaUnit ? "0.00" : "-"}
+                            disabled={!isAreaUnit}
                           />
                         </td>
                         <td className="px-1 py-2 border border-black align-top">
