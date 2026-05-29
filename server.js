@@ -5670,6 +5670,7 @@ app.get('/api/requests/:id/grns', async (req, res) => {
           gi.grn_id AS grnId,
           gi.item_id AS itemId,
           iname.name AS item,
+          it.unit AS unit,
           it.specifications_json AS specificationsJson,
           gi.received_qty AS quantityReceived
         FROM grn_items gi
@@ -5691,6 +5692,7 @@ app.get('/api/requests/:id/grns', async (req, res) => {
           grnId,
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+          unit: String(r.unit ?? '').trim(),
           specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
           quantityReceived: Number(r.quantityReceived ?? 0),
         });
@@ -8262,6 +8264,7 @@ app.get('/api/pos/:id/grns', async (req, res) => {
           gi.grn_id AS grnId,
           gi.item_id AS itemId,
           iname.name AS item,
+          it.unit AS unit,
           it.specifications_json AS specificationsJson,
           gi.received_qty AS quantityReceived
         FROM grn_items gi
@@ -8283,6 +8286,7 @@ app.get('/api/pos/:id/grns', async (req, res) => {
           grnId,
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+          unit: String(r.unit ?? '').trim(),
           specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
           quantityReceived: Number(r.quantityReceived ?? 0),
         });
