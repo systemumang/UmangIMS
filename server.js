@@ -8156,7 +8156,11 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
         iname.name AS item,
         u.name AS unit,
         GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(linkq.linkQty, 0)) AS pendingQty,
-        poi.rate AS rate
+        poi.rate AS rate,
+        poi.dim_length AS dimLength,
+        poi.dim_breadth AS dimBreadth,
+        poi.dim_pcs AS dimPcs,
+        poi.dim_unit AS dimUnit
       FROM purchase_order_items poi
       LEFT JOIN (
         SELECT inv.po_id AS poId, ii.item_id AS itemId, SUM(COALESCE(gil.linked_qty, 0)) AS linkQty
@@ -8181,6 +8185,10 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
       unit: r.unit != null ? String(r.unit) : null,
       pendingQty: Number(r.pendingQty ?? 0),
       rate: Number(r.rate ?? 0),
+      dimLength: r.dimLength,
+      dimBreadth: r.dimBreadth,
+      dimPcs: r.dimPcs,
+      dimUnit: r.dimUnit,
     }));
 
     res.json({ items });
@@ -8204,7 +8212,11 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
         iname.name AS item,
         u.name AS unit,
         GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0)) AS pendingQty,
-        poi.rate AS rate
+        poi.rate AS rate,
+        poi.dim_length AS dimLength,
+        poi.dim_breadth AS dimBreadth,
+        poi.dim_pcs AS dimPcs,
+        poi.dim_unit AS dimUnit
       FROM purchase_order_items poi
       LEFT JOIN (
         SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
@@ -8228,6 +8240,10 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
       unit: r.unit != null ? String(r.unit) : null,
       pendingQty: Number(r.pendingQty ?? 0),
       rate: Number(r.rate ?? 0),
+      dimLength: r.dimLength,
+      dimBreadth: r.dimBreadth,
+      dimPcs: r.dimPcs,
+      dimUnit: r.dimUnit,
     }));
 
     res.json({ items });

@@ -352,10 +352,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                           const rawIt = it as any;
                                           const unit = String(it.unit ?? '').trim();
                                           const areaUnit = normalizeAreaUnitName(unit);
-                                          const dimL = rawIt.dim_length;
-                                          const dimB = rawIt.dim_breadth;
-                                          const dimP = rawIt.dim_pcs;
-                                          const rawDimUnit = String(rawIt.dim_unit ?? '').trim();
+                                          const dimL = rawIt.dimLength ?? rawIt.dim_length;
+                                          const dimB = rawIt.dimBreadth ?? rawIt.dim_breadth;
+                                          const dimP = rawIt.dimPcs ?? rawIt.dim_pcs;
+                                          const rawDimUnit = String(rawIt.dimUnit ?? rawIt.dim_unit ?? '').trim();
                                           const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
 
                                           return (
@@ -643,10 +643,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                       const unit = String(it.unit ?? '').trim();
                       const areaUnit = normalizeAreaUnitName(unit);
 
-                      const dimL = raw.dim_length;
-                      const dimB = raw.dim_breadth;
-                      const dimP = raw.dim_pcs;
-                      const rawDimUnit = String(raw.dim_unit ?? '').trim();
+                      const dimL = raw.dimLength ?? raw.dim_length;
+                      const dimB = raw.dimBreadth ?? raw.dim_breadth;
+                      const dimP = raw.dimPcs ?? raw.dim_pcs;
+                      const rawDimUnit = String(raw.dimUnit ?? raw.dim_unit ?? '').trim();
                       const dimUnit = rawDimUnit || baseDimUnitForAreaUnit(areaUnit);
 
                       const poDimUnit = dimUnit;
