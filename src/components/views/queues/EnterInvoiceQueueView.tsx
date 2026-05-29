@@ -25,6 +25,9 @@ type InvoiceLine = {
   discountPercent: number;
   unit?: string | null;
   poDimUnit?: 'ft' | 'm' | string | null;
+  poDimLength?: string;
+  poDimBreadth?: string;
+  poDimPcs?: string;
   inputUnit?: 'ft' | 'm';
   length?: string;
   breadth?: string;
@@ -210,9 +213,9 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
             const unit = (poi as any).unit != null ? String((poi as any).unit) : null;
             const poDimUnit = String((poi as any).dimUnit ?? '').trim() || baseDimUnitForAreaUnit(normalizeAreaUnitName(unit || ''));
             const isAreaUnit = poDimUnit === 'ft' || poDimUnit === 'm';
-            const length = String((poi as any).dimLength ?? '').trim();
-            const breadth = String((poi as any).dimBreadth ?? '').trim();
-            const pcs = String((poi as any).dimPcs ?? '1').trim() || '1';
+            const length = String((poi as any).dimLength ?? (poi as any).dim_length ?? '').trim();
+            const breadth = String((poi as any).dimBreadth ?? (poi as any).dim_breadth ?? '').trim();
+            const pcs = String((poi as any).dimPcs ?? (poi as any).dim_pcs ?? '1').trim() || '1';
             const inputUnit = (poDimUnit === 'm' ? 'm' : 'ft') as 'ft' | 'm';
             const qtyPoUnit = isAreaUnit ? convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inputUnit, poDimUnit) : pendingQty;
 	            return {
@@ -225,6 +228,9 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	              discountPercent: Number((poi as any).discountPercent ?? 0),
                 unit,
                 poDimUnit: poDimUnit || null,
+                poDimLength: length,
+                poDimBreadth: breadth,
+                poDimPcs: pcs,
                 inputUnit,
                 length: isAreaUnit ? length : '',
                 breadth: isAreaUnit ? breadth : '',
@@ -792,53 +798,195 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
         <div className="rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1600px] table-fixed text-left border-collapse border border-black text-xs [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
-	                <col className="w-[420px]" />
 	                <col className="w-[120px]" />
-	                <col className="w-[140px]" />
-	                <col className="w-[180px]" />
-                  {supplierHasGst ? <col className="w-[160px]" /> : null}
-	                <col className="w-[180px]" />
+	                <col className="w-[160px]" />
+	                <col className="w-[300px]" />
+	                <col className="w-[80px]" />
+	                <col className="w-[100px]" />
+	                <col className="w-[100px]" />
+	                <col className="w-[80px]" />
+	                <col className="w-[110px]" />
+                  <col className="w-[70px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[100px]" />
+                  {supplierHasGst ? <col className="w-[100px]" /> : null}
+	                <col className="w-[120px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-primary text-on-primary">
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Item</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Pending Qty</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">PO Rate</th>
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Inv Rate</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">PO No</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">Supplier</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">Item</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO Unit</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO L</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO B</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO PCs</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-right">PO Qty</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv Unit</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv L</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv B</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv PCs</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv Rate</th>
                     {supplierHasGst ? (
-	                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">GST %</th>
+	                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST %</th>
                     ) : null}
-                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant/30">Invoice Qty</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Invoice Qty</th>
                 </tr>
               </thead>
               <tbody>
-                {lines.length ? (
-                  lines
-                    .filter((ln) => !selectedItemId || ln.itemId === selectedItemId)
-                    .map((ln) => {
-                      const idx = lines.findIndex((x) => x.itemId === ln.itemId);
+                {(() => {
+                  const filteredLines = lines.filter((ln) => !selectedItemId || ln.itemId === selectedItemId);
+                  if (!filteredLines.length) {
+                    return (
+                      <tr>
+                        <td className="px-3 py-5 text-sm text-on-surface-variant border border-black" colSpan={supplierHasGst ? 15 : 14}>
+                          No pending items.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredLines.map((ln, idx) => {
+                      const rowSpan = filteredLines.length;
                       return (
                         <tr
                           key={ln.itemId}
                           className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === ln.itemId && 'bg-primary/10')}
                           onClick={() => setSelectedItemId(selectedItemId === ln.itemId ? null : ln.itemId)}
                         >
-                          <td className="px-3 py-2 text-sm border border-outline-variant/30 font-medium">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">
-                            {ln.pendingQty}
-                            {ln.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{ln.unit}</span> : null}
+                          {idx === 0 ? (
+                            <>
+                              <td rowSpan={rowSpan} className="px-2 py-2 font-semibold text-on-surface border border-black align-top break-words">
+                                {formatPoNumber(active?.poNumber ?? active?.poId) || '-'}
+                              </td>
+                              <td rowSpan={rowSpan} className="px-2 py-2 text-on-surface border border-black align-top break-words">
+                                {active?.supplierName || '-'}
+                              </td>
+                            </>
+                          ) : null}
+                          <td className="px-2 py-2 border border-black font-medium">{formatItemInline(ln.item, ln.specificationsJson, specNameById)}</td>
+                          <td className="px-2 py-2 border border-black text-center">{ln.unit || '-'}</td>
+                          <td className="px-2 py-2 border border-black text-center">{ln.poDimLength || '-'}</td>
+                          <td className="px-2 py-2 border border-black text-center">{ln.poDimBreadth || '-'}</td>
+                          <td className="px-2 py-2 border border-black text-center">{ln.poDimPcs || '-'}</td>
+                          <td className="px-2 py-2 border border-black tabular-nums text-right font-semibold">{ln.poQty}</td>
+
+                          {/* INVOICE INPUTS */}
+                          <td className="px-1 py-2 border border-black align-middle text-center" onClick={(e) => e.stopPropagation()}>
+                            {ln.isAreaUnit ? (
+                                <select
+                                  className={cn(inputClass, 'py-1 px-1 h-8 text-[11px]')}
+                                  value={ln.inputUnit ?? 'ft'}
+                                  onChange={(e) => {
+                                    const v = e.target.value === 'm' ? 'm' : 'ft';
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      const poDimUnit = String(next[lineIdx]?.poDimUnit ?? '').trim();
+                                      const length = String(next[lineIdx]?.length ?? '');
+                                      const breadth = String(next[lineIdx]?.breadth ?? '');
+                                      const pcs = String(next[lineIdx]?.pcs ?? '1') || '1';
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), v, poDimUnit);
+                                      next[lineIdx] = { ...next[lineIdx]!, inputUnit: v as any, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <option value="ft">ft</option>
+                                  <option value="m">m</option>
+                                </select>
+                            ) : '-'}
                           </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant/30 tabular-nums">{ln.poRate}</td>
-                          <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                            {ln.isAreaUnit ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5 h-8 text-[11px]')}
+                                  value={ln.length ?? ''}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      const length = e.target.value;
+                                      const breadth = String(next[lineIdx]?.breadth ?? '');
+                                      const pcs = String(next[lineIdx]?.pcs ?? '1') || '1';
+                                      const inU = String(next[lineIdx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[lineIdx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
+                                      next[lineIdx] = { ...next[lineIdx]!, length, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="decimal"
+                                  placeholder="L"
+                                />
+                            ) : '-'}
+                          </td>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                            {ln.isAreaUnit ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5 h-8 text-[11px]')}
+                                  value={ln.breadth ?? ''}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      const breadth = e.target.value;
+                                      const length = String(next[lineIdx]?.length ?? '');
+                                      const pcs = String(next[lineIdx]?.pcs ?? '1') || '1';
+                                      const inU = String(next[lineIdx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[lineIdx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
+                                      next[lineIdx] = { ...next[lineIdx]!, breadth, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="decimal"
+                                  placeholder="B"
+                                />
+                            ) : '-'}
+                          </td>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                            {ln.isAreaUnit ? (
+                                <input
+                                  className={cn(inputClass, 'py-1.5 h-8 text-[11px]')}
+                                  value={ln.pcs ?? '1'}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      const pcs = e.target.value;
+                                      const length = String(next[lineIdx]?.length ?? '');
+                                      const breadth = String(next[lineIdx]?.breadth ?? '');
+                                      const inU = String(next[lineIdx]?.inputUnit ?? 'ft');
+                                      const poU = String(next[lineIdx]?.poDimUnit ?? '');
+                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs || 1)), inU, poU);
+                                      next[lineIdx] = { ...next[lineIdx]!, pcs, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
+                                      return next;
+                                    })
+                                  }
+                                  inputMode="numeric"
+                                  placeholder="PCs"
+                                />
+                            ) : '-'}
+                          </td>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
                             <input
-                              className={cn(inputClass, 'py-1.5')}
+                              className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
                               value={ln.invRate}
                               onChange={(e) =>
                                 setLines((prev) => {
                                   const next = prev.slice();
-                                  next[idx] = { ...next[idx]!, invRate: sanitizeDecimalInput(e.target.value) };
+                                  const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                  if (lineIdx === -1) return prev;
+                                  next[lineIdx] = { ...next[lineIdx]!, invRate: sanitizeDecimalInput(e.target.value) };
                                   return next;
                                 })
                               }
@@ -847,21 +995,25 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                             />
                           </td>
                           {supplierHasGst ? (
-                            <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
                               <input
-                                className={cn(inputClass, 'py-1.5')}
+                                className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
                                 value={ln.gstPercent}
                                 onChange={(e) =>
                                   setLines((prev) => {
                                     const next = prev.slice();
-                                    next[idx] = { ...next[idx]!, gstPercent: sanitizePercentInput(e.target.value) };
+                                    const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                    if (lineIdx === -1) return prev;
+                                    next[lineIdx] = { ...next[lineIdx]!, gstPercent: sanitizePercentInput(e.target.value) };
                                     return next;
                                   })
                                 }
                                 onBlur={() =>
                                   setLines((prev) => {
                                     const next = prev.slice();
-                                    next[idx] = { ...next[idx]!, gstPercent: clampPercentString(next[idx]!.gstPercent) };
+                                    const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                    if (lineIdx === -1) return prev;
+                                    next[lineIdx] = { ...next[lineIdx]!, gstPercent: clampPercentString(next[lineIdx]!.gstPercent) };
                                     return next;
                                   })
                                 }
@@ -870,96 +1022,18 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                               />
                             </td>
                           ) : null}
-                          <td className="px-3 py-2 border border-outline-variant/30" onClick={(e) => e.stopPropagation()}>
-                            {ln.isAreaUnit ? (
-                              <div className="grid grid-cols-4 gap-1">
-                                <select
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={ln.inputUnit ?? 'ft'}
-                                  onChange={(e) => {
-                                    const v = e.target.value === 'm' ? 'm' : 'ft';
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      const poDimUnit = String(next[idx]?.poDimUnit ?? '').trim();
-                                      const length = String(next[idx]?.length ?? '');
-                                      const breadth = String(next[idx]?.breadth ?? '');
-                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), v, poDimUnit);
-                                      next[idx] = { ...next[idx]!, inputUnit: v as any, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <option value="ft">ft</option>
-                                  <option value="m">m</option>
-                                </select>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                            <div className="relative">
                                 <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={ln.length ?? ''}
-                                  onChange={(e) =>
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      const length = e.target.value;
-                                      const breadth = String(next[idx]?.breadth ?? '');
-                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
-                                      const poU = String(next[idx]?.poDimUnit ?? '');
-                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
-                                      next[idx] = { ...next[idx]!, length, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                      return next;
-                                    })
-                                  }
-                                  inputMode="decimal"
-                                  placeholder={`L (${ln.inputUnit ?? 'ft'})`}
-                                />
-                                <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={ln.breadth ?? ''}
-                                  onChange={(e) =>
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      const breadth = e.target.value;
-                                      const length = String(next[idx]?.length ?? '');
-                                      const pcs = String(next[idx]?.pcs ?? '1') || '1';
-                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
-                                      const poU = String(next[idx]?.poDimUnit ?? '');
-                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inU, poU);
-                                      next[idx] = { ...next[idx]!, breadth, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                      return next;
-                                    })
-                                  }
-                                  inputMode="decimal"
-                                  placeholder={`B (${ln.inputUnit ?? 'ft'})`}
-                                />
-                                <input
-                                  className={cn(inputClass, 'py-1.5')}
-                                  value={ln.pcs ?? '1'}
-                                  onChange={(e) =>
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      const pcs = e.target.value;
-                                      const length = String(next[idx]?.length ?? '');
-                                      const breadth = String(next[idx]?.breadth ?? '');
-                                      const inU = String(next[idx]?.inputUnit ?? 'ft');
-                                      const poU = String(next[idx]?.poDimUnit ?? '');
-                                      const qty = convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs || 1)), inU, poU);
-                                      next[idx] = { ...next[idx]!, pcs, invoiceQty: Number.isFinite(qty) && qty > 0 ? String(qty) : '' };
-                                      return next;
-                                    })
-                                  }
-                                  inputMode="numeric"
-                                  placeholder="PCs"
-                                />
-                              </div>
-                            ) : (
-                              <div className="relative">
-                                <input
-                                  className={cn(inputClass, 'py-1.5 pl-2 pr-12 text-right')}
+                                  className={cn(inputClass, 'py-1.5 pl-2 pr-12 h-8 text-[11px] text-right bg-surface-container-low font-bold')}
                                   value={ln.invoiceQty}
+                                  readOnly={ln.isAreaUnit}
                                   onChange={(e) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      next[idx] = { ...next[idx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      next[lineIdx] = { ...next[lineIdx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
                                       return next;
                                     })
                                   }
@@ -971,19 +1045,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                     {ln.unit}
                                   </div>
                                 )}
-                              </div>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       );
-                    })
-                ) : (
-                  <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant/30" colSpan={6}>
-                      No pending items.
-                    </td>
-                  </tr>
-                )}
+                    });
+                })()}
               </tbody>
             </table>
           </div>
