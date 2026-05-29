@@ -49,16 +49,16 @@ function computeAreaQty(length: number, breadth: number, pcs: number) {
 }
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   const n = Number(val);
-  if (!n || n <= 0) return '';
-  if (from === 'ft') return `${(n * 0.3048).toFixed(3)} m`;
-  if (from === 'm') return `${(n / 0.3048).toFixed(2)} ft`;
+  if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
+  if (from === 'ft') return `${n} Ft = ${(n * 0.3048).toFixed(2)} m`;
+  if (from === 'm') return `${n} m = ${(n / 0.3048).toFixed(2)} Ft`;
   return '';
 }
 function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
   const n = Number(val);
-  if (!n || n <= 0) return '';
-  if (from === 'sqft') return `${(n * 0.092903).toFixed(3)} sqm`;
-  if (from === 'sqm') return `${(n / 0.092903).toFixed(2)} sqft`;
+  if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
+  if (from === 'sqft') return `${n} Sq Ft = ${(n * 0.092903).toFixed(2)} Sq Mtr`;
+  if (from === 'sqm') return `${n} Sq Mtr = ${(n / 0.092903).toFixed(2)} Sq Ft`;
   return '';
 }
 

@@ -68,16 +68,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    if (from === 'ft') return `${n} Ft = ${(n / 3.28084).toFixed(2)} m`;
+    if (from === 'm') return `${n} m = ${(n * 3.28084).toFixed(2)} Ft`;
     return null;
   }
 
   function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
-    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    if (from === 'sqft') return `${n} Sq Ft = ${(n / 10.7639).toFixed(2)} Sq Mtr`;
+    if (from === 'sqm') return `${n} Sq Mtr = ${(n * 10.7639).toFixed(2)} Sq Ft`;
     return null;
   }
 

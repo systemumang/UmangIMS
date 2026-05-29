@@ -61,16 +61,16 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    if (from === 'ft') return `${n} Ft = ${(n / 3.28084).toFixed(2)} m`;
+    if (from === 'm') return `${n} m = ${(n * 3.28084).toFixed(2)} Ft`;
     return null;
   }
 
   function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
-    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    if (from === 'sqft') return `${n} Sq Ft = ${(n / 10.7639).toFixed(2)} Sq Mtr`;
+    if (from === 'sqm') return `${n} Sq Mtr = ${(n * 10.7639).toFixed(2)} Sq Ft`;
     return null;
   }
 
@@ -135,6 +135,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [updatedByUserId, setUpdatedByUserId] = useState('');
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
+  const [roundOffByItemId, setRoundOffByItemId] = useState<Record<string, string>>({});
   const [dimsByItemId, setDimsByItemId] = useState<Record<string, { length: string; breadth: string; pcs: string }>>({});
   const [inputUnitByItemId, setInputUnitByItemId] = useState<Record<string, 'ft' | 'm'>>({});
   const [saving, setSaving] = useState(false);
@@ -153,6 +154,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     setActivePoDetails(null);
     setPendingItems([]);
     setQtyByItemId({});
+    setRoundOffByItemId({});
     setDimsByItemId({});
     setInputUnitByItemId({});
     setReceivedDate(todayIsoDate());
@@ -248,18 +250,18 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     }
   }
 
-	  return (
-	    <div className="space-y-6">
-	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
-	      <div className="hidden">
-	        <div className="text-sm text-on-surface-variant">Create GRN</div>
-	        <ExportCsvButton id="pending-export-btn" filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
-	      </div>
-	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
+  return (
+    <div className="space-y-6">
+      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
+      <div className="hidden">
+        <div className="text-sm text-on-surface-variant">Create GRN</div>
+        <ExportCsvButton id="pending-export-btn" filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+      </div>
+      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
-	      {loading ? (
-	        <LoadingCard label="Loading POs pending GRN..." />
-	      ) : error ? (
+      {loading ? (
+        <LoadingCard label="Loading POs pending GRN..." />
+      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
         <QueueCard title="Create GRN" subtitle={`${rows.length} pending`} hideHeader>
@@ -538,15 +540,23 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                       const raw = qtyByItemId[it.itemId];
                       return raw != null && String(raw).trim() ? Number(raw) : 0;
                     })();
+                    const ro = roundOffByItemId[it.itemId];
                     return {
                       itemId: it.itemId,
                       item: it.item,
                       quantityReceived: q,
+                      roundOff: String(ro ?? '').trim() ? Number(ro) : undefined,
                       pendingQty: it.pendingQty,
                       ...(isArea ? { length: Number(dims.length), breadth: Number(dims.breadth), pcs: Number(dims.pcs || 1), inputUnit } : {}),
                     };
                   })
-                  .filter((x) => Number.isFinite(x.quantityReceived) && x.quantityReceived > 0);
+                  .filter((x) => x.quantityReceived > 0 || (x.roundOff != null && Math.abs(x.roundOff) > 0));
+                
+                if (!items.length) {
+                  setModalError('Enter Received Qty or Round Off for at least one item.');
+                  return;
+                }
+
                 for (const it of items) {
                   if (it.quantityReceived > it.pendingQty + 1e-9) {
                     setModalError('Received qty cannot exceed pending qty');
@@ -565,6 +575,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                     itemId: x.itemId,
                     item: x.item,
                     quantityReceived: x.quantityReceived,
+                    roundOff: x.roundOff,
                     ...(('length' in x || 'breadth' in x || 'pcs' in x) ? { length: (x as any).length, breadth: (x as any).breadth, pcs: (x as any).pcs, inputUnit: (x as any).inputUnit } : {}),
                   })),
                 })
@@ -578,14 +589,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
             </button>
           </>
         }
-	      >
-	        {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
+      >
+        {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
 
-	        {detailLoading || modalLoading ? (
-	          <div className="text-sm text-on-surface-variant">Loading PO details...</div>
-	        ) : activePoDetails ? (
+        {detailLoading || modalLoading ? (
+          <div className="text-sm text-on-surface-variant">Loading PO details...</div>
+        ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[2100px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[2200px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
@@ -604,6 +615,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
                   <col className="w-[80px]" />
+                  <col className="w-[100px]" />
                   <col className="w-[120px]" />
                 <col className="w-[150px]" />
                 <col className="w-[150px]" />
@@ -627,6 +639,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN L</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN B</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN PCs</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">Round Off</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Total Qty</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Checked By</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black">Sent By</th>
@@ -776,6 +789,15 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           ) : '-'}
                         </td>
                         <td className="px-1 py-2 border border-black align-top">
+                          <input
+                            className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right')}
+                            value={roundOffByItemId[it.itemId] ?? ''}
+                            onChange={(e) => setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
+                            inputMode="decimal"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="px-1 py-2 border border-black align-top">
                           <div className="space-y-1">
                             <input
                               className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right bg-surface-container-low')}
@@ -810,10 +832,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                         {idx === 0 ? (
                           <>
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
-                              {checkedByName}
+                              {displayUserName(activePoDetails.po.checkPoUserId)}
                             </td>
                             <td rowSpan={rowSpan} className="px-2 py-2 text-sm text-on-surface border border-black align-top break-words">
-                              {sentByName}
+                              {displayUserName(activePoDetails.po.sentBy)}
                             </td>
                           </>
                         ) : null}
