@@ -1405,36 +1405,38 @@ export default function OperationsView({
 	                            {!grnDetailLoading && grnDetailError ? <div className="text-sm text-error">{grnDetailError}</div> : null}
 	                            {!grnDetailLoading && !grnDetailError ? (
 	                              <div className="overflow-x-auto">
-	                                <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                <table className="w-full min-w-[850px] table-fixed text-left border-collapse border border-outline-variant text-sm">
 	                                  <thead>
 	                                    <tr className="bg-primary text-on-primary">
 	                                      <th className="px-3 py-2 border border-outline-variant">Item</th>
-	                                      <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant">Approved Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant">Invoice Link Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant">Rejected</th>
+	                                <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+	                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">GRN Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Approved Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Inv. Link Qty</th>
+	                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected</th>
 	                                    </tr>
 	                                  </thead>
 	                                  <tbody>
 	                                    {(grnDetail?.grn?.items ?? []).length ? (
 	                                      (grnDetail?.grn?.items ?? [])
-                                          .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
-                                          .map((it: any, idx: number) => (
+	                                .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
+	                                .map((it: any, idx: number) => (
 	                                        <tr
-                                            key={`${String(r.grnId ?? '')}-grn-it-${idx}`}
-                                            className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
-                                            }}
-                                          >
+	                                key={`${String(r.grnId ?? '')}-grn-it-${idx}`}
+	                                className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+	                                onClick={(e) => {
+	                                e.stopPropagation();
+	                                setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+	                                }}
+	                                >
 	                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
+	                                <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.invoiceLinkQty ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
 	                                        </tr>
-	                                      ))
+	                                ))
 	                                    ) : (
 	                                      <tr>
 	                                        <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
@@ -1460,10 +1462,11 @@ export default function OperationsView({
                                   Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
                                 </div>
                                 <div className="overflow-x-auto">
-                                  <table className="w-full min-w-[880px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                  <table className="w-full min-w-[950px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                                     <thead>
 	                                      <tr className="bg-primary text-on-primary">
 	                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
 	                                        <th className="px-3 py-2 border border-outline-variant">PO Qty</th>
 	                                        <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
 	                                        <th className="px-3 py-2 border border-outline-variant">Accepted Qty</th>
@@ -1494,6 +1497,7 @@ export default function OperationsView({
                                                 }}
                                               >
 	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
@@ -2450,11 +2454,12 @@ export default function OperationsView({
 	                <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
 	                  <div className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
 	                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                    <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                       <thead>
                         <tr className="bg-primary text-on-primary">
                           <th className="px-3 py-2 border border-outline-variant">Item</th>
-                          <th className="px-3 py-2 border border-outline-variant">Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Unit</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2465,6 +2470,7 @@ export default function OperationsView({
                               {String(it.specification ?? '').trim() ? ` - ${String(it.specification).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean).join(' - ')}` : ''}
                             </td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2507,13 +2513,16 @@ export default function OperationsView({
                 <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
                   <div className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                    <table className="w-full min-w-[1000px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                       <thead>
                         <tr className="bg-surface-container-high">
                           <th className="px-3 py-2 border border-outline-variant">Item</th>
-                          <th className="px-3 py-2 border border-outline-variant">Qty</th>
-                          <th className="px-3 py-2 border border-outline-variant">Rate</th>
-                          <th className="px-3 py-2 border border-outline-variant">Total</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Rate</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Disc %</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[80px]">GST %</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2521,7 +2530,10 @@ export default function OperationsView({
                           <tr key={`${idx}-${it.itemId}`}>
                             <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(2)}</td>
                           </tr>
                         ))}
@@ -2560,18 +2572,26 @@ export default function OperationsView({
                 <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
                   <div className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                    <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                       <thead>
                         <tr className="bg-surface-container-high">
                           <th className="px-3 py-2 border border-outline-variant">Item</th>
-                          <th className="px-3 py-2 border border-outline-variant">Received Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Received Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Approved Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Rejected Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[130px]">Inv. Link Qty</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(detail.grn?.items ?? []).map((it: any) => (
                           <tr key={it.id}>
                             <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item ?? '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantityReceived ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.approvedQty ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rejectedQty ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.invoiceLinkQty ?? 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2607,13 +2627,15 @@ export default function OperationsView({
                 <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
                   <div className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Items</div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                    <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                       <thead>
                         <tr className="bg-surface-container-high">
                           <th className="px-3 py-2 border border-outline-variant">Item</th>
-                          <th className="px-3 py-2 border border-outline-variant">Qty</th>
-                          <th className="px-3 py-2 border border-outline-variant">Rate</th>
-                          <th className="px-3 py-2 border border-outline-variant">Total</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Rate</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[100px]">GST %</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2621,7 +2643,9 @@ export default function OperationsView({
                           <tr key={it.id}>
                             <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.quantity ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(2)}</td>
                           </tr>
                         ))}

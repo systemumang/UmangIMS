@@ -397,15 +397,17 @@ export default function PaymentQueueView({
               <input className={cn(inputClass, 'py-1.5')} type="date" value={tallyDateInput} onChange={(e) => setTallyDateInput(e.target.value)} />
             </label>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px] table-fixed text-left border-collapse border border-outline-variant">
+              <table className="w-full min-w-[780px] table-fixed text-left border-collapse border border-outline-variant">
                 <colgroup>
                   <col className="w-[420px]" />
+                  <col className="w-[80px]" />
                   <col className="w-[140px]" />
                   <col className="w-[140px]" />
                 </colgroup>
                 <thead>
                   <tr className="bg-primary text-on-primary">
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant text-center">Unit</th>
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Qty</th>
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
                   </tr>
@@ -413,12 +415,13 @@ export default function PaymentQueueView({
                 <tbody>
                   {invoiceDetailLoading ? (
                     <tr>
-                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>Loading invoice details...</td>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={4}>Loading invoice details...</td>
                     </tr>
                   ) : (invoiceDetail?.invoice?.items?.length ?? 0) > 0 ? (
                     (invoiceDetail.invoice.items as any[]).map((it: any, idx: number) => (
                       <tr key={String(it.id ?? idx)}>
                         <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
+                        <td className="px-3 py-2 text-sm border border-outline-variant text-center">{it.unit || '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
                           {Number(lines.find((x) => String(x.itemId) === String(it.itemId))?.linkedQty ?? 0).toFixed(2)}
@@ -427,7 +430,7 @@ export default function PaymentQueueView({
                     ))
                   ) : (
                     <tr>
-                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>No invoice items found.</td>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={4}>No invoice items found.</td>
                     </tr>
                   )}
                 </tbody>

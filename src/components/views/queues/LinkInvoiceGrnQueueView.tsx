@@ -268,6 +268,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Received</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
+                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Unit</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">GRN Qty</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
                   <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
@@ -289,9 +290,9 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.poNumber}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson, specNameById)}</td>
+                          <td className="px-3 py-2 text-sm border border-outline-variant">{r.unit || '-'}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {r.grnQty}
-	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 border border-outline-variant">
 	                          <select

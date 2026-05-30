@@ -260,11 +260,12 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
                             <div className="overflow-x-auto">
-                              <table className="w-full min-w-[680px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                              <table className="w-full min-w-[750px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                                 <thead>
                                   <tr className="bg-surface-container-high">
                                     <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                    <th className="px-3 py-2 border border-outline-variant w-[160px]">GRN Qty</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[120px]">GRN Qty</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -274,13 +275,13 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                                         <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
                                         <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                           {Number(it.grnQty ?? 0)}
-                                          {it.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{it.unit}</span> : null}
                                         </td>
+                                        <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                                       </tr>
                                     ))
                                   ) : (
                                     <tr>
-                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={2}>
+                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
                                         No GRN items.
                                       </td>
                                     </tr>

@@ -1945,6 +1945,7 @@ export default function PurchaseRequestDetailView({
 						            const pendingQty = Math.max(0, ordered - invoiced);
 						            return {
 						              itemId: String((it as any)?.itemId ?? '').trim(),
+						              unit: String((it as any)?.unit ?? '').trim(),
 						              poQty: ordered,
 						              poRate: Number((it as any)?.rate ?? 0),
 						              discountPercent: Number((it as any)?.discountPercent ?? 0),
@@ -2929,7 +2930,10 @@ export default function PurchaseRequestDetailView({
 		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Number</th>
 		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Received Date</th>
 		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Item</th>
-		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Qty</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Unit</th>
+		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Received Qty</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Approved Qty</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Rejected Qty</th>
 		                        <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Updated By</th>
 		                      </tr>
 		                    </thead>
@@ -2950,7 +2954,7 @@ export default function PurchaseRequestDetailView({
 	                            .filter(Boolean)
 	                            .join(' - ');
 	                          const label = it ? [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ') : '-';
-	                          const unit = it ? String(it.unit ?? '').trim() : '';
+	                          const unit = it ? String(it.unit ?? '').trim() : '-';
 
 		                          return (
 		                            <tr
@@ -2974,9 +2978,15 @@ export default function PurchaseRequestDetailView({
 	                              <td className="px-4 py-3 text-xs text-on-surface-variant border border-outline-variant">
 	                                <div className="whitespace-normal break-words">{renderInlineWithBoldSpecNames(label)}</div>
 	                              </td>
+                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant">{unit}</td>
 	                              <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
                                   {it ? Number(it.quantityReceived ?? 0) : '-'}
-                                  {it && unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                  {it ? Number(it.approvedQty ?? 0) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
+                                  {it ? Number(it.rejectedQty ?? 0) : '-'}
                                 </td>
 	                              {idx === 0 ? (
 		                                <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
@@ -6215,6 +6225,7 @@ export default function PurchaseRequestDetailView({
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Supplier</th>
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Terms</th>
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Items</th>
+                                <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Unit</th>
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Qty</th>
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">PO Rate</th>
 			                          <th className="px-4 py-3 text-[11px] font-bold text-white uppercase tracking-widest border border-outline-variant">Disc %</th>
@@ -6237,6 +6248,7 @@ export default function PurchaseRequestDetailView({
 			                              .filter(Boolean)
 			                              .join(' - ');
 			                            const label = it ? [prRow?.item || '', specInline || null].filter(Boolean).join(' - ') : '-';
+                                  const unit = it ? it.unit : '-';
 			                            const poQtyCell = it && Number.isFinite(it.poQty) ? it.poQty : '-';
 			                            const poRateCell = it && Number.isFinite(it.poRate) ? it.poRate : '-';
 			                            const discCell = it && Number.isFinite(it.discountPercent) ? it.discountPercent : '-';
@@ -6262,6 +6274,7 @@ export default function PurchaseRequestDetailView({
 			                                <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
 			                                  {renderInlineWithBoldSpecNames(label || '-')}
 			                                </td>
+                                      <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant">{unit}</td>
 			                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant">{poQtyCell}</td>
 			                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant">{poRateCell}</td>
 			                                <td className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant">{discCell}</td>

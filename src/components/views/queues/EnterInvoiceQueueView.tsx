@@ -481,12 +481,15 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
                             <div className="overflow-x-auto">
-                              <table className="w-full min-w-[780px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                              <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
                                 <thead>
                                   <tr className="bg-surface-container-high">
                                     <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                    <th className="px-3 py-2 border border-outline-variant">Pending Qty</th>
-                                    <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[100px]">Pending Qty</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[100px]">PO Rate</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[80px]">Disc %</th>
+                                    <th className="px-3 py-2 border border-outline-variant w-[80px]">GST %</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -502,14 +505,16 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                           <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
                                           <td className="px-3 py-2 border border-outline-variant tabular-nums">
                                             {Number(it.pendingQty ?? 0)}
-                                            {it.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{it.unit}</span> : null}
                                           </td>
+                                          <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                                           <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}%</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}%</td>
                                         </tr>
                                       ))
                                   ) : (
                                     <tr>
-                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={3}>
+                                      <td className="px-3 py-3 border border-outline-variant text-on-surface-variant" colSpan={6}>
                                         No pending items.
                                       </td>
                                     </tr>

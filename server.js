@@ -3921,6 +3921,7 @@ async function fetchPrHeaderAndItems(pool, prId) {
       pri.pr_id AS prId,
       pri.item_id AS itemId,
       iname.name AS item,
+      u.name AS unit,
       pri.requested_qty AS quantity,
       pri.priority_id AS priorityId,
       p.name AS priority,
@@ -3928,6 +3929,7 @@ async function fetchPrHeaderAndItems(pool, prId) {
     FROM purchase_requisition_items pri
     LEFT JOIN items it ON it.id = pri.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN units u ON u.id = iname.unit_id
     LEFT JOIN priorities p ON p.id = pri.priority_id
     WHERE pri.pr_id = ?
     ORDER BY pri.created_at ASC
@@ -4003,6 +4005,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.po_id AS poId,
       poi.item_id AS itemId,
       iname.name AS item,
+      u.name AS unit,
       it.specifications_json AS specificationsJson,
       poi.quantity AS quantity,
       poi.rate AS rate,
@@ -4016,6 +4019,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     FROM purchase_order_items poi
     LEFT JOIN items it ON it.id = poi.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN units u ON u.id = iname.unit_id
     WHERE poi.po_id = ?
     ORDER BY poi.created_at ASC
     `,
@@ -4073,6 +4077,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     itemId: String(r.itemId ?? ''),
     item: String(r.item ?? ''),
     itemLabel: [String(r.item ?? '').trim(), ...formatSpecParts(r.specificationsJson)].filter(Boolean).join(' - ') || String(r.item ?? ''),
+    unit: String(r.unit ?? '').trim(),
     quantity: Number(r.quantity ?? 0),
     rate: Number(r.rate ?? 0),
     discountPercent: r.discountPercent != null ? Number(r.discountPercent) : undefined,
@@ -4114,6 +4119,7 @@ async function fetchGrnDetail(pool, grnId) {
 	      gi.grn_id AS grnId,
 	      gi.item_id AS itemId,
 	      iname.name AS item,
+	      u.name AS unit,
 	      gi.received_qty AS quantityReceived,
 	      COALESCE(qc.approvedQty, gi.received_qty, 0) AS approvedQty,
 	      COALESCE(linkq.invoiceLinkQty, 0) AS invoiceLinkQty,
@@ -4121,6 +4127,7 @@ async function fetchGrnDetail(pool, grnId) {
 	    FROM grn_items gi
 	    LEFT JOIN items it ON it.id = gi.item_id
 	    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+	    LEFT JOIN units u ON u.id = iname.unit_id
 	    LEFT JOIN (
 	      SELECT grn_id AS grnId, item_id AS itemId, SUM(COALESCE(accepted_qty, 0)) AS approvedQty, SUM(COALESCE(rejected_qty, 0)) AS rejectedQty
 	      FROM qc_records
@@ -4151,6 +4158,7 @@ async function fetchGrnDetail(pool, grnId) {
 	    grnId: String(r.grnId ?? ''),
 	    itemId: String(r.itemId ?? ''),
 	    item: String(r.item ?? ''),
+	    unit: String(r.unit ?? '').trim(),
 	    quantityReceived: Number(r.quantityReceived ?? 0),
 	    approvedQty: Number(r.approvedQty ?? 0),
 	    invoiceLinkQty: Number(r.invoiceLinkQty ?? 0),
@@ -4221,6 +4229,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       ii.invoice_id AS invoiceId,
       ii.item_id AS itemId,
       iname.name AS item,
+      u.name AS unit,
       ii.quantity AS quantity,
       ii.rate AS rate,
       ii.tax_percent AS taxPercent,
@@ -4228,6 +4237,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     FROM invoice_items ii
     LEFT JOIN items it ON it.id = ii.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN units u ON u.id = iname.unit_id
     WHERE ii.invoice_id = ?
     ORDER BY ii.created_at ASC
     `,
@@ -13094,12 +13104,14 @@ app.get('/api/credit-vouchers/:id/items', async (req, res) => {
         cvi.id,
         cvi.item_id AS itemId,
         COALESCE(iname.name, '') AS itemName,
+        u.name AS unit,
         cvi.quantity,
         cvi.rate,
         cvi.amount
       FROM credit_voucher_items cvi
       LEFT JOIN items i ON i.id = cvi.item_id
       LEFT JOIN item_names iname ON iname.id = i.item_name_id
+      LEFT JOIN units u ON u.id = iname.unit_id
       WHERE cvi.credit_voucher_id = ?
       ORDER BY cvi.created_at ASC
       `,
@@ -13110,6 +13122,7 @@ app.get('/api/credit-vouchers/:id/items', async (req, res) => {
         id: String(r.id ?? ''),
         itemId: String(r.itemId ?? ''),
         itemName: String(r.itemName ?? ''),
+        unit: String(r.unit ?? '').trim(),
         quantity: Number(r.quantity ?? 0),
         rate: Number(r.rate ?? 0),
         amount: Number(r.amount ?? 0),
