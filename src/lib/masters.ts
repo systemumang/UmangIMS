@@ -92,6 +92,9 @@ export type User = {
   poApprovalAmount?: number | null;
   hasPassword: boolean;
 };
+
+export type GstNumber = { id: string; gstNumber: string };
+
 export type Item = {
   id: string;
   itemNameId: string;
@@ -472,6 +475,40 @@ export async function deleteCustomer(id: string, input?: { deletedBy?: string })
     body: JSON.stringify(input ?? {}),
   });
   return requireOk<{ ok: boolean }>(res, 'Failed to delete customer');
+}
+
+export async function fetchGstNumbers(signal?: AbortSignal): Promise<GstNumber[]> {
+  const res = await fetch('/api/masters/gst-numbers', { signal });
+  const data = await requireOk<{ gstNumbers?: GstNumber[] }>(res, 'Failed to load GST numbers');
+  const rows = Array.isArray(data.gstNumbers) ? data.gstNumbers : [];
+  return rows.slice().sort((a, b) => a.gstNumber.localeCompare(b.gstNumber));
+}
+
+export async function createGstNumber(input: { gstNumber: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/gst-numbers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ gstNumber?: GstNumber }>(res, 'Failed to create GST number');
+}
+
+export async function updateGstNumber(id: string, input: { gstNumber: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/gst-numbers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ gstNumber?: GstNumber }>(res, 'Failed to update GST number');
+}
+
+export async function deleteGstNumber(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/gst-numbers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input ?? {}),
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete GST number');
 }
 
 export async function fetchStates(signal?: AbortSignal): Promise<State[]> {

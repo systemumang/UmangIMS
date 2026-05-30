@@ -189,6 +189,16 @@ function getMysqlPool() {
         }
       };
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS gst_numbers (
+          id VARCHAR(255) PRIMARY KEY,
+          gst_number VARCHAR(255) UNIQUE NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          created_by VARCHAR(255)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
       await ensureColumn('purchase_orders', 'advance_amount', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('purchase_orders', 'advance_date', 'DATE NULL');
       await ensureColumn('purchase_orders', 'payment_type', 'VARCHAR(32) NULL');
@@ -804,6 +814,7 @@ const deleteUsageLookups = {
   item_returns: { label: 'Return Master', nameColumn: 'transaction_no' },
   item_damages: { label: 'Damage Master', nameColumn: 'transaction_no' },
   item_transfers: { label: 'Transfer Master', nameColumn: 'transaction_no' },
+  gst_numbers: { label: 'GST Numbers', nameColumn: 'gst_number' },
 };
 
 async function getDeleteUsageDetails(pool, error, parentId) {
@@ -829,6 +840,74 @@ async function sendDeleteInUseError(res, pool, parentId, error, label) {
   res.status(409).json({ error: `Cannot delete ${label}.${suffix}`, usageDetails });
   return true;
 }
+
+// --- Masters: GST Numbers ---
+app.get('/api/masters/gst-numbers', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, gst_number AS gstNumber FROM gst_numbers ORDER BY gst_number');
+    res.json({ gstNumbers: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/masters/gst-numbers', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const gstNumber = String(req.body?.gstNumber ?? '').trim();
+    if (!gstNumber) return res.status(400).json({ error: 'GST Number is required' });
+    const id = crypto.randomUUID();
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+
+    await pool.query(
+      'INSERT INTO gst_numbers (id, gst_number, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [id, gstNumber, createdBy]
+    );
+
+    res.status(201).json({ gstNumber: { id, gstNumber } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'GST Number already exists' });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/masters/gst-numbers/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = req.params.id;
+    const gstNumber = String(req.body?.gstNumber ?? '').trim();
+    if (!gstNumber) return res.status(400).json({ error: 'GST Number is required' });
+
+    await pool.query(
+      'UPDATE gst_numbers SET gst_number=?, updated_at=NOW() WHERE id=?',
+      [gstNumber, id]
+    );
+
+    res.json({ gstNumber: { id, gstNumber } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/masters/gst-numbers/:id', async (req, res) => {
+  let pool;
+  let id = '';
+  try {
+    pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    id = req.params.id;
+    await pool.query('DELETE FROM gst_numbers WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    if (await sendDeleteInUseError(res, pool, id, e, 'GST number')) return;
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
