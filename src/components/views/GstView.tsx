@@ -7,11 +7,19 @@ import {
   deleteGstRate,
   type GstRate,
 } from '@/src/lib/masters';
-import { useAuth } from '@/src/lib/auth';
+import { type AuthUser } from '@/src/lib/auth';
 import Spinner from '@/src/components/common/Spinner';
 
 export default function GstView() {
-  const { user } = useAuth();
+  const user = useMemo<AuthUser | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('ims.currentUser');
+      if (!raw) return null;
+      return JSON.parse(raw) as AuthUser;
+    } catch {
+      return null;
+    }
+  }, []);
   const [rates, setRates] = useState<GstRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

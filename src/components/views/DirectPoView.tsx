@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 		import SearchableSelect from '@/src/components/common/SearchableSelect';
-    import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
+		import GstRateSelect from '@/src/components/common/GstRateSelect';
+		import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
 		import { createDirectPo } from '@/src/lib/purchaseRequests';
 	import { fetchInventorySheet } from '@/src/lib/inventory';
 import {
@@ -697,18 +698,12 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                      />
 	                    </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
-	                      <select
-	                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-	                        value={String(l.taxPercent ?? '')}
-	                        onChange={(e) => updateLine(idx, { taxPercent: String(e.target.value ?? '') })}
-	                      >
-	                        <option value="">Select</option>
-	                        <option value="0">0</option>
-	                        <option value="5">5</option>
-	                        <option value="12">12</option>
-	                        <option value="18">18</option>
-	                        <option value="28">28</option>
-	                      </select>
+	                      <GstRateSelect
+	                        value={l.taxPercent}
+	                        onChange={(val) => updateLine(idx, { taxPercent: val })}
+	                        className="w-full"
+	                        inputClassName="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+	                      />
 	                    </div>
 	                    <div className="p-2 text-right">
 	                      <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>

@@ -982,23 +982,18 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 />
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
-                                <select
-                                  className={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
+                                <GstRateSelect
                                   value={String(l.taxPercent ?? '')}
-                                  onChange={(e) =>
+                                  onChange={(val) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      next[idx] = { ...next[idx]!, taxPercent: clampPercentString(e.target.value) };
+                                      next[idx] = { ...next[idx]!, taxPercent: val };
                                       return next;
                                     })
                                   }
-                                >
-                                  {gstPercentOptions.map((v) => (
-                                    <option key={v} value={v}>
-                                      {v}
-                                    </option>
-                                  ))}
-                                </select>
+                                  className="w-full"
+                                  inputClassName={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
+                                />
                               </td>
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{Number(l.lastRate ?? 0) || '-'}</td>
