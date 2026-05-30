@@ -93,7 +93,7 @@ export type User = {
   hasPassword: boolean;
 };
 
-export type GstNumber = { id: string; gstNumber: string };
+export type GstRate = { id: string; rate: number };
 
 export type Item = {
   id: string;
@@ -477,38 +477,38 @@ export async function deleteCustomer(id: string, input?: { deletedBy?: string })
   return requireOk<{ ok: boolean }>(res, 'Failed to delete customer');
 }
 
-export async function fetchGstNumbers(signal?: AbortSignal): Promise<GstNumber[]> {
-  const res = await fetch('/api/masters/gst-numbers', { signal });
-  const data = await requireOk<{ gstNumbers?: GstNumber[] }>(res, 'Failed to load GST numbers');
-  const rows = Array.isArray(data.gstNumbers) ? data.gstNumbers : [];
-  return rows.slice().sort((a, b) => a.gstNumber.localeCompare(b.gstNumber));
+export async function fetchGstRates(signal?: AbortSignal): Promise<GstRate[]> {
+  const res = await fetch('/api/masters/gst-rates', { signal });
+  const data = await requireOk<{ gstRates?: GstRate[] }>(res, 'Failed to load GST rates');
+  const rows = Array.isArray(data.gstRates) ? data.gstRates : [];
+  return rows.slice().sort((a, b) => (a.rate || 0) - (b.rate || 0));
 }
 
-export async function createGstNumber(input: { gstNumber: string; createdBy?: string }) {
-  const res = await fetch('/api/masters/gst-numbers', {
+export async function createGstRate(input: { rate: number; createdBy?: string }) {
+  const res = await fetch('/api/masters/gst-rates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  return requireOk<{ gstNumber?: GstNumber }>(res, 'Failed to create GST number');
+  return requireOk<{ gstRate?: GstRate }>(res, 'Failed to create GST rate');
 }
 
-export async function updateGstNumber(id: string, input: { gstNumber: string; updatedBy?: string }) {
-  const res = await fetch(`/api/masters/gst-numbers/${encodeURIComponent(id)}`, {
+export async function updateGstRate(id: string, input: { rate: number; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/gst-rates/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  return requireOk<{ gstNumber?: GstNumber }>(res, 'Failed to update GST number');
+  return requireOk<{ gstRate?: GstRate }>(res, 'Failed to update GST rate');
 }
 
-export async function deleteGstNumber(id: string, input?: { deletedBy?: string }) {
-  const res = await fetch(`/api/masters/gst-numbers/${encodeURIComponent(id)}`, {
+export async function deleteGstRate(id: string, input?: { deletedBy?: string }) {
+  const res = await fetch(`/api/masters/gst-rates/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input ?? {}),
   });
-  return requireOk<{ ok: boolean }>(res, 'Failed to delete GST number');
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete GST rate');
 }
 
 export async function fetchStates(signal?: AbortSignal): Promise<State[]> {

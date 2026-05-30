@@ -9,6 +9,7 @@ import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { ExportCsvButton, inputClass, labelClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
+import GstRateSelect from '@/src/components/common/GstRateSelect';
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -1036,29 +1037,19 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                           {supplierHasGst ? (
                             <>
                               <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
+                                <GstRateSelect
+                                  className="w-full"
+                                  inputClassName="py-1.5 h-8 text-[11px] text-right"
                                   value={ln.gstPercent}
-                                  onChange={(e) =>
+                                  onChange={(val) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
                                       const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
                                       if (lineIdx === -1) return prev;
-                                      next[lineIdx] = { ...next[lineIdx]!, gstPercent: sanitizePercentInput(e.target.value) };
+                                      next[lineIdx] = { ...next[lineIdx]!, gstPercent: val };
                                       return next;
                                     })
                                   }
-                                  onBlur={() =>
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
-                                      if (lineIdx === -1) return prev;
-                                      next[lineIdx] = { ...next[lineIdx]!, gstPercent: clampPercentString(next[lineIdx]!.gstPercent) };
-                                      return next;
-                                    })
-                                  }
-                                  type="text"
-                                  inputMode="decimal"
                                 />
                               </td>
                               <td className="px-2 py-2 border border-black text-right tabular-nums font-medium">

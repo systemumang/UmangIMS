@@ -6,6 +6,7 @@ import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchSpecifications, fetchSuppliers, type Specification, type Supplier } from '@/src/lib/masters';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import GstRateSelect from '@/src/components/common/GstRateSelect';
 import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
 import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';

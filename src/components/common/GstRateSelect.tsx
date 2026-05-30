@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import SearchableSelect from './SearchableSelect';
-import { fetchGstNumbers, type GstNumber } from '@/src/lib/masters';
+import { fetchGstRates, type GstRate } from '@/src/lib/masters';
 
-export default function GstSelect({
+export default function GstRateSelect({
   value,
   onChange,
-  placeholder = 'Select GST...',
+  placeholder = 'Select GST Rate...',
   disabled,
   className,
   inputClassName,
 }: {
-  value: string;
+  value: string | number;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -23,12 +23,12 @@ export default function GstSelect({
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetchGstNumbers()
+    fetchGstRates()
       .then((data) => {
         if (!active) return;
-        setOptions(data.map((g) => ({ value: g.gstNumber, label: g.gstNumber })));
+        setOptions(data.map((g) => ({ value: String(g.rate), label: `${g.rate}%` })));
       })
-      .catch((err) => console.error('Failed to fetch GST numbers:', err))
+      .catch((err) => console.error('Failed to fetch GST rates:', err))
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -39,20 +39,19 @@ export default function GstSelect({
 
   return (
     <SearchableSelect
-      value={value}
+      value={String(value)}
       options={options}
       onChange={onChange}
       placeholder={loading ? 'Loading GST...' : placeholder}
       disabled={disabled}
       className={className}
       inputClassName={inputClassName}
-      // Allow custom GST number input by using onCreate
       onCreate={(query) => {
-        const val = query.trim().toUpperCase();
-        if (!val) return null;
-        return { value: val, label: val };
+        const val = parseFloat(query.trim());
+        if (isNaN(val)) return null;
+        return { value: String(val), label: `${val}%` };
       }}
-      createLabel={(query) => `Use "${query.toUpperCase()}"`}
+      createLabel={(query) => `Use "${query}%"`}
     />
   );
 }

@@ -190,9 +190,9 @@ function getMysqlPool() {
       };
 
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS gst_numbers (
+        CREATE TABLE IF NOT EXISTS gst_rates (
           id VARCHAR(255) PRIMARY KEY,
-          gst_number VARCHAR(255) UNIQUE NOT NULL,
+          rate DOUBLE UNIQUE NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           created_by VARCHAR(255)
@@ -201,6 +201,7 @@ function getMysqlPool() {
 
       await ensureColumn('purchase_orders', 'advance_amount', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('purchase_orders', 'advance_date', 'DATE NULL');
+      await ensureColumn('purchase_orders', 'firm_gst_number', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_orders', 'payment_type', 'VARCHAR(32) NULL');
       await ensureColumn('purchase_orders', 'payment_mode', 'VARCHAR(32) NULL');
       await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
