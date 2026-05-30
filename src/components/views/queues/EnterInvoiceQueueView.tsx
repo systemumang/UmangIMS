@@ -166,6 +166,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
   const [ewayBillNumber, setEwayBillNumber] = useState('');
   const [invPdfFile, setInvPdfFile] = useState<File | null>(null);
   const [cnCopyFile, setCnCopyFile] = useState<File | null>(null);
+  const [ewayBillFile, setEwayBillFile] = useState<File | null>(null);
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -193,6 +194,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	    setEwayBillNumber('');
 	    setInvPdfFile(null);
 		    setCnCopyFile(null);
+		    setEwayBillFile(null);
 		    setLines([]);
       setSelectedItemId(null);
 	    setModalLoading(false);
@@ -594,6 +596,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                  try {
 	                    const documentUrl = invPdfFile ? (await uploadFileToServer(invPdfFile)).url : undefined;
 	                    const cnCopyUrl = cnCopyFile ? (await uploadFileToServer(cnCopyFile)).url : undefined;
+	                    const ewayBillUrl = ewayBillFile ? (await uploadFileToServer(ewayBillFile)).url : undefined;
 		                    await createInvoice(active.poId, {
 		                      supplierInvoiceNo: supplierInvoiceNo.trim(),
 		                      invoiceDate,
@@ -608,6 +611,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                      ewayBillNumber: ewayBillNumber.trim() ? ewayBillNumber.trim() : undefined,
 		                      documentUrl,
 		                      cnCopyUrl,
+		                      ewayBillUrl,
 	                      updatedBy: updatedBy.trim(),
 	                      paymentMode: 'Credit',
 	                      items: items.map((it) => ({
@@ -797,6 +801,23 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                    <div className="text-xs text-on-surface-variant truncate min-w-0">{cnCopyFile ? cnCopyFile.name : 'No file chosen'}</div>
 		                  </div>
 		                  <div className={cn('text-xs', cnCopyFile ? 'text-on-surface' : 'text-on-surface-variant')}>{cnCopyFile ? 'Uploaded' : 'Not uploaded'}</div>
+		                </label>
+		                <label className="space-y-1">
+		                  <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
+		                  <div className="flex items-center gap-2 min-w-0">
+		                    <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="ewayBillInput">
+		                      Choose File
+		                    </label>
+		                    <input
+		                      id="ewayBillInput"
+		                      className="hidden"
+		                      type="file"
+		                      accept=".pdf,application/pdf,image/*"
+		                      onChange={(e) => setEwayBillFile(e.target.files?.[0] ?? null)}
+		                    />
+		                    <div className="text-xs text-on-surface-variant truncate min-w-0">{ewayBillFile ? ewayBillFile.name : 'No file chosen'}</div>
+		                  </div>
+		                  <div className={cn('text-xs', ewayBillFile ? 'text-on-surface' : 'text-on-surface-variant')}>{ewayBillFile ? 'Uploaded' : 'Not uploaded'}</div>
 		                </label>
 		              </div>
 		            </div>

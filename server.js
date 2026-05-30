@@ -341,6 +341,7 @@ function getMysqlPool() {
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
       await ensureColumn('invoices', 'approved_by', 'VARCHAR(255) NULL');
       await ensureColumn('invoices', 'approved_at', 'DATETIME NULL');
+      await ensureColumn('invoices', 'eway_bill_url', 'TEXT NULL');
 
       await ensureColumn('users', 'login_id', 'VARCHAR(255) NULL');
       await ensureColumn('users', 'menu_access', 'TEXT NULL');
@@ -4190,6 +4191,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
       inv.document_url AS documentUrl,
       inv.cn_copy_url AS cnCopyUrl,
+      inv.eway_bill_url AS ewayBillUrl,
       inv.eway_bill_number AS ewayBillNumber,
       inv.cn_number AS cnNumber,
       inv.courier_number AS courierNumber,
@@ -12527,6 +12529,7 @@ async function handleCreateInvoice(req, res) {
     const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
     const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : null;
     const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : null;
+    const ewayBillUrl = req.body?.ewayBillUrl != null ? String(req.body.ewayBillUrl).trim() : null;
     const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : null;
     const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : null;
     const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : null;
@@ -13223,6 +13226,14 @@ app.put('/api/invoices/:id', async (req, res) => {
     const supplierInvoiceNo = String(req.body?.supplierInvoiceNo ?? '').trim();
     const invoiceDate = String(req.body?.invoiceDate ?? '').trim();
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : undefined;
+    const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : undefined;
+    const ewayBillUrl = req.body?.ewayBillUrl != null ? String(req.body.ewayBillUrl).trim() : undefined;
+    const ewayBillNumber = req.body?.ewayBillNumber != null ? String(req.body.ewayBillNumber).trim() : undefined;
+    const cnNumber = req.body?.cnNumber != null ? String(req.body.cnNumber).trim() : undefined;
+    const courierNumber = req.body?.courierNumber != null ? String(req.body.courierNumber).trim() : undefined;
+    const transporterName = req.body?.transporterName != null ? String(req.body.transporterName).trim() : undefined;
+
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
     if (!supplierInvoiceNo) return res.status(400).json({ error: 'supplierInvoiceNo is required' });
     if (!invoiceDate) return res.status(400).json({ error: 'invoiceDate is required' });
@@ -13320,6 +13331,10 @@ app.put('/api/invoices/:id', async (req, res) => {
       SET invoice_number=?, invoice_date=?, goods_amount=?, tax_amount=?, total_amount=?,
           courier_charge=?, packing_charge=?, labour_charge=?, other_charge=?, charges_gst_amount=?,
           payment_mode=COALESCE(?, payment_mode), tally_entry_date=?,
+          document_url=COALESCE(?, document_url), cn_copy_url=COALESCE(?, cn_copy_url),
+          eway_bill_url=COALESCE(?, eway_bill_url), eway_bill_number=COALESCE(?, eway_bill_number),
+          cn_number=COALESCE(?, cn_number), courier_number=COALESCE(?, courier_number),
+          transporter_name=COALESCE(?, transporter_name),
           updated_by=?, updated_at=NOW()
       WHERE id=?
       `,
@@ -13336,6 +13351,13 @@ app.put('/api/invoices/:id', async (req, res) => {
         chargesGstAmount,
         paymentMode,
         tallyEntryDate || null,
+        documentUrl !== undefined ? documentUrl : null,
+        cnCopyUrl !== undefined ? cnCopyUrl : null,
+        ewayBillUrl !== undefined ? ewayBillUrl : null,
+        ewayBillNumber !== undefined ? ewayBillNumber : null,
+        cnNumber !== undefined ? cnNumber : null,
+        courierNumber !== undefined ? courierNumber : null,
+        transporterName !== undefined ? transporterName : null,
         updatedBy,
         invoiceId,
       ]

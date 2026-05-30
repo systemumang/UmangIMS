@@ -118,6 +118,7 @@ export type PoItem = {
 		  holdReason?: string;
 		  documentUrl?: string;
 		  cnCopyUrl?: string;
+		  ewayBillUrl?: string;
 		  ewayBillNumber?: string;
 		  cnNumber?: string;
 		  courierNumber?: string;
@@ -493,6 +494,7 @@ export async function createInvoice(poId: string, input: {
 				  updatedBy?: string;
 				  documentUrl?: string;
 				  cnCopyUrl?: string;
+				  ewayBillUrl?: string;
 				  ewayBillNumber?: string;
 			  cnNumber?: string;
 			  courierNumber?: string;
@@ -548,6 +550,13 @@ export async function updateInvoice(
     otherCharge?: number;
     chargesGstAmount?: number;
     updatedBy?: string;
+    documentUrl?: string;
+    cnCopyUrl?: string;
+    ewayBillUrl?: string;
+    ewayBillNumber?: string;
+    cnNumber?: string;
+    courierNumber?: string;
+    transporterName?: string;
     items: Array<{
       itemId: string;
       item?: string;

@@ -498,6 +498,8 @@ export default function PurchaseRequestDetailView({
 						const [invoiceChargesGstAmount, setInvoiceChargesGstAmount] = useState('');
 					const [invoicePdf, setInvoicePdf] = useState('');
 					const [invoicePdfFileName, setInvoicePdfFileName] = useState('');
+					const [ewayBillDoc, setEwayBillDoc] = useState('');
+					const [ewayBillDocFileName, setEwayBillDocFileName] = useState('');
 		const [ewayBillNumber, setEwayBillNumber] = useState('');
 		const [cnNumber, setCnNumber] = useState('');
 		const [courierNumber, setCourierNumber] = useState('');
@@ -5447,6 +5449,42 @@ export default function PurchaseRequestDetailView({
 		                            {invoiceCourierCopy ? 'Uploaded' : 'Not uploaded'}
 		                          </div>
 		                        </label>
+		                        <label className="space-y-1">
+		                          <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
+		                          <div className="flex items-center gap-2 min-w-0">
+		                            <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="pr-invoice-eway-bill-upload">
+		                              Choose File
+		                            </label>
+		                            <input
+		                              id="pr-invoice-eway-bill-upload"
+		                              type="file"
+		                              accept="application/pdf,image/*"
+		                              disabled={busy}
+		                              className="hidden"
+		                              onChange={(e) => {
+		                                const file = e.target.files?.[0];
+		                                e.target.value = '';
+		                                if (!file) return;
+		                                const reader = new FileReader();
+		                                reader.onload = () => {
+		                                  const result = reader.result;
+		                                  const dataUrl = typeof result === 'string' ? result : '';
+		                                  if (!dataUrl) return;
+		                                  setInvoiceFormError(null);
+		                                  setEwayBillDocFileName(file.name);
+		                                  setEwayBillDoc(dataUrl);
+		                                };
+		                                reader.readAsDataURL(file);
+		                              }}
+		                            />
+		                            <div className="text-xs text-on-surface-variant truncate min-w-0">
+		                              {ewayBillDocFileName || (ewayBillDoc ? 'Uploaded' : 'No file chosen')}
+		                            </div>
+		                          </div>
+		                          <div className={cn('text-xs', ewayBillDoc ? 'text-on-surface' : 'text-on-surface-variant')}>
+		                            {ewayBillDoc ? 'Uploaded' : 'Not uploaded'}
+		                          </div>
+		                        </label>
 		                      </div>
 		                    </div>
 		                  </div>
@@ -5770,6 +5808,65 @@ export default function PurchaseRequestDetailView({
 				                            </div>
 					                          </td>
 					                        </tr>
+			                        <tr>
+			                          <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant">E-way bill Doc</td>
+			                          <td className="px-4 py-3 border border-outline-variant">
+				                            <div className="flex flex-col gap-2">
+				                              {ewayBillDoc ? (
+				                                <div className="flex items-center gap-2">
+				                                  <button
+				                                    type="button"
+				                                    className="px-2 py-1 text-[11px] font-semibold text-on-primary bg-primary rounded-md hover:bg-primary/90"
+				                                    onClick={() => openDocument(ewayBillDoc || '')}
+				                                  >
+				                                    View
+				                                  </button>
+				                                  <button
+				                                    type="button"
+				                                    disabled={busy}
+				                                    className="px-2 py-1 text-[11px] font-semibold text-on-primary bg-error rounded-md hover:bg-error/90 disabled:opacity-50"
+				                                    onClick={() => setEwayBillDoc('')}
+				                                  >
+				                                    Clear
+				                                  </button>
+				                                </div>
+				                              ) : (
+				                                <div className="text-sm text-on-surface-variant">No file</div>
+				                              )}
+				                              <input
+				                                id="eway-bill-doc-upload-pr"
+				                                type="file"
+				                                accept="application/pdf,image/*"
+				                                disabled={busy}
+				                                className="hidden"
+				                                onChange={(e) => {
+				                                  const file = e.target.files?.[0];
+				                                  e.target.value = '';
+				                                  if (!file) return;
+				                                  const reader = new FileReader();
+				                                  reader.onload = () => {
+				                                    const result = reader.result;
+				                                    const dataUrl = typeof result === 'string' ? result : '';
+				                                    if (!dataUrl) return;
+				                                    setInvoiceFormError(null);
+				                                    setEwayBillDoc(dataUrl);
+				                                  };
+				                                  reader.readAsDataURL(file);
+				                                }}
+				                              />
+				                              <label
+				                                htmlFor="eway-bill-doc-upload-pr"
+				                                className={`inline-flex items-center justify-center w-full px-3 py-2 rounded-md text-xs font-semibold bg-black text-white ${
+				                                  busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-black/90'
+				                                }`}
+				                              >
+				                                Choose file
+				                              </label>
+				                            </div>
+			                          </td>
+			                          <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant"></td>
+			                          <td className="px-4 py-3 border border-outline-variant"></td>
+			                        </tr>
 		                      </tbody>
 	                    </table>
 	                  </div>
@@ -5996,6 +6093,8 @@ export default function PurchaseRequestDetailView({
 			                          otherCharge: otherChargeNumber,
 			                          chargesGstAmount: chargesGstAmountNumber,
 				                          documentUrl: invoicePdf || undefined,
+				                          cnCopyUrl: invoiceCourierCopy || undefined,
+				                          ewayBillUrl: ewayBillDoc || undefined,
 				                          ewayBillNumber: ewayBillNumber || undefined,
 				                          cnNumber: cnNumber || undefined,
 			                          courierNumber: courierNumber || undefined,
@@ -6831,7 +6930,32 @@ export default function PurchaseRequestDetailView({
 			                        <input className={inputClass} value={activeInvoiceDetails.invoice.courierNumber || ''} disabled />
 			                      </Field>
 			                      <Field label="Inv PDF">
-			                        <input className={inputClass} value={activeInvoiceDetails.invoice.documentUrl || ''} disabled />
+			                        <div className="flex items-center gap-2">
+			                          <input className={cn(inputClass, 'flex-1')} value={activeInvoiceDetails.invoice.documentUrl || ''} disabled />
+			                          {activeInvoiceDetails.invoice.documentUrl && (
+			                            <button
+			                              type="button"
+			                              className="btn btn-sm"
+			                              onClick={() => openDocument(activeInvoiceDetails.invoice.documentUrl!)}
+			                            >
+			                              <Eye size={16} />
+			                            </button>
+			                          )}
+			                        </div>
+			                      </Field>
+			                      <Field label="E-way Bill Doc">
+			                        <div className="flex items-center gap-2">
+			                          <input className={cn(inputClass, 'flex-1')} value={activeInvoiceDetails.invoice.ewayBillUrl || ''} disabled />
+			                          {activeInvoiceDetails.invoice.ewayBillUrl && (
+			                            <button
+			                              type="button"
+			                              className="btn btn-sm"
+			                              onClick={() => openDocument(activeInvoiceDetails.invoice.ewayBillUrl!)}
+			                            >
+			                              <Eye size={16} />
+			                            </button>
+			                          )}
+			                        </div>
 			                      </Field>
 			                    </div>
 			                    {activeInvoiceDetails.invoice.status === 'On Hold' && activeInvoiceDetails.invoice.holdReason ? (
@@ -7053,6 +7177,13 @@ export default function PurchaseRequestDetailView({
 			                                packingCharge: packingChargeNumber,
 			                                labourCharge: labourChargeNumber,
 			                                otherCharge: otherChargeNumber,
+			                                documentUrl: activeInvoiceDetails.invoice.documentUrl,
+			                                cnCopyUrl: activeInvoiceDetails.invoice.cnCopyUrl,
+			                                ewayBillUrl: activeInvoiceDetails.invoice.ewayBillUrl,
+			                                ewayBillNumber: activeInvoiceDetails.invoice.ewayBillNumber,
+			                                cnNumber: activeInvoiceDetails.invoice.cnNumber,
+			                                courierNumber: activeInvoiceDetails.invoice.courierNumber,
+			                                transporterName: activeInvoiceDetails.invoice.transporterName,
 			                                items: normalized.map((l) => ({ itemId: l.itemId, quantity: l.quantity, rate: l.rate })),
 			                              }).then(() => undefined)
 			                            ).then(() => closeInvoiceDetails());
