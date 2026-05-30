@@ -148,6 +148,12 @@ export default function OperationsView({
   >({});
   const [inlineInvoiceReceiptsLoadingById, setInlineInvoiceReceiptsLoadingById] = useState<Record<string, boolean>>({});
   const [inlineInvoiceReceiptsErrorById, setInlineInvoiceReceiptsErrorById] = useState<Record<string, string>>({});
+
+  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<string[]>([]);
+  const [inlineInvoiceDetailById, setInlineInvoiceDetailById] = useState<Record<string, any>>({});
+  const [inlineInvoiceLoadingById, setInlineInvoiceLoadingById] = useState<Record<string, boolean>>({});
+  const [inlineInvoiceErrorById, setInlineInvoiceErrorById] = useState<Record<string, string>>({});
+
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [selectedNestedRowId, setSelectedNestedRowId] = useState<string | null>(null);
 
@@ -166,6 +172,20 @@ export default function OperationsView({
               : currentTab === 'creditVouchers'
                 ? String(r.creditVoucherId)
                 : String(r.paymentId);
+  };
+
+  const formatSpecs = (json: string) => {
+    if (!json) return '';
+    try {
+      const specs = JSON.parse(json);
+      if (Array.isArray(specs)) {
+        return specs.map((s: any) => s.value).filter(Boolean).join(', ');
+      }
+      if (specs && typeof specs === 'object') {
+        return Object.values(specs).filter(Boolean).join(', ');
+      }
+    } catch (e) {}
+    return String(json || '');
   };
 
   const [expandedCreditVoucherReceiptIds, setExpandedCreditVoucherReceiptIds] = useState<string[]>([]);
@@ -567,6 +587,28 @@ export default function OperationsView({
             }
             return;
 			    }
+    if (tab === 'invoices') {
+      const invoiceId = String(row?.invoiceId ?? '').trim();
+      if (!invoiceId) return;
+      if (expandedInvoiceIds.includes(invoiceId)) {
+        setExpandedInvoiceIds((prev) => prev.filter((x) => x !== invoiceId));
+        return;
+      }
+      setExpandedInvoiceIds((prev) => [...prev, invoiceId]);
+      if (!inlineInvoiceDetailById[invoiceId] && !inlineInvoiceLoadingById[invoiceId]) {
+        setInlineInvoiceLoadingById((prev) => ({ ...prev, [invoiceId]: true }));
+        setInlineInvoiceErrorById((prev) => {
+          const next = { ...prev };
+          delete next[invoiceId];
+          return next;
+        });
+        fetchOperationsInvoiceDetail(invoiceId)
+          .then((detail) => setInlineInvoiceDetailById((prev) => ({ ...prev, [invoiceId]: detail })))
+          .catch((e) => setInlineInvoiceErrorById((prev) => ({ ...prev, [invoiceId]: e instanceof Error ? e.message : String(e) })))
+          .finally(() => setInlineInvoiceLoadingById((prev) => ({ ...prev, [invoiceId]: false })));
+      }
+      return;
+    }
 		    // Invoice rows can optionally open PR view focused on Recorded Invoices.
 		    if (tab === 'invoices' && typeof onViewPr === 'function') {
 		      const prId = String(row?.prId ?? '').trim();
@@ -1214,6 +1256,7 @@ export default function OperationsView({
 	                  const rowId = getRowId(r, tab);
 			                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
                       const isGrnExpanded = tab === 'grns' ? expandedGrnIds.includes(String(r.grnId ?? '')) : false;
+                      const isInvoiceExpanded = tab === 'invoices' ? expandedInvoiceIds.includes(String(r.invoiceId ?? '')) : false;
                       const isInvoiceReceiptExpanded =
                         tab === 'invoices' && invoiceSubTab === 'receipts'
                           ? expandedInvoiceReceiptIds.includes(String(r.invoiceId ?? ''))
@@ -1226,6 +1269,9 @@ export default function OperationsView({
 		                  const grnDetail = tab === 'grns' ? inlineGrnDetailById[String(r.grnId ?? '')] : null;
 		                  const grnDetailLoading = tab === 'grns' ? Boolean(inlineGrnLoadingById[String(r.grnId ?? '')]) : false;
 		                  const grnDetailError = tab === 'grns' ? inlineGrnErrorById[String(r.grnId ?? '')] : '';
+                      const invoiceDetail = tab === 'invoices' ? inlineInvoiceDetailById[String(r.invoiceId ?? '')] : null;
+                      const invoiceDetailLoading = tab === 'invoices' ? Boolean(inlineInvoiceLoadingById[String(r.invoiceId ?? '')]) : false;
+                      const invoiceDetailError = tab === 'invoices' ? inlineInvoiceErrorById[String(r.invoiceId ?? '')] : '';
 		                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
 	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
 	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
@@ -1239,7 +1285,9 @@ export default function OperationsView({
 		                          if (tab === 'pendingAdjustments') return openAdjustModal(r as any);
 	                            if (tab === 'payments') return;
 	                            if (tab === 'creditVouchers') return toggleInlineCreditVoucherReceipts(r as OperationsCreditVoucherListRow);
-	                            if (tab === 'invoices' && invoiceSubTab === 'receipts') return toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
+	                            if (tab === 'invoices' && invoiceSubTab === 'receipts') {
+                                toggleInlineInvoiceReceipts(r as OperationsInvoiceListRow);
+                              }
 	                          openDetailForRow(r);
 	                        }}
                       >
@@ -1405,11 +1453,13 @@ export default function OperationsView({
 	                            {!grnDetailLoading && grnDetailError ? <div className="text-sm text-error">{grnDetailError}</div> : null}
 	                            {!grnDetailLoading && !grnDetailError ? (
 	                              <div className="overflow-x-auto">
-	                                <table className="w-full min-w-[850px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                <table className="w-full min-w-[1050px] table-fixed text-left border-collapse border border-outline-variant text-sm">
 	                                  <thead>
 	                                    <tr className="bg-primary text-on-primary">
 	                                      <th className="px-3 py-2 border border-outline-variant">Item</th>
-	                                <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+	                                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
+                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
 	                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">GRN Qty</th>
 	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Approved Qty</th>
 	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Inv. Link Qty</th>
@@ -1430,7 +1480,13 @@ export default function OperationsView({
 	                                }}
 	                                >
 	                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
-	                                <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+	                                          <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+                                            <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                                              {formatSpecs(it.specificationsJson)}
+                                            </td>
+                                            <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+                                              {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
+                                            </td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
 	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.invoiceLinkQty ?? 0)}</td>
@@ -1439,7 +1495,7 @@ export default function OperationsView({
 	                                ))
 	                                    ) : (
 	                                      <tr>
-	                                        <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+	                                        <td colSpan={8} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
 	                                          No GRN items found.
 	                                        </td>
 	                                      </tr>
@@ -1451,79 +1507,140 @@ export default function OperationsView({
 	                          </td>
 	                        </tr>
 	                      ) : null}
-		                      {tab === 'pos' && isExpanded ? (
-	                        <tr>
-		                          <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
-	                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
-	                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
-	                            {!detailLoading && !detailError ? (
-                              <div className="space-y-2">
-                                <div className="text-xs text-on-surface-variant">
-                                  Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full min-w-[950px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-                                    <thead>
-	                                      <tr className="bg-primary text-on-primary">
-	                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+                        {tab === 'invoices' && isInvoiceExpanded ? (
+                          <tr>
+                            <td colSpan={12} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                              {invoiceDetailLoading ? <div className="text-sm text-on-surface-variant">Loading items...</div> : null}
+                              {!invoiceDetailLoading && invoiceDetailError ? <div className="text-sm text-error">{invoiceDetailError}</div> : null}
+                              {!invoiceDetailLoading && !invoiceDetailError && invoiceDetail ? (
+                                <div className="space-y-2">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[1050px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                                      <thead>
+                                        <tr className="bg-primary text-on-primary">
+                                          <th className="px-3 py-2 border border-outline-variant">Item</th>
                                           <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">PO Qty</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">Accepted Qty</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">Rejected Qty</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">PO Rate</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">Disc %</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">GST %</th>
-	                                        <th className="px-3 py-2 border border-outline-variant">Total</th>
-	                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(detail?.po?.items ?? []).length ? (
-                                        (detail?.po?.items ?? [])
-                                          .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
-                                          .map((it: any, idx: number) => {
-                                          const qty = Number(it?.quantity ?? 0);
-                                          const rate = Number(it?.rate ?? 0);
-                                          const disc = Number(it?.discountPercent ?? 0);
-                                          const base = qty * rate;
-                                          const total = base - base * (disc / 100);
-                                          return (
-	                                            <tr
-                                                key={`${String(r.poId ?? '')}-it-${idx}`}
-                                                className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
-                                                }}
-                                              >
-	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(total).toFixed(2)}</td>
-	                                            </tr>
-                                          );
-                                        })
-                                      ) : (
-                                        <tr>
-	                                          <td colSpan={9} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-	                                            No PO items found.
-	                                          </td>
-	                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
+                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Rate</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Tax %</th>
+                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(invoiceDetail?.invoice?.items ?? []).length ? (
+                                          (invoiceDetail?.invoice?.items ?? []).map((it: any, idx: number) => (
+                                            <tr key={`${String(r.invoiceId ?? '')}-it-${idx}`}>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                                                {formatSpecs(it.specificationsJson)}
+                                              </td>
+                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+                                                {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
+                                              </td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantity ?? 0)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rate ?? 0).toFixed(2)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.totalAmount ?? 0).toFixed(2)}</td>
+                                            </tr>
+                                          ))
+                                        ) : (
+                                          <tr>
+                                            <td colSpan={8} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                                              No invoice items found.
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : null}
-                          </td>
-                        </tr>
-	                      ) : null}
+                              ) : null}
+                            </td>
+                          </tr>
+                        ) : null}
+		                      {tab === 'pos' && isExpanded ? (
+		                        <tr>
+		                      <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+		                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
+		                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
+		                            {!detailLoading && !detailError ? (
+		                      <div className="space-y-2">
+		                      <div className="text-xs text-on-surface-variant">
+		                      Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
+		                      </div>
+		                      <div className="overflow-x-auto">
+		                      <table className="w-full min-w-[1250px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+		                      <thead>
+		                                      <tr className="bg-primary text-on-primary">
+		                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+		                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+		                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
+		                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">PO Qty</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">GRN Qty</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Accepted Qty</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected Qty</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[90px]">PO Rate</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[70px]">Disc %</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[70px]">GST %</th>
+		                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
+		                                      </tr>
+		                      </thead>
+		                      <tbody>
+		                      {(detail?.po?.items ?? []).length ? (
+		                      (detail?.po?.items ?? [])
+		                      .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
+		                      .map((it: any, idx: number) => {
+		                      const qty = Number(it?.quantity ?? 0);
+		                      const rate = Number(it?.rate ?? 0);
+		                      const disc = Number(it?.discountPercent ?? 0);
+		                      const total = Number(it?.totalAmount ?? 0);
+		                      return (
+		                                            <tr
+		                      key={`${String(r.poId ?? '')}-it-${idx}`}
+		                      className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+		                      onClick={(e) => {
+		                      e.stopPropagation();
+		                      setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+		                      }}
+		                      >
+		                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+		                      <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+		                      {formatSpecs(it.specificationsJson)}
+		                      </td>
+		                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+		                      {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
+		                      </td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate.toFixed(2)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{total.toFixed(2)}</td>
+		                                            </tr>
+		                      );
+		                      })
+		                      ) : (
+		                      <tr>
+		                                          <td colSpan={12} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+		                                            No PO items found.
+		                                          </td>
+		                                        </tr>
+		                      )}
+		                      </tbody>
+		                      </table>
+		                      </div>
+		                      </div>
+		                            ) : null}
+		                          </td>
+		                        </tr>
+		                      ) : null}
 			                      {tab === 'pos' && isAdvanceExpanded && (advanceLoading || Boolean(advanceError) || advanceRows.length > 0) ? (
 			                        <tr>
 		                          <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">

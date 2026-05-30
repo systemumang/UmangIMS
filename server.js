@@ -4015,7 +4015,11 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.cancel_reason AS cancelReason,
       poi.goods_amount AS goodsAmount,
       poi.tax_amount AS taxAmount,
-      poi.total_amount AS totalAmount
+      poi.total_amount AS totalAmount,
+      poi.dim_length AS dimLength,
+      poi.dim_breadth AS dimBreadth,
+      poi.dim_pcs AS dimPcs,
+      poi.dim_unit AS dimUnit
     FROM purchase_order_items poi
     LEFT JOIN items it ON it.id = poi.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -4123,7 +4127,12 @@ async function fetchGrnDetail(pool, grnId) {
 	      gi.received_qty AS quantityReceived,
 	      COALESCE(qc.approvedQty, gi.received_qty, 0) AS approvedQty,
 	      COALESCE(linkq.invoiceLinkQty, 0) AS invoiceLinkQty,
-	      COALESCE(qc.rejectedQty, 0) AS rejectedQty
+	      COALESCE(qc.rejectedQty, 0) AS rejectedQty,
+        gi.recv_dim_length AS dimLength,
+        gi.recv_dim_breadth AS dimBreadth,
+        gi.recv_dim_pcs AS dimPcs,
+        gi.recv_dim_input_unit AS dimUnit,
+        it.specifications_json AS specificationsJson
 	    FROM grn_items gi
 	    LEFT JOIN items it ON it.id = gi.item_id
 	    LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -4233,7 +4242,12 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       ii.quantity AS quantity,
       ii.rate AS rate,
       ii.tax_percent AS taxPercent,
-      (ii.quantity * ii.rate) AS totalAmount
+      (ii.quantity * ii.rate) AS totalAmount,
+      ii.dim_length AS dimLength,
+      ii.dim_breadth AS dimBreadth,
+      ii.dim_pcs AS dimPcs,
+      ii.dim_input_unit AS dimUnit,
+      it.specifications_json AS specificationsJson
     FROM invoice_items ii
     LEFT JOIN items it ON it.id = ii.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id

@@ -62,6 +62,20 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setApproveDate(new Date().toISOString().slice(0, 10));
   }
 
+  const formatSpecs = (json: string) => {
+    if (!json) return '';
+    try {
+      const specs = JSON.parse(json);
+      if (Array.isArray(specs)) {
+        return specs.map((s: any) => s.value).filter(Boolean).join(', ');
+      }
+      if (specs && typeof specs === 'object') {
+        return Object.values(specs).filter(Boolean).join(', ');
+      }
+    } catch (e) {}
+    return String(json || '');
+  };
+
   useEffect(() => {
     if (!modalOpen) return;
     if (approvedBy) return;
@@ -250,12 +264,14 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                   <div><span className="font-semibold">CN/Courier:</span> {invoiceDetail.invoice.cnNumber || invoiceDetail.invoice.courierNumber || '-'}</div>
                 </div>
                 <div className="overflow-auto">
-                  <table className="w-full text-xs border border-outline-variant">
+                  <table className="w-full text-xs border border-outline-variant table-fixed">
                     <thead>
                       <tr className="bg-surface-container-high">
                         <th className="px-2 py-1 border border-outline-variant text-left">Item</th>
-                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">Qty</th>
                         <th className="px-2 py-1 border border-outline-variant text-center w-[60px]">Unit</th>
+                        <th className="px-2 py-1 border border-outline-variant text-left w-[120px]">Specifications</th>
+                        <th className="px-2 py-1 border border-outline-variant text-left w-[120px]">Dimensions</th>
+                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">Qty</th>
                         <th className="px-2 py-1 border border-outline-variant text-right w-[100px]">Rate</th>
                         <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">GST %</th>
                       </tr>
@@ -263,21 +279,30 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
                     <tbody>
                       {invoiceDetail.items
                         .filter((it) => !selectedItemId || it.itemId === selectedItemId)
-                        .map((it) => (
+                        .map((it) => {
+                          const raw = it as any;
+                          return (
                           <tr
                             key={it.id || `${it.itemId}-${it.item}`}
                             className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
                             onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
                           >
                             <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
+                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
+                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">
+                              {formatSpecs(raw.specificationsJson)}
+                            </td>
+                            <td className="px-2 py-1 border border-outline-variant whitespace-nowrap">
+                              {raw.dimLength ? `${raw.dimLength} x ${raw.dimBreadth} x ${raw.dimPcs} ${raw.dimUnit || ''}` : '-'}
+                            </td>
                             <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
                               {Number(it.quantity ?? 0).toFixed(2)}
                             </td>
-                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
                             <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
                             <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
                           </tr>
-                        ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
