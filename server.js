@@ -815,7 +815,7 @@ const deleteUsageLookups = {
   item_returns: { label: 'Return Master', nameColumn: 'transaction_no' },
   item_damages: { label: 'Damage Master', nameColumn: 'transaction_no' },
   item_transfers: { label: 'Transfer Master', nameColumn: 'transaction_no' },
-  gst_numbers: { label: 'GST Numbers', nameColumn: 'gst_number' },
+  gst_rates: { label: 'GST Rates', nameColumn: 'rate' },
 };
 
 async function getDeleteUsageDetails(pool, error, parentId) {
@@ -842,70 +842,70 @@ async function sendDeleteInUseError(res, pool, parentId, error, label) {
   return true;
 }
 
-// --- Masters: GST Numbers ---
-app.get('/api/masters/gst-numbers', async (_req, res) => {
+// --- Masters: GST Rates ---
+app.get('/api/masters/gst-rates', async (_req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const [rows] = await pool.query('SELECT id, gst_number AS gstNumber FROM gst_numbers ORDER BY gst_number');
-    res.json({ gstNumbers: rows });
+    const [rows] = await pool.query('SELECT id, rate FROM gst_rates ORDER BY rate');
+    res.json({ gstRates: rows });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
-app.post('/api/masters/gst-numbers', async (req, res) => {
+app.post('/api/masters/gst-rates', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const gstNumber = String(req.body?.gstNumber ?? '').trim();
-    if (!gstNumber) return res.status(400).json({ error: 'GST Number is required' });
+    const rate = req.body?.rate != null ? Number(req.body.rate) : NaN;
+    if (!Number.isFinite(rate)) return res.status(400).json({ error: 'Rate is required and must be a number' });
     const id = crypto.randomUUID();
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
 
     await pool.query(
-      'INSERT INTO gst_numbers (id, gst_number, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
-      [id, gstNumber, createdBy]
+      'INSERT INTO gst_rates (id, rate, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [id, rate, createdBy]
     );
 
-    res.status(201).json({ gstNumber: { id, gstNumber } });
+    res.status(201).json({ gstRate: { id, rate } });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'GST Number already exists' });
+    if (message.includes('Duplicate') || message.includes('ER_DUP_ENTRY')) return res.status(400).json({ error: 'GST Rate already exists' });
     res.status(500).json({ error: message });
   }
 });
 
-app.put('/api/masters/gst-numbers/:id', async (req, res) => {
+app.put('/api/masters/gst-rates/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const id = req.params.id;
-    const gstNumber = String(req.body?.gstNumber ?? '').trim();
-    if (!gstNumber) return res.status(400).json({ error: 'GST Number is required' });
+    const rate = req.body?.rate != null ? Number(req.body.rate) : NaN;
+    if (!Number.isFinite(rate)) return res.status(400).json({ error: 'Rate is required and must be a number' });
 
     await pool.query(
-      'UPDATE gst_numbers SET gst_number=?, updated_at=NOW() WHERE id=?',
-      [gstNumber, id]
+      'UPDATE gst_rates SET rate=?, updated_at=NOW() WHERE id=?',
+      [rate, id]
     );
 
-    res.json({ gstNumber: { id, gstNumber } });
+    res.json({ gstRate: { id, rate } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
-app.delete('/api/masters/gst-numbers/:id', async (req, res) => {
+app.delete('/api/masters/gst-rates/:id', async (req, res) => {
   let pool;
   let id = '';
   try {
     pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     id = req.params.id;
-    await pool.query('DELETE FROM gst_numbers WHERE id=?', [id]);
+    await pool.query('DELETE FROM gst_rates WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (e) {
-    if (await sendDeleteInUseError(res, pool, id, e, 'GST number')) return;
+    if (await sendDeleteInUseError(res, pool, id, e, 'GST rate')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
