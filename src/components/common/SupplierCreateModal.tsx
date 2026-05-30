@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import { ChevronDown, X, Eye } from 'lucide-react';
 import {
   createCity,
   createState,
@@ -47,6 +48,8 @@ export default function SupplierCreateModal({
   const [defaultCreditDays, setDefaultCreditDays] = useState('');
   const [catalogueLink, setCatalogueLink] = useState('');
   const [isVendor, setIsVendor] = useState(false);
+  const [msmeApplicable, setMsmeApplicable] = useState(false);
+  const [msmeCertificateUrl, setMsmeCertificateUrl] = useState('');
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [busy, setBusy] = useState(false);
@@ -127,6 +130,8 @@ export default function SupplierCreateModal({
         defaultCreditDays: defaultCreditDays ? parseInt(defaultCreditDays) : undefined,
         isVendor,
         catalogueLink: catalogueLink.trim() || undefined,
+        msmeApplicable,
+        msmeCertificateUrl: msmeCertificateUrl.trim() || undefined,
         createdBy: 'system',
       });
       if (!result.supplier) throw new Error('Invalid supplier response');
@@ -264,6 +269,71 @@ export default function SupplierCreateModal({
               <input type="checkbox" className="w-4 h-4 rounded border-outline-variant" checked={isVendor} onChange={(e) => setIsVendor(e.target.checked)} />
               <span className="font-semibold text-on-surface">Vendor</span>
             </label>
+
+            <div className="pt-3 space-y-3 border-t border-outline-variant/10">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-outline-variant"
+                  checked={msmeApplicable}
+                  onChange={(e) => setMsmeApplicable(e.target.checked)}
+                />
+                <span className="font-semibold text-on-surface">MSME Certificate Applicable</span>
+              </label>
+
+              {msmeApplicable && (
+                <label className="space-y-1 block">
+                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">MSME Certificate (Upload or URL)</div>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
+                      accept=".pdf,image/png,image/jpeg"
+                      disabled={busy}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const maxBytes = 5 * 1024 * 1024; // 5MB
+                        if (file.size > maxBytes) {
+                          setError('File is too large. Please upload under 5MB.');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => setMsmeCertificateUrl(String(reader.result ?? ''));
+                        reader.onerror = () => setError('Failed to read file.');
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                      value={msmeCertificateUrl}
+                      onChange={(e) => setMsmeCertificateUrl(e.target.value)}
+                      placeholder="Paste certificate URL or data:..."
+                    />
+                    {msmeCertificateUrl && (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={msmeCertificateUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                          <Eye size={12} />
+                          View Certificate
+                        </a>
+                        <button
+                          type="button"
+                          className="text-xs text-error hover:underline"
+                          onClick={() => setMsmeCertificateUrl('')}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              )}
+            </div>
           </div>
           <div className="px-4 py-3 border-t border-outline-variant flex justify-end gap-2">
             <button type="button" className="btn" onClick={onClose}>Cancel</button>

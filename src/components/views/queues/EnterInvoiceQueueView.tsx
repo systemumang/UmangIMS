@@ -4,8 +4,11 @@ import { createInvoice, fetchPendingInvoiceItems, fetchWorkflow } from '@/src/li
 import { fetchQueueEnterInvoice, type EnterInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
-import { cn } from '@/src/lib/utils';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
+
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ');
+}
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { ExportCsvButton, inputClass, labelClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';

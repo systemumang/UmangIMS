@@ -3,7 +3,7 @@ import { Download } from 'lucide-react';
 import { formatPrNumber, formatPoNumber } from '@/src/lib/docNumbers';
 import { createCreditVoucher, fetchPendingInvoiceItems, fetchWorkflow } from '@/src/lib/purchaseRequests';
 import { fetchQueueEnterCreditVoucher, type EnterCreditVoucherQueueRow, type QueueFilters } from '@/src/lib/queues';
-import { cn } from '@/src/lib/utils';
+import { cn } from '../../../lib/utils';
 import Pagination from '@/src/components/common/Pagination';
 import {
   ExportCsvButton,
@@ -20,8 +20,8 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; pendingQty: number; rate: number };
-type Line = { itemId: string; item: string; pendingQty: number; quantity: string; rate: string };
+type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
+type Line = { itemId: string; item: string; unit?: string | null; pendingQty: number; quantity: string; rate: string };
 
 export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
@@ -88,6 +88,7 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
         const next: Line[] = (items as PendingItem[]).map((it) => ({
           itemId: it.itemId,
           item: it.item,
+          unit: it.unit,
           pendingQty: Number(it.pendingQty ?? 0),
           quantity: String(it.pendingQty ?? 0),
           rate: String(it.rate ?? 0),
@@ -254,6 +255,7 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
               <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                 <tr>
                   <th className="px-3 py-2 border border-outline-variant">Item</th>
+                  <th className="px-3 py-2 border border-outline-variant text-center">Unit</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Max Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                   <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
@@ -272,6 +274,7 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
                         onClick={() => setSelectedLineId(selectedLineId === ln.itemId ? null : ln.itemId)}
                       >
                         <td className="px-3 py-2 border border-outline-variant">{ln.item}</td>
+                        <td className="px-3 py-2 border border-outline-variant text-center text-on-surface-variant text-[10px] font-bold uppercase">{ln.unit || '-'}</td>
                         <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(ln.pendingQty ?? 0).toFixed(2)}</td>
                         <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                           <input

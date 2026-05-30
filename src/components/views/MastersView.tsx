@@ -278,8 +278,10 @@ export default function MastersView({
 					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
             const [newSupplierDefaultCreditDays, setNewSupplierDefaultCreditDays] = useState('');
 					  const [newSupplierIsVendor, setNewSupplierIsVendor] = useState(false);
-            const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
-					  const [newCustomerName, setNewCustomerName] = useState('');
+					  const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
+					  const [newSupplierMsmeApplicable, setNewSupplierMsmeApplicable] = useState(false);
+					  const [newSupplierMsmeCertificateUrl, setNewSupplierMsmeCertificateUrl] = useState('');
+					  const [newTransporterName, setNewTransporterName] = useState('');
 					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
 	          const [newCustomerCategoryName, setNewCustomerCategoryName] = useState('');
@@ -964,6 +966,8 @@ export default function MastersView({
                   setNewSupplierDefaultCreditDays('');
 						      setNewSupplierIsVendor(false);
 	                  setNewSupplierCatalogueLink('');
+						      setNewSupplierMsmeApplicable(false);
+						      setNewSupplierMsmeCertificateUrl('');
 						    }
 						    if (tab === 'customers') {
 						      setNewCustomerName('');
@@ -1088,8 +1092,10 @@ export default function MastersView({
               setNewSupplierState((row as any)?.state ?? '');
 				      setNewSupplierPaymentTerms(row?.paymentTerms ?? '');
 				      setNewSupplierIsVendor(Boolean(row?.isVendor));
-              setNewSupplierCatalogueLink((row as any)?.catalogueLink ?? '');
-				    }
+				      setNewSupplierCatalogueLink((row as any)?.catalogueLink ?? '');
+				      setNewSupplierMsmeApplicable(Boolean((row as any)?.msmeApplicable));
+				      setNewSupplierMsmeCertificateUrl((row as any)?.msmeCertificateUrl ?? '');
+				      }
 				    if (tab === 'customers') {
 				      const row = customers.find((c) => c.id === id);
 				      setNewCustomerName(row?.name ?? '');
@@ -3147,6 +3153,71 @@ export default function MastersView({
 			                      />
 			                      <span className="font-semibold text-on-surface">Vendor</span>
 			                    </label>
+
+                          <div className="pt-3 space-y-3 border-t border-outline-variant/10">
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-outline-variant"
+                                checked={newSupplierMsmeApplicable}
+                                onChange={(e) => setNewSupplierMsmeApplicable(e.target.checked)}
+                              />
+                              <span className="font-semibold text-on-surface">MSME Certificate Applicable</span>
+                            </label>
+
+                            {newSupplierMsmeApplicable && (
+                              <label className="space-y-1 block">
+                                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">MSME Certificate (Upload or URL)</div>
+                                <div className="flex flex-col gap-2">
+                                  <input
+                                    type="file"
+                                    className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
+                                    accept=".pdf,image/png,image/jpeg"
+                                    disabled={busy}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const maxBytes = 5 * 1024 * 1024; // 5MB
+                                      if (file.size > maxBytes) {
+                                        setError('File is too large. Please upload under 5MB.');
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = () => setNewSupplierMsmeCertificateUrl(String(reader.result ?? ''));
+                                      reader.onerror = () => setError('Failed to read file.');
+                                      reader.readAsDataURL(file);
+                                    }}
+                                  />
+                                  <input
+                                    className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                                    value={newSupplierMsmeCertificateUrl}
+                                    onChange={(e) => setNewSupplierMsmeCertificateUrl(e.target.value)}
+                                    placeholder="Paste certificate URL or data:..."
+                                  />
+                                  {newSupplierMsmeCertificateUrl && (
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={newSupplierMsmeCertificateUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                                      >
+                                        <Eye size={12} />
+                                        View Certificate
+                                      </a>
+                                      <button
+                                        type="button"
+                                        className="text-xs text-error hover:underline"
+                                        onClick={() => setNewSupplierMsmeCertificateUrl('')}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </label>
+                            )}
+                          </div>
 			                  </div>
 				                  <div className="pt-3 flex justify-end gap-2">
 				                    <button
@@ -3213,6 +3284,8 @@ export default function MastersView({
 					                        defaultCreditDays: newSupplierDefaultCreditDays ? parseInt(newSupplierDefaultCreditDays) : undefined,
 					                        isVendor: newSupplierIsVendor,
 					                        catalogueLink: newSupplierCatalogueLink.trim() || undefined,
+                                  msmeApplicable: newSupplierMsmeApplicable,
+                                  msmeCertificateUrl: newSupplierMsmeCertificateUrl.trim() || undefined,
 					                        updatedBy: 'system',
 					                        })
 					                        : createSupplier({
@@ -3232,6 +3305,8 @@ export default function MastersView({
 					                        defaultCreditDays: newSupplierDefaultCreditDays ? parseInt(newSupplierDefaultCreditDays) : undefined,
 					                        isVendor: newSupplierIsVendor,
 					                        catalogueLink: newSupplierCatalogueLink.trim() || undefined,
+					                        msmeApplicable: newSupplierMsmeApplicable,
+					                        msmeCertificateUrl: newSupplierMsmeCertificateUrl.trim() || undefined,
 					                        createdBy: 'system',
 					                        });
 			                        fn.then((result: any) => {
@@ -5153,30 +5228,31 @@ export default function MastersView({
                             <th className="text-left px-3 py-2 border border-blue-600">Default Credit Days</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Vendor</th>
                         <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
-					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
-					                </tr>
-						              </thead>
-						              <tbody>
-						                {filteredSuppliers.map((s) => (
-						                  <tr key={s.id}>
-						                <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).email ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).city ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).state ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).defaultCreditDays ?? ''}</td>
-						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
-						                {s.isVendor ? (
-						                <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
-						                ) : '-'}
-						                </td>
+                        <th className="text-left px-3 py-2 border border-blue-600">MSME</th>
+                        <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {filteredSuppliers.map((s) => (
+                        <tr key={s.id}>
+                        <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).email ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).city ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).state ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).defaultCreditDays ?? ''}</td>
+                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+                        {s.isVendor ? (
+                        <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
+                        ) : '-'}
+                        </td>
                           <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">
                             {(() => {
                               const link = String((s as any).catalogueLink ?? '').trim();
@@ -5192,6 +5268,28 @@ export default function MastersView({
                                 </a>
                               );
                             })()}
+                          </td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                {s.msmeApplicable ? (
+                                  <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Applicable</span>
+                                ) : (
+                                  <span className="bg-outline-variant/20 text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase">N/A</span>
+                                )}
+                              </div>
+                              {s.msmeCertificateUrl && (
+                                <a
+                                  href={s.msmeCertificateUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                                >
+                                  <Eye size={10} />
+                                  Certificate
+                                </a>
+                              )}
+                            </div>
                           </td>
 					                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 					                      <div className="flex items-center gap-2">

@@ -28,6 +28,8 @@ export type Supplier = {
   defaultCreditDays?: number | null;
   isVendor?: boolean;
   catalogueLink?: string | null;
+  msmeApplicable?: boolean;
+  msmeCertificateUrl?: string | null;
 };
 export type Transporter = { id: string; name: string; phone?: string | null };
 export type Customer = {
@@ -609,6 +611,8 @@ export async function createSupplier(input: {
   defaultCreditDays?: number;
   isVendor?: boolean;
   catalogueLink?: string;
+  msmeApplicable?: boolean;
+  msmeCertificateUrl?: string;
   createdBy?: string;
 }) {
   const res = await fetch('/api/masters/suppliers', {
@@ -638,6 +642,8 @@ export async function updateSupplier(
     defaultCreditDays?: number;
     isVendor?: boolean;
     catalogueLink?: string;
+    msmeApplicable?: boolean;
+    msmeCertificateUrl?: string;
     updatedBy?: string;
   }
 ) {

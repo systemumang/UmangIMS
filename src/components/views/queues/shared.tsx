@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
-import { cn } from '@/src/lib/utils';
+import { cn } from '../../../lib/utils';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import {
   fetchDepartments,

@@ -561,6 +561,8 @@ function getMysqlPool() {
 	        await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
 	        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
 		      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
+          await ensureColumn('suppliers', 'msme_applicable', 'TINYINT NOT NULL DEFAULT 0');
+          await ensureColumn('suppliers', 'msme_certificate_url', 'TEXT NULL');
 	      await ensureColumn('customers', 'category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'sub_category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'city', 'VARCHAR(255) NULL');
@@ -8623,7 +8625,9 @@ app.get('/api/masters/suppliers', async (_req, res) => {
 	      payment_terms AS paymentTerms,
 	      default_credit_days AS defaultCreditDays,
 	      is_vendor AS isVendor,
-	      catalogue_link AS catalogueLink
+	      catalogue_link AS catalogueLink,
+          msme_applicable AS msmeApplicable,
+          msme_certificate_url AS msmeCertificateUrl
 	      FROM suppliers
 	      ORDER BY name
       `
@@ -8632,6 +8636,7 @@ app.get('/api/masters/suppliers', async (_req, res) => {
 	      ...r,
 	      gstType: normalizeGstType(r.gstType),
 	      creditVoucherApplicable: Boolean(r.creditVoucherApplicable),
+          msmeApplicable: Boolean(r.msmeApplicable),
 	    }));
 	    res.json({ suppliers });
 	  } catch (e) {
@@ -8665,13 +8670,15 @@ app.post('/api/masters/suppliers', async (req, res) => {
       defaultCreditDays: req.body?.defaultCreditDays != null ? Number(req.body.defaultCreditDays) : null,
       isVendor: req.body?.isVendor ? 1 : 0,
       catalogueLink: req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null,
+      msmeApplicable: req.body?.msmeApplicable ? 1 : 0,
+      msmeCertificateUrl: req.body?.msmeCertificateUrl != null ? String(req.body.msmeCertificateUrl).trim() : null,
       createdBy: req.body?.createdBy != null ? String(req.body.createdBy).trim() : null,
     };
 
 	    await pool.query(
 	      `
-	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, email, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, default_credit_days, is_vendor, catalogue_link, created_by, created_at, updated_at)
-	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, email, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, default_credit_days, is_vendor, catalogue_link, msme_applicable, msme_certificate_url, created_by, created_at, updated_at)
+	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 	      `,
 	      [
 	        supplier.id,
@@ -8691,6 +8698,8 @@ app.post('/api/masters/suppliers', async (req, res) => {
         supplier.defaultCreditDays,
         supplier.isVendor,
         supplier.catalogueLink,
+        supplier.msmeApplicable,
+        supplier.msmeCertificateUrl,
         supplier.createdBy,
       ]
     );
@@ -8714,6 +8723,8 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	        defaultCreditDays: supplier.defaultCreditDays ?? undefined,
 	        isVendor: Boolean(supplier.isVendor),
 	        catalogueLink: supplier.catalogueLink ?? undefined,
+          msmeApplicable: Boolean(supplier.msmeApplicable),
+          msmeCertificateUrl: supplier.msmeCertificateUrl ?? undefined,
 	        },
     });
 
@@ -8750,12 +8761,14 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
     const paymentTerms = req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null;
     const defaultCreditDays = req.body?.defaultCreditDays != null ? Number(req.body.defaultCreditDays) : null;
     const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
+    const msmeApplicable = req.body?.msmeApplicable ? 1 : 0;
+    const msmeCertificateUrl = req.body?.msmeCertificateUrl != null ? String(req.body.msmeCertificateUrl).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
 
 	    await pool.query(
 	      `
 	      UPDATE suppliers
-	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, email=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, default_credit_days=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
+	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, email=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, default_credit_days=?, is_vendor=?, catalogue_link=?, msme_applicable=?, msme_certificate_url=?, updated_by=?, updated_at=NOW()
 	      WHERE id=?
 	      `,
 	      [
@@ -8775,6 +8788,8 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
           defaultCreditDays,
 	        req.body?.isVendor ? 1 : 0,
 	        catalogueLink,
+          msmeApplicable,
+          msmeCertificateUrl,
 	        updatedBy,
 	        id,
 	      ]
@@ -8782,7 +8797,7 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 
 	    const [rows] = await pool.query(
 	      `
-	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, email, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, default_credit_days AS defaultCreditDays, is_vendor AS isVendor, catalogue_link AS catalogueLink
+	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, email, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, default_credit_days AS defaultCreditDays, is_vendor AS isVendor, catalogue_link AS catalogueLink, msme_applicable AS msmeApplicable, msme_certificate_url AS msmeCertificateUrl
 	      FROM suppliers WHERE id=?
 	      `,
 	      [id]
@@ -8795,6 +8810,7 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	        gstType: normalizeGstType(row.gstType),
 	        isVendor: Boolean(row.isVendor),
 	        creditVoucherApplicable: Boolean(row.creditVoucherApplicable),
+          msmeApplicable: Boolean(row.msmeApplicable),
 	      },
 	    });
 	  } catch (e) {
