@@ -832,19 +832,19 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO B</th>
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO PCs</th>
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-right">PO Qty</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv Unit</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv L</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv B</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv PCs</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Invoice Qty</th>
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv Rate</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Inv Unit</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Inv L</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Inv B</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Inv PCs</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Invoice Qty</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Inv Rate</th>
                     {supplierHasGst ? (
                       <>
-                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST %</th>
-                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST Amount</th>
+                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">GST %</th>
+                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">GST Amount</th>
                       </>
                     ) : null}
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Amount</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/80">Amount</th>
                 </tr>
               </thead>
               <tbody>
