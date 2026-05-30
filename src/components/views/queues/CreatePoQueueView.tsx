@@ -696,6 +696,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       <col className="w-[100px]" />
                       <col className="w-[80px]" />
                       <col className="w-[80px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[120px]" />
                       <col className="w-[150px]" />
                       <col className="w-[100px]" />
                       <col className="w-[200px]" />
@@ -724,6 +726,8 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">Rate</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">Disc %</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">GST %</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">GST Amount</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-right">Amount</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Supplier</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Last Rate</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
@@ -803,7 +807,12 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 />
                               </td>
                             </>
-                          ) : (
+                          ) : (() => {
+                            const goodsAmt = Number(l.quantity || 0) * Number(l.rate || 0) * (1 - (Number(l.discountPercent || 0) / 100));
+                            const gstAmt = goodsAmt * (Number(l.taxPercent || 0) / 100);
+                            const totalAmt = goodsAmt + gstAmt;
+
+                            return (
                             <>
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant text-center">{l.unit || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center font-semibold">{l.remainingQty}</td>
@@ -1005,6 +1014,12 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   <div className="text-xs text-on-surface-variant opacity-70 text-center">-</div>
                                 )}
                               </td>
+                              <td className="px-3 py-2 text-right border border-outline-variant text-xs font-medium text-on-surface tabular-nums">
+                                {gstAmt.toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 text-right border border-outline-variant text-xs font-bold text-on-surface tabular-nums">
+                                {totalAmt.toFixed(2)}
+                              </td>
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{Number(l.lastRate ?? 0) || '-'}</td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
@@ -1055,13 +1070,13 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 />
                               </td>
                             </>
-                          )}
+                          )})()}
                         </tr>
                       );
                     })
 			                ) : (
 			                  <tr>
-					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 15}>
+					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 17}>
 				                      No remaining items to order.
 				                    </td>
 			                  </tr>

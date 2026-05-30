@@ -2098,6 +2098,8 @@ export default function OperationsView({
                   <th className="px-3 py-2 border border-outline-variant">Rate</th>
                   <th className="px-3 py-2 border border-outline-variant">Disc %</th>
                   <th className="px-3 py-2 border border-outline-variant">GST %</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">GST Amount</th>
+                  <th className="px-3 py-2 border border-outline-variant text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -2157,12 +2159,22 @@ export default function OperationsView({
                       <div className="text-center text-xs opacity-50">-</div>
                       )}
                       </td>
-
+                      {(() => {
+                        const goodsAmt = Number(l.quantity || 0) * Number(l.rate || 0) * (1 - (Number(l.discountPercent || 0) / 100));
+                        const gstAmt = goodsAmt * (Number(l.taxPercent || 0) / 100);
+                        const totalAmt = goodsAmt + gstAmt;
+                        return (
+                          <>
+                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface flex items-center justify-end">{gstAmt.toFixed(2)}</td>
+                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface flex items-center justify-end">{totalAmt.toFixed(2)}</td>
+                          </>
+                        );
+                      })()}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+                    <td colSpan={9} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
                       No items.
                     </td>
                   </tr>

@@ -4645,6 +4645,12 @@ export default function PurchaseRequestDetailView({
 					                              <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[120px]">
 					                                GST %
 					                              </th>
+                                        <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[120px] text-right">
+                                          GST Amount
+                                        </th>
+                                        <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[120px] text-right">
+                                          Amount
+                                        </th>
 					                              <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[90px]">
 					                                Delete
 					                              </th>
@@ -4736,12 +4742,23 @@ export default function PurchaseRequestDetailView({
                                     <div className="text-center text-xs opacity-50">-</div>
                                   )}
 				                                </td>
-				                                <td className="px-3 py-2 border border-outline-variant">
+                                        {(() => {
+                                          const goodsAmt = Number(ln.quantity || 0) * Number(ln.rate || 0) * (1 - (Number(ln.discountPercent || 0) / 100));
+                                          const gstAmt = goodsAmt * (Number(ln.taxPercent || 0) / 100);
+                                          const totalAmt = goodsAmt + gstAmt;
+                                          return (
+                                            <>
+                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface">{gstAmt.toFixed(2)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface">{totalAmt.toFixed(2)}</td>
+                                            </>
+                                          );
+                                        })()}
+				                                <td className="px-3 py-2 border border-outline-variant text-center">
 					                                  <button
 					                                    type="button"
 					                                    title="Remove line"
 					                                    aria-label="Remove line"
-				                                    className="btn-icon-danger"
+				                                    className="btn-icon-danger mx-auto"
 				                                    disabled={busy || editPoLines.length <= 1}
 				                                    onClick={() =>
 				                                      setEditPoLines((prev) => prev.filter((_, i) => i !== idx))
@@ -4750,6 +4767,32 @@ export default function PurchaseRequestDetailView({
 			                                    <Trash2 size={16} />
 			                                  </button>
 			                                </td>
+                                      <td className="px-3 py-2 border border-outline-variant">
+                                        <input
+                                          className={compactTableInputClass}
+                                          type="text"
+                                          inputMode="decimal"
+                                          value={ln.cancelledQty}
+                                          onChange={(e) =>
+                                            setEditPoLines((prev) =>
+                                              prev.map((x, i) => (i === idx ? { ...x, cancelledQty: sanitizeDecimalInput(e.target.value) } : x))
+                                            )
+                                          }
+                                          disabled={busy}
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 border border-outline-variant">
+                                        <input
+                                          className={compactTableInputClass}
+                                          value={ln.cancelReason}
+                                          onChange={(e) =>
+                                            setEditPoLines((prev) =>
+                                              prev.map((x, i) => (i === idx ? { ...x, cancelReason: e.target.value } : x))
+                                            )
+                                          }
+                                          disabled={busy}
+                                        />
+                                      </td>
 			                              </tr>
 			                            ))}
 			                          </tbody>
@@ -4857,6 +4900,8 @@ export default function PurchaseRequestDetailView({
 								                        <col className="w-[70px]" />
 								                        <col className="w-[70px]" />
 								                        <col className="w-[86px]" />
+								                        <col className="w-[86px]" />
+								                        <col className="w-[86px]" />
 								                        <col className="w-[70px]" />
 								                        <col className="w-[140px]" />
 								                        <col className="w-[70px]" />
@@ -4873,6 +4918,8 @@ export default function PurchaseRequestDetailView({
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Rate</th>
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Disc %</th>
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">GST %</th>
+							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">GST Amount</th>
+							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Amount</th>
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Last Supplier</th>
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Last Rate</th>
 							                          <th className="px-2 py-2 text-[12px] font-bold text-white uppercase tracking-wider border border-outline-variant">Supplier</th>
@@ -4885,7 +4932,7 @@ export default function PurchaseRequestDetailView({
 			                          if (!makePoItems.length) {
 				                            return (
 				                              <tr>
-					                                <td colSpan={12} className="px-2 py-6 text-sm text-on-surface-variant text-center border border-outline-variant">
+					                                <td colSpan={14} className="px-2 py-6 text-sm text-on-surface-variant text-center border border-outline-variant">
 					                                  All items are already fully ordered.
 					                                </td>
 					                              </tr>
@@ -4966,6 +5013,17 @@ export default function PurchaseRequestDetailView({
                                     <div className="text-center text-xs opacity-50">-</div>
                                   )}
 							                                </td>
+                                              {(() => {
+                                                const goodsAmt = Number(poQty[lineId] || 0) * Number(poRates[lineId] || 0) * (1 - (Number(poDiscounts[lineId] || 0) / 100));
+                                                const gstAmt = goodsAmt * (Number(poTaxes[lineId] || 0) / 100);
+                                                const totalAmt = goodsAmt + gstAmt;
+                                                return (
+                                                  <>
+                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right">{gstAmt.toFixed(2)}</td>
+                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right font-bold">{totalAmt.toFixed(2)}</td>
+                                                  </>
+                                                );
+                                              })()}
 						                                <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant break-words whitespace-normal leading-snug">
 						                                  {lastSupplierByItemId[it.itemId]?.supplierName ?? '-'}
 						                                </td>
@@ -5009,32 +5067,6 @@ export default function PurchaseRequestDetailView({
 				                                    placeholder="30 days"
 				                                  />
 				                                </td>
-                                    <td className="px-3 py-2 border border-outline-variant">
-                                      <input
-                                        className={compactTableInputClass}
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={ln.cancelledQty}
-                                        onChange={(e) =>
-                                          setEditPoLines((prev) =>
-                                            prev.map((x, i) => (i === idx ? { ...x, cancelledQty: sanitizeDecimalInput(e.target.value) } : x))
-                                          )
-                                        }
-                                        disabled={busy}
-                                      />
-                                    </td>
-                                    <td className="px-3 py-2 border border-outline-variant">
-                                      <input
-                                        className={compactTableInputClass}
-                                        value={ln.cancelReason}
-                                        onChange={(e) =>
-                                          setEditPoLines((prev) =>
-                                            prev.map((x, i) => (i === idx ? { ...x, cancelReason: e.target.value } : x))
-                                          )
-                                        }
-                                        disabled={busy}
-                                      />
-                                    </td>
 				                              </tr>
 				                            );
 				                          });
