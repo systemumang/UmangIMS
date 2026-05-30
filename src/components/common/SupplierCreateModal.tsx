@@ -11,6 +11,7 @@ import {
   type State,
   type Supplier,
 } from '@/src/lib/masters';
+import { openDocument } from '@/src/lib/utils';
 
 const inputClass =
   'w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none';
@@ -312,15 +313,14 @@ export default function SupplierCreateModal({
                     />
                     {msmeCertificateUrl && (
                       <div className="flex items-center gap-2">
-                        <a
-                          href={msmeCertificateUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => openDocument(msmeCertificateUrl)}
                           className="text-xs text-primary hover:underline flex items-center gap-1"
                         >
                           <Eye size={12} />
                           View Certificate
-                        </a>
+                        </button>
                         <button
                           type="button"
                           className="text-xs text-error hover:underline"

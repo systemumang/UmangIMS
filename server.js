@@ -562,7 +562,9 @@ function getMysqlPool() {
 	        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
 		      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
           await ensureColumn('suppliers', 'msme_applicable', 'TINYINT NOT NULL DEFAULT 0');
-          await ensureColumn('suppliers', 'msme_certificate_url', 'TEXT NULL');
+          await ensureColumn('suppliers', 'msme_certificate_url', 'LONGTEXT NULL');
+          // Ensure existing column is also LONGTEXT
+          await pool.query('ALTER TABLE suppliers MODIFY COLUMN msme_certificate_url LONGTEXT NULL').catch(() => {});
 	      await ensureColumn('customers', 'category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'sub_category_name', 'VARCHAR(255) NULL');
 	      await ensureColumn('customers', 'city', 'VARCHAR(255) NULL');

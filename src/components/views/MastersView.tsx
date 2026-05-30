@@ -4,6 +4,7 @@ import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
+import { openDocument } from '@/src/lib/utils';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
   createDepartment,
@@ -3195,15 +3196,14 @@ export default function MastersView({
                                   />
                                   {newSupplierMsmeCertificateUrl && (
                                     <div className="flex items-center gap-2">
-                                      <a
-                                        href={newSupplierMsmeCertificateUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocument(newSupplierMsmeCertificateUrl)}
                                         className="text-xs text-primary hover:underline flex items-center gap-1"
                                       >
                                         <Eye size={12} />
                                         View Certificate
-                                      </a>
+                                      </button>
                                       <button
                                         type="button"
                                         className="text-xs text-error hover:underline"
@@ -3309,9 +3309,9 @@ export default function MastersView({
 					                        createdBy: 'system',
 					                        });
 			                        fn.then((result: any) => {
-                                  const saved = (result as any)?.store as Store | undefined;
+                                  const saved = (result as any)?.supplier as Supplier | undefined;
                                   if (!saved?.id) return;
-                                  setStores((prev) => {
+                                  setSuppliers((prev) => {
                                     const existingIndex = prev.findIndex((s) => s.id === saved.id);
                                     if (existingIndex >= 0) {
                                       const next = [...prev];
@@ -5278,15 +5278,14 @@ export default function MastersView({
                                 )}
                               </div>
                               {s.msmeCertificateUrl && (
-                                <a
-                                  href={s.msmeCertificateUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openDocument(s.msmeCertificateUrl!)}
                                   className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
                                 >
                                   <Eye size={10} />
                                   Certificate
-                                </a>
+                                </button>
                               )}
                             </div>
                           </td>
