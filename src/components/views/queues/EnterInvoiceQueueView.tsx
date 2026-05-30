@@ -141,7 +141,14 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
     const supplierId = String((active as any)?.supplierId ?? '').trim();
     if (!supplierId) return true;
     const s = masters.suppliers.find((x) => x.id === supplierId);
-    return Boolean(String((s as any)?.gstNumber ?? '').trim());
+    if (!s) return true;
+    const hasGstInMaster = Boolean(String(s.gstNumber ?? '').trim());
+    const isCreditVoucherApplicable = Boolean(s.creditVoucherApplicable);
+
+    // If no Credit Voucher tick AND GST column is blank, hide GST related fields
+    if (!isCreditVoucherApplicable && !hasGstInMaster) return false;
+
+    return hasGstInMaster;
   }, [active, masters.suppliers]);
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(todayIsoDate());

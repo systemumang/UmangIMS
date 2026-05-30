@@ -38,11 +38,13 @@ export default function SupplierCreateModal({
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [mobile2, setMobile2] = useState('');
+  const [email, setEmail] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contactPersonMobile, setContactPersonMobile] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
+  const [defaultCreditDays, setDefaultCreditDays] = useState('');
   const [catalogueLink, setCatalogueLink] = useState('');
   const [isVendor, setIsVendor] = useState(false);
   const [states, setStates] = useState<State[]>([]);
@@ -116,11 +118,13 @@ export default function SupplierCreateModal({
         address: address.trim() || undefined,
         phone: mobile1 || undefined,
         mobile2: mobile2Value || undefined,
+        email: email.trim() || undefined,
         contactPerson: contactPerson.trim() || undefined,
         contactPersonMobile: contactMobile || undefined,
         city: selectedCity,
         state: selectedState,
         paymentTerms: paymentTerms.trim() || undefined,
+        defaultCreditDays: defaultCreditDays ? parseInt(defaultCreditDays) : undefined,
         isVendor,
         catalogueLink: catalogueLink.trim() || undefined,
         createdBy: 'system',
@@ -190,6 +194,10 @@ export default function SupplierCreateModal({
                 <input className={inputClass} value={contactPersonMobile} onChange={(e) => setContactPersonMobile(normalizeTenDigitPhoneInput(e.target.value))} placeholder="Contact person mobile" inputMode="numeric" maxLength={10} />
               </label>
               <label className="space-y-1">
+                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email</div>
+                <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+              </label>
+              <label className="space-y-1">
                 <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State <span className="text-red-600">*</span></div>
                 <SearchableSelect
                   value={state}
@@ -242,6 +250,10 @@ export default function SupplierCreateModal({
               <label className="space-y-1">
                 <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Payment Terms</div>
                 <input className={inputClass} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="30 days" />
+              </label>
+              <label className="space-y-1">
+                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Default Credit Days</div>
+                <input className={inputClass} value={defaultCreditDays} onChange={(e) => setDefaultCreditDays(e.target.value.replace(/\D/g, ''))} placeholder="30" inputMode="numeric" />
               </label>
               <label className="space-y-1">
                 <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Catalogue Link</div>

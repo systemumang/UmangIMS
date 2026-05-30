@@ -270,11 +270,13 @@ export default function MastersView({
 					  const [newSupplierAddress, setNewSupplierAddress] = useState('');
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
             const [newSupplierMobile2, setNewSupplierMobile2] = useState('');
+            const [newSupplierEmail, setNewSupplierEmail] = useState('');
             const [newSupplierContactPerson, setNewSupplierContactPerson] = useState('');
             const [newSupplierContactPersonMobile, setNewSupplierContactPersonMobile] = useState('');
             const [newSupplierCity, setNewSupplierCity] = useState('');
             const [newSupplierState, setNewSupplierState] = useState('');
 					  const [newSupplierPaymentTerms, setNewSupplierPaymentTerms] = useState('');
+            const [newSupplierDefaultCreditDays, setNewSupplierDefaultCreditDays] = useState('');
 					  const [newSupplierIsVendor, setNewSupplierIsVendor] = useState(false);
             const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
 					  const [newCustomerName, setNewCustomerName] = useState('');
@@ -586,12 +588,14 @@ export default function MastersView({
 		          s.gstType,
 		          s.address,
 		          s.phone,
+              (s as any).email,
 		          s.contactPerson,
 		          s.contactPersonMobile,
 		          s.city,
 		          s.state,
 		          (s as any).mobile2,
 		          (s as any).paymentTerms,
+              (s as any).defaultCreditDays,
 		          (s as any).catalogueLink,
 		        ]);
 		      if (listField === 'gst') return matchesListQuery([s.gstNumber]);
@@ -950,7 +954,14 @@ export default function MastersView({
                   setNewSupplierCreditVoucherApplicable(false);
 						      setNewSupplierAddress('');
 						      setNewSupplierPhone('');
+                  setNewSupplierMobile2('');
+                  setNewSupplierEmail('');
+                  setNewSupplierContactPerson('');
+                  setNewSupplierContactPersonMobile('');
+                  setNewSupplierCity('');
+                  setNewSupplierState('');
 						      setNewSupplierPaymentTerms('');
+                  setNewSupplierDefaultCreditDays('');
 						      setNewSupplierIsVendor(false);
 	                  setNewSupplierCatalogueLink('');
 						    }
@@ -1793,14 +1804,39 @@ export default function MastersView({
 	            return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
 	          }
           if (tab === 'suppliers') {
-            const header = ['name', 'gstNumber', 'gstType', 'address', 'phone', 'paymentTerms'];
+            const header = [
+              'name',
+              'gstNumber',
+              'gstType',
+              'address',
+              'phone',
+              'mobile2',
+              'email',
+              'contactPerson',
+              'contactPersonMobile',
+              'city',
+              'state',
+              'paymentTerms',
+              'defaultCreditDays',
+              'isVendor',
+              'catalogueLink',
+            ];
             const rows = suppliers.map((s) => ({
               name: s.name,
               gstNumber: s.gstNumber ?? '',
               gstType: s.gstType ?? '',
               address: s.address ?? '',
               phone: s.phone ?? '',
-              paymentTerms: s.paymentTerms ?? '',
+              mobile2: (s as any).mobile2 ?? '',
+              email: (s as any).email ?? '',
+              contactPerson: (s as any).contactPerson ?? '',
+              contactPersonMobile: (s as any).contactPersonMobile ?? '',
+              city: (s as any).city ?? '',
+              state: (s as any).state ?? '',
+              paymentTerms: (s as any).paymentTerms ?? '',
+              defaultCreditDays: (s as any).defaultCreditDays ?? '',
+              isVendor: s.isVendor ? 'Yes' : 'No',
+              catalogueLink: (s as any).catalogueLink ?? '',
             }));
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
@@ -3007,6 +3043,16 @@ export default function MastersView({
                               pattern="[0-9]{10}"
                             />
                           </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierEmail}
+                              onChange={(e) => setNewSupplierEmail(e.target.value)}
+                              placeholder="Email"
+                              type="email"
+                            />
+                          </label>
 		                          <label className="space-y-1">
 			                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">State <span className="text-red-600">*</span></div>
 		                            <SearchableSelect
@@ -3072,6 +3118,16 @@ export default function MastersView({
 			                        placeholder="30 days"
 			                      />
 			                    </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Default Credit Days</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierDefaultCreditDays}
+                              onChange={(e) => setNewSupplierDefaultCreditDays(e.target.value.replace(/\D/g, ''))}
+                              placeholder="30"
+                              inputMode="numeric"
+                            />
+                          </label>
                           <label className="space-y-1">
                             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Catalogue Link</div>
                             <input
@@ -3141,39 +3197,43 @@ export default function MastersView({
 				                        }
 					                        const fn = isEditing
 					                          ? updateSupplier(editCtx?.id ?? '', {
-						                              name: supplierName,
+					                        name: supplierName,
 					                              gstNumber: newSupplierGstNumber.trim() || undefined,
-						                              gstType,
-                                  creditVoucherApplicable: newSupplierCreditVoucherApplicable,
+					                        gstType,
+					                        creditVoucherApplicable: newSupplierCreditVoucherApplicable,
 					                              address: newSupplierAddress.trim() || undefined,
 					                              phone: phone || undefined,
-                                  mobile2: newSupplierMobile2.trim() || undefined,
-                                  contactPerson: newSupplierContactPerson.trim() || undefined,
-                                  contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
-	                                  city,
-	                                  state,
-				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-				                              isVendor: newSupplierIsVendor,
-                                  catalogueLink: newSupplierCatalogueLink.trim() || undefined,
-				                              updatedBy: 'system',
-				                            })
-					                          : createSupplier({
-						                              name: supplierName,
+					                        mobile2: newSupplierMobile2.trim() || undefined,
+					                        email: newSupplierEmail.trim() || undefined,
+					                        contactPerson: newSupplierContactPerson.trim() || undefined,
+					                        contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
+					                        city,
+					                        state,
+					                        paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+					                        defaultCreditDays: newSupplierDefaultCreditDays ? parseInt(newSupplierDefaultCreditDays) : undefined,
+					                        isVendor: newSupplierIsVendor,
+					                        catalogueLink: newSupplierCatalogueLink.trim() || undefined,
+					                        updatedBy: 'system',
+					                        })
+					                        : createSupplier({
+					                        name: supplierName,
 					                              gstNumber: newSupplierGstNumber.trim() || undefined,
-						                              gstType,
-                                  creditVoucherApplicable: newSupplierCreditVoucherApplicable,
+					                        gstType,
+					                        creditVoucherApplicable: newSupplierCreditVoucherApplicable,
 					                              address: newSupplierAddress.trim() || undefined,
 					                              phone: phone || undefined,
-                                  mobile2: newSupplierMobile2.trim() || undefined,
-                                  contactPerson: newSupplierContactPerson.trim() || undefined,
-                                  contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
-	                                  city,
-	                                  state,
-				                              paymentTerms: newSupplierPaymentTerms.trim() || undefined,
-				                              isVendor: newSupplierIsVendor,
-                                  catalogueLink: newSupplierCatalogueLink.trim() || undefined,
-				                              createdBy: 'system',
-				                            });
+					                        mobile2: newSupplierMobile2.trim() || undefined,
+					                        email: newSupplierEmail.trim() || undefined,
+					                        contactPerson: newSupplierContactPerson.trim() || undefined,
+					                        contactPersonMobile: newSupplierContactPersonMobile.trim() || undefined,
+					                        city,
+					                        state,
+					                        paymentTerms: newSupplierPaymentTerms.trim() || undefined,
+					                        defaultCreditDays: newSupplierDefaultCreditDays ? parseInt(newSupplierDefaultCreditDays) : undefined,
+					                        isVendor: newSupplierIsVendor,
+					                        catalogueLink: newSupplierCatalogueLink.trim() || undefined,
+					                        createdBy: 'system',
+					                        });
 			                        fn.then((result: any) => {
                                   const saved = (result as any)?.store as Store | undefined;
                                   if (!saved?.id) return;
@@ -5084,11 +5144,13 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Mobile 1</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Mobile 2</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Email</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Contact Person</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Contact Person Mobile</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">City</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">State</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Payment Terms</th>
+                            <th className="text-left px-3 py-2 border border-blue-600">Default Credit Days</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Vendor</th>
                         <th className="text-left px-3 py-2 border border-blue-600">Catalogue Link</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
@@ -5097,22 +5159,24 @@ export default function MastersView({
 						              <tbody>
 						                {filteredSuppliers.map((s) => (
 						                  <tr key={s.id}>
-					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
-                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
-                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
-                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>
-                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).city ?? ''}</td>
-                              <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).state ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
-					                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
-					                      {s.isVendor ? (
-					                        <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
-					                      ) : '-'}
-					                    </td>
+						                <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).email ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).city ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).state ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.paymentTerms ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).defaultCreditDays ?? ''}</td>
+						                <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
+						                {s.isVendor ? (
+						                <span className="bg-success-container text-on-success-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">Vendor</span>
+						                ) : '-'}
+						                </td>
                           <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">
                             {(() => {
                               const link = String((s as any).catalogueLink ?? '').trim();

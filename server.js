@@ -8614,16 +8614,18 @@ app.get('/api/masters/suppliers', async (_req, res) => {
 	        credit_voucher_applicable AS creditVoucherApplicable,
 	        address,
 	        phone,
+	      email,
 	        contact_person AS contactPerson,
 	        contact_person_mobile AS contactPersonMobile,
 	        city,
-        state,
-        mobile_2 AS mobile2,
-        payment_terms AS paymentTerms,
-        is_vendor AS isVendor,
-        catalogue_link AS catalogueLink
-      FROM suppliers
-      ORDER BY name
+	      state,
+	      mobile_2 AS mobile2,
+	      payment_terms AS paymentTerms,
+	      default_credit_days AS defaultCreditDays,
+	      is_vendor AS isVendor,
+	      catalogue_link AS catalogueLink
+	      FROM suppliers
+	      ORDER BY name
       `
     );
 	    const suppliers = (rows || []).map((r) => ({
@@ -8653,12 +8655,14 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	      creditVoucherApplicable: req.body?.creditVoucherApplicable ? 1 : 0,
 	      address: req.body?.address != null ? String(req.body.address).trim() : null,
 	      phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
+        email: req.body?.email != null ? String(req.body.email).trim() : null,
 	      contactPerson: req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null,
       contactPersonMobile: req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null,
       city: req.body?.city != null ? String(req.body.city).trim() : null,
       state: req.body?.state != null ? String(req.body.state).trim() : null,
       mobile2: req.body?.mobile2 != null ? String(req.body.mobile2).trim() : null,
       paymentTerms: req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null,
+      defaultCreditDays: req.body?.defaultCreditDays != null ? Number(req.body.defaultCreditDays) : null,
       isVendor: req.body?.isVendor ? 1 : 0,
       catalogueLink: req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null,
       createdBy: req.body?.createdBy != null ? String(req.body.createdBy).trim() : null,
@@ -8666,8 +8670,8 @@ app.post('/api/masters/suppliers', async (req, res) => {
 
 	    await pool.query(
 	      `
-	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, is_vendor, catalogue_link, created_by, created_at, updated_at)
-	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, email, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, default_credit_days, is_vendor, catalogue_link, created_by, created_at, updated_at)
+	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 	      `,
 	      [
 	        supplier.id,
@@ -8677,12 +8681,14 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	        supplier.creditVoucherApplicable,
 	        supplier.address,
 	        supplier.phone,
+          supplier.email,
 	        supplier.contactPerson,
         supplier.contactPersonMobile,
         supplier.city,
         supplier.state,
         supplier.mobile2,
         supplier.paymentTerms,
+        supplier.defaultCreditDays,
         supplier.isVendor,
         supplier.catalogueLink,
         supplier.createdBy,
@@ -8698,15 +8704,17 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	        creditVoucherApplicable: Boolean(supplier.creditVoucherApplicable),
 	        address: supplier.address ?? undefined,
 	        phone: supplier.phone ?? undefined,
-        contactPerson: supplier.contactPerson ?? undefined,
-        contactPersonMobile: supplier.contactPersonMobile ?? undefined,
-        city: supplier.city ?? undefined,
-        state: supplier.state ?? undefined,
-        mobile2: supplier.mobile2 ?? undefined,
-        paymentTerms: supplier.paymentTerms ?? undefined,
-        isVendor: Boolean(supplier.isVendor),
-        catalogueLink: supplier.catalogueLink ?? undefined,
-      },
+	        email: supplier.email ?? undefined,
+	        contactPerson: supplier.contactPerson ?? undefined,
+	        contactPersonMobile: supplier.contactPersonMobile ?? undefined,
+	        city: supplier.city ?? undefined,
+	        state: supplier.state ?? undefined,
+	        mobile2: supplier.mobile2 ?? undefined,
+	        paymentTerms: supplier.paymentTerms ?? undefined,
+	        defaultCreditDays: supplier.defaultCreditDays ?? undefined,
+	        isVendor: Boolean(supplier.isVendor),
+	        catalogueLink: supplier.catalogueLink ?? undefined,
+	        },
     });
 
   } catch (e) {
@@ -8733,19 +8741,21 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	    const creditVoucherApplicable = req.body?.creditVoucherApplicable ? 1 : 0;
 	    const address = req.body?.address != null ? String(req.body.address).trim() : null;
 	    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
+    const email = req.body?.email != null ? String(req.body.email).trim() : null;
     const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
     const contactPersonMobile = req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null;
     const city = req.body?.city != null ? String(req.body.city).trim() : null;
     const state = req.body?.state != null ? String(req.body.state).trim() : null;
     const mobile2 = req.body?.mobile2 != null ? String(req.body.mobile2).trim() : null;
     const paymentTerms = req.body?.paymentTerms != null ? String(req.body.paymentTerms).trim() : null;
+    const defaultCreditDays = req.body?.defaultCreditDays != null ? Number(req.body.defaultCreditDays) : null;
     const catalogueLink = req.body?.catalogueLink != null ? String(req.body.catalogueLink).trim() : null;
     const updatedBy = req.body?.updatedBy != null ? String(req.body.updatedBy).trim() : null;
 
 	    await pool.query(
 	      `
 	      UPDATE suppliers
-	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
+	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, email=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, default_credit_days=?, is_vendor=?, catalogue_link=?, updated_by=?, updated_at=NOW()
 	      WHERE id=?
 	      `,
 	      [
@@ -8755,12 +8765,14 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	        creditVoucherApplicable,
 	        address,
 	        phone,
+          email,
 	        contactPerson,
 	        contactPersonMobile,
 	        city,
 	        state,
 	        mobile2,
 	        paymentTerms,
+          defaultCreditDays,
 	        req.body?.isVendor ? 1 : 0,
 	        catalogueLink,
 	        updatedBy,
@@ -8770,7 +8782,7 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 
 	    const [rows] = await pool.query(
 	      `
-	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, is_vendor AS isVendor, catalogue_link AS catalogueLink
+	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, email, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, default_credit_days AS defaultCreditDays, is_vendor AS isVendor, catalogue_link AS catalogueLink
 	      FROM suppliers WHERE id=?
 	      `,
 	      [id]
@@ -11145,7 +11157,11 @@ app.post('/api/masters/specifications/import', async (req, res) => {
 
 // Suppliers
 app.get('/api/masters/suppliers/template', async (_req, res) => {
-  csvTemplateResponse(res, 'suppliers-template.csv', 'name,gstNumber,gstType,address,phone,paymentTerms');
+  csvTemplateResponse(
+    res,
+    'suppliers-template.csv',
+    'name,gstNumber,gstType,creditVoucherApplicable,address,phone,mobile2,email,contactPerson,contactPersonMobile,city,state,paymentTerms,defaultCreditDays,isVendor,catalogueLink'
+  );
 });
 app.post('/api/masters/suppliers/import', async (req, res) => {
   try {
@@ -11163,19 +11179,38 @@ app.post('/api/masters/suppliers/import', async (req, res) => {
       if (!name) continue;
       const gstTypeRaw = r.gstType != null ? String(r.gstType).trim() : '';
       const gstType = gstTypeRaw === 'Intra-State' || gstTypeRaw === 'Inter-State' ? gstTypeRaw : null;
+      const cvApplicableRaw = String(r.creditVoucherApplicable ?? '').trim().toLowerCase();
+      const creditVoucherApplicable = cvApplicableRaw === 'yes' || cvApplicableRaw === '1' || cvApplicableRaw === 'true' ? 1 : 0;
+      const isVendorRaw = String(r.isVendor ?? '').trim().toLowerCase();
+      const isVendor = isVendorRaw === 'yes' || isVendorRaw === '1' || isVendorRaw === 'true' ? 1 : 0;
+
       await pool.query(
         `
-        INSERT INTO suppliers (id, name, gst_number, gst_type, address, phone, payment_terms, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        INSERT INTO suppliers (
+          id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, mobile_2, email,
+          contact_person, contact_person_mobile, city, state, payment_terms, default_credit_days,
+          is_vendor, catalogue_link, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         `,
         [
           crypto.randomUUID(),
           name,
           r.gstNumber != null ? String(r.gstNumber).trim() || null : null,
           gstType,
+          creditVoucherApplicable,
           r.address != null ? String(r.address).trim() || null : null,
           r.phone != null ? String(r.phone).trim() || null : null,
+          r.mobile2 != null ? String(r.mobile2).trim() || null : null,
+          r.email != null ? String(r.email).trim() || null : null,
+          r.contactPerson != null ? String(r.contactPerson).trim() || null : null,
+          r.contactPersonMobile != null ? String(r.contactPersonMobile).trim() || null : null,
+          r.city != null ? String(r.city).trim() || null : null,
+          r.state != null ? String(r.state).trim() || null : null,
           r.paymentTerms != null ? String(r.paymentTerms).trim() || null : null,
+          r.defaultCreditDays != null ? Number(r.defaultCreditDays) || null : null,
+          isVendor,
+          r.catalogueLink != null ? String(r.catalogueLink).trim() || null : null,
         ]
       );
     }
