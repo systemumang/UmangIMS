@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
-import GstSelect from '@/src/components/common/GstSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
@@ -2097,10 +2096,11 @@ export default function MastersView({
 
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST</div>
-		                      <GstSelect
+		                      <input
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 		                        value={newFirmGstNumber}
-		                        onChange={setNewFirmGstNumber}
-		                        placeholder="Select GST No."
+		                        onChange={(e) => setNewFirmGstNumber(e.target.value)}
+		                        placeholder="GST No."
 		                      />
 		                    </label>
 

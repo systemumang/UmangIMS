@@ -83,7 +83,8 @@ import {
 import RequestMaterialView from './components/views/RequestMaterialView';
 import PendingIssueView from './components/views/PendingIssueView';
 import SettingsCatalogueView from './components/views/SettingsCatalogueView';
-	import PendingSupplierRateView from './components/views/PendingSupplierRateView';
+import GstView from './components/views/GstView';
+import PendingSupplierRateView from './components/views/PendingSupplierRateView';
 	import QuotationMasterView from './components/views/QuotationMasterView';
 
 export default function App() {
@@ -322,6 +323,7 @@ export default function App() {
 		    if (view === 'materialRequest') return { title: 'Material', subtitle: 'Request Material', showSearch: false };
 		    if (view === 'materialPendingIssue') return { title: 'Material', subtitle: 'Pending Issue', showSearch: false };
 	        if (view === 'settingsCatalogue') return { title: 'Catalogue', showSearch: false };
+	        if (view === 'gst') return { title: 'GST Numbers', showSearch: false };
 			    if (view === 'directPo') return { title: 'Direct PO', showSearch: false };
 			    if (view === 'newPurchaseRequest') return { title: 'New Purchase Request', showSearch: false };
 			    if (view === 'purchaseRequestDetail') return { title: 'Request Details', showSearch: false };
@@ -823,6 +825,7 @@ export default function App() {
 	            {view === 'pendingSupplierRate' ? <PendingSupplierRateView /> : null}
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
 	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
+	              {view === 'gst' ? <GstView /> : null}
 
 		          {view === 'stockMaster' ? (
 		            <>

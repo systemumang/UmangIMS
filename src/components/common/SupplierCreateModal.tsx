@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import GstSelect from '@/src/components/common/GstSelect';
 import {
   createCity,
   createState,
@@ -153,7 +154,11 @@ export default function SupplierCreateModal({
             </label>
             <label className="space-y-1 block">
               <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST</div>
-              <input className={inputClass} value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="GST No." />
+              <GstSelect
+                value={gstNumber}
+                onChange={setGstNumber}
+                placeholder="Select GST No."
+              />
             </label>
             <label className="space-y-1 block">
               <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">GST Type {gstNumber.trim() ? <span className="text-red-600">*</span> : null}</div>
