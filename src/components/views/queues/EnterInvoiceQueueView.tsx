@@ -798,7 +798,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
         <div className="rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px] table-fixed text-left border-collapse border border-black text-xs [&_th]:border-black [&_td]:border-black">
+            <table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-black text-xs [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
@@ -812,9 +812,15 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
                   <col className="w-[80px]" />
+                  <col className="w-[120px]" />
                   <col className="w-[100px]" />
-                  {supplierHasGst ? <col className="w-[100px]" /> : null}
-	                <col className="w-[120px]" />
+                  {supplierHasGst ? (
+                    <>
+                      <col className="w-[100px]" />
+                      <col className="w-[120px]" />
+                    </>
+                  ) : null}
+	                <col className="w-[130px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-primary text-on-primary">
@@ -830,11 +836,15 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv L</th>
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv B</th>
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv PCs</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Invoice Qty</th>
                   <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Inv Rate</th>
                     {supplierHasGst ? (
-	                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST %</th>
+                      <>
+                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST %</th>
+                        <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">GST Amount</th>
+                      </>
                     ) : null}
-                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Invoice Qty</th>
+                  <th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-primary/90">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -843,7 +853,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   if (!filteredLines.length) {
                     return (
                       <tr>
-                        <td className="px-3 py-5 text-sm text-on-surface-variant border border-black" colSpan={supplierHasGst ? 15 : 14}>
+                        <td className="px-3 py-5 text-sm text-on-surface-variant border border-black" colSpan={supplierHasGst ? 17 : 15}>
                           No pending items.
                         </td>
                       </tr>
@@ -852,6 +862,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
                   return filteredLines.map((ln, idx) => {
                       const rowSpan = filteredLines.length;
+                      const lineBaseAmount = Number(ln.invoiceQty || 0) * Number(ln.invRate || 0);
+                      const lineGstAmount = lineBaseAmount * (Number(ln.gstPercent || 0) / 100);
+                      const lineTotalAmount = lineBaseAmount + lineGstAmount;
+
                       return (
                         <tr
                           key={ln.itemId}
@@ -978,51 +992,6 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                             ) : '-'}
                           </td>
                           <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
-                              value={ln.invRate}
-                              onChange={(e) =>
-                                setLines((prev) => {
-                                  const next = prev.slice();
-                                  const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
-                                  if (lineIdx === -1) return prev;
-                                  next[lineIdx] = { ...next[lineIdx]!, invRate: sanitizeDecimalInput(e.target.value) };
-                                  return next;
-                                })
-                              }
-                              type="text"
-                              inputMode="decimal"
-                            />
-                          </td>
-                          {supplierHasGst ? (
-                            <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
-                                value={ln.gstPercent}
-                                onChange={(e) =>
-                                  setLines((prev) => {
-                                    const next = prev.slice();
-                                    const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
-                                    if (lineIdx === -1) return prev;
-                                    next[lineIdx] = { ...next[lineIdx]!, gstPercent: sanitizePercentInput(e.target.value) };
-                                    return next;
-                                  })
-                                }
-                                onBlur={() =>
-                                  setLines((prev) => {
-                                    const next = prev.slice();
-                                    const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
-                                    if (lineIdx === -1) return prev;
-                                    next[lineIdx] = { ...next[lineIdx]!, gstPercent: clampPercentString(next[lineIdx]!.gstPercent) };
-                                    return next;
-                                  })
-                                }
-                                type="text"
-                                inputMode="decimal"
-                              />
-                            </td>
-                          ) : null}
-                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
                             <div className="relative">
                                 <input
                                   className={cn(inputClass, 'py-1.5 pl-2 pr-12 h-8 text-[11px] text-right bg-surface-container-low font-bold')}
@@ -1046,6 +1015,59 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   </div>
                                 )}
                             </div>
+                          </td>
+                          <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
+                              value={ln.invRate}
+                              onChange={(e) =>
+                                setLines((prev) => {
+                                  const next = prev.slice();
+                                  const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                  if (lineIdx === -1) return prev;
+                                  next[lineIdx] = { ...next[lineIdx]!, invRate: sanitizeDecimalInput(e.target.value) };
+                                  return next;
+                                })
+                              }
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </td>
+                          {supplierHasGst ? (
+                            <>
+                              <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')}
+                                  value={ln.gstPercent}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      next[lineIdx] = { ...next[lineIdx]!, gstPercent: sanitizePercentInput(e.target.value) };
+                                      return next;
+                                    })
+                                  }
+                                  onBlur={() =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      if (lineIdx === -1) return prev;
+                                      next[lineIdx] = { ...next[lineIdx]!, gstPercent: clampPercentString(next[lineIdx]!.gstPercent) };
+                                      return next;
+                                    })
+                                  }
+                                  type="text"
+                                  inputMode="decimal"
+                                />
+                              </td>
+                              <td className="px-2 py-2 border border-black text-right tabular-nums font-medium">
+                                {lineGstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          ) : null}
+                          <td className="px-2 py-2 border border-black text-right tabular-nums font-bold">
+                            {lineTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
                       );
