@@ -108,6 +108,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
   const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
 
+  const selectedSupplier = useMemo(() => suppliers.find((s) => s.id === supplierId) ?? null, [supplierId, suppliers]);
+  const supplierHasGst = useMemo(() => Boolean(String(selectedSupplier?.gstNumber ?? '').trim()), [selectedSupplier]);
+
   const selectedFirm = useMemo(() => firms.find((f) => f.id === firmId) ?? null, [firmId, firms]);
   const firmTermsConditions = useMemo(() => String(selectedFirm?.termsConditions ?? '').trim(), [selectedFirm]);
 
@@ -320,7 +323,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          quantity: Number(l.quantity),
 	          rate: Number(l.rate),
 	          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
-	          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
+	          taxPercent: supplierHasGst ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
             length: String(l.length).trim() ? Number(l.length) : undefined,
             breadth: String(l.breadth).trim() ? Number(l.breadth) : undefined,
             pcs: String(l.pcs).trim() ? Number(l.pcs) : undefined,
@@ -502,7 +505,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 <div className="min-w-[1700px]">
                   <div
                     className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px 90px 90px` }}
+                    style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${supplierHasGst ? '90px ' : ''}90px` }}
                   >
                     <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                     {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
@@ -518,7 +521,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Qty</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Rate</div>
                     <div className="px-2 py-2 border-r border-outline-variant text-right">Disc %</div>
-                    <div className="px-2 py-2 border-r border-outline-variant text-right">Tax %</div>
+                    {supplierHasGst && <div className="px-2 py-2 border-r border-outline-variant text-right">Tax %</div>}
                     <div className="px-2 py-2 text-right">Action</div>
                   </div>
 
@@ -532,7 +535,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                       <div
                         key={idx}
                         className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px 90px 90px` }}
+                        style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${supplierHasGst ? '90px ' : ''}90px` }}
                       >
 	                    <div className="p-2 border-r border-outline-variant">
 	                      <SearchableSelect
@@ -697,14 +700,16 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                        placeholder="0"
 	                      />
 	                    </div>
-	                    <div className="p-2 border-r border-outline-variant text-right">
-	                      <GstRateSelect
-	                        value={l.taxPercent}
-	                        onChange={(val) => updateLine(idx, { taxPercent: val })}
-	                        className="w-full"
-	                        inputClassName="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-	                      />
-	                    </div>
+	                    {supplierHasGst && (
+                        <div className="p-2 border-r border-outline-variant text-right">
+                          <GstRateSelect
+                            value={l.taxPercent}
+                            onChange={(val) => updateLine(idx, { taxPercent: val })}
+                            className="w-full"
+                            inputClassName="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                          />
+                        </div>
+                      )}
 	                    <div className="p-2 text-right">
 	                      <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
 	                        Remove
@@ -773,16 +778,18 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	      </div>
 	      {supplierCreateOpen ? (
 	        <SupplierCreateModal
-            initialName={newSupplierName}
-            onClose={() => setSupplierCreateOpen(false)}
-            onCreated={async (supplier) => {
-              const fresh = await fetchSuppliers();
-              setSuppliers(fresh);
-              setSupplierId(supplier.id);
-              if (supplier.paymentTerms) setPaymentTerms(String(supplier.paymentTerms).trim());
-              setSupplierCreateOpen(false);
-            }}
-          />
+	          initialName={newSupplierName}
+	          hideCreditVoucher={true}
+	          onClose={() => setSupplierCreateOpen(false)}
+	          onCreated={async (supplier) => {
+	            const fresh = await fetchSuppliers();
+	            setSuppliers(fresh);
+	            setSupplierId(supplier.id);
+	            if (supplier.paymentTerms) setPaymentTerms(String(supplier.paymentTerms).trim());
+	            setSupplierCreateOpen(false);
+	          }}
+	        />
+
 	      ) : null}
 	    </div>
 	  );

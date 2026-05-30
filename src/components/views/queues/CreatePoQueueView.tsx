@@ -290,8 +290,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     }
   }
 
+	  const getSupplierHasGst = (id: string) => {
+	    const s = supplierRows.find((x) => x.id === id);
+	    return Boolean(String(s?.gstNumber ?? '').trim());
+	  };
+
 	  return (
 	    <div className="space-y-6">
+
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
 	      <div className="hidden">
 	        <div className="text-sm text-on-surface-variant">Create PO</div>
@@ -548,7 +554,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
                           rate: String(l.rate ?? '').trim() ? Number(l.rate) : 0,
                           discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
-                          taxPercent: String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0,
+                          taxPercent: getSupplierHasGst(String(l.supplierId ?? '').trim()) ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
                           remainingQty: l.remainingQty,
                           ...(isAreaUnit ? { length, breadth, pcs } : {}),
                         };
@@ -982,18 +988,22 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 />
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
-                                <GstRateSelect
-                                  value={String(l.taxPercent ?? '')}
-                                  onChange={(val) =>
-                                    setLines((prev) => {
-                                      const next = prev.slice();
-                                      next[idx] = { ...next[idx]!, taxPercent: val };
-                                      return next;
-                                    })
-                                  }
-                                  className="w-full"
-                                  inputClassName={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
-                                />
+                                {getSupplierHasGst(l.supplierId) ? (
+                                  <GstRateSelect
+                                    value={String(l.taxPercent ?? '')}
+                                    onChange={(val) =>
+                                      setLines((prev) => {
+                                        const next = prev.slice();
+                                        next[idx] = { ...next[idx]!, taxPercent: val };
+                                        return next;
+                                      })
+                                    }
+                                    className="w-full"
+                                    inputClassName={cn(inputClass, 'py-1.5 h-8 text-xs text-right')}
+                                  />
+                                ) : (
+                                  <div className="text-xs text-on-surface-variant opacity-70 text-center">-</div>
+                                )}
                               </td>
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{Number(l.lastRate ?? 0) || '-'}</td>
@@ -1065,6 +1075,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	      {supplierCreateOpen ? (
 	        <SupplierCreateModal
             initialName={newSupplierName}
+            hideCreditVoucher={true}
             onClose={() => setSupplierCreateOpen(false)}
             onCreated={async (supplier) => {
               const fresh = await fetchSuppliers();

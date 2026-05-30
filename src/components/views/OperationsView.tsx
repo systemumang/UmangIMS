@@ -809,7 +809,7 @@ export default function OperationsView({
         quantity: Number(l.quantity ?? 0),
         rate: Number(l.rate ?? 0),
         discountPercent: Number(l.discountPercent ?? 0),
-        taxPercent: Number(l.taxPercent ?? 0),
+        taxPercent: getSupplierHasGst(supplierId) ? Number(l.taxPercent ?? 0) : 0,
       }))
       .filter((x) => x.itemId && Number.isFinite(x.quantity) && x.quantity > 0 && Number.isFinite(x.rate) && x.rate >= 0);
     if (!items.length) {
@@ -1006,8 +1006,14 @@ export default function OperationsView({
     }
   };
 
+	  const getSupplierHasGst = (id: string) => {
+	    const s = suppliers.find((x) => x.id === id);
+	    return Boolean(String(s?.gstNumber ?? '').trim());
+	  };
+
 	  return (
-	    <div className="space-y-4">
+	    <div className="space-y-6">
+
 	      <div className="flex items-center justify-end">
 	        <button
 	          type="button"
@@ -2137,16 +2143,21 @@ export default function OperationsView({
                         />
                       </td>
                       <td className="px-3 py-2 border border-outline-variant">
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={l.taxPercent}
-                          onChange={(e) =>
-                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizeDecimalInput(e.target.value) } : x)))
-                          }
-                          inputMode="decimal"
-                          disabled={editPoBusy}
-                        />
+                      {getSupplierHasGst(editPoSupplierId) ? (
+                      <input
+                      className={cn(inputClass, 'py-1.5')}
+                      value={l.taxPercent}
+                      onChange={(e) =>
+                      setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizeDecimalInput(e.target.value) } : x)))
+                      }
+                      inputMode="decimal"
+                      disabled={editPoBusy}
+                      />
+                      ) : (
+                      <div className="text-center text-xs opacity-50">-</div>
+                      )}
                       </td>
+
                     </tr>
                   ))
                 ) : (

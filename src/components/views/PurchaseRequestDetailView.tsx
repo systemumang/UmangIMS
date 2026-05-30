@@ -216,8 +216,14 @@ function renderSpecificationLines(specification: string) {
     .map((s) => s.trim())
     .filter(Boolean);
   if (!lines.length) return <span className="text-on-surface">-</span>;
+  const getSupplierHasGst = (id: string) => {
+    const s = suppliers.find((x) => x.id === id);
+    return Boolean(String(s?.gstNumber ?? '').trim());
+  };
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-6">
+
       {lines.map((l, i) => {
         const colon = l.indexOf(':');
         if (colon > 0) {
@@ -872,6 +878,17 @@ export default function PurchaseRequestDetailView({
 				    () => posList.find((p) => p.po.id === selectedPoId) ?? (po ? { po, items: poItems } : undefined),
 				    [posList, selectedPoId, po, poItems]
 				  );
+
+				  const invoiceSupplierHasGst = useMemo(() => {
+				    const supplierId = String(selectedPo?.po?.supplierId ?? '').trim();
+				    if (!supplierId) return true;
+				    const s = suppliers.find((x) => x.id === supplierId);
+				    if (!s) return true;
+				    const hasGstInMaster = Boolean(String(s.gstNumber ?? '').trim());
+				    const isCreditVoucherApplicable = Boolean(s.creditVoucherApplicable);
+				    if (!isCreditVoucherApplicable && !hasGstInMaster) return false;
+				    return hasGstInMaster;
+				  }, [selectedPo, suppliers]);
 
 			  const pendingPoForChecking = useMemo(() => {
 			    return posList.filter((p) => !String(p.po.checkPoUserId ?? '').trim() && !Boolean(p.po.checkPo));
@@ -4697,23 +4714,27 @@ export default function PurchaseRequestDetailView({
 					                                  />
 				                                </td>
 				                                <td className="px-3 py-2 border border-outline-variant">
-					                                  <input
-					                                    className={compactTableInputClass}
-					                                    type="text"
-					                                    inputMode="decimal"
-					                                    value={ln.taxPercent}
-					                                    onChange={(e) =>
-					                                      setEditPoLines((prev) =>
-					                                        prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizePercentInput(e.target.value) } : x))
-					                                      )
-					                                    }
-					                                    onBlur={() =>
-					                                      setEditPoLines((prev) =>
-					                                        prev.map((x, i) => (i === idx ? { ...x, taxPercent: clampPercentString(x.taxPercent) } : x))
-					                                      )
-					                                    }
-					                                    disabled={busy}
-					                                  />
+                                  {getSupplierHasGst(editPoSupplierId) ? (
+                                    <input
+                                      className={compactTableInputClass}
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={ln.taxPercent}
+                                      onChange={(e) =>
+                                        setEditPoLines((prev) =>
+                                          prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizePercentInput(e.target.value) } : x))
+                                        )
+                                      }
+                                      onBlur={() =>
+                                        setEditPoLines((prev) =>
+                                          prev.map((x, i) => (i === idx ? { ...x, taxPercent: clampPercentString(x.taxPercent) } : x))
+                                        )
+                                      }
+                                      disabled={busy}
+                                    />
+                                  ) : (
+                                    <div className="text-center text-xs opacity-50">-</div>
+                                  )}
 				                                </td>
 				                                <td className="px-3 py-2 border border-outline-variant">
 					                                  <button
@@ -4764,7 +4785,7 @@ export default function PurchaseRequestDetailView({
 				                            quantity: Number(l.quantity ?? 0),
 				                            rate: Number(l.rate ?? 0),
 				                            discountPercent: Number(l.discountPercent ?? 0),
-				                            taxPercent: Number(l.taxPercent ?? 0),
+				                            taxPercent: getSupplierHasGst(editPoSupplierId) ? Number(l.taxPercent ?? 0) : 0,
 				                          }))
 				                          .filter(
 				                            (l) =>
@@ -4925,21 +4946,25 @@ export default function PurchaseRequestDetailView({
 								                                  />
 							                                </td>
 								                                <td className="px-2 py-2 border border-outline-variant">
-                                  <select
-                                    className={compactTableInputClass}
-                                    value={poTaxes[lineId] ?? ''}
-                                    onChange={(e) => {
-                                      setPoTaxesTouched((prev) => ({ ...prev, [lineId]: true }));
-                                      setPoTaxes((prev) => ({ ...prev, [lineId]: e.target.value }));
-                                    }}
-                                  >
-                                    <option value="">Select</option>
-                                    {gstPercentOptions.map((v) => (
-                                      <option key={v} value={v}>
-                                        {v}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  {getSupplierHasGst(poSupplierByItemId[lineId] ?? '') ? (
+                                    <select
+                                      className={compactTableInputClass}
+                                      value={poTaxes[lineId] ?? ''}
+                                      onChange={(e) => {
+                                        setPoTaxesTouched((prev) => ({ ...prev, [lineId]: true }));
+                                        setPoTaxes((prev) => ({ ...prev, [lineId]: e.target.value }));
+                                      }}
+                                    >
+                                      <option value="">Select</option>
+                                      {gstPercentOptions.map((v) => (
+                                        <option key={v} value={v}>
+                                          {v}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <div className="text-center text-xs opacity-50">-</div>
+                                  )}
 							                                </td>
 						                                <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant break-words whitespace-normal leading-snug">
 						                                  {lastSupplierByItemId[it.itemId]?.supplierName ?? '-'}
@@ -5038,7 +5063,7 @@ export default function PurchaseRequestDetailView({
 				                            quantity: Number(poQty[lineId] ?? 0),
 				                            rate: Number(poRates[lineId] ?? 0),
 				                            discountPercent: Number(poDiscounts[lineId] ?? 0),
-				                            taxPercent: Number(poTaxes[lineId] ?? 0),
+				                            taxPercent: getSupplierHasGst(String(poSupplierByItemId[lineId] ?? '').trim()) ? Number(poTaxes[lineId] ?? 0) : 0,
 				                            remaining: Number(remainingQtyByItemId[itemId] ?? 0),
 				                            supplierId: String(poSupplierByItemId[lineId] ?? '').trim(),
 				                            paymentTerms: String(poPaymentTermsByItemId[lineId] ?? '').trim(),
@@ -5347,18 +5372,20 @@ export default function PurchaseRequestDetailView({
 		                            </div>
 		                          ) : null}
 		                        </label>
-		                        <label className="space-y-1">
-		                          <div className={cn(labelClass, 'text-blue-800')}>E-Way Bill No</div>
-		                          <input
-		                            className={cn(inputClass, 'py-2')}
-		                            value={ewayBillNumber}
-		                            onChange={(e) => {
-		                              setInvoiceFormError(null);
-		                              setEwayBillNumber(e.target.value);
-		                            }}
-		                            placeholder="Optional"
-		                          />
-		                        </label>
+		                        {invoiceSupplierHasGst && (
+		                          <label className="space-y-1">
+		                            <div className={cn(labelClass, 'text-blue-800')}>E-Way Bill No</div>
+		                            <input
+		                              className={cn(inputClass, 'py-2')}
+		                              value={ewayBillNumber}
+		                              onChange={(e) => {
+		                                setInvoiceFormError(null);
+		                                setEwayBillNumber(e.target.value);
+		                              }}
+		                              placeholder="Optional"
+		                            />
+		                          </label>
+		                        )}
 		                        <label className="space-y-1">
 		                          <div className={cn(labelClass, 'text-blue-800')}>CN/Courier No</div>
 		                          <input
@@ -5449,42 +5476,44 @@ export default function PurchaseRequestDetailView({
 		                            {invoiceCourierCopy ? 'Uploaded' : 'Not uploaded'}
 		                          </div>
 		                        </label>
-		                        <label className="space-y-1">
-		                          <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
-		                          <div className="flex items-center gap-2 min-w-0">
-		                            <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="pr-invoice-eway-bill-upload">
-		                              Choose File
-		                            </label>
-		                            <input
-		                              id="pr-invoice-eway-bill-upload"
-		                              type="file"
-		                              accept="application/pdf,image/*"
-		                              disabled={busy}
-		                              className="hidden"
-		                              onChange={(e) => {
-		                                const file = e.target.files?.[0];
-		                                e.target.value = '';
-		                                if (!file) return;
-		                                const reader = new FileReader();
-		                                reader.onload = () => {
-		                                  const result = reader.result;
-		                                  const dataUrl = typeof result === 'string' ? result : '';
-		                                  if (!dataUrl) return;
-		                                  setInvoiceFormError(null);
-		                                  setEwayBillDocFileName(file.name);
-		                                  setEwayBillDoc(dataUrl);
-		                                };
-		                                reader.readAsDataURL(file);
-		                              }}
-		                            />
-		                            <div className="text-xs text-on-surface-variant truncate min-w-0">
-		                              {ewayBillDocFileName || (ewayBillDoc ? 'Uploaded' : 'No file chosen')}
+		                        {invoiceSupplierHasGst && (
+		                          <label className="space-y-1">
+		                            <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
+		                            <div className="flex items-center gap-2 min-w-0">
+		                              <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="pr-invoice-eway-bill-upload">
+		                                Choose File
+		                              </label>
+		                              <input
+		                                id="pr-invoice-eway-bill-upload"
+		                                type="file"
+		                                accept="application/pdf,image/*"
+		                                disabled={busy}
+		                                className="hidden"
+		                                onChange={(e) => {
+		                                  const file = e.target.files?.[0];
+		                                  e.target.value = '';
+		                                  if (!file) return;
+		                                  const reader = new FileReader();
+		                                  reader.onload = () => {
+		                                    const result = reader.result;
+		                                    const dataUrl = typeof result === 'string' ? result : '';
+		                                    if (!dataUrl) return;
+		                                    setInvoiceFormError(null);
+		                                    setEwayBillDocFileName(file.name);
+		                                    setEwayBillDoc(dataUrl);
+		                                  };
+		                                  reader.readAsDataURL(file);
+		                                }}
+		                              />
+		                              <div className="text-xs text-on-surface-variant truncate min-w-0">
+		                                {ewayBillDocFileName || (ewayBillDoc ? 'Uploaded' : 'No file chosen')}
+		                              </div>
 		                            </div>
-		                          </div>
-		                          <div className={cn('text-xs', ewayBillDoc ? 'text-on-surface' : 'text-on-surface-variant')}>
-		                            {ewayBillDoc ? 'Uploaded' : 'Not uploaded'}
-		                          </div>
-		                        </label>
+		                            <div className={cn('text-xs', ewayBillDoc ? 'text-on-surface' : 'text-on-surface-variant')}>
+		                              {ewayBillDoc ? 'Uploaded' : 'Not uploaded'}
+		                            </div>
+		                          </label>
+		                        )}
 		                      </div>
 		                    </div>
 		                  </div>

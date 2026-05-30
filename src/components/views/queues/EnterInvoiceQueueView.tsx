@@ -745,10 +745,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                    ))}
 		                  </select>
 		                </label>
-		                <label className="space-y-1">
-		                  <div className={cn(labelClass, 'text-blue-800')}>E-way Bill No</div>
-		                  <input className={cn(inputClass, 'py-2')} value={ewayBillNumber} onChange={(e) => setEwayBillNumber(e.target.value)} placeholder="Optional" />
-		                </label>
+		                {supplierHasGst && (
+		                  <label className="space-y-1">
+		                    <div className={cn(labelClass, 'text-blue-800')}>E-way Bill No</div>
+		                    <input className={cn(inputClass, 'py-2')} value={ewayBillNumber} onChange={(e) => setEwayBillNumber(e.target.value)} placeholder="Optional" />
+		                  </label>
+		                )}
 		                <label className="space-y-1">
 		                  <div className={cn(labelClass, 'text-blue-800')}>CN/Courier No</div>
 		                  <input className={cn(inputClass, 'py-2')} value={cnOrCourierNo} onChange={(e) => setCnOrCourierNo(e.target.value)} placeholder="Optional" />
@@ -802,23 +804,25 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 		                  </div>
 		                  <div className={cn('text-xs', cnCopyFile ? 'text-on-surface' : 'text-on-surface-variant')}>{cnCopyFile ? 'Uploaded' : 'Not uploaded'}</div>
 		                </label>
-		                <label className="space-y-1">
-		                  <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
-		                  <div className="flex items-center gap-2 min-w-0">
-		                    <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="ewayBillInput">
-		                      Choose File
-		                    </label>
-		                    <input
-		                      id="ewayBillInput"
-		                      className="hidden"
-		                      type="file"
-		                      accept=".pdf,application/pdf,image/*"
-		                      onChange={(e) => setEwayBillFile(e.target.files?.[0] ?? null)}
-		                    />
-		                    <div className="text-xs text-on-surface-variant truncate min-w-0">{ewayBillFile ? ewayBillFile.name : 'No file chosen'}</div>
-		                  </div>
-		                  <div className={cn('text-xs', ewayBillFile ? 'text-on-surface' : 'text-on-surface-variant')}>{ewayBillFile ? 'Uploaded' : 'Not uploaded'}</div>
-		                </label>
+		                {supplierHasGst && (
+		                  <label className="space-y-1">
+		                    <div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div>
+		                    <div className="flex items-center gap-2 min-w-0">
+		                      <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="ewayBillInput">
+		                        Choose File
+		                      </label>
+		                      <input
+		                        id="ewayBillInput"
+		                        className="hidden"
+		                        type="file"
+		                        accept=".pdf,application/pdf,image/*"
+		                        onChange={(e) => setEwayBillFile(e.target.files?.[0] ?? null)}
+		                      />
+		                      <div className="text-xs text-on-surface-variant truncate min-w-0">{ewayBillFile ? ewayBillFile.name : 'No file chosen'}</div>
+		                    </div>
+		                    <div className={cn('text-xs', ewayBillFile ? 'text-on-surface' : 'text-on-surface-variant')}>{ewayBillFile ? 'Uploaded' : 'Not uploaded'}</div>
+		                  </label>
+		                )}
 		              </div>
 		            </div>
 		          </div>

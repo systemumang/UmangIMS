@@ -26,10 +26,12 @@ function isValidTenDigitPhone(value: string) {
 
 export default function SupplierCreateModal({
   initialName = '',
+  hideCreditVoucher = false,
   onClose,
   onCreated,
 }: {
   initialName?: string;
+  hideCreditVoucher?: boolean;
   onClose: () => void;
   onCreated: (supplier: Supplier) => void;
 }) {
@@ -174,10 +176,13 @@ export default function SupplierCreateModal({
                 placeholder="Select GST type"
               />
             </label>
-            <label className="flex items-center gap-2 pt-1 select-none">
-              <input type="checkbox" checked={creditVoucherApplicable} onChange={(e) => setCreditVoucherApplicable(Boolean(e.target.checked))} />
-              <span className="text-sm text-on-surface-variant">Credit Voucher Applicable (invoice not required)</span>
-            </label>
+            {!hideCreditVoucher && (
+              <label className="flex items-center gap-2 pt-1 select-none">
+                <input type="checkbox" checked={creditVoucherApplicable} onChange={(e) => setCreditVoucherApplicable(Boolean(e.target.checked))} />
+                <span className="text-sm text-on-surface-variant">Credit Voucher Applicable (invoice not required)</span>
+              </label>
+            )}
+
             <label className="space-y-1 block">
               <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Address</div>
               <textarea className={`${inputClass} min-h-[80px]`} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" />
