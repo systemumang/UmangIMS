@@ -12621,7 +12621,7 @@ async function handleCreateInvoice(req, res) {
         courier_charge, packing_charge, labour_charge, other_charge, charges_gst_amount,
         payment_status, payment_date, payment_mode, tally_entry_date,
         status,
-        document_url, cn_copy_url,
+        document_url, cn_copy_url, eway_bill_url,
         eway_bill_number, cn_number, courier_number, transporter_name,
         created_by, created_at, updated_by, updated_at
       ) VALUES (
@@ -12631,7 +12631,7 @@ async function handleCreateInvoice(req, res) {
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         'pending',
-        ?, ?,
+        ?, ?, ?,
         ?, ?, ?, ?,
         ?, NOW(), ?, NOW()
       )
@@ -12656,6 +12656,7 @@ async function handleCreateInvoice(req, res) {
         tallyEntryDate || null,
         documentUrl,
         cnCopyUrl,
+        ewayBillUrl,
         ewayBillNumber,
         cnNumber,
         courierNumber,
