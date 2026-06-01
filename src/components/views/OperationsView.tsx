@@ -8,11 +8,13 @@ import { formatPrNumber } from '@/src/lib/docNumbers';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
+import { formatItemInline } from '@/src/lib/itemLabel';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { updatePo } from '@/src/lib/purchaseRequests';
 import {
-          fetchOperationsCreditVouchers,
-					  fetchOperationsGrnDetail,
-				  fetchOperationsGrns,
+	          fetchOperationsCreditVouchers,
+						  fetchOperationsGrnDetail,
+					  fetchOperationsGrns,
       fetchOperationsInvoiceDetail,
       fetchInvoiceReceipts,
       fetchCreditVoucherReceipts,
@@ -95,8 +97,17 @@ export default function OperationsView({
   initialTab?: OpsTab;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeStores: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [tab, setTab] = useState<OpsTab>(initialTab);
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
 
   useEffect(() => {
     setTab(initialTab);
@@ -1544,14 +1555,16 @@ export default function OperationsView({
 	                                        </tr>
 	                                      </thead>
                                       <tbody>
-                                        {(invoiceDetail?.invoice?.items ?? []).length ? (
-                                          (invoiceDetail?.invoice?.items ?? []).map((it: any, idx: number) => (
-	                                            <tr key={`${String(r.invoiceId ?? '')}-it-${idx}`}>
-	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
-	                                                {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
-	                                              </td>
+	                                        {(invoiceDetail?.invoice?.items ?? []).length ? (
+	                                          (invoiceDetail?.invoice?.items ?? []).map((it: any, idx: number) => (
+		                                            <tr key={`${String(r.invoiceId ?? '')}-it-${idx}`}>
+		                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+		                                                {formatItemInline(String(it?.item ?? it?.itemId ?? ''), it?.specificationsJson, specNameById)}
+		                                              </td>
+		                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+		                                                {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+		                                              </td>
 	                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
 	                                                {it.dimBreadth ? `${it.dimBreadth}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
 	                                              </td>

@@ -3292,8 +3292,9 @@ app.get('/api/queues/payment', async (req, res) => {
 		        const paidAmountLegacy = Math.max(0, paymentAmount) + Math.max(0, debitNoteAmount);
 		        const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
 		        const paidFromDebitNote = Math.max(Math.max(0, debitNoteReceiptAmount), Math.max(0, debitNoteAmount));
-		        const paidAmount = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
-		        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
+		        const paidNonAdvance = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
+		        const paidAmount = Math.max(0, paidNonAdvance + Math.max(0, adjustedAmount));
+		        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - paidAmount);
 		        return {
 	          invoiceId: String(r.invoiceId ?? ''),
           invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
@@ -3577,8 +3578,9 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 		    const paidAmountLegacy = paymentAmount + debitNoteAmount;
 		    const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
 		    const paidFromDebitNote = Math.max(debitNoteReceiptAmount, debitNoteAmount);
-		    const paidAmount = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
-			    const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
+		    const paidNonAdvance = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
+		    const paidAmount = Math.max(0, paidNonAdvance + Math.max(0, adjustedAmount));
+			    const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - paidAmount);
 
 	    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
 	    const totalLinkedQty = Number(r.totalLinkedQty ?? 0);

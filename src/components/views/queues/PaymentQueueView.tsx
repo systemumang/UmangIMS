@@ -247,7 +247,7 @@ export default function PaymentQueueView({
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-			                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{(Number(r.invoiceAmount ?? 0) - Number(r.paidAmount ?? 0) - Number(r.remainingAmount ?? 0)).toFixed(2)}</td> : null}
+				                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number((r as any).adjustedAmount ?? 0).toFixed(2)}</td> : null}
 			                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
 	                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
