@@ -2536,8 +2536,10 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        po.supplier_id AS supplierId,
 	        s.name AS supplierName,
 	        po.created_at AS createdAt,
-	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
-	        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
+		        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
+		        COALESCE(SUM(COALESCE(poi.quantity, 0)), 0) AS poQty,
+		        COALESCE(SUM(COALESCE(grnq.grnQty, 0)), 0) AS grnQty,
+		        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
 	      FROM purchase_orders po
 	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
 	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
@@ -2561,8 +2563,10 @@ app.get('/api/queues/create-grn', async (req, res) => {
     );
 
     let out = (Array.isArray(rows) ? rows : []).map((r) => {
-      const pendingQty = Math.max(0, Number(r.pendingQty ?? 0));
-      return {
+	      const pendingQty = Math.max(0, Number(r.pendingQty ?? 0));
+	      const poQty = Math.max(0, Number(r.poQty ?? 0));
+	      const grnQty = Math.max(0, Number(r.grnQty ?? 0));
+	      return {
         poId: String(r.poId ?? ''),
         poNumber: String(r.poNumber ?? r.poId ?? ''),
         prId: String(r.prId ?? ''),
@@ -2573,8 +2577,10 @@ app.get('/api/queues/create-grn', async (req, res) => {
         projectId: r.projectId ? String(r.projectId) : null,
         projectName: r.projectName ? String(r.projectName) : null,
         supplierId: r.supplierId ? String(r.supplierId) : null,
-        supplierName: String(r.supplierName ?? ''),
-        pendingQty,
+	        supplierName: String(r.supplierName ?? ''),
+	        poQty,
+	        grnQty,
+	        pendingQty,
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
 	        pendingReason: 'Pending GRN',
 	        priority: r.priority ? String(r.priority) : null,

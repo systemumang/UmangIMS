@@ -269,20 +269,24 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
         <QueueCard title="Create GRN" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
 	            <table className="w-full min-w-[1260px] table-fixed text-left border-collapse border border-outline-variant">
-              <colgroup>
-                <col className="w-[150px]" />
-                <col className="w-[140px]" />
-                <col className="w-[190px]" />
-                <col className="w-[200px]" />
-                <col className="w-[120px]" />
-                <col className="w-[140px]" />
-              </colgroup>
+	              <colgroup>
+	                <col className="w-[150px]" />
+	                <col className="w-[140px]" />
+	                <col className="w-[190px]" />
+	                <col className="w-[200px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[120px]" />
+	                <col className="w-[140px]" />
+	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GRN Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
@@ -311,7 +315,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2(r.pendingQty)}</td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2((r as any).poQty ?? 0)}</td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2((r as any).grnQty ?? 0)}</td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2(r.pendingQty)}</td>
 	                      <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
@@ -329,7 +335,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                     </tr>
                     {isExpanded ? (
                       <tr>
-	                        <td colSpan={6} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                        <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                           {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO item details...</div> : null}
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
@@ -412,7 +418,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   )})
                 ) : (
                   <tr>
-		                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
                       No records.
                     </td>
                   </tr>
@@ -560,12 +566,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   return;
                 }
 
-                for (const it of items) {
-                  if (it.quantityReceived > it.pendingQty + 1e-9) {
-                    setModalError('Received qty cannot exceed pending qty');
-                    return;
-                  }
-                }
+                const normalizedItems = items.map((it) => ({
+                  ...it,
+                  quantityReceived: Math.min(Number(it.quantityReceived ?? 0), Number(it.pendingQty ?? 0)),
+                }));
                 setSaving(true);
                 setModalError(null);
                 const updatedByName = masters.users.find((u) => u.id === updatedByUserId)?.name ?? updatedByUserId;
@@ -574,7 +578,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   materialReceivedBy: materialReceivedByUserId,
                   goodsCollectedBy: goodsCollectedByUserId,
                   updatedBy: updatedByName,
-                  items: items.map((x) => ({
+                  items: normalizedItems.map((x) => ({
                     itemId: x.itemId,
                     item: x.item,
                     quantityReceived: x.quantityReceived,
@@ -608,7 +612,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
                   <col className="w-[80px]" />
-	                <col className="w-[110px]" />
+                  <col className="w-[110px]" />
+                  <col className="w-[120px]" />
                   <col className="w-[70px]" />
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
@@ -625,7 +630,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Length</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Breadth</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">PCs</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">Pending GRN Qty</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Unit</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN L</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN B</th>
@@ -687,12 +693,15 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{Number(dimP) ? formatMax2(dimP) : '-'}</td>
-	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
                             {formatMax2(it.quantity ?? 0)}
                             {(() => {
                               const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
+                          </td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
+                            {formatMax2(pendingQty)}
                           </td>
                         
                         {/* GRN INPUT COLUMNS */}

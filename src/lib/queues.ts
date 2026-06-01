@@ -140,6 +140,8 @@ export type CreateGrnQueueRow = {
   projectName?: string | null;
   supplierId?: string | null;
   supplierName: string;
+  poQty?: number;
+  grnQty?: number;
   pendingQty: number;
   createdAt: string;
   pendingReason: string;
