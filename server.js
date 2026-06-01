@@ -8156,7 +8156,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        drawRight(it.dimLength > 0 ? formatNumber(it.dimLength) : '-', col.lengthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimBreadth > 0 ? formatNumber(it.dimBreadth) : '-', col.breadthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimPcs > 0 ? formatNumber(it.dimPcs) : '-', col.pcsRight - 4, rowTop - 6, { size: 8 });
-	        drawRight(String(it.dimUnit ?? '').trim() || '-', col.dimUnitRight - 4, rowTop - 6, { size: 8 });
+	        // Show the original item unit (from Item Name), not the dimension unit (ft/m).
+	        drawRight(String(it.unitName ?? '').trim() || '-', col.dimUnitRight - 4, rowTop - 6, { size: 8 });
 	      }
 	      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
 	      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
