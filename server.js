@@ -3258,15 +3258,15 @@ app.get('/api/queues/payment', async (req, res) => {
       params
     );
 
-    let out = (Array.isArray(rows) ? rows : [])
-      .map((r) => {
-        const invoiceAmount = Number(r.invoiceAmount ?? 0);
-        const adjustedAmount = Number(r.adjustedAmount ?? 0);
-        const paymentAmount = Number(r.paymentAmount ?? 0);
-        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
-        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
-        const paymentModeLower = paymentMode.trim().toLowerCase();
-        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+	    let out = (Array.isArray(rows) ? rows : [])
+	      .map((r) => {
+	        const invoiceAmount = Number(r.invoiceAmount ?? 0);
+	        const adjustedAmount = Number(r.adjustedAmount ?? 0);
+	        const paymentAmount = Number(r.paymentAmount ?? 0);
+	        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+	        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+	        const paymentModeLower = paymentMode.trim().toLowerCase();
+	        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
 
         const isFull = paymentStatus.includes('full');
         const paidAmount = Math.max(0, paymentAmount);
@@ -3299,19 +3299,16 @@ app.get('/api/queues/payment', async (req, res) => {
           remainingAmount,
           pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
         };
-      })
-      .filter((x) => x.remainingAmount > 1e-9)
-      // Invoice is due for payment only when fully linked against GRN qty.
-      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalLinkedQty) <= 1e-9)
-      // Show only invoices where all invoice qty is QC-approved (invoice qty <= approved qty for each item).
-      // `totalApprovedQty` is computed as SUM(LEAST(invoiceQty, approvedQty)) so equality means fully approved.
-      .filter((x) => x.totalInvoiceQty > 0 && Math.abs(x.totalInvoiceQty - x.totalApprovedQty) <= 1e-9)
-      // Only "accounted" invoices become due for payment.
-      // If tally_entry_date column exists, require it to be set.
-      .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
+	      })
+	      .filter((x) => x.remainingAmount > 1e-9)
+	      // Relaxed rule: allow partial linking/QC. At least some invoice qty must be linked.
+	      .filter((x) => Number(x.totalLinkedQty ?? 0) > 1e-9)
+	      // Only "accounted" invoices become due for payment.
+	      // If tally_entry_date column exists, require it to be set.
+	      .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
 
-    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
-    res.json({ rows: out });
+	    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+	    res.json({ rows: out });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -3448,65 +3445,72 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
   }
 });
 
-// Debug helper: why an invoice is/isn't in Pending Payment.
-// Mirrors the filters used by `/api/queues/payment` for a single invoice id.
-app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
-  try {
-    const pool = getMysqlPool();
-    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const invoiceId = String(req.params.id ?? '').trim();
-    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+	// Debug helper: why an invoice is/isn't in Pending Payment.
+	// Mirrors the filters used by `/api/queues/payment` for a single invoice id.
+	app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
+	  try {
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	    const invoiceId = String(req.params.id ?? '').trim();
+	    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
 
-    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
-    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
+	    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
+	    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        inv.id AS invoiceId,
-        inv.invoice_number AS invoiceNo,
-        inv.invoice_date AS invoiceDate,
-        inv.total_amount AS invoiceAmount,
-        inv.payment_status AS paymentStatus,
-        inv.payment_date AS paymentDate,
-        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
-        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
-        po.po_number AS poNumber,
-        f.name AS firmName,
-        s.name AS supplierName,
-        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
-        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
-      FROM invoices inv
-      INNER JOIN purchase_orders po ON po.id = inv.po_id
-      LEFT JOIN firms f ON f.id = po.firm_id
-      LEFT JOIN suppliers s ON s.id = po.supplier_id
-      LEFT JOIN (
-        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
-        FROM invoice_items ii
-        GROUP BY ii.invoice_id
-      ) invq ON invq.invoiceId = inv.id
-      LEFT JOIN (
-        SELECT
-          ii.invoice_id AS invoiceId,
-          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
-        FROM invoice_items ii
-        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
-        LEFT JOIN (
-          SELECT
-            g.po_id AS poId,
-            qc.item_id AS itemId,
-            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
-          FROM grns g
-          INNER JOIN qc_records qc ON qc.grn_id = g.id
-          GROUP BY g.po_id, qc.item_id
-        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
-        GROUP BY ii.invoice_id
-      ) qcq ON qcq.invoiceId = inv.id
-      WHERE inv.id = ?
-      LIMIT 1
-      `,
-      [invoiceId]
-    );
+	    const [rows] = await pool.query(
+	      `
+	      SELECT
+	        inv.id AS invoiceId,
+	        inv.invoice_number AS invoiceNo,
+	        inv.invoice_date AS invoiceDate,
+	        inv.total_amount AS invoiceAmount,
+	        inv.payment_status AS paymentStatus,
+	        inv.payment_date AS paymentDate,
+	        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
+	        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
+	        po.po_number AS poNumber,
+	        f.name AS firmName,
+	        s.name AS supplierName,
+	        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+	        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+	        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty
+	      FROM invoices inv
+	      INNER JOIN purchase_orders po ON po.id = inv.po_id
+	      LEFT JOIN firms f ON f.id = po.firm_id
+	      LEFT JOIN suppliers s ON s.id = po.supplier_id
+	      LEFT JOIN (
+	        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
+	        FROM invoice_items ii
+	        GROUP BY ii.invoice_id
+	      ) invq ON invq.invoiceId = inv.id
+	      LEFT JOIN (
+	        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(gil.linked_qty, 0)) AS totalLinkedQty
+	        FROM invoice_items ii
+	        LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
+	        GROUP BY ii.invoice_id
+	      ) linkq ON linkq.invoiceId = inv.id
+	      LEFT JOIN (
+	        SELECT
+	          ii.invoice_id AS invoiceId,
+	          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
+	        FROM invoice_items ii
+	        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+	        LEFT JOIN (
+	          SELECT
+	            g.po_id AS poId,
+	            qc.item_id AS itemId,
+	            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+	          FROM grns g
+	          INNER JOIN qc_records qc ON qc.grn_id = g.id
+	          GROUP BY g.po_id, qc.item_id
+	        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+	        GROUP BY ii.invoice_id
+	      ) qcq ON qcq.invoiceId = inv.id
+	      WHERE inv.id = ?
+	      LIMIT 1
+	      `,
+	      [invoiceId]
+	    );
 
     const r = Array.isArray(rows) ? rows[0] : null;
     if (!r) return res.status(404).json({ error: 'Invoice not found' });
@@ -3518,28 +3522,27 @@ app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
     const isCash = paymentModeLower === 'cash';
     const isFull = paymentStatusLower.includes('full');
     const paidAmount = isFull ? invoiceAmount : 0;
-    const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+	    const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
 
-    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
-    const totalApprovedQty = Number(r.totalApprovedQty ?? 0);
-    const tallyEntryDate = toIsoDate(r.tallyEntryDate) || '';
+	    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
+	    const totalLinkedQty = Number(r.totalLinkedQty ?? 0);
+	    const totalApprovedQty = Number(r.totalApprovedQty ?? 0);
+	    const tallyEntryDate = toIsoDate(r.tallyEntryDate) || '';
 
-    const failures = [];
-    if (!(remainingAmount > 1e-9)) failures.push('Fully paid (remainingAmount is 0)');
-    if (isCash) failures.push('Payment mode is Cash (verify partial cash payments are entered correctly)');
-    if (!(totalInvoiceQty > 0)) failures.push('No invoice items (totalInvoiceQty is 0)');
-    if (!(totalInvoiceQty > 0 && Math.abs(totalInvoiceQty - totalApprovedQty) <= 1e-9)) failures.push('Not fully QC-approved (invoice qty != approved qty)');
-    if (hasTallyEntryDate && !tallyEntryDate) failures.push('Tally entry date is empty');
+	    const failures = [];
+	    if (!(remainingAmount > 1e-9)) failures.push('Fully paid (remainingAmount is 0)');
+	    if (isCash) failures.push('Payment mode is Cash (verify partial cash payments are entered correctly)');
+	    if (!(totalLinkedQty > 1e-9)) failures.push('No GRN link qty yet (totalLinkedQty is 0)');
+	    if (hasTallyEntryDate && !tallyEntryDate) failures.push('Tally entry date is empty');
 
-    const eligible =
-      remainingAmount > 1e-9 &&
-      totalInvoiceQty > 0 &&
-      Math.abs(totalInvoiceQty - totalApprovedQty) <= 1e-9 &&
-      (hasTallyEntryDate ? Boolean(tallyEntryDate) : true);
+	    const eligible =
+	      remainingAmount > 1e-9 &&
+	      totalLinkedQty > 1e-9 &&
+	      (hasTallyEntryDate ? Boolean(tallyEntryDate) : true);
 
-    res.json({
-      eligible,
-      failures,
+	    res.json({
+	      eligible,
+	      failures,
       computed: {
         invoiceId: String(r.invoiceId ?? ''),
         invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
@@ -3551,14 +3554,15 @@ app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
         paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : null,
         paymentDate: toIsoDate(r.paymentDate) || null,
         paymentMode,
-        tallyEntryDate: tallyEntryDate || null,
-        totalInvoiceQty,
-        totalApprovedQty,
-        remainingAmount,
-      },
-      notes: { hasTallyEntryDate },
-    });
-  } catch (e) {
+	        tallyEntryDate: tallyEntryDate || null,
+	        totalInvoiceQty,
+	        totalLinkedQty,
+	        totalApprovedQty,
+	        remainingAmount,
+	      },
+	      notes: { hasTallyEntryDate },
+	    });
+	  } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
