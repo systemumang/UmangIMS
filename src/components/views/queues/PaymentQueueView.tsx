@@ -320,16 +320,23 @@ export default function PaymentQueueView({
         onClose={() => (saving ? null : closeModal())}
         fullScreen
         maxWidthClass="max-w-7xl"
-        footer={
-          <>
-            <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary btn-sm"
-              disabled={saving || modalLoading || !active || (mode === 'payment' ? !paymentDate : !tallyDateInput)}
-              onClick={() => {
+	        footer={
+	          <>
+	            <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
+	              Cancel
+	            </button>
+	            <button
+	              type="button"
+	              className="btn-primary btn-sm"
+	              disabled={
+	                saving ||
+	                modalLoading ||
+	                !active ||
+	                (mode === 'payment'
+	                  ? !paymentDate || (isDebitNote && (!String(debitNoteQtyInput ?? '').trim() || !String(debitNoteReasonInput ?? '').trim()))
+	                  : !tallyDateInput)
+	              }
+	              onClick={() => {
                 if (!active) return;
                 setSaving(true);
                 setModalError(null);
