@@ -7940,10 +7940,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
     y -= 4;
 
-    const topY = y;
-    const halfWidth = (pageWidth - margin * 2 - 10) / 2;
-    drawBox(margin, topY - 78, halfWidth, 82);
-    drawBox(margin + halfWidth + 10, topY - 78, halfWidth, 82);
+	    const topY = y;
+	    const halfWidth = (pageWidth - margin * 2 - 10) / 2;
+	    drawBox(margin, topY - 78, halfWidth, 82);
+	    drawBox(margin + halfWidth + 10, topY - 78, halfWidth, 82);
 	    drawAt('Supplier', margin + 8, topY - 12, { bold: true, size: 9 });
 	    drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
 	    drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
@@ -7951,12 +7951,14 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      const addr = String(poRow.supplierAddress ?? '').trim() || '-';
 	      const addrLines = wrapLines(addr, font, 8, halfWidth - 16);
 	      let ay = topY - 54;
-	      for (const line of addrLines.slice(0, 2)) {
+	      const shown = addrLines.slice(0, 2);
+	      for (const line of shown) {
 	        drawAt(line, margin + 8, ay, { size: 8 });
 	        ay -= 10;
 	      }
+	      const payY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
+	      drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, payY, { bold: true, size: 8 });
 	    }
-	    drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, topY - 68, { bold: true, size: 8 });
 
 	    const firmX = margin + halfWidth + 10;
 	    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
@@ -7976,32 +7978,45 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableLeft = margin;
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
-	    // Columns: Sl No | Item | (Length | Breadth | Pieces | Unit) | Qty | Rate | Disc % | GST % | Amt
+	    // Columns tuned for A4 width so headers don't overflow.
+	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | Disc% | GST% | Amt
 	    const colBounds = (() => {
 	      const b = [tableLeft];
-	      const serialW = 36;
-	      const qtyW = 70;
-	      const rateW = 63;
-	      const discW = 51;
-	      const gstW = 44;
-	      const dimW = 44;
-	      const pcsW = 46;
-	      const unitW = 44;
-	      const dimTotalW = showDimColumns ? dimW * 2 + pcsW + unitW : 0;
-	      const itemW = Math.max(120, tableWidth - (serialW + dimTotalW + qtyW + rateW + discW + gstW + 80));
-	      b.push(b[b.length - 1] + serialW); // Sl No
-	      b.push(b[b.length - 1] + itemW); // Item
+	      const serialW = 28;
+	      const itemW = showDimColumns ? 140 : 260;
+	      const dimW = 28;
+	      const pcsW = 28;
+	      const unitW = 28;
+	      const qtyW = 55;
+	      const rateW = 50;
+	      const discW = 35;
+	      const gstW = 35;
+	      const fixed =
+	        serialW +
+	        itemW +
+	        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
+	        qtyW +
+	        rateW +
+	        discW +
+	        gstW;
+	      const amtW = Math.max(50, tableWidth - fixed);
+
+	      b.push(b[b.length - 1] + serialW);
+	      b.push(b[b.length - 1] + itemW);
 	      if (showDimColumns) {
-	        b.push(b[b.length - 1] + dimW); // Length
-	        b.push(b[b.length - 1] + dimW); // Breadth
-	        b.push(b[b.length - 1] + pcsW); // Pieces
+	        b.push(b[b.length - 1] + dimW); // L
+	        b.push(b[b.length - 1] + dimW); // B
+	        b.push(b[b.length - 1] + pcsW); // Pcs
 	        b.push(b[b.length - 1] + unitW); // Unit
 	      }
-	      b.push(b[b.length - 1] + qtyW); // Qty
-	      b.push(b[b.length - 1] + rateW); // Rate
-	      b.push(b[b.length - 1] + discW); // Disc
-	      b.push(b[b.length - 1] + gstW); // GST
-	      b.push(tableRight); // Amt
+	      b.push(b[b.length - 1] + qtyW);
+	      b.push(b[b.length - 1] + rateW);
+	      b.push(b[b.length - 1] + discW);
+	      b.push(b[b.length - 1] + gstW);
+	      b.push(b[b.length - 1] + amtW);
+
+	      // Force the last bound to exactly tableRight to avoid drift.
+	      b[b.length - 1] = tableRight;
 	      return b;
 	    })();
 
