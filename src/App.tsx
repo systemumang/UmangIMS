@@ -1,38 +1,38 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import Sidebar, { type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
-import PowerBIDashboardView from './components/views/PowerBIDashboardView';
-import InventoryView from './components/views/InventoryView';
-import PurchasingView from './components/views/PurchasingView';
-import OperationsView from './components/views/OperationsView';
-import NewPurchaseRequestView from './components/views/NewPurchaseRequestView';
-import PurchaseRequestDetailView from './components/views/PurchaseRequestDetailView';
-import MastersView from './components/views/MastersView';
-import ApprovePrQueueView from './components/views/queues/ApprovePrQueueView';
-import CreatePoQueueView from './components/views/queues/CreatePoQueueView';
-import CheckPoQueueView from './components/views/queues/CheckPoQueueView';
-import SendPoQueueView from './components/views/queues/SendPoQueueView';
-import CreateGrnQueueView from './components/views/queues/CreateGrnQueueView';
-	import QcQueueView from './components/views/queues/QcQueueView';
-	import EnterInvoiceQueueView from './components/views/queues/EnterInvoiceQueueView';
-import EnterCreditVoucherQueueView from './components/views/queues/EnterCreditVoucherQueueView';
-	import ApproveInvoiceQueueView from './components/views/queues/ApproveInvoiceQueueView';
-import ApproveCreditVoucherQueueView from './components/views/queues/ApproveCreditVoucherQueueView';
-	import LinkInvoiceGrnQueueView from './components/views/queues/LinkInvoiceGrnQueueView';
-	import PaymentQueueView from './components/views/queues/PaymentQueueView';
-import ExcessPaidInvoicesView from './components/views/queues/ExcessPaidInvoicesView';
-import CreditVoucherPaymentQueueView from './components/views/queues/CreditVoucherPaymentQueueView';
+const PowerBIDashboardView = lazy(() => import('./components/views/PowerBIDashboardView'));
+const InventoryView = lazy(() => import('./components/views/InventoryView'));
+const PurchasingView = lazy(() => import('./components/views/PurchasingView'));
+const OperationsView = lazy(() => import('./components/views/OperationsView'));
+const NewPurchaseRequestView = lazy(() => import('./components/views/NewPurchaseRequestView'));
+const PurchaseRequestDetailView = lazy(() => import('./components/views/PurchaseRequestDetailView'));
+const MastersView = lazy(() => import('./components/views/MastersView'));
+const ApprovePrQueueView = lazy(() => import('./components/views/queues/ApprovePrQueueView'));
+const CreatePoQueueView = lazy(() => import('./components/views/queues/CreatePoQueueView'));
+const CheckPoQueueView = lazy(() => import('./components/views/queues/CheckPoQueueView'));
+const SendPoQueueView = lazy(() => import('./components/views/queues/SendPoQueueView'));
+const CreateGrnQueueView = lazy(() => import('./components/views/queues/CreateGrnQueueView'));
+const QcQueueView = lazy(() => import('./components/views/queues/QcQueueView'));
+const EnterInvoiceQueueView = lazy(() => import('./components/views/queues/EnterInvoiceQueueView'));
+const EnterCreditVoucherQueueView = lazy(() => import('./components/views/queues/EnterCreditVoucherQueueView'));
+const ApproveInvoiceQueueView = lazy(() => import('./components/views/queues/ApproveInvoiceQueueView'));
+const ApproveCreditVoucherQueueView = lazy(() => import('./components/views/queues/ApproveCreditVoucherQueueView'));
+const LinkInvoiceGrnQueueView = lazy(() => import('./components/views/queues/LinkInvoiceGrnQueueView'));
+const PaymentQueueView = lazy(() => import('./components/views/queues/PaymentQueueView'));
+const ExcessPaidInvoicesView = lazy(() => import('./components/views/queues/ExcessPaidInvoicesView'));
+const CreditVoucherPaymentQueueView = lazy(() => import('./components/views/queues/CreditVoucherPaymentQueueView'));
 import Spinner from './components/common/Spinner';
-import ItemIssueView from './components/views/ItemIssueView';
-import ReturnView from './components/views/ReturnView';
-import DamageView from './components/views/DamageView';
-import StockTransferView from './components/views/StockTransferView';
-import IssueMasterView from './components/views/IssueMasterView';
-import ReturnMasterView from './components/views/ReturnMasterView';
-import DamageMasterView from './components/views/DamageMasterView';
-import TransferMasterView from './components/views/TransferMasterView';
-import DirectPoView from './components/views/DirectPoView';
+const ItemIssueView = lazy(() => import('./components/views/ItemIssueView'));
+const ReturnView = lazy(() => import('./components/views/ReturnView'));
+const DamageView = lazy(() => import('./components/views/DamageView'));
+const StockTransferView = lazy(() => import('./components/views/StockTransferView'));
+const IssueMasterView = lazy(() => import('./components/views/IssueMasterView'));
+const ReturnMasterView = lazy(() => import('./components/views/ReturnMasterView'));
+const DamageMasterView = lazy(() => import('./components/views/DamageMasterView'));
+const TransferMasterView = lazy(() => import('./components/views/TransferMasterView'));
+const DirectPoView = lazy(() => import('./components/views/DirectPoView'));
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
@@ -82,12 +82,12 @@ import {
 	  fetchQueueSendPo,
 	} from '@/src/lib/queues';
 
-import RequestMaterialView from './components/views/RequestMaterialView';
-import PendingIssueView from './components/views/PendingIssueView';
-import SettingsCatalogueView from './components/views/SettingsCatalogueView';
-import GstView from './components/views/GstView';
-import PendingSupplierRateView from './components/views/PendingSupplierRateView';
-	import QuotationMasterView from './components/views/QuotationMasterView';
+const RequestMaterialView = lazy(() => import('./components/views/RequestMaterialView'));
+const PendingIssueView = lazy(() => import('./components/views/PendingIssueView'));
+const SettingsCatalogueView = lazy(() => import('./components/views/SettingsCatalogueView'));
+const GstView = lazy(() => import('./components/views/GstView'));
+const PendingSupplierRateView = lazy(() => import('./components/views/PendingSupplierRateView'));
+const QuotationMasterView = lazy(() => import('./components/views/QuotationMasterView'));
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
@@ -715,8 +715,15 @@ export default function App() {
 	            }}
 	          />
 	        
-		        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
-					          {view === 'dashboard' ? (
+			        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
+                <Suspense
+                  fallback={
+                    <div className="min-h-[220px] flex items-center justify-center">
+                      <Spinner className="h-10 w-10 border-[3px]" />
+                    </div>
+                  }
+                >
+						          {view === 'dashboard' ? (
 					            <PowerBIDashboardView
 					              onNavigatePendingQueue={(key) => {
 					                setSelectedRequestId(null);
@@ -869,8 +876,9 @@ export default function App() {
 				          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queueExcessPaidInvoices' ? <ExcessPaidInvoicesView /> : null}
-                {view === 'queueCreditVoucherPayment' ? <CreditVoucherPaymentQueueView onViewPr={openPrDetail} /> : null}
-		        </div>
+	                {view === 'queueCreditVoucherPayment' ? <CreditVoucherPaymentQueueView onViewPr={openPrDetail} /> : null}
+                </Suspense>
+			        </div>
 		      </main>
 
       {showBusyOverlay ? (
