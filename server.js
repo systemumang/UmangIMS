@@ -7990,7 +7990,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		        drawAt(line, firmX + 8, ay, { size: 8 });
 		        ay -= 10;
 		      }
-		      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
+		      // Keep a little padding from the bottom border of the box.
+		      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10) + 4;
 		      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
 		    }
 	    // Add a bit more breathing room below the header boxes before the table starts.
