@@ -288,7 +288,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       if (patch.itemNameId !== undefined || patch.specs !== undefined) {
         const matched = resolveSelectedItem(next.itemNameId, next.specs);
         next.itemId = matched?.id ?? '';
-        next.unit = matched?.unit ?? (itemNames.find(x => x.id === next.itemNameId) as any)?.unit ?? '';
+        // Unit must come from Item Name master only (not from item/spec combination).
+        next.unit = (itemNames.find((x) => x.id === next.itemNameId) as any)?.unit ?? '';
       }
       return next;
     }));
@@ -592,17 +593,27 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                                  const nextSpecs = { ...(l.specs ?? {}), [specId]: selectedValue };
 	                                  updateLine(idx, { specs: nextSpecs });
 	                                }}
-	                                onCreate={async (label) => {
-	                                  const v = String(label ?? '').trim();
-	                                  if (!v) return null;
-	                                  const itemNameId = String(l.itemNameId ?? '').trim();
-	                                  if (!itemNameId) return null;
-	                                  try {
-	                                    const created = await createSpecificationValue({
-	                                      specificationId: specId,
-	                                      itemNameId,
-	                                      value: v,
-	                                      createdBy: 'system',
+		                                onCreate={async (label) => {
+		                                  const v = String(label ?? '').trim();
+		                                  if (!v) return null;
+		                                  const itemNameId = String(l.itemNameId ?? '').trim();
+		                                  if (!itemNameId) return null;
+		                                  const existing = (specValueOptions[key] ?? []).some(
+		                                    (sv) =>
+		                                      String(sv.itemNameId ?? '').trim() === itemNameId &&
+		                                      String(sv.value ?? '').trim().toLowerCase() === v.toLowerCase()
+		                                  );
+		                                  if (existing) {
+		                                    setError('Value already exists');
+		                                    return null;
+		                                  }
+		                                  try {
+		                                    setError(null);
+		                                    const created = await createSpecificationValue({
+		                                      specificationId: specId,
+		                                      itemNameId,
+		                                      value: v,
+		                                      createdBy: 'system',
 	                                    });
 	                                    const next = created?.specificationValue;
 	                                    const finalValue = String(next?.value ?? v);
@@ -625,11 +636,13 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	                                      };
 	                                    });
 	                                    return { value: finalValue, label: finalValue };
-	                                  } catch {
-	                                    return null;
-	                                  }
-	                                }}
-	                              />
+		                                  } catch (e) {
+		                                    const msg = e instanceof Error ? e.message : String(e);
+		                                    if (msg.toLowerCase().includes('already')) setError('Value already exists');
+		                                    return null;
+		                                  }
+		                                }}
+		                              />
 	                            </div>
 	                          );
 	                        })}

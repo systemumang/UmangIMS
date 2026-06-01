@@ -934,6 +934,15 @@ export default function NewPurchaseRequestView({
 								                                if (v) {
 								                                  const itemNameId = String(items[idx]?.itemNameId ?? '').trim();
 								                                  if (!itemNameId) return null;
+								                                  const existing = (specValueOptions[key] ?? []).some(
+								                                    (sv) =>
+								                                      String(sv.itemNameId ?? '').trim() === itemNameId &&
+								                                      String(sv.value ?? '').trim().toLowerCase() === v.toLowerCase()
+								                                  );
+								                                  if (existing) {
+								                                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? 'Value already exists' : m)));
+								                                    return null;
+								                                  }
 								                                  try {
 								                                    const created = await createSpecificationValue({
 								                                      specificationId: specId,
@@ -964,7 +973,11 @@ export default function NewPurchaseRequestView({
 								                                    });
 								                                    // Return created option so SearchableSelect selects it.
 								                                    return { value: finalValue, label: finalValue };
-								                                  } catch {
+								                                  } catch (e) {
+								                                    const msg = e instanceof Error ? e.message : String(e);
+								                                    if (msg.toLowerCase().includes('already')) {
+								                                      setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? 'Value already exists' : m)));
+								                                    }
 								                                    // Fallback: open modal to show error/details.
 								                                  }
 								                                }
