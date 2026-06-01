@@ -7764,27 +7764,35 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      const itemNameOnly = stripBracketText(String(r.itemName ?? '').trim()) || '-';
 		      const specs = formatSpecParts(r.specificationsJson);
 		      const unitName = String(r.unitName ?? '').trim();
+		      const qty = Number(r.quantity ?? 0);
+		      const rate = Number(r.rate ?? 0);
+		      const discPct = Number(r.discountPercent ?? 0);
+		      const taxAmt = Number(r.taxAmount ?? 0);
+		      const discAmt = (qty * rate * discPct) / 100;
 		      return {
 		        label: itemNameOnly,
 		        specs,
 		        unitName,
-		        quantity: Number(r.quantity ?? 0),
-		        rate: Number(r.rate ?? 0),
-		        discountPercent: Number(r.discountPercent ?? 0),
+		        quantity: qty,
+		        rate: rate,
+		        discountPercent: discPct,
+		        discountAmount: discAmt,
 		        taxPercent: Number(r.taxPercent ?? 0),
-	        goodsAmount: Number(r.goodsAmount ?? 0),
-	        taxAmount: Number(r.taxAmount ?? 0),
-	        totalAmount: Number(r.totalAmount ?? 0),
-	        dimLength: r.dimLength != null ? Number(r.dimLength) : 0,
-	        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : 0,
-	        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : 0,
+		        goodsAmount: Number(r.goodsAmount ?? 0),
+		        taxAmount: taxAmt,
+		        totalAmount: Number(r.totalAmount ?? 0),
+		        dimLength: r.dimLength != null ? Number(r.dimLength) : 0,
+		        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : 0,
+		        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : 0,
 	        dimUnit: String(r.dimUnit ?? '').trim(),
 	        areaUnit: normalizeAreaUnit(unitName),
 	      };
 	    });
-	    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
-	    const showDiscColumn = items.some((it) => Number(it.discountPercent ?? 0) > 0);
-	    const showGstColumn = items.some((it) => Number(it.taxPercent ?? 0) > 0);
+		    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
+		    const showDiscColumn = items.some((it) => Number(it.discountPercent ?? 0) > 0);
+		    const showGstColumn = items.some((it) => Number(it.taxPercent ?? 0) > 0);
+		    const showDiscAmountColumn = items.some((it) => Number(it.discountAmount ?? 0) > 0);
+		    const showGstAmountColumn = items.some((it) => Number(it.taxAmount ?? 0) > 0);
 
     const doc = await PDFDocument.create();
     let page = doc.addPage([595.28, 841.89]); // A4
@@ -7988,11 +7996,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
 	    // Columns tuned for A4 width so headers don't overflow.
-	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Disc%) | (GST%) | Amt
+	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Disc%) | (Disc Amt) | (GST%) | (GST Amt) | Amt
 	    const colBounds = (() => {
 	      const b = [tableLeft];
 	      const serialW = 28;
-	      const itemW = showDimColumns ? 140 : 260;
+	      const itemW = showDimColumns ? 128 : 260;
 	      const dimW = 28;
 	      const pcsW = 28;
 	      const unitW = 28;
@@ -8000,6 +8008,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      const rateW = 50;
 	      const discW = 35;
 	      const gstW = 35;
+	      const discAmtW = 55;
+	      const gstAmtW = 55;
 	      const fixed =
 	        serialW +
 	        itemW +
@@ -8007,8 +8017,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        qtyW +
 	        rateW +
 	        (showDiscColumn ? discW : 0) +
+	        (showDiscAmountColumn ? discAmtW : 0) +
 	        (showGstColumn ? gstW : 0);
-	      const amtW = Math.max(50, tableWidth - fixed);
+	      const fixed2 = fixed + (showGstAmountColumn ? gstAmtW : 0);
+	      const amtW = Math.max(60, tableWidth - fixed2);
 
 	      b.push(b[b.length - 1] + serialW);
 	      b.push(b[b.length - 1] + itemW);
@@ -8021,7 +8033,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      b.push(b[b.length - 1] + qtyW);
 	      b.push(b[b.length - 1] + rateW);
 	      if (showDiscColumn) b.push(b[b.length - 1] + discW);
+	      if (showDiscAmountColumn) b.push(b[b.length - 1] + discAmtW);
 	      if (showGstColumn) b.push(b[b.length - 1] + gstW);
+	      if (showGstAmountColumn) b.push(b[b.length - 1] + gstAmtW);
 	      b.push(b[b.length - 1] + amtW);
 
 	      // Force the last bound to exactly tableRight to avoid drift.
@@ -8041,7 +8055,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      qtyRight: null,
 	      rateRight: null,
 	      discRight: null,
+	      discAmtRight: null,
 	      gstRight: null,
+	      gstAmtRight: null,
 	      taxableRight: null,
 	    };
 	    // Compute rights based on which optional columns are present.
@@ -8056,7 +8072,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      col.qtyRight = colBounds[++i];
 	      col.rateRight = colBounds[++i];
 	      if (showDiscColumn) col.discRight = colBounds[++i];
+	      if (showDiscAmountColumn) col.discAmtRight = colBounds[++i];
 	      if (showGstColumn) col.gstRight = colBounds[++i];
+	      if (showGstAmountColumn) col.gstAmtRight = colBounds[++i];
 	      col.taxableRight = colBounds[++i];
 	    }
 
@@ -8090,7 +8108,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
 	    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
+	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
+	    if (showGstAmountColumn) drawRight('GST Amt', col.gstAmtRight - 4, headerY - 10, { bold: true, size: 8 });
 	    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
@@ -8143,8 +8163,14 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      if (showDiscColumn) {
 	        drawRight(Number(it.discountPercent ?? 0) > 0 ? formatNumber(it.discountPercent) : '', col.discRight - 4, rowTop - 6, { size: 8 });
 	      }
+	      if (showDiscAmountColumn) {
+	        drawRight(Number(it.discountAmount ?? 0) > 0 ? formatMoney(it.discountAmount) : '', col.discAmtRight - 4, rowTop - 6, { size: 8 });
+	      }
 	      if (showGstColumn) {
 	        drawRight(Number(it.taxPercent ?? 0) > 0 ? formatNumber(it.taxPercent) : '', col.gstRight - 4, rowTop - 6, { size: 8 });
+	      }
+	      if (showGstAmountColumn) {
+	        drawRight(Number(it.taxAmount ?? 0) > 0 ? formatMoney(it.taxAmount) : '', col.gstAmtRight - 4, rowTop - 6, { size: 8 });
 	      }
 	      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
       y -= rowHeight;
@@ -8214,32 +8240,30 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      drawTextPreserveNewlines(terms, { size: 8, x: margin, maxWidth: 320 });
 		    }
 
-	    // Optional authorized signature image (pass as `?signatureUrl=...`).
-	    // Supports data:image/*, http(s) URLs, or local /uploads/... paths (same rules as logoUrl).
+	    // Signature block (always show a manual signature line; optionally show an image above it).
+	    // Pass signature image as `?signatureUrl=...` (data:image/*, http(s), or /uploads/...).
+	    addPageIfNeeded(120);
 	    const signatureUrl = req.query?.signatureUrl != null ? String(req.query.signatureUrl).trim() : '';
+	    const sigBlockW = 180;
+	    const sigLineY = Math.max(margin + 60, y - 70);
+	    const sigRight = tableRight;
+	    const sigLeft = sigRight - sigBlockW;
+
 	    if (signatureUrl) {
 	      const sigImg = await loadAnyImage(signatureUrl);
 	      if (sigImg) {
-	        // Ensure there is space below terms (keep it near page bottom if needed).
-	        addPageIfNeeded(120);
-	        const maxSigW = 140;
-	        const maxSigH = 60;
+	        const maxSigW = sigBlockW;
+	        const maxSigH = 55;
 	        const scale = Math.min(maxSigW / sigImg.width, maxSigH / sigImg.height, 1);
 	        const w = sigImg.width * scale;
 	        const h = sigImg.height * scale;
-	        const sigX = tableRight - w;
-	        const sigY = Math.max(margin + 40, y - h);
-	        page.drawImage(sigImg, { x: sigX, y: sigY, width: w, height: h });
-	        page.drawText('Authorized Signatory', {
-	          x: sigX,
-	          y: sigY - 12,
-	          size: 8,
-	          font: fontBold,
-	          color: rgb(0, 0, 0),
-	        });
-	        y = sigY - 24;
+	        page.drawImage(sigImg, { x: sigRight - w, y: sigLineY + 10, width: w, height: h });
 	      }
 	    }
+	    // Manual signature line
+	    drawLine(sigLeft, sigLineY, sigRight, sigLineY, 1);
+	    page.drawText('Authorized Signatory', { x: sigLeft, y: sigLineY - 12, size: 8, font: fontBold, color: rgb(0, 0, 0) });
+	    y = sigLineY - 24;
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
