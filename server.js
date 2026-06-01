@@ -1891,12 +1891,13 @@ app.get('/api/workflow/:id', async (req, res) => {
 function readQueueFilters(req) {
   const q = req.query?.q != null ? String(req.query.q).trim() : '';
   const firmId = req.query?.firmId != null ? String(req.query.firmId).trim() : '';
+  const storeId = req.query?.storeId != null ? String(req.query.storeId).trim() : '';
   const department = req.query?.department != null ? String(req.query.department).trim() : '';
   const projectId = req.query?.projectId != null ? String(req.query.projectId).trim() : '';
   const supplierId = req.query?.supplierId != null ? String(req.query.supplierId).trim() : '';
   const from = req.query?.from != null ? String(req.query.from).trim() : '';
   const to = req.query?.to != null ? String(req.query.to).trim() : '';
-  return { q, firmId, department, projectId, supplierId, from, to };
+  return { q, firmId, storeId, department, projectId, supplierId, from, to };
 }
 
 app.get('/api/queues/approve-pr', async (req, res) => {
@@ -4626,6 +4627,10 @@ app.get('/api/operations/pos', async (req, res) => {
       where.push('po.firm_id = ?');
       params.push(f.firmId);
     }
+    if (f.storeId) {
+      where.push('po.store_id = ?');
+      params.push(f.storeId);
+    }
     if (f.projectId) {
       where.push('po.project_id = ?');
       params.push(f.projectId);
@@ -4643,8 +4648,8 @@ app.get('/api/operations/pos', async (req, res) => {
       params.push(f.to);
     }
     if (f.q) {
-      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ? OR proj.name LIKE ?)');
-      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+      where.push('(po.po_number LIKE ? OR po.id LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ? OR f.name LIKE ? OR st.name LIKE ? OR proj.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
     }
 
     const [rows] = await pool.query(
@@ -4657,6 +4662,8 @@ app.get('/api/operations/pos', async (req, res) => {
         po.firm_id AS firmId,
         f.name AS firmName,
         pr.remarks AS prRemarks,
+        po.store_id AS storeId,
+        st.name AS storeName,
         po.project_id AS projectId,
         proj.name AS projectName,
         po.supplier_id AS supplierId,
@@ -4672,6 +4679,7 @@ app.get('/api/operations/pos', async (req, res) => {
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
       LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN stores st ON st.id = po.store_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE ${where.join(' AND ')}
@@ -4692,6 +4700,8 @@ app.get('/api/operations/pos', async (req, res) => {
         firmId: String(r.firmId ?? ''),
         firmName: String(r.firmName ?? ''),
         department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+        storeId: r.storeId ? String(r.storeId) : null,
+        storeName: r.storeName ? String(r.storeName) : null,
         projectId: r.projectId ? String(r.projectId) : null,
         projectName: r.projectName ? String(r.projectName) : null,
         supplierId: String(r.supplierId ?? ''),

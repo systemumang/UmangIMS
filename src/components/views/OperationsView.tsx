@@ -60,6 +60,7 @@ const TAB_LABEL: Record<OpsTab, string> = {
 const emptyOperationsFilters: OperationsFilters = {
   q: '',
   firmId: '',
+  storeId: '',
   projectId: '',
   supplierId: '',
   status: '',
@@ -93,7 +94,7 @@ export default function OperationsView({
   ) => void;
   initialTab?: OpsTab;
 }) {
-  const masters = useQueueMasters({ includeSuppliers: true });
+  const masters = useQueueMasters({ includeSuppliers: true, includeStores: true });
   const [tab, setTab] = useState<OpsTab>(initialTab);
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
 
@@ -410,10 +411,15 @@ export default function OperationsView({
     return () => ac.abort();
 	  }, [filters, tab]);
 
-	  const firmOptions = useMemo(
+  const firmOptions = useMemo(
 	    () => [{ value: '', label: 'All Firms' }, ...masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))],
 	    [masters.firms]
 	  );
+
+  const storeOptions = useMemo(
+    () => [{ value: '', label: 'All Stores' }, ...(masters.stores ?? []).map((s) => ({ value: s.id, label: s.name }))],
+    [masters.stores]
+  );
   const projectOptions = useMemo(
     () => [{ value: '', label: 'All Projects' }, ...masters.projects.map((p) => ({ value: p.id, label: p.name }))],
     [masters.projects]
@@ -1068,22 +1074,27 @@ export default function OperationsView({
 	        </button>
 	      </div>
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <label className="space-y-1 md:col-span-2">
-            <div className={labelClass}>Search</div>
-            <input className={inputClass} value={filters.q ?? ''} onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))} placeholder="id / no / supplier / firm / project..." />
-          </label>
+	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
+	        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+	          <label className="space-y-1 md:col-span-2">
+	            <div className={labelClass}>Search</div>
+	            <input className={inputClass} value={filters.q ?? ''} onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))} placeholder="id / no / supplier / firm / project..." />
+	          </label>
+	
+	          <label className="space-y-1">
+	            <div className={labelClass}>Firm</div>
+	            <SearchableSelect value={filters.firmId ?? ''} options={firmOptions} onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))} />
+	          </label>
 
-          <label className="space-y-1">
-            <div className={labelClass}>Firm</div>
-            <SearchableSelect value={filters.firmId ?? ''} options={firmOptions} onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))} />
-          </label>
-
-          <label className="space-y-1">
-            <div className={labelClass}>Project</div>
-            <SearchableSelect value={filters.projectId ?? ''} options={projectOptions} onChange={(v) => setFilters((p) => ({ ...p, projectId: v }))} />
-          </label>
+	          <label className="space-y-1">
+	            <div className={labelClass}>Store</div>
+	            <SearchableSelect value={filters.storeId ?? ''} options={storeOptions} onChange={(v) => setFilters((p) => ({ ...p, storeId: v }))} />
+	          </label>
+	
+	          <label className="space-y-1">
+	            <div className={labelClass}>Project</div>
+	            <SearchableSelect value={filters.projectId ?? ''} options={projectOptions} onChange={(v) => setFilters((p) => ({ ...p, projectId: v }))} />
+	          </label>
 
           <label className="space-y-1">
             <div className={labelClass}>Supplier</div>
@@ -1111,19 +1122,20 @@ export default function OperationsView({
             <input className={inputClass} type="date" value={filters.to ?? ''} onChange={(e) => setFilters((p) => ({ ...p, to: e.target.value }))} />
           </label>
 
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() =>
-              setFilters({
-                q: '',
-                firmId: '',
-                projectId: '',
-                supplierId: '',
-                status: '',
-                from: '',
-                to: '',
-              })
+	          <button
+	            type="button"
+	            className="btn btn-sm"
+	            onClick={() =>
+	              setFilters({
+	                q: '',
+	                firmId: '',
+	                storeId: '',
+	                projectId: '',
+	                supplierId: '',
+	                status: '',
+	                from: '',
+	                to: '',
+	              })
             }
           >
             Clear
@@ -1135,21 +1147,22 @@ export default function OperationsView({
 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
 	        <div className="overflow-x-auto">
-	          <table className="w-full min-w-[980px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-              {tab === 'pos' ? (
-                <colgroup>
-                  <col className="w-[95px]" />
-                  <col className="w-[95px]" />
-                  <col className="w-[220px]" />
-                  <col className="w-[180px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[80px]" />
+		          <table className="w-full min-w-[1140px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	              {tab === 'pos' ? (
+	                <colgroup>
+	                  <col className="w-[95px]" />
+	                  <col className="w-[95px]" />
+	                  <col className="w-[220px]" />
+	                  <col className="w-[160px]" />
+	                  <col className="w-[180px]" />
 	                  <col className="w-[120px]" />
-	                  <col className="w-[120px]" />
-	                  <col className="w-[70px]" />
-	                  <col className="w-[90px]" />
-                </colgroup>
-              ) : null}
+	                  <col className="w-[80px]" />
+		                  <col className="w-[120px]" />
+		                  <col className="w-[120px]" />
+		                  <col className="w-[70px]" />
+		                  <col className="w-[90px]" />
+	                </colgroup>
+	              ) : null}
 		            <thead>
 	              <tr className="bg-primary text-on-primary">
 		            {tab === 'prs' ? (
@@ -1163,18 +1176,19 @@ export default function OperationsView({
 	                    <SortTh label="Status" colKey="status" />
 	                  </>
 		                ) : tab === 'pos' ? (
-			                  <>
-			                    <SortTh label="PO" colKey="poNumber" />
-			                    <SortTh label="PR" colKey="prNumber" />
-			                    <SortTh label="Firm" colKey="firmName" />
-			                    <SortTh label="Supplier" colKey="supplierName" />
-			                    <SortTh label="Order Date" colKey="orderDate" />
-			                    <SortTh label="Status" colKey="status" />
-					                    <SortTh label="Amount" colKey="totalAmount" />
-					                    <SortTh label="Advance" colKey="advanceAmount" />
-					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
-					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
-			                  </>
+				                  <>
+				                    <SortTh label="PO" colKey="poNumber" />
+				                    <SortTh label="PR" colKey="prNumber" />
+				                    <SortTh label="Firm" colKey="firmName" />
+				                    <SortTh label="Store" colKey="storeName" />
+				                    <SortTh label="Supplier" colKey="supplierName" />
+				                    <SortTh label="Order Date" colKey="orderDate" />
+				                    <SortTh label="Status" colKey="status" />
+						                    <SortTh label="Amount" colKey="totalAmount" />
+						                    <SortTh label="Advance" colKey="advanceAmount" />
+						                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
+						                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
+				                  </>
 		                ) : tab === 'grns' ? (
 	                  <>
 	                    <SortTh label="GRN" colKey="grnNumber" />
@@ -1239,18 +1253,18 @@ export default function OperationsView({
 	              </tr>
 	            </thead>
             <tbody>
-		              {loading ? (
-		                <tr>
-						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-			                    Loading...
-			                  </td>
-			                </tr>
-			              ) : !paged.length ? (
+			              {loading ? (
 			                <tr>
-						                  <td colSpan={tab === 'pos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-			                    No records.
-			                  </td>
-			                </tr>
+							                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                    Loading...
+				                  </td>
+				                </tr>
+				              ) : !paged.length ? (
+				                <tr>
+							                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+				                    No records.
+				                  </td>
+				                </tr>
 		              ) : (
                 (paged as any[]).map((r) => {
 	                  const rowId = getRowId(r, tab);
@@ -1301,18 +1315,19 @@ export default function OperationsView({
                         <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.requisitionDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 	                      </>
-	                    ) : tab === 'pos' ? (
-	                      <>
-	                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
-	            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
-	                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
-				                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-				                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-				                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
-				                          {Number(r.advanceAmount ?? 0).toFixed(2)}
-				                        </td>
+		                    ) : tab === 'pos' ? (
+		                      <>
+		                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
+		            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.storeName ?? '-'}</td>
+		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+					                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
+					                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
+					                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+					                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
+					                          {Number(r.advanceAmount ?? 0).toFixed(2)}
+					                        </td>
 					                        <td className="px-3 py-2 border border-outline-variant">
 				                          <button
 				                            type="button"

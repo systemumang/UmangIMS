@@ -409,27 +409,23 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                 options={storeOptions}
                 onChange={(v) => {
                   setStoreId(v);
-                  if (v) setProjectId('');
                 }}
                 placeholder="Select store..."
-                disabled={Boolean(projectId)}
               />
             </label> : null}
 
-	            <label className="space-y-1">
-	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project</div>
+		            <label className="space-y-1">
+		              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project</div>
               <SearchableSelect
                 value={projectId}
                 options={projectOptions}
                 onChange={(v) => {
                   setProjectId(v);
-                  if (v) setStoreId('');
                 }}
                 placeholder="Select project..."
                 allowClear
-	                disabled={Boolean(storeId)}
-	              />
-	            </label>
+		              />
+		            </label>
 
 	            <label className="space-y-1">
 	              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Requested By</div>

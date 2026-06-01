@@ -1,6 +1,7 @@
 export type OperationsFilters = {
   q?: string;
   firmId?: string;
+  storeId?: string;
   projectId?: string;
   supplierId?: string;
   status?: string;
@@ -45,6 +46,7 @@ function buildOpsQuery(filters?: OperationsFilters): string {
   const params = new URLSearchParams();
   if (f.q) params.set('q', String(f.q));
   if (f.firmId) params.set('firmId', String(f.firmId));
+  if (f.storeId) params.set('storeId', String(f.storeId));
   if (f.projectId) params.set('projectId', String(f.projectId));
   if (f.supplierId) params.set('supplierId', String(f.supplierId));
   if (f.status) params.set('status', String(f.status));
@@ -79,6 +81,8 @@ export type OperationsPoListRow = {
   prNumber: string;
   firmId: string;
   firmName: string;
+  storeId?: string | null;
+  storeName?: string | null;
   department: string;
   projectId?: string | null;
   projectName?: string | null;
