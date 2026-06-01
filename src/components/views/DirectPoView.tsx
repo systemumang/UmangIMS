@@ -289,7 +289,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
         const matched = resolveSelectedItem(next.itemNameId, next.specs);
         next.itemId = matched?.id ?? '';
         // Unit must come from Item Name master only (not from item/spec combination).
-        next.unit = (itemNames.find((x) => x.id === next.itemNameId) as any)?.unit ?? '';
+        const itemNameRow = itemNames.find((x) => x.id === next.itemNameId) as any;
+        next.unit = String(itemNameRow?.unitName ?? itemNameRow?.unit ?? '').trim();
       }
       return next;
     }));
