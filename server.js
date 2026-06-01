@@ -3212,11 +3212,13 @@ app.get('/api/queues/payment', async (req, res) => {
         proj.name AS projectName,
         po.supplier_id AS supplierId,
         s.name AS supplierName,
-        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
-        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
-        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
-        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
-      FROM invoices inv
+	        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+	        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+	        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
+	        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+	        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount,
+	        COALESCE(recq.debitNoteReceiptAmount, 0) AS debitNoteReceiptAmount
+	      FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN firms f ON f.id = po.firm_id
@@ -3256,8 +3258,18 @@ app.get('/api/queues/payment', async (req, res) => {
         WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
            OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
         GROUP BY invoice_id
-      ) adj ON adj.invoiceId = inv.id
-      WHERE ${where.join(' AND ')}
+	      ) adj ON adj.invoiceId = inv.id
+	      LEFT JOIN (
+	        SELECT
+	          invoice_id AS invoiceId,
+	          SUM(adjusted_amount) AS actualReceiptAmount,
+	          SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN adjusted_amount ELSE 0 END) AS debitNoteReceiptAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'DIRECT_PAYMENT'
+	           OR (receipt_type IS NULL AND payment_mode IS NOT NULL AND TRIM(payment_mode) <> '')
+	        GROUP BY invoice_id
+	      ) recq ON recq.invoiceId = inv.id
+	      WHERE ${where.join(' AND ')}
       ORDER BY inv.invoice_date DESC, inv.created_at DESC
       `,
       params
@@ -3265,19 +3277,24 @@ app.get('/api/queues/payment', async (req, res) => {
 
 	    let out = (Array.isArray(rows) ? rows : [])
 	      .map((r) => {
-		        const invoiceAmount = Number(r.invoiceAmount ?? 0);
-		        const adjustedAmount = Number(r.adjustedAmount ?? 0);
-		        const paymentAmount = Number(r.paymentAmount ?? 0);
-		        const debitNoteAmount = Number(r.debitNoteAmount ?? 0);
-		        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
-		        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
-		        const paymentModeLower = paymentMode.trim().toLowerCase();
-		        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+			        const invoiceAmount = Number(r.invoiceAmount ?? 0);
+			        const adjustedAmount = Number(r.adjustedAmount ?? 0);
+			        const paymentAmount = Number(r.paymentAmount ?? 0);
+			        const debitNoteAmount = Number(r.debitNoteAmount ?? 0);
+			        const actualReceiptAmount = Number(r.actualReceiptAmount ?? 0);
+			        const debitNoteReceiptAmount = Number(r.debitNoteReceiptAmount ?? 0);
+			        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+			        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+			        const paymentModeLower = paymentMode.trim().toLowerCase();
+			        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
 
-	        const isFull = paymentStatus.includes('full');
-	        const paidAmount = Math.max(0, paymentAmount);
-	        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount - Math.max(0, debitNoteAmount));
-	        return {
+		        const isFull = paymentStatus.includes('full');
+		        const paidAmountLegacy = Math.max(0, paymentAmount) + Math.max(0, debitNoteAmount);
+		        const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
+		        const paidFromDebitNote = Math.max(Math.max(0, debitNoteReceiptAmount), Math.max(0, debitNoteAmount));
+		        const paidAmount = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
+		        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
+		        return {
 	          invoiceId: String(r.invoiceId ?? ''),
           invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
           invoiceDate: toIsoDate(r.invoiceDate) || '',
@@ -3482,11 +3499,13 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 		        po.po_number AS poNumber,
 		        f.name AS firmName,
 		        s.name AS supplierName,
-		        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
-		        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
-		        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
-		        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
-		      FROM invoices inv
+			        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+			        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+			        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
+			        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+			        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount,
+			        COALESCE(recq.debitNoteReceiptAmount, 0) AS debitNoteReceiptAmount
+			      FROM invoices inv
 		      INNER JOIN purchase_orders po ON po.id = inv.po_id
 		      LEFT JOIN firms f ON f.id = po.firm_id
 		      LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -3524,8 +3543,18 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 		        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
 		           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
 		        GROUP BY invoice_id
-		      ) adj ON adj.invoiceId = inv.id
-		      WHERE inv.id = ?
+			      ) adj ON adj.invoiceId = inv.id
+			      LEFT JOIN (
+			        SELECT
+			          invoice_id AS invoiceId,
+			          SUM(adjusted_amount) AS actualReceiptAmount,
+			          SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN adjusted_amount ELSE 0 END) AS debitNoteReceiptAmount
+			        FROM po_advance_invoice_adjustments
+			        WHERE receipt_type = 'DIRECT_PAYMENT'
+			           OR (receipt_type IS NULL AND payment_mode IS NOT NULL AND TRIM(payment_mode) <> '')
+			        GROUP BY invoice_id
+			      ) recq ON recq.invoiceId = inv.id
+			      WHERE inv.id = ?
 		      LIMIT 1
 		      `,
 		      [invoiceId]
@@ -3539,11 +3568,17 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 	    const paymentStatusLower = String(r.paymentStatus ?? '').toLowerCase();
 	    const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
 	    const paymentModeLower = paymentMode.trim().toLowerCase();
-	    const isCash = paymentModeLower === 'cash';
-	    const isFull = paymentStatusLower.includes('full');
-	    const paidAmount = Math.max(0, Number(r.paymentAmount ?? 0));
-	    const debitNoteAmount = Math.max(0, Number(r.debitNoteAmount ?? 0));
-		    const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount - debitNoteAmount);
+		    const isCash = paymentModeLower === 'cash';
+		    const isFull = paymentStatusLower.includes('full');
+		    const paymentAmount = Math.max(0, Number(r.paymentAmount ?? 0));
+		    const debitNoteAmount = Math.max(0, Number(r.debitNoteAmount ?? 0));
+		    const actualReceiptAmount = Math.max(0, Number(r.actualReceiptAmount ?? 0));
+		    const debitNoteReceiptAmount = Math.max(0, Number(r.debitNoteReceiptAmount ?? 0));
+		    const paidAmountLegacy = paymentAmount + debitNoteAmount;
+		    const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
+		    const paidFromDebitNote = Math.max(debitNoteReceiptAmount, debitNoteAmount);
+		    const paidAmount = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
+			    const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - adjustedAmount - paidAmount);
 
 	    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
 	    const totalLinkedQty = Number(r.totalLinkedQty ?? 0);
