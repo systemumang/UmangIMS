@@ -8008,55 +8008,65 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableLeft = margin;
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
-	    // Columns tuned for A4 width so headers don't overflow.
-	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Disc%) | (Disc Amt) | (GST%) | (GST Amt) | Amt
-	    const colBounds = (() => {
-	      const b = [tableLeft];
-	      const serialW = 28;
-	      const itemW = showDimColumns ? 128 : 260;
-	      const dimW = 28;
-	      const pcsW = 28;
-	      const unitW = 28;
-	      const qtyW = 55;
-	      const rateW = 50;
-	      const discW = 35;
-	      const gstW = 35;
-	      const discAmtW = 55;
-	      const gstAmtW = 55;
-	      const fixed =
-	        serialW +
-	        itemW +
-	        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
-	        qtyW +
-	        rateW +
-	        (showDiscColumn ? discW : 0) +
-	        (showDiscAmountColumn ? discAmtW : 0) +
-	        (showGstColumn ? gstW : 0);
-	      const fixed2 = fixed + (showGstAmountColumn ? gstAmtW : 0);
-	      const amtW = Math.max(60, tableWidth - fixed2);
+		    // Columns tuned for A4 width so headers don't overflow.
+		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Amt Before GST) | (Disc%) | (Disc Amt) | (GST%) | (GST) | Amt
+		    const colBounds = (() => {
+		      const b = [tableLeft];
+		      const serialW = 28;
+		      const itemW = showDimColumns ? 128 : 260;
+		      const dimW = 28;
+		      const pcsW = 28;
+		      const unitW = 28;
+		      const qtyW = 55;
+		      const rateW = 50;
+		      const amtBeforeW = 70;
+		      const discW = 35;
+		      const gstW = 35;
+		      const discAmtW = 55;
+		      const gstAmtW = 55;
+		      const totalAmtW = 60;
+		      const showAmtBeforeColumn = showGstAmountColumn; // only meaningful when GST exists
+		      const fixed =
+		        serialW +
+		        itemW +
+		        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
+		        qtyW +
+		        rateW +
+		        (showAmtBeforeColumn ? amtBeforeW : 0) +
+		        (showDiscColumn ? discW : 0) +
+		        (showDiscAmountColumn ? discAmtW : 0) +
+		        (showGstColumn ? gstW : 0);
+		      const fixed2 = fixed + (showGstAmountColumn ? gstAmtW : 0) + totalAmtW;
+		      const itemPad = Math.max(0, tableWidth - fixed2);
+		      // If we have extra space, give it to the Item column.
+		      const itemExtra = Math.min(80, itemPad);
+		      const finalItemW = itemW + itemExtra;
+		      const remaining = tableWidth - (fixed2 + itemExtra);
+		      const finalTotalAmtW = Math.max(totalAmtW, totalAmtW + remaining);
 
-	      b.push(b[b.length - 1] + serialW);
-	      b.push(b[b.length - 1] + itemW);
-	      if (showDimColumns) {
-	        b.push(b[b.length - 1] + dimW); // L
-	        b.push(b[b.length - 1] + dimW); // B
-	        b.push(b[b.length - 1] + pcsW); // Pcs
-	        b.push(b[b.length - 1] + unitW); // Unit
-	      }
-	      b.push(b[b.length - 1] + qtyW);
-	      b.push(b[b.length - 1] + rateW);
-	      if (showDiscColumn) b.push(b[b.length - 1] + discW);
-	      if (showDiscAmountColumn) b.push(b[b.length - 1] + discAmtW);
-	      if (showGstColumn) b.push(b[b.length - 1] + gstW);
-	      if (showGstAmountColumn) b.push(b[b.length - 1] + gstAmtW);
-	      b.push(b[b.length - 1] + amtW);
+		      b.push(b[b.length - 1] + serialW);
+		      b.push(b[b.length - 1] + finalItemW);
+		      if (showDimColumns) {
+		        b.push(b[b.length - 1] + dimW); // L
+		        b.push(b[b.length - 1] + dimW); // B
+		        b.push(b[b.length - 1] + pcsW); // Pcs
+		        b.push(b[b.length - 1] + unitW); // Unit
+		      }
+		      b.push(b[b.length - 1] + qtyW);
+		      b.push(b[b.length - 1] + rateW);
+		      if (showAmtBeforeColumn) b.push(b[b.length - 1] + amtBeforeW);
+		      if (showDiscColumn) b.push(b[b.length - 1] + discW);
+		      if (showDiscAmountColumn) b.push(b[b.length - 1] + discAmtW);
+		      if (showGstColumn) b.push(b[b.length - 1] + gstW);
+		      if (showGstAmountColumn) b.push(b[b.length - 1] + gstAmtW);
+		      b.push(b[b.length - 1] + finalTotalAmtW);
 
 	      // Force the last bound to exactly tableRight to avoid drift.
 	      b[b.length - 1] = tableRight;
 	      return b;
 	    })();
 
-	    const col = {
+		    const col = {
 	      serialLeft: colBounds[0],
 	      serialRight: colBounds[1],
 	      itemLeft: colBounds[1],
@@ -8065,31 +8075,33 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      breadthRight: null,
 	      pcsRight: null,
 	      dimUnitRight: null,
-	      qtyRight: null,
-	      rateRight: null,
-	      discRight: null,
-	      discAmtRight: null,
-	      gstRight: null,
-	      gstAmtRight: null,
-	      taxableRight: null,
-	    };
-	    // Compute rights based on which optional columns are present.
-	    {
-	      let i = 2; // itemRight index
+		      qtyRight: null,
+		      rateRight: null,
+		      amtBeforeRight: null,
+		      discRight: null,
+		      discAmtRight: null,
+		      gstRight: null,
+		      gstAmtRight: null,
+		      totalAmtRight: null,
+		    };
+		    // Compute rights based on which optional columns are present.
+		    {
+		      let i = 2; // itemRight index
 	      if (showDimColumns) {
 	        col.lengthRight = colBounds[++i];
 	        col.breadthRight = colBounds[++i];
 	        col.pcsRight = colBounds[++i];
 	        col.dimUnitRight = colBounds[++i];
 	      }
-	      col.qtyRight = colBounds[++i];
-	      col.rateRight = colBounds[++i];
-	      if (showDiscColumn) col.discRight = colBounds[++i];
-	      if (showDiscAmountColumn) col.discAmtRight = colBounds[++i];
-	      if (showGstColumn) col.gstRight = colBounds[++i];
-	      if (showGstAmountColumn) col.gstAmtRight = colBounds[++i];
-	      col.taxableRight = colBounds[++i];
-	    }
+		      col.qtyRight = colBounds[++i];
+		      col.rateRight = colBounds[++i];
+		      if (showGstAmountColumn) col.amtBeforeRight = colBounds[++i];
+		      if (showDiscColumn) col.discRight = colBounds[++i];
+		      if (showDiscAmountColumn) col.discAmtRight = colBounds[++i];
+		      if (showGstColumn) col.gstRight = colBounds[++i];
+		      if (showGstAmountColumn) col.gstAmtRight = colBounds[++i];
+		      col.totalAmtRight = colBounds[++i];
+		    }
 
 	    const loadAnyImage = async (imageUrl) => {
 	      const value = String(imageUrl ?? '').trim();
@@ -8115,7 +8127,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const h1Y = headerBottom + headerHeight - 14;
 	    const h2Y = headerBottom + 5;
 	    drawAt('Sl No.', tableLeft + 4, h1Y, { bold: true, size: 8 });
-	    drawAt('Item Description', col.itemLeft + 4, h1Y, { bold: true, size: 8 });
+	    drawAt('Item', col.itemLeft + 4, h1Y, { bold: true, size: 8 });
 	    if (showDimColumns) {
 	      drawRight('L', col.lengthRight - 4, h1Y, { bold: true, size: 8 });
 	      drawRight('B', col.breadthRight - 4, h1Y, { bold: true, size: 8 });
@@ -8124,17 +8136,15 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    }
 	    drawRight('Qty', col.qtyRight - 4, h1Y, { bold: true, size: 8 });
 	    drawRight('Rate', col.rateRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showGstAmountColumn) {
+	      drawRight('Amt', col.amtBeforeRight - 4, h1Y, { bold: true, size: 8 });
+	      drawRight('Before GST', col.amtBeforeRight - 4, h2Y, { bold: true, size: 7 });
+	    }
 	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, h1Y, { bold: true, size: 8 });
 	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, h1Y, { bold: true, size: 8 });
 	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, h1Y, { bold: true, size: 8 });
 	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, h1Y, { bold: true, size: 8 });
-	    if (showGstAmountColumn) {
-	      // Avoid header overflow by splitting across two lines inside the same cell.
-	      drawRight('Amt', col.taxableRight - 8, h1Y, { bold: true, size: 8 });
-	      drawRight('Before GST', col.taxableRight - 8, h2Y, { bold: true, size: 7 });
-	    } else {
-	      drawRight('Amt', col.taxableRight - 8, h1Y, { bold: true, size: 8 });
-	    }
+	    drawRight('Amt', col.totalAmtRight - 8, h1Y, { bold: true, size: 8 });
     y -= headerHeight;
 
     let grandGoods = 0;
@@ -8184,6 +8194,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      }
 	      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
 	      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
+	      if (showGstAmountColumn) {
+	        drawRight(formatMoney(it.goodsAmount), col.amtBeforeRight - 4, rowTop - 6, { size: 8 });
+	      }
 	      if (showDiscColumn) {
 	        drawRight(Number(it.discountPercent ?? 0) > 0 ? formatNumber(it.discountPercent) : '', col.discRight - 4, rowTop - 6, { size: 8 });
 	      }
@@ -8196,7 +8209,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      if (showGstAmountColumn) {
 	        drawRight(Number(it.taxAmount ?? 0) > 0 ? formatMoney(it.taxAmount) : '', col.gstAmtRight - 4, rowTop - 6, { size: 8 });
 	      }
-	      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
+	      drawRight(formatMoney(it.totalAmount), col.totalAmtRight - 8, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += taxAmount;

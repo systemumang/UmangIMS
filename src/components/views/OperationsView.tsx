@@ -2299,13 +2299,17 @@ export default function OperationsView({
                         const goodsAmt = Number(l.quantity || 0) * Number(l.rate || 0) * (1 - (Number(l.discountPercent || 0) / 100));
                         const gstAmt = goodsAmt * (Number(l.taxPercent || 0) / 100);
                         const totalAmt = goodsAmt + gstAmt;
-                        return (
-                          <>
-                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface flex items-center justify-end">{gstAmt.toFixed(2)}</td>
-                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface flex items-center justify-end">{totalAmt.toFixed(2)}</td>
-                          </>
-                        );
-                      })()}
+	                        return (
+	                          <>
+	                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface whitespace-nowrap">
+	                              {gstAmt.toFixed(2)}
+	                            </td>
+	                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface whitespace-nowrap">
+	                              {totalAmt.toFixed(2)}
+	                            </td>
+	                          </>
+	                        );
+	                      })()}
                     </tr>
                   ))
                 ) : (
