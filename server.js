@@ -8010,61 +8010,56 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableWidth = tableRight - tableLeft;
 		    // Columns tuned for A4 width so headers don't overflow.
 		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Amt Before GST) | (Disc%) | (Disc Amt) | (GST%) | (GST) | Amt
-		    const colBounds = (() => {
-		      const b = [tableLeft];
-		      const serialW = 28;
-		      const itemW = showDimColumns ? 128 : 260;
-		      const dimW = 28;
-		      const pcsW = 28;
-		      const unitW = 28;
-		      const qtyW = 55;
-		      const rateW = 50;
-		      const amtBeforeW = 70;
-		      const discW = 35;
-		      const gstW = 35;
-		      const discAmtW = 55;
-		      const gstAmtW = 55;
-		      const totalAmtW = 60;
-		      const showAmtBeforeColumn = showGstAmountColumn; // only meaningful when GST exists
-		      const fixed =
-		        serialW +
-		        itemW +
-		        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
-		        qtyW +
-		        rateW +
-		        (showAmtBeforeColumn ? amtBeforeW : 0) +
-		        (showDiscColumn ? discW : 0) +
-		        (showDiscAmountColumn ? discAmtW : 0) +
-		        (showGstColumn ? gstW : 0);
-		      const fixed2 = fixed + (showGstAmountColumn ? gstAmtW : 0) + totalAmtW;
-		      const itemPad = Math.max(0, tableWidth - fixed2);
-		      // If we have extra space, give it to the Item column.
-		      const itemExtra = Math.min(80, itemPad);
-		      const finalItemW = itemW + itemExtra;
-		      const remaining = tableWidth - (fixed2 + itemExtra);
-		      const finalTotalAmtW = Math.max(totalAmtW, totalAmtW + remaining);
+			    const colBounds = (() => {
+			      const serialW = 28;
+			      const dimW = 28;
+			      const pcsW = 28;
+			      const unitW = 32;
+			      const qtyW = 55;
+			      const rateW = 50;
+			      const amtBeforeW = 72;
+			      const discW = 35;
+			      const discAmtW = 58;
+			      const gstW = 35;
+			      const gstAmtW = 58;
+			      const totalAmtW = 70;
+			      const showAmtBeforeColumn = Boolean(showGstAmountColumn);
 
-		      b.push(b[b.length - 1] + serialW);
-		      b.push(b[b.length - 1] + finalItemW);
-		      if (showDimColumns) {
-		        b.push(b[b.length - 1] + dimW); // L
-		        b.push(b[b.length - 1] + dimW); // B
-		        b.push(b[b.length - 1] + pcsW); // Pcs
-		        b.push(b[b.length - 1] + unitW); // Unit
-		      }
-		      b.push(b[b.length - 1] + qtyW);
-		      b.push(b[b.length - 1] + rateW);
-		      if (showAmtBeforeColumn) b.push(b[b.length - 1] + amtBeforeW);
-		      if (showDiscColumn) b.push(b[b.length - 1] + discW);
-		      if (showDiscAmountColumn) b.push(b[b.length - 1] + discAmtW);
-		      if (showGstColumn) b.push(b[b.length - 1] + gstW);
-		      if (showGstAmountColumn) b.push(b[b.length - 1] + gstAmtW);
-		      b.push(b[b.length - 1] + finalTotalAmtW);
+			      const fixedExceptItem =
+			        serialW +
+			        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
+			        qtyW +
+			        rateW +
+			        (showAmtBeforeColumn ? amtBeforeW : 0) +
+			        (showDiscColumn ? discW : 0) +
+			        (showDiscAmountColumn ? discAmtW : 0) +
+			        (showGstColumn ? gstW : 0) +
+			        (showGstAmountColumn ? gstAmtW : 0) +
+			        totalAmtW;
 
-	      // Force the last bound to exactly tableRight to avoid drift.
-	      b[b.length - 1] = tableRight;
-	      return b;
-	    })();
+			      const itemW = Math.max(120, tableWidth - fixedExceptItem);
+
+			      const widths = [
+			        serialW,
+			        itemW,
+			        ...(showDimColumns ? [dimW, dimW, pcsW, unitW] : []),
+			        qtyW,
+			        rateW,
+			        ...(showAmtBeforeColumn ? [amtBeforeW] : []),
+			        ...(showDiscColumn ? [discW] : []),
+			        ...(showDiscAmountColumn ? [discAmtW] : []),
+			        ...(showGstColumn ? [gstW] : []),
+			        ...(showGstAmountColumn ? [gstAmtW] : []),
+			        totalAmtW,
+			      ];
+
+			      const b = [tableLeft];
+			      for (const w of widths) b.push(b[b.length - 1] + w);
+
+			      // Force the last bound to exactly tableRight to avoid drift.
+			      b[b.length - 1] = tableRight;
+			      return b;
+			    })();
 
 		    const col = {
 	      serialLeft: colBounds[0],
