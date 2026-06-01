@@ -6,6 +6,7 @@ import { fetchOperationsInvoiceDetail } from '@/src/lib/operations';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
+import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
@@ -508,7 +509,7 @@ export default function PaymentQueueView({
                               className={cn(inputClass, 'py-1.5')}
                               inputMode="decimal"
                               value={paymentAmountInput}
-                              onChange={(e) => setPaymentAmountInput(e.target.value)}
+	                              onChange={(e) => setPaymentAmountInput(sanitizeDecimalInput(e.target.value))}
                             />
                           </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>

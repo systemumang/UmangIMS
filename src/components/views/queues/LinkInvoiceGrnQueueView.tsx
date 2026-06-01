@@ -5,6 +5,7 @@ import { fetchQueueLinkInvoiceGrn, type LinkInvoiceGrnQueueRow, type QueueFilter
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
+import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
@@ -344,7 +345,12 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                            <input
 	                              className={cn(inputClass, 'py-1.5 pl-2 pr-12 text-right')}
 	                              value={d.linkQty}
-	                              onChange={(e) => setDraftByGrnItemId((prev) => ({ ...prev, [r.grnItemId]: { ...d, linkQty: e.target.value } }))}
+		                              onChange={(e) =>
+		                                setDraftByGrnItemId((prev) => ({
+		                                  ...prev,
+		                                  [r.grnItemId]: { ...d, linkQty: sanitizeDecimalInput(e.target.value) },
+		                                }))
+		                              }
 	                              inputMode="decimal"
 	                            />
 		                            {unitText && (

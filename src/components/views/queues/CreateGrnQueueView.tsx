@@ -6,6 +6,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { formatMax2 } from '@/src/lib/formatNumber';
+import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import Pagination from '@/src/components/common/Pagination';
@@ -715,7 +716,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
                                   value={dims.length}
                                   onChange={(e) => {
-                                    const v = e.target.value;
+	                                    const v = sanitizeDecimalInput(e.target.value);
                                     setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), length: v } }));
                                     const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
                                     setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
@@ -742,7 +743,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   className={cn(inputClass, 'py-1 pl-2 pr-6 h-8 text-xs')}
                                   value={dims.breadth}
                                   onChange={(e) => {
-                                    const v = e.target.value;
+	                                    const v = sanitizeDecimalInput(e.target.value);
                                     setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), breadth: v } }));
                                     const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
                                     setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
@@ -781,7 +782,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           <input
                             className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right disabled:bg-surface-container-low disabled:opacity-50')}
                             value={roundOffByItemId[it.itemId] ?? ''}
-                            onChange={(e) => setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
+	                            onChange={(e) =>
+	                              setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
+	                            }
                             inputMode="decimal"
                             placeholder={isAreaUnit ? "0.00" : "-"}
                             disabled={!isAreaUnit}
@@ -799,7 +802,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   if (ro === 0) return q;
                                   return (round2(Number(q) + ro)).toFixed(2);
                                 })()}
-                                onChange={(e) => setQtyByItemId((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
+	                                onChange={(e) =>
+	                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
+	                                }
                                 inputMode="decimal"
                                 disabled={isAreaUnit}
                               />
