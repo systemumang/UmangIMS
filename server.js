@@ -376,8 +376,34 @@ function getMysqlPool() {
       await ensureColumn('invoice_items', 'dim_pcs', 'INT NULL');
       await ensureColumn('invoice_items', 'dim_input_unit', 'VARCHAR(8) NULL');
 
-      // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
-      await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
+	      // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
+	      await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
+	      // Migrate old uniqueness (specification_id + value) to scoped uniqueness
+	      // (specification_id + item_name_id + value). This allows same value for different item names.
+	      try {
+	        const [uniqRows] = await pool.query(
+	          `
+	          SELECT DISTINCT INDEX_NAME AS indexName
+	          FROM information_schema.statistics
+	          WHERE table_schema = DATABASE()
+	            AND table_name = 'specification_values'
+	            AND non_unique = 0
+	            AND INDEX_NAME <> 'PRIMARY'
+	          `
+	        );
+	        for (const r of uniqRows || []) {
+	          const idx = String(r.indexName ?? '').trim();
+	          if (!idx) continue;
+	          try {
+	            await pool.query(`ALTER TABLE specification_values DROP INDEX \`${idx}\``);
+	          } catch {}
+	        }
+	        await pool.query(
+	          'ALTER TABLE specification_values ADD UNIQUE INDEX uq_spec_values_scope (specification_id, item_name_id, value)'
+	        );
+	      } catch (e) {
+	        console.error('Unable to migrate specification_values unique index:', e);
+	      }
 
       // Mapping: which specifications apply to an Item Name.
       await pool.query(`
@@ -10786,6 +10812,18 @@ app.post('/api/masters/specification-values', async (req, res) => {
     const value = String(req.body?.value ?? '').trim();
     if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     if (!value) return res.status(400).json({ error: 'value is required' });
+    const [[dup]] = await pool.query(
+      `
+      SELECT id
+      FROM specification_values
+      WHERE specification_id = ?
+        AND COALESCE(item_name_id, '') = ?
+        AND value = ?
+      LIMIT 1
+      `,
+      [specificationId, itemNameId, value]
+    );
+    if (dup?.id) return res.status(400).json({ error: 'Value already exists' });
     const id = crypto.randomUUID();
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
     await pool.query(
@@ -10819,6 +10857,19 @@ app.put('/api/masters/specification-values/:id', async (req, res) => {
     const currentSpecificationId = String(currentRow.specificationId ?? '').trim();
     const currentItemNameId = String(currentRow.itemNameId ?? '').trim();
     const currentValue = String(currentRow.value ?? '').trim();
+    const [[dup]] = await pool.query(
+      `
+      SELECT id
+      FROM specification_values
+      WHERE specification_id = ?
+        AND COALESCE(item_name_id, '') = ?
+        AND value = ?
+        AND id <> ?
+      LIMIT 1
+      `,
+      [specificationId, itemNameId, value, id]
+    );
+    if (dup?.id) return res.status(400).json({ error: 'Value already exists' });
     const changingKey = currentSpecificationId !== specificationId || currentItemNameId !== itemNameId || currentValue !== value;
     if (changingKey) {
       const [[usageRow]] = await pool.query(
