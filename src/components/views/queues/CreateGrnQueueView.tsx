@@ -5,6 +5,7 @@ import { fetchQueueCreateGrn, type CreateGrnQueueRow, type QueueFilters } from '
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { formatMax2 } from '@/src/lib/formatNumber';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import Pagination from '@/src/components/common/Pagination';
@@ -309,7 +310,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingQty}</td>
+	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2(r.pendingQty)}</td>
 	                      <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
@@ -383,7 +384,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                           <td className="px-3 py-2 border border-outline-variant">{Number(dimP) || '-'}</td>
                                           <td className="px-3 py-2 border border-outline-variant">{String(rawIt.priority ?? (r as any).priority ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
-                                            {Number(it.pendingQty ?? 0)}
+                                            {formatMax2(it.pendingQty ?? 0)}
                                             {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                                             {(() => {
                                               const conv = getConvertedArea(String(it.pendingQty ?? ''), areaUnit);
@@ -624,12 +625,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Breadth</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">PCs</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Unit</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN L</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN B</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN PCs</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">Round Off</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-blue-800 text-center">GRN Total Qty</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Unit</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN L</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN B</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN PCs</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Round Off</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Total Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -671,22 +672,22 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
               </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{unit || '-'}</td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
-                            {dimL ? `${Number(dimL)} ${dimUnit}` : '-'}
+                            {dimL ? `${formatMax2(dimL)} ${dimUnit}` : '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimL ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
                           <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">
-                            {dimB ? `${Number(dimB)} ${dimUnit}` : '-'}
+                            {dimB ? `${formatMax2(dimB)} ${dimUnit}` : '-'}
                             {(() => {
                               const conv = getConvertedDim(String(dimB ?? ''), dimUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
                             })()}
                           </td>
-                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{Number(dimP) || '-'}</td>
+                          <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top text-center">{Number(dimP) ? formatMax2(dimP) : '-'}</td>
 	                        <td className="px-2 py-2 text-sm text-on-surface-variant border border-black align-top tabular-nums text-right">
-                            {Number(it.quantity ?? 0)}
+                            {formatMax2(it.quantity ?? 0)}
                             {(() => {
                               const conv = getConvertedArea(String(it.quantity ?? ''), areaUnit);
                               return conv ? <div className="text-[10px] text-red-600 font-medium mt-0.5">{conv}</div> : null;
@@ -822,7 +823,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   </div>
                                   {inputAreaUnitLabel !== poAreaUnitLabel && (
                                     <div className="text-[10px] text-red-600 font-medium leading-tight">
-                                      (= {Number(qStr).toFixed(2)} {poAreaUnitLabel})
+                                      (= {Math.trunc(Number(qStr) || 0)} {poAreaUnitLabel})
                                     </div>
                                   )}
                                 </div>

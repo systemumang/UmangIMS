@@ -402,20 +402,18 @@ export default function PaymentQueueView({
                   <col className="w-[420px]" />
                   <col className="w-[80px]" />
                   <col className="w-[140px]" />
-                  <col className="w-[140px]" />
                 </colgroup>
                 <thead>
                   <tr className="bg-primary text-on-primary">
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant text-center">Unit</th>
                     <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Qty</th>
-                    <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoiceDetailLoading ? (
                     <tr>
-                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={4}>Loading invoice details...</td>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>Loading invoice details...</td>
                     </tr>
                   ) : (invoiceDetail?.invoice?.items?.length ?? 0) > 0 ? (
                     (invoiceDetail.invoice.items as any[]).map((it: any, idx: number) => (
@@ -423,14 +421,11 @@ export default function PaymentQueueView({
                         <td className="px-3 py-2 text-sm border border-outline-variant whitespace-normal break-words">{formatItemInline(it.item, it.specificationsJson, specNameById)}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant text-center">{it.unit || '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-                          {Number(lines.find((x) => String(x.itemId) === String(it.itemId))?.linkedQty ?? 0).toFixed(2)}
-                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={4}>No invoice items found.</td>
+                      <td className="px-3 py-3 text-sm text-on-surface-variant border border-outline-variant" colSpan={3}>No invoice items found.</td>
                     </tr>
                   )}
                 </tbody>

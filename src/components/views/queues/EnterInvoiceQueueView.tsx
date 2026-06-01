@@ -5,6 +5,7 @@ import { fetchQueueEnterInvoice, type EnterInvoiceQueueRow, type QueueFilters } 
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import { clampPercentString, sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
+import { formatMax2 } from '@/src/lib/formatNumber';
 
 function cn(...classes: any[]) {
   return classes.filter(Boolean).join(' ');
@@ -458,7 +459,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingQty}</td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2(r.pendingQty)}</td>
                       <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
@@ -504,12 +505,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                         >
                                           <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
                                           <td className="px-3 py-2 border border-outline-variant tabular-nums">
-                                            {Number(it.pendingQty ?? 0)}
+                                            {formatMax2(it.pendingQty ?? 0)}
                                           </td>
                                           <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
-                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
-                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}%</td>
-                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}%</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{formatMax2(it.rate ?? 0)}</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{formatMax2(it.discountPercent ?? 0)}%</td>
+                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{formatMax2(it.taxPercent ?? 0)}%</td>
                                         </tr>
                                       ))
                                   ) : (
@@ -928,7 +929,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                           <td className="px-2 py-2 border border-black text-center">{ln.poDimLength || '-'}</td>
                           <td className="px-2 py-2 border border-black text-center">{ln.poDimBreadth || '-'}</td>
                           <td className="px-2 py-2 border border-black text-center">{ln.poDimPcs || '-'}</td>
-                          <td className="px-2 py-2 border border-black tabular-nums text-right font-semibold">{ln.poQty}</td>
+                          <td className="px-2 py-2 border border-black tabular-nums text-right font-semibold">{formatMax2(ln.poQty)}</td>
 
                           {/* INVOICE INPUTS */}
                           <td className="px-1 py-2 border border-black align-middle text-center" onClick={(e) => e.stopPropagation()}>

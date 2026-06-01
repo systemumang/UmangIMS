@@ -256,48 +256,60 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
               <div className="text-sm text-on-surface-variant">Loading details...</div>
             ) : invoiceDetail ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                  <div><span className="font-semibold">Invoice No:</span> {invoiceDetail.invoice.supplierInvoiceNo || '-'}</div>
-                  <div><span className="font-semibold">Invoice Date:</span> {invoiceDetail.invoice.invoiceDate ? formatDateDDMMYYYYOnly(invoiceDetail.invoice.invoiceDate) : '-'}</div>
-                  <div><span className="font-semibold">Amount:</span> {Number(invoiceDetail.invoice.invoiceAmount ?? 0).toFixed(2)}</div>
-                  <div><span className="font-semibold">Eway Bill:</span> {invoiceDetail.invoice.ewayBillNumber || '-'}</div>
-                  <div><span className="font-semibold">CN/Courier:</span> {invoiceDetail.invoice.cnNumber || invoiceDetail.invoice.courierNumber || '-'}</div>
-                </div>
-                <div className="overflow-auto">
-                  <table className="w-full text-xs border border-outline-variant table-fixed">
-                    <thead>
-                      <tr className="bg-surface-container-high">
-                        <th className="px-2 py-1 border border-outline-variant text-left">Item</th>
-                        <th className="px-2 py-1 border border-outline-variant text-center w-[60px]">Unit</th>
-                        <th className="px-2 py-1 border border-outline-variant text-left w-[120px]">Specifications</th>
-                        <th className="px-2 py-1 border border-outline-variant text-left w-[120px]">Dimensions</th>
-                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">Qty</th>
-                        <th className="px-2 py-1 border border-outline-variant text-right w-[100px]">Rate</th>
-                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">GST %</th>
-                      </tr>
-                    </thead>
+	                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+	                  <div><span className="font-semibold">Invoice No:</span> {invoiceDetail.invoice.supplierInvoiceNo || '-'}</div>
+	                  <div><span className="font-semibold">Invoice Date:</span> {invoiceDetail.invoice.invoiceDate ? formatDateDDMMYYYYOnly(invoiceDetail.invoice.invoiceDate) : '-'}</div>
+	                  <div><span className="font-semibold">Amount:</span> {Number(invoiceDetail.invoice.invoiceAmount ?? 0).toFixed(2)}</div>
+	                  <div><span className="font-semibold">Eway Bill:</span> {invoiceDetail.invoice.ewayBillNumber || '-'}</div>
+	                  <div><span className="font-semibold">CN/Courier:</span> {invoiceDetail.invoice.cnNumber || invoiceDetail.invoice.courierNumber || '-'}</div>
+	                  <div>
+	                    <span className="font-semibold">Invoice PDF:</span>{' '}
+	                    {invoiceDetail.invoice.documentUrl ? (
+	                      <a href={invoiceDetail.invoice.documentUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+	                        View PDF
+	                      </a>
+	                    ) : (
+	                      '-'
+	                    )}
+	                  </div>
+	                </div>
+	                <div className="overflow-auto">
+	                  <table className="w-full text-xs border border-outline-variant table-fixed">
+	                    <thead>
+	                      <tr className="bg-surface-container-high">
+	                        <th className="px-2 py-1 border border-outline-variant text-left">Item</th>
+	                        <th className="px-2 py-1 border border-outline-variant text-center w-[60px]">Unit</th>
+	                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">Qty</th>
+	                        <th className="px-2 py-1 border border-outline-variant text-right w-[100px]">Rate</th>
+	                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">GST %</th>
+	                      </tr>
+	                    </thead>
                     <tbody>
                       {invoiceDetail.items
                         .filter((it) => !selectedItemId || it.itemId === selectedItemId)
                         .map((it) => {
                           const raw = it as any;
                           return (
-                          <tr
-                            key={it.id || `${it.itemId}-${it.item}`}
-                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
-                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
-                          >
-                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">{it.item || it.itemId}</td>
-                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
-                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">
-                              {formatSpecs(raw.specificationsJson)}
-                            </td>
-                            <td className="px-2 py-1 border border-outline-variant whitespace-nowrap">
-                              {raw.dimLength ? `${raw.dimLength} x ${raw.dimBreadth} x ${raw.dimPcs} ${raw.dimUnit || ''}` : '-'}
-                            </td>
-                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
-                              {Number(it.quantity ?? 0).toFixed(2)}
-                            </td>
+	                          <tr
+	                            key={it.id || `${it.itemId}-${it.item}`}
+	                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
+	                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+	                          >
+	                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">
+	                              <div className="font-medium">{it.item || it.itemId}</div>
+	                              {formatSpecs(raw.specificationsJson) ? (
+	                                <div className="text-[11px] text-on-surface-variant mt-0.5">{formatSpecs(raw.specificationsJson)}</div>
+	                              ) : null}
+	                              {raw.dimLength ? (
+	                                <div className="text-[11px] text-on-surface-variant mt-0.5">
+	                                  {`${raw.dimLength} x ${raw.dimBreadth} x ${raw.dimPcs} ${raw.dimUnit || ''}`}
+	                                </div>
+	                              ) : null}
+	                            </td>
+	                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
+	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
+	                              {Number(it.quantity ?? 0).toFixed(2)}
+	                            </td>
                             <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
                             <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
                           </tr>

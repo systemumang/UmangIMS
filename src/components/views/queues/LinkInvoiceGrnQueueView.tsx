@@ -117,16 +117,15 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
       ) : (
         <QueueCard title="Link Invoice ↔ GRN" subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] table-fixed text-left border-collapse border border-outline-variant">
-              <colgroup>
-                <col className="w-[180px]" />
-                <col className="w-[140px]" />
-                <col className="w-[160px]" />
-                <col className="w-[230px]" />
-                <col className="w-[210px]" />
-                <col className="w-[140px]" />
-                <col className="w-[200px]" />
-              </colgroup>
+	            <table className="w-full min-w-[1100px] table-fixed text-left border-collapse border border-outline-variant">
+	              <colgroup>
+	                <col className="w-[180px]" />
+	                <col className="w-[140px]" />
+	                <col className="w-[160px]" />
+	                <col className="w-[230px]" />
+	                <col className="w-[210px]" />
+	                <col className="w-[200px]" />
+	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GRN</th>
@@ -134,8 +133,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Items</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,8 +145,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingItems}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
+	                      <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
                             type="button"
@@ -166,9 +163,9 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
                   ))
                 ) : (
                   <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
-                      No records.
-                    </td>
+	                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
+	                      No records.
+	                    </td>
                   </tr>
                 )}
               </tbody>
@@ -281,16 +278,17 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
               </thead>
               <tbody>
                 {pending.length ? (
-                  pending.map((r) => {
-                    const d = draftByGrnItemId[r.grnItemId] ?? { invoiceItemId: '', linkQty: '' };
-                    const cand = (r.candidates ?? []).find((c) => c.invoiceItemId === d.invoiceItemId);
-                    return (
-                      <tr key={r.grnItemId}>
+	                  pending.map((r) => {
+	                    const d = draftByGrnItemId[r.grnItemId] ?? { invoiceItemId: '', linkQty: '' };
+	                    const cand = (r.candidates ?? []).find((c) => c.invoiceItemId === d.invoiceItemId);
+	                    const unitText = String((r as any).unit ?? (r as any).unitName ?? (r as any).itemUnit ?? (r as any).poUnit ?? '').trim();
+	                    return (
+	                      <tr key={r.grnItemId}>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.grnNumber}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
                         <td className="px-3 py-2 text-sm border border-outline-variant">{r.poNumber}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson, specNameById)}</td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant">{r.unit || '-'}</td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant">{unitText || '-'}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {r.grnQty}
 	                        </td>
@@ -327,19 +325,19 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{cand?.invoiceDate ? formatDateDDMMYYYYOnly(cand.invoiceDate) : '-'}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {cand ? cand.invoiceQty : '-'}
-	                          {cand && r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+		                          {cand && unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {cand ? cand.alreadyLinkedQty : '-'}
-	                          {cand && r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+		                          {cand && unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {r.approvedQty}
-	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+		                          {unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
 	                          {r.pendingLinkingQty}
-	                          {r.unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{r.unit}</span> : null}
+		                          {unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 border border-outline-variant">
 	                          <div className="relative">
@@ -349,11 +347,11 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                              onChange={(e) => setDraftByGrnItemId((prev) => ({ ...prev, [r.grnItemId]: { ...d, linkQty: e.target.value } }))}
 	                              inputMode="decimal"
 	                            />
-	                            {r.unit && (
-	                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
-	                                {r.unit}
-	                              </div>
-	                            )}
+		                            {unitText && (
+		                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-on-surface-variant/60 font-bold pointer-events-none uppercase">
+		                                {unitText}
+		                              </div>
+		                            )}
 	                          </div>
 	                        </td>
                       </tr>
