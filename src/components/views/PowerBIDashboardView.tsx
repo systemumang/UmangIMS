@@ -34,11 +34,12 @@ import { fetchRequests } from '@/src/lib/purchaseRequests';
 	  fetchQueueApproveCreditVoucher,
 	  fetchQueueLinkInvoiceGrn,
 	  fetchQueuePayment,
+	  fetchQueueExcessPaidInvoices,
 	  fetchQueueCreditVoucherPayment,
 	  fetchQueueTallyEntry,
 	  fetchQueueQc,
 	  fetchQueueSendPo,
-	} from '@/src/lib/queues';
+		} from '@/src/lib/queues';
 
 function formatDDMMYYYY(d: Date) {
   const dd = String(d.getDate()).padStart(2, '0');
@@ -102,10 +103,11 @@ export default function PowerBIDashboardView({
 	      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
 	      fetchQueueApproveCreditVoucher(undefined, ac.signal).then((r) => ['queueApproveCreditVoucher', r.length] as const),
 	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
-	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
-	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
-	      fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
-	    ])
+		      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
+		      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
+	      fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['queueExcessPaidInvoices', r.length] as const),
+		      fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
+		    ])
       .then((pairs) => {
         const next: any = {};
         for (const [k, v] of pairs) next[k] = v;
@@ -229,10 +231,11 @@ export default function PowerBIDashboardView({
 	      queueTallyEntry: Receipt,
 	      queueLinkInvoiceGrn: Link2,
 	      queuePayment: CreditCard,
+	      queueExcessPaidInvoices: CreditCard,
 	      queueCreditVoucherPayment: CreditCard,
 	    }),
-    []
-  );
+	    []
+	  );
 
   const pendingRowBg = (idx: number) =>
     idx % 6 === 0
@@ -395,9 +398,9 @@ export default function PowerBIDashboardView({
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingQueueItems.map((item, idx) => {
-                    const Icon = pendingIconByKey[item.key];
-                    return (
+	                  {pendingQueueItems.map((item, idx) => {
+	                    const Icon = pendingIconByKey[item.key] ?? ClipboardList;
+	                    return (
                       <tr key={item.key} className={cn(pendingRowBg(idx), 'border-b border-[#111827]/70')}>
                         <td className="px-3 py-2 text-sm border border-[#111827]/70">
                           <span className="inline-flex items-center gap-2 font-semibold text-on-surface">
