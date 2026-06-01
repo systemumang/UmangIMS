@@ -7851,10 +7851,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     };
 
     const formatMoney = (value) => Number(value || 0).toFixed(2);
-    const formatNumber = (value) => {
-      const n = Number(value ?? 0);
-      return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
-    };
+	    const formatNumber = (value) => {
+	      const n = Number(value ?? 0);
+	      return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
+	    };
     const formatDate = (value) => {
       const iso = toIsoDate(value);
       if (!iso) return '-';

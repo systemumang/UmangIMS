@@ -1,18 +1,23 @@
 export function sanitizeDecimalInput(raw: string): string {
   const s = String(raw ?? '');
-  let out = '';
+  let whole = '';
+  let frac = '';
   let dotUsed = false;
   for (const ch of s) {
     if (ch >= '0' && ch <= '9') {
-      out += ch;
+      if (dotUsed) {
+        if (frac.length < 2) frac += ch;
+      } else {
+        whole += ch;
+      }
       continue;
     }
     if (ch === '.' && !dotUsed) {
-      out += ch;
       dotUsed = true;
     }
   }
-  return out;
+  if (!dotUsed) return whole;
+  return `${whole}.${frac}`;
 }
 
 export function sanitizePercentInput(raw: string): string {
@@ -36,4 +41,3 @@ export function numberOrZero(raw: string): number {
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
-
