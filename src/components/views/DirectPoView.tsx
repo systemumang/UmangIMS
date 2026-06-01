@@ -4,18 +4,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 		import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
 		import { createDirectPo } from '@/src/lib/purchaseRequests';
 	import { fetchInventorySheet } from '@/src/lib/inventory';
-import {
-  fetchFirms,
-  fetchItemNames,
-  fetchItems,
-	  fetchSpecificationValues,
-	  fetchProjects,
-	  fetchSpecifications,
-  fetchStores,
-  fetchSuppliers,
-  fetchUsers,
-  type Firm,
-	  type Item,
+	import {
+	  fetchFirms,
+	  fetchItemNames,
+	  fetchItems,
+		  fetchSpecificationValues,
+		  fetchProjects,
+		  fetchSpecifications,
+	  createSpecificationValue,
+	  fetchStores,
+	  fetchSuppliers,
+	  fetchUsers,
+	  type Firm,
+		  type Item,
 	  type ItemName,
 	  type Project,
 	  type Specification,
@@ -23,7 +24,7 @@ import {
 	  type Store,
 	  type Supplier,
 	  type User,
-	} from '@/src/lib/masters';
+		} from '@/src/lib/masters';
 	import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
 
 function normalizeAreaUnitName(unitName: string) {
@@ -571,22 +572,64 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                           }
                           const value = String(l.specs?.[specId] ?? '');
                           const key = specValueKey(l.itemNameId, specId);
-                          const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
-                          if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
-                          return (
-                            <div key={`${idx}-${specId}`} className="p-2 border-r border-outline-variant">
-                              <SearchableSelect
-                                value={value}
-                                options={options}
-                                placeholder="Select"
-                                onChange={(selectedValue) => {
-                                  const nextSpecs = { ...(l.specs ?? {}), [specId]: selectedValue };
-                                  updateLine(idx, { specs: nextSpecs });
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
+	                          const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+	                          if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+	                          return (
+	                            <div key={`${idx}-${specId}`} className="p-2 border-r border-outline-variant">
+	                              <SearchableSelect
+	                                value={value}
+	                                options={options}
+	                                placeholder="Select"
+	                                showCreateWhenEmpty
+	                                alwaysShowCreate
+	                                allowEmptyCreate
+	                                closeOnCreate
+	                                createLabel={(q) => (q ? `+ Add New \"${q}\"` : '+ Add New')}
+	                                onChange={(selectedValue) => {
+	                                  const nextSpecs = { ...(l.specs ?? {}), [specId]: selectedValue };
+	                                  updateLine(idx, { specs: nextSpecs });
+	                                }}
+	                                onCreate={async (label) => {
+	                                  const v = String(label ?? '').trim();
+	                                  if (!v) return null;
+	                                  const itemNameId = String(l.itemNameId ?? '').trim();
+	                                  if (!itemNameId) return null;
+	                                  try {
+	                                    const created = await createSpecificationValue({
+	                                      specificationId: specId,
+	                                      itemNameId,
+	                                      value: v,
+	                                      createdBy: 'system',
+	                                    });
+	                                    const next = created?.specificationValue;
+	                                    const finalValue = String(next?.value ?? v);
+	                                    setSpecValueOptions((m) => {
+	                                      const prev = m[key] ?? [];
+	                                      if (prev.some((p) => p.value === finalValue)) return m;
+	                                      if (next) return { ...m, [key]: [...prev, next] };
+	                                      return {
+	                                        ...m,
+	                                        [key]: [
+	                                          ...prev,
+	                                          {
+	                                            id: `NEW-${Date.now()}-${Math.random()}`,
+	                                            specificationId: specId,
+	                                            itemNameId,
+	                                            value: finalValue,
+	                                            isActive: true,
+	                                          },
+	                                        ],
+	                                      };
+	                                    });
+	                                    return { value: finalValue, label: finalValue };
+	                                  } catch {
+	                                    return null;
+	                                  }
+	                                }}
+	                              />
+	                            </div>
+	                          );
+	                        })}
                       <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">
                         {l.unit || '-'}
                       </div>
