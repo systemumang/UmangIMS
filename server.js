@@ -6944,8 +6944,11 @@ app.post('/api/pos/:id/grn', async (req, res) => {
         const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
         const qtyReceivedInput = Number(row?.quantityReceived ?? 0);
+        const roundOffInput = Number(row?.roundOff ?? 0);
         const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
-        const qtyReceived = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : qtyReceivedInput;
+        const qtyConverted = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : qtyReceivedInput;
+        const qtyReceivedRaw = isArea ? (qtyConverted + (Number.isFinite(roundOffInput) ? roundOffInput : 0)) : qtyReceivedInput;
+        const qtyReceived = round2(qtyReceivedRaw);
 
         if (isArea) {
           if (!poDimUnit || (inputUnit !== 'ft' && inputUnit !== 'm')) return res.status(400).json({ error: 'Invalid GRN input unit for area-unit item' });

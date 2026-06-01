@@ -6,6 +6,8 @@ import { fetchQueueQc, type QcQueueRow, type QueueFilters } from '@/src/lib/queu
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { formatMax2 } from '@/src/lib/formatNumber';
+import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
 
@@ -131,18 +133,18 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
       .then((grns) => {
         const g = (grns ?? []).find((x) => x.grn.id === active.grnId);
         if (!g) throw new Error('GRN not found');
-	        setLines(
-	          (g.items ?? []).map((it) => ({
-	            itemId: it.itemId,
-	            item: it.item,
-              unit: String(it.unit ?? '').trim(),
-	            specificationsJson: it.specificationsJson,
-	            receivedQty: Number(it.quantityReceived ?? 0),
-	            acceptedQty: String(it.quantityReceived ?? 0),
-	            rejectedQty: '0',
-	            remarks: '',
-	          }))
-	        );
+		        setLines(
+		          (g.items ?? []).map((it) => ({
+		            itemId: it.itemId,
+		            item: it.item,
+	              unit: String(it.unit ?? '').trim(),
+		            specificationsJson: it.specificationsJson,
+		            receivedQty: Number(it.quantityReceived ?? 0),
+		            acceptedQty: sanitizeDecimalInput(String(it.quantityReceived ?? 0)),
+		            rejectedQty: '0',
+		            remarks: '',
+		          }))
+		        );
       })
       .catch((e) => {
         if (ac.signal.aborted) return;
@@ -205,7 +207,6 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                 <col className="w-[190px]" />
                 <col className="w-[170px]" />
                 <col className="w-[200px]" />
-                <col className="w-[120px]" />
                 <col className="w-[260px]" />
               </colgroup>
               <thead>
@@ -216,7 +217,6 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Received</th>
-                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Items</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
               </thead>
@@ -237,7 +237,6 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.receivedDate ? formatDateDDMMYYYYOnly(r.receivedDate) : '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.pendingItems}</td>
                       <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
 	                        <div className="flex items-center gap-2 flex-wrap">
 	                          <button
@@ -255,7 +254,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                     </tr>
                     {isExpanded ? (
                       <tr>
-                        <td colSpan={8} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                        <td colSpan={7} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                           {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading GRN item details...</div> : null}
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
@@ -297,7 +296,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                   )})
                 ) : (
                   <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={8}>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={7}>
                       No records.
                     </td>
                   </tr>
@@ -456,8 +455,8 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
 	                  lines.map((l, idx) => (
 	                    <tr key={l.itemId}>
 	                      <td className="px-3 py-2 text-sm text-on-surface border border-outline-variant">{formatItemInline(l.item, l.specificationsJson, specNameById)}</td>
-	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
-                          {l.receivedQty}
+		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
+                          {formatMax2(l.receivedQty)}
                           {l.unit ? <span className="ml-1 text-[10px] font-bold opacity-60 uppercase">{l.unit}</span> : null}
                         </td>
 	                      <td className="px-3 py-2 border border-outline-variant">
@@ -468,7 +467,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                             onChange={(e) =>
                               setLines((prev) => {
                                 const next = prev.slice();
-                                next[idx] = { ...next[idx]!, acceptedQty: e.target.value };
+                                next[idx] = { ...next[idx]!, acceptedQty: sanitizeDecimalInput(e.target.value) };
                                 return next;
                               })
                             }
@@ -489,7 +488,7 @@ export default function QcQueueView({ onViewPr }: { onViewPr: (prId: string) => 
                             onChange={(e) =>
                               setLines((prev) => {
                                 const next = prev.slice();
-                                next[idx] = { ...next[idx]!, rejectedQty: e.target.value };
+                                next[idx] = { ...next[idx]!, rejectedQty: sanitizeDecimalInput(e.target.value) };
                                 return next;
                               })
                             }
