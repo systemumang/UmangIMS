@@ -8123,7 +8123,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     drawLine(tableLeft, headerBottom, tableRight, headerBottom, 1);
 	    const h1Y = headerBottom + headerHeight - 14;
 	    const h2Y = headerBottom + 5;
-	    drawAt('Sl No.', tableLeft + 4, h1Y, { bold: true, size: 8 });
+	    // Keep header labels inside their cells (pdf-lib doesn't clip text).
+	    // Serial column is narrow, so render as two-line right-aligned label.
+	    drawRight('Sl', col.serialRight - 2, h1Y, { bold: true, size: 8 });
+	    drawRight('No', col.serialRight - 2, h2Y, { bold: true, size: 7 });
 	    drawAt('Item', col.itemLeft + 4, h1Y, { bold: true, size: 8 });
 	    if (showDimColumns) {
 	      drawRight('L', col.lengthRight - 4, h1Y, { bold: true, size: 8 });
