@@ -8110,8 +8110,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
-	    if (showGstAmountColumn) drawRight('GST Amt', col.gstAmtRight - 4, headerY - 10, { bold: true, size: 8 });
-	    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight(showGstAmountColumn ? 'Amt Before GST' : 'Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
     let grandGoods = 0;
@@ -8192,10 +8192,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const summaryLeft = tableRight - summaryWidth;
 	    const rowH = 26;
 	    // Summary should not show GST/Discount percentages (items may have different rates).
-	    // STC amount = taxable subtotal (before GST).
+	    // Show GST split based on supplier GST type (inter-state => IGST, else CGST+SGST).
+	    const amtBeforeLabel = grandTax > 0 ? 'Amt Before GST' : 'Amount';
 	    const summaryRows = [
-	      ['Total STC Amount', formatMoney(grandGoods)],
-	      ['Total GST Amount', formatMoney(grandTax)],
+	      [amtBeforeLabel, formatMoney(grandGoods)],
+	      ...(grandTax > 0
+	        ? isInterState
+	          ? [['IGST', formatMoney(grandIgst)]]
+	          : [
+	              ['CGST', formatMoney(grandCgst)],
+	              ['SGST', formatMoney(grandSgst)],
+	            ]
+	        : []),
 	      ['Grand Total', formatMoney(grandTotal)],
 	    ];
     const summaryTop = y;
