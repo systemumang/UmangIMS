@@ -516,16 +516,17 @@ export default function PaymentQueueView({
                             <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
                           </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-                            <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
-                              <option value="">Select</option>
-                              <option value="Cash">Cash</option>
-                              <option value="UPI">UPI</option>
-                              <option value="Cheque">Cheque</option>
-                              <option value="NEFT">NEFT</option>
-                              <option value="RTGS">RTGS</option>
-                              <option value="IMPS">IMPS</option>
-                              <option value="Card">Card</option>
-                            </select>
+	                            <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+	                              <option value="">Select</option>
+	                              <option value="Cash">Cash</option>
+	                              <option value="Debit Note">Debit Note</option>
+	                              <option value="UPI">UPI</option>
+	                              <option value="Cheque">Cheque</option>
+	                              <option value="NEFT">NEFT</option>
+	                              <option value="RTGS">RTGS</option>
+	                              <option value="IMPS">IMPS</option>
+	                              <option value="Card">Card</option>
+	                            </select>
                           </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                             <div className="flex flex-col items-start gap-1">
