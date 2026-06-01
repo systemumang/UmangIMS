@@ -570,9 +570,12 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
                           if (!l.itemNameId || !isRequiredForRow) {
                             return <div key={`${idx}-${specId}`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-60">-</div>;
                           }
-                          const value = String(l.specs?.[specId] ?? '');
-                          const key = specValueKey(l.itemNameId, specId);
-	                          const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+	                          const value = String(l.specs?.[specId] ?? '');
+	                          const key = specValueKey(l.itemNameId, specId);
+	                          const options = (specValueOptions[key] ?? [])
+	                            // Show only values mapped to this Item Name (no global/other-item values).
+	                            .filter((sv) => String(sv.itemNameId ?? '').trim() === String(l.itemNameId ?? '').trim())
+	                            .map((v) => ({ value: v.value, label: v.value }));
 	                          if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
 	                          return (
 	                            <div key={`${idx}-${specId}`} className="p-2 border-r border-outline-variant">

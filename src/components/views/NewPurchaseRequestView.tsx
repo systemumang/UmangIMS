@@ -903,11 +903,14 @@ export default function NewPurchaseRequestView({
 							                        const specName = specNameById?.[specId] ?? specId;
 							                        const value = String(row.specs?.[specId] ?? '');
 							                        const key = specValueKey(row.itemNameId, specId);
-						                        const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
-						                        if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value });
-							                        return (
-							                          <label className="space-y-1">
-							                            <SearchableSelect
+							                        const options = (specValueOptions[key] ?? [])
+							                          // Show only values mapped to this Item Name (no global/other-item values).
+							                          .filter((sv) => String(sv.itemNameId ?? '').trim() === String(row.itemNameId ?? '').trim())
+							                          .map((v) => ({ value: v.value, label: v.value }));
+							                        if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value });
+								                        return (
+								                          <label className="space-y-1">
+								                            <SearchableSelect
 							                              value={value}
 							                              options={options}
 							                              placeholder="Select"
