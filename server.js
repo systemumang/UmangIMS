@@ -7978,22 +7978,23 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    }
 
 	    const firmX = margin + halfWidth + 10;
-	    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
-	    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
-	    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
-	    {
-	      const addr = String(poRow.firmAddress ?? '').trim() || '-';
-	      const addrLines = wrapLines(addr, font, 8, halfWidth - 16);
-	      let ay = topY - 54;
-	      const shown = (addrLines.length ? addrLines : ['-']).slice(0, 2);
-	      for (const line of shown) {
-	        drawAt(line, firmX + 8, ay, { size: 8 });
-	        ay -= 10;
-	      }
-	      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
-	      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
-	    }
-    y = topY - 92;
+		    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
+		    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
+		    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
+		    {
+		      const addr = String(poRow.firmAddress ?? '').trim() || '-';
+		      const addrLines = wrapLines(addr, font, 8, halfWidth - 16);
+		      let ay = topY - 54;
+		      const shown = (addrLines.length ? addrLines : ['-']).slice(0, 2);
+		      for (const line of shown) {
+		        drawAt(line, firmX + 8, ay, { size: 8 });
+		        ay -= 10;
+		      }
+		      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
+		      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
+		    }
+	    // Add a bit more breathing room below the header boxes before the table starts.
+	    y = topY - 102;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
     if (ship) {
