@@ -342,6 +342,8 @@ function getMysqlPool() {
       await ensureColumn('invoices', 'approved_by', 'VARCHAR(255) NULL');
       await ensureColumn('invoices', 'approved_at', 'DATETIME NULL');
       await ensureColumn('invoices', 'eway_bill_url', 'TEXT NULL');
+      await ensureColumn('invoices', 'debit_note_qty', 'DOUBLE NOT NULL DEFAULT 0');
+      await ensureColumn('invoices', 'debit_note_reason', 'TEXT NULL');
 
       await ensureColumn('users', 'login_id', 'VARCHAR(255) NULL');
       await ensureColumn('users', 'menu_access', 'TEXT NULL');
@@ -4241,6 +4243,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       inv.payment_date AS paymentDate,
       inv.payment_mode AS paymentMode,
       inv.payment_amount AS paymentAmount,
+      inv.debit_note_qty AS debitNoteQty,
+      inv.debit_note_reason AS debitNoteReason,
       inv.tally_entry_date AS tallyEntryDate,
       COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
       inv.document_url AS documentUrl,
@@ -4313,6 +4317,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     paymentDate: toIsoDate(invRow.paymentDate) || undefined,
     paymentMode: invRow.paymentMode != null ? String(invRow.paymentMode) : 'Credit',
     paymentAmount: Number(invRow.paymentAmount ?? 0),
+    debitNoteQty: Number(invRow.debitNoteQty ?? 0),
+    debitNoteReason: invRow.debitNoteReason != null ? String(invRow.debitNoteReason) : undefined,
     adjustedAmount: Number(invRow.adjustedAmount ?? 0),
     tallyEntryDate: toIsoDate(invRow.tallyEntryDate) || undefined,
     documentUrl: invRow.documentUrl != null ? String(invRow.documentUrl) : undefined,
@@ -13731,33 +13737,42 @@ app.delete('/api/invoices/:id', async (req, res) => {
   }
 });
 
-app.put('/api/invoices/:id/payment', async (req, res) => {
-  try {
-    const pool = getMysqlPool();
-    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    try {
-      await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
-    } catch {}
-    const invoiceId = String(req.params.id ?? '').trim();
-    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
-    const paymentDate = String(req.body?.paymentDate ?? '').trim();
-    const paymentAmountRaw = req.body?.paymentAmount;
-    const paymentAmount = Number(paymentAmountRaw ?? 0);
-    const adjustedAmountRaw = req.body?.adjustedAmount;
-    const adjustedAmountInput = adjustedAmountRaw == null ? null : Number(adjustedAmountRaw);
-    const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
-    const paymentCopy = req.body?.paymentCopy != null ? String(req.body.paymentCopy).trim() : null;
-    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
-    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
-    if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
-    if (!paymentMode) return res.status(400).json({ error: 'paymentMode is required' });
-    if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
-    if (adjustedAmountInput != null && (!Number.isFinite(adjustedAmountInput) || adjustedAmountInput < 0))
-      return res.status(400).json({ error: 'adjustedAmount must be 0 or more' });
-    const [[invMeta]] = await pool.query(
-      `
-      SELECT inv.total_amount AS invoiceAmount, COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
-      FROM invoices inv
+	app.put('/api/invoices/:id/payment', async (req, res) => {
+	  try {
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	    try {
+	      await pool.query('ALTER TABLE po_advance_invoice_adjustments DROP INDEX uniq_invoice');
+	    } catch {}
+	    const invoiceId = String(req.params.id ?? '').trim();
+	    if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
+	    const paymentDate = String(req.body?.paymentDate ?? '').trim();
+	    const paymentAmountRaw = req.body?.paymentAmount;
+	    const paymentAmount = Number(paymentAmountRaw ?? 0);
+	    const adjustedAmountRaw = req.body?.adjustedAmount;
+	    const adjustedAmountInput = adjustedAmountRaw == null ? null : Number(adjustedAmountRaw);
+	    const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() : null;
+	    const paymentCopy = req.body?.paymentCopy != null ? String(req.body.paymentCopy).trim() : null;
+	    const debitNoteQtyRaw = req.body?.debitNoteQty;
+	    const debitNoteQty = debitNoteQtyRaw == null ? null : Number(debitNoteQtyRaw);
+	    const debitNoteReason = req.body?.debitNoteReason != null ? String(req.body.debitNoteReason).trim() : null;
+	    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() : null;
+	    const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+	    if (!paymentDate) return res.status(400).json({ error: 'paymentDate is required' });
+	    if (!paymentMode) return res.status(400).json({ error: 'paymentMode is required' });
+	    if (!Number.isFinite(paymentAmount) || paymentAmount < 0) return res.status(400).json({ error: 'paymentAmount must be 0 or more' });
+	    if (adjustedAmountInput != null && (!Number.isFinite(adjustedAmountInput) || adjustedAmountInput < 0))
+	      return res.status(400).json({ error: 'adjustedAmount must be 0 or more' });
+	    if (paymentMode === 'Debit Note') {
+	      if (debitNoteQty == null || !Number.isFinite(debitNoteQty) || debitNoteQty <= 0) {
+	        return res.status(400).json({ error: 'debitNoteQty must be greater than 0 for Debit Note' });
+	      }
+	      if (!debitNoteReason) return res.status(400).json({ error: 'debitNoteReason is required for Debit Note' });
+	    }
+	    const [[invMeta]] = await pool.query(
+	      `
+	      SELECT inv.total_amount AS invoiceAmount, COALESCE(adj.adjustedAmount, 0) AS adjustedAmount
+	      FROM invoices inv
       LEFT JOIN (
         SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
         FROM po_advance_invoice_adjustments
@@ -13775,13 +13790,25 @@ app.put('/api/invoices/:id/payment', async (req, res) => {
     const adjustedAmount =
       adjustedAmountInput != null ? Math.max(0, adjustedAmountInput) : Number(invMeta.adjustedAmount ?? 0);
     const totalPaid = adjustedAmount + paymentAmount;
-    const paymentStatus = totalPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
-    await pool.query(
-      `UPDATE invoices
-       SET payment_status=?, payment_date=?, payment_amount=?, payment_mode=COALESCE(?, payment_mode), tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
-       WHERE id=?`,
-      [paymentStatus, paymentDate, paymentAmount, paymentMode || null, tallyEntryDate || null, updatedBy, invoiceId]
-    );
+	    const paymentStatus = totalPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
+	    await pool.query(
+	      `UPDATE invoices
+	       SET payment_status=?, payment_date=?, payment_amount=?, payment_mode=COALESCE(?, payment_mode),
+	           debit_note_qty=COALESCE(?, debit_note_qty), debit_note_reason=COALESCE(?, debit_note_reason),
+	           tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
+	       WHERE id=?`,
+	      [
+	        paymentStatus,
+	        paymentDate,
+	        paymentAmount,
+	        paymentMode || null,
+	        paymentMode === 'Debit Note' ? debitNoteQty : null,
+	        paymentMode === 'Debit Note' ? debitNoteReason : null,
+	        tallyEntryDate || null,
+	        updatedBy,
+	        invoiceId,
+	      ]
+	    );
 
     // If client provided adjusted total, append only the positive delta as a new ledger row.
     if (adjustedAmountInput != null) {

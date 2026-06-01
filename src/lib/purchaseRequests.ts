@@ -586,6 +586,8 @@ export async function updateInvoicePayment(
     adjustedAmount?: number;
     paymentMode?: 'Cash' | 'UPI' | 'Cheque' | 'NEFT' | 'RTGS' | 'IMPS' | 'Card' | string;
     paymentCopy?: string;
+    debitNoteQty?: number;
+    debitNoteReason?: string;
     tallyEntryDate?: string;
     updatedBy?: string;
   }

@@ -88,6 +88,8 @@ export default function PaymentQueueView({
   const [paymentModeInput, setPaymentModeInput] = useState('Cash');
   const [paymentCopyInput, setPaymentCopyInput] = useState('');
   const [paymentCopyUploading, setPaymentCopyUploading] = useState(false);
+  const [debitNoteQtyInput, setDebitNoteQtyInput] = useState('');
+  const [debitNoteReasonInput, setDebitNoteReasonInput] = useState('');
   const [tallyEntryDate, setTallyEntryDate] = useState('');
   const [lines, setLines] = useState<GrnInvoiceLinkSummaryRow[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
@@ -104,11 +106,13 @@ export default function PaymentQueueView({
     setModalOpen(false);
     setActive(null);
     setPaymentDate(todayIsoDate());
-    setPaymentAmountInput('');
-    setPaymentModeInput('Cash');
-    setPaymentCopyInput('');
-    setPaymentCopyUploading(false);
-    setTallyEntryDate('');
+	    setPaymentAmountInput('');
+	    setPaymentModeInput('Cash');
+	    setPaymentCopyInput('');
+	    setPaymentCopyUploading(false);
+	    setDebitNoteQtyInput('');
+	    setDebitNoteReasonInput('');
+	    setTallyEntryDate('');
     setTallyDateInput('');
     setLines([]);
     setModalLoading(false);
@@ -134,12 +138,14 @@ export default function PaymentQueueView({
   }, [expandedInvoiceId, mode]);
 
   useEffect(() => {
-    if (!modalOpen || !active) return;
-    setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
-    setPaymentModeInput(String((active as any)?.paymentMode ?? 'Cash') || 'Cash');
-    setPaymentCopyInput(String((active as any)?.paymentCopy ?? '') || '');
-    setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
-    setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
+	    if (!modalOpen || !active) return;
+	    setPaymentDate(active.paymentDate ? String(active.paymentDate).slice(0, 10) : todayIsoDate());
+	    setPaymentModeInput(String((active as any)?.paymentMode ?? 'Cash') || 'Cash');
+	    setPaymentCopyInput(String((active as any)?.paymentCopy ?? '') || '');
+	    setDebitNoteQtyInput('');
+	    setDebitNoteReasonInput('');
+	    setTallyEntryDate(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : '');
+	    setTallyDateInput(active.tallyEntryDate ? String(active.tallyEntryDate).slice(0, 10) : todayIsoDate());
     const ac = new AbortController();
     setModalLoading(true);
     fetchGrnInvoiceLinkSummary(active.invoiceId, ac.signal)
@@ -152,23 +158,32 @@ export default function PaymentQueueView({
     return () => ac.abort();
   }, [active, modalOpen]);
 
-  useEffect(() => {
-    if (!modalOpen || !active) return;
-    const ac = new AbortController();
-    setInvoiceDetailLoading(true);
-    setInvoiceDetail(null);
-    fetchOperationsInvoiceDetail(active.invoiceId, ac.signal)
-      .then((d) => setInvoiceDetail(d))
-      .catch(() => setInvoiceDetail(null))
-      .finally(() => setInvoiceDetailLoading(false));
-    return () => ac.abort();
-  }, [active, modalOpen]);
+	  useEffect(() => {
+	    if (!modalOpen || !active) return;
+	    const ac = new AbortController();
+	    setInvoiceDetailLoading(true);
+	    setInvoiceDetail(null);
+	    fetchOperationsInvoiceDetail(active.invoiceId, ac.signal)
+	      .then((d) => setInvoiceDetail(d))
+	      .catch(() => setInvoiceDetail(null))
+	      .finally(() => setInvoiceDetailLoading(false));
+	    return () => ac.abort();
+	  }, [active, modalOpen]);
 
-  useEffect(() => {
-    if (!modalOpen || !active || mode !== 'payment') return;
-    const suggested = Math.max(0, Number(active.remainingAmount ?? 0));
-    setPaymentAmountInput(suggested > 0 ? String(suggested) : '');
-  }, [active, invoiceDetail, modalOpen, mode]);
+	  useEffect(() => {
+	    if (!modalOpen) return;
+	    const inv = invoiceDetail?.invoice?.invoice;
+	    setDebitNoteQtyInput(inv?.debitNoteQty != null && Number(inv.debitNoteQty) > 0 ? String(inv.debitNoteQty) : '');
+	    setDebitNoteReasonInput(inv?.debitNoteReason != null ? String(inv.debitNoteReason) : '');
+	  }, [invoiceDetail, modalOpen]);
+
+	  useEffect(() => {
+	    if (!modalOpen || !active || mode !== 'payment') return;
+	    const suggested = Math.max(0, Number(active.remainingAmount ?? 0));
+	    setPaymentAmountInput(suggested > 0 ? String(suggested) : '');
+	  }, [active, invoiceDetail, modalOpen, mode]);
+
+	  const isDebitNote = String(paymentModeInput ?? '').trim() === 'Debit Note';
 
 	  return (
 	    <div className="space-y-6">
@@ -324,27 +339,40 @@ export default function PaymentQueueView({
                   setSaving(false);
                   return;
                 }
-                if (mode === 'payment' && !String(paymentModeInput ?? '').trim()) {
-                  setModalError('Payment Mode is required.');
-                  setSaving(false);
-                  return;
-                }
-                if (mode === 'payment' && !String(paymentCopyInput ?? '').trim()) {
-                  setModalError('Payment Copy is required.');
-                  setSaving(false);
-                  return;
-                }
+	                if (mode === 'payment' && !String(paymentModeInput ?? '').trim()) {
+	                  setModalError('Payment Mode is required.');
+	                  setSaving(false);
+	                  return;
+	                }
+	                const debitNoteQty = Number(String(debitNoteQtyInput ?? '').trim() || '0');
+	                if (mode === 'payment' && isDebitNote && (!Number.isFinite(debitNoteQty) || debitNoteQty <= 0)) {
+	                  setModalError('Debit Note Qty is required.');
+	                  setSaving(false);
+	                  return;
+	                }
+	                if (mode === 'payment' && isDebitNote && !String(debitNoteReasonInput ?? '').trim()) {
+	                  setModalError('Debit Note Reason is required.');
+	                  setSaving(false);
+	                  return;
+	                }
+	                if (mode === 'payment' && !String(paymentCopyInput ?? '').trim()) {
+	                  setModalError('Payment Copy is required.');
+	                  setSaving(false);
+	                  return;
+	                }
                 const savePromise =
                   mode === 'tally'
                     ? updateQueueTallyEntry(active.invoiceId, { tallyEntryDate: tallyDateInput, updatedBy: 'Accounts Team' })
-			                    : updateInvoicePayment(active.invoiceId, {
-			                        paymentDate,
-			                        paymentAmount,
-			                        paymentMode: paymentModeInput || undefined,
-                              paymentCopy: paymentCopyInput || undefined,
-			                        updatedBy: 'Accounts Team',
-			                        tallyEntryDate: tallyEntryDate || undefined,
-			                      });
+				                    : updateInvoicePayment(active.invoiceId, {
+				                        paymentDate,
+				                        paymentAmount,
+				                        paymentMode: paymentModeInput || undefined,
+	                              paymentCopy: paymentCopyInput || undefined,
+	                              debitNoteQty: isDebitNote ? debitNoteQty : undefined,
+	                              debitNoteReason: isDebitNote ? String(debitNoteReasonInput ?? '').trim() || undefined : undefined,
+				                        updatedBy: 'Accounts Team',
+				                        tallyEntryDate: tallyEntryDate || undefined,
+				                      });
                 savePromise
                   .then(() => fetchRows(filters).then(setRows))
                   .then(() => closeModal())
@@ -469,7 +497,7 @@ export default function PaymentQueueView({
 	                        <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Copy</th>
 				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Item</th>
 			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Inv Qty</th>
-				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Link Qty</th>
+				                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Linked Qty</th>
 			                </tr>
 			              </thead>
 		              <tbody>
@@ -515,19 +543,38 @@ export default function PaymentQueueView({
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                             <input className={cn(inputClass, 'py-1.5')} type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
                           </td>
-                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
-	                            <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
-	                              <option value="">Select</option>
-	                              <option value="Cash">Cash</option>
-	                              <option value="Debit Note">Debit Note</option>
-	                              <option value="UPI">UPI</option>
-	                              <option value="Cheque">Cheque</option>
-	                              <option value="NEFT">NEFT</option>
-	                              <option value="RTGS">RTGS</option>
-	                              <option value="IMPS">IMPS</option>
-	                              <option value="Card">Card</option>
-	                            </select>
-                          </td>
+	                          <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
+	                            <div className="flex flex-col gap-2 min-w-[160px]">
+	                              <select className={cn(inputClass, 'py-1.5')} value={paymentModeInput} onChange={(e) => setPaymentModeInput(e.target.value)}>
+	                                <option value="">Select</option>
+	                                <option value="Cash">Cash</option>
+	                                <option value="Debit Note">Debit Note</option>
+	                                <option value="UPI">UPI</option>
+	                                <option value="Cheque">Cheque</option>
+	                                <option value="NEFT">NEFT</option>
+	                                <option value="RTGS">RTGS</option>
+	                                <option value="IMPS">IMPS</option>
+	                                <option value="Card">Card</option>
+	                              </select>
+	                              {isDebitNote ? (
+	                                <>
+	                                  <input
+	                                    className={cn(inputClass, 'py-1.5')}
+	                                    inputMode="decimal"
+	                                    placeholder="Debit Note Qty"
+	                                    value={debitNoteQtyInput}
+	                                    onChange={(e) => setDebitNoteQtyInput(sanitizeDecimalInput(e.target.value))}
+	                                  />
+	                                  <textarea
+	                                    className={cn(inputClass, 'py-1.5 min-h-[58px] resize-y whitespace-normal')}
+	                                    placeholder="Reason"
+	                                    value={debitNoteReasonInput}
+	                                    onChange={(e) => setDebitNoteReasonInput(e.target.value)}
+	                                  />
+	                                </>
+	                              ) : null}
+	                            </div>
+	                          </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                             <div className="flex flex-col items-start gap-1">
                               <label
