@@ -209,7 +209,7 @@ export default function PaymentQueueView({
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Amount</th>
 			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Advance</th> : null}
-			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Payment</th> : null}
+				                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Paid</th> : null}
 			                  {mode !== 'tally' ? <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Balance</th> : null}
 			                    <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Tally Date</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
@@ -461,7 +461,7 @@ export default function PaymentQueueView({
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Amount</th>
 			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Advance</th>
-			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment</th>
+			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Paid</th>
 					                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Balance</th>
 					                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Amount</th>
 			                      <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Payment Date</th>
