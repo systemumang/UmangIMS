@@ -3276,14 +3276,13 @@ app.get('/api/queues/payment', async (req, res) => {
 			        const invoiceAmount = Number(r.invoiceAmount ?? 0);
 			        const adjustedAmount = Number(r.adjustedAmount ?? 0);
 			        const actualReceiptAmount = Number(r.actualReceiptAmount ?? 0);
-			        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
-			        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
-			        const paymentModeLower = paymentMode.trim().toLowerCase();
-			        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+		        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
+		        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+		        const paymentModeLower = paymentMode.trim().toLowerCase();
+		        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
 
-		        const isFull = paymentStatus.includes('full');
-		        const paidAmount = Math.max(0, adjustedAmount) + Math.max(0, actualReceiptAmount);
-		        const remainingAmount = isFull ? 0 : invoiceAmount - paidAmount;
+	        const paidAmount = Math.max(0, adjustedAmount) + Math.max(0, actualReceiptAmount);
+	        const remainingAmount = invoiceAmount - paidAmount;
 		        return {
 	          invoiceId: String(r.invoiceId ?? ''),
           invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
@@ -14277,7 +14276,57 @@ app.delete('/api/receipts/:id', async (req, res) => {
     if (!row?.id) return res.status(404).json({ error: 'Receipt row not found' });
 
     await pool.query('DELETE FROM po_advance_invoice_adjustments WHERE id = ? LIMIT 1', [id]);
-    res.json({ ok: true, invoiceId: String(row.invoiceId ?? '') });
+    const invoiceId = String(row.invoiceId ?? '');
+    if (invoiceId) {
+      // Keep invoice aggregates/status in sync after receipt deletion.
+      const [[totalsRow]] = await pool.query(
+        `
+        SELECT
+          inv.total_amount AS invoiceAmount,
+          COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+          COALESCE(pay.nonDebitPaid, 0) AS nonDebitPaid,
+          COALESCE(pay.debitNotePaid, 0) AS debitNotePaid
+        FROM invoices inv
+        LEFT JOIN (
+          SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+          FROM po_advance_invoice_adjustments
+          WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+          GROUP BY invoice_id
+        ) adj ON adj.invoiceId = inv.id
+        LEFT JOIN (
+          SELECT
+            invoice_id AS invoiceId,
+            SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN 0 ELSE adjusted_amount END) AS nonDebitPaid,
+            SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN adjusted_amount ELSE 0 END) AS debitNotePaid
+          FROM po_advance_invoice_adjustments
+          WHERE receipt_type = 'DIRECT_PAYMENT'
+          GROUP BY invoice_id
+        ) pay ON pay.invoiceId = inv.id
+        WHERE inv.id = ?
+        LIMIT 1
+        `,
+        [invoiceId]
+      );
+
+      if (totalsRow) {
+        const invoiceAmount = Number(totalsRow.invoiceAmount ?? 0);
+        const adjustedAmount = Number(totalsRow.adjustedAmount ?? 0);
+        const nonDebitPaid = Number(totalsRow.nonDebitPaid ?? 0);
+        const debitNotePaid = Number(totalsRow.debitNotePaid ?? 0);
+        const grandPaid = adjustedAmount + nonDebitPaid + debitNotePaid;
+        const paymentStatus = grandPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : grandPaid > 1e-9 ? 'Partly Paid' : null;
+
+        await pool.query(
+          `
+          UPDATE invoices
+          SET payment_amount = ?, debit_note_amount = ?, payment_status = ?, updated_at = NOW()
+          WHERE id = ?
+          `,
+          [Math.max(0, nonDebitPaid), Math.max(0, debitNotePaid), paymentStatus, invoiceId]
+        );
+      }
+    }
+    res.json({ ok: true, invoiceId });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
