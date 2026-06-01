@@ -8011,18 +8011,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		    // Columns tuned for A4 width so headers don't overflow.
 		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Amt Before GST) | (Disc%) | (Disc Amt) | (GST%) | (GST) | Amt
 			    const colBounds = (() => {
-			      const serialW = 28;
-			      const dimW = 28;
-			      const pcsW = 28;
-			      const unitW = 32;
-			      const qtyW = 55;
-			      const rateW = 50;
-			      const amtBeforeW = 72;
-			      const discW = 35;
-			      const discAmtW = 58;
-			      const gstW = 35;
-			      const gstAmtW = 58;
-			      const totalAmtW = 70;
+			      const serialW = 22;
+			      const dimW = 22;
+			      const pcsW = 24;
+			      const unitW = 28;
+			      const qtyW = 45;
+			      const rateW = 45;
+			      const amtBeforeW = 62;
+			      const discW = 32;
+			      const discAmtW = 52;
+			      const gstW = 30;
+			      const gstAmtW = 48;
+			      const totalAmtW = 55;
 			      const showAmtBeforeColumn = Boolean(showGstAmountColumn);
 
 			      const fixedExceptItem =
