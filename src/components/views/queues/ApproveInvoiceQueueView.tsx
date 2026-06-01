@@ -4,11 +4,13 @@ import { fetchQueueApproveInvoice, updateQueueApproveInvoice, type ApproveInvoic
 import { fetchInvoicesByPrId, type InvoiceWithItems } from '@/src/lib/purchaseRequests';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { formatItemInline } from '@/src/lib/itemLabel';
+import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
 export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
+  const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', department: '', projectId: '', supplierId: '', from: '', to: '' });
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<ApproveInvoiceQueueRow[]>([]);
@@ -46,10 +48,11 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [invoiceDetail, setInvoiceDetail] = useState<InvoiceWithItems | null>(null);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [approvedBy, setApprovedBy] = useState('');
   const [approveDate, setApproveDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
   function closeModal() {
     setModalOpen(false);
@@ -57,11 +60,16 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setSaving(false);
     setModalError(null);
     setInvoiceDetail(null);
-    setSelectedItemId(null);
     setDetailLoading(false);
     setApprovedBy('');
     setApproveDate(new Date().toISOString().slice(0, 10));
   }
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    return () => ac.abort();
+  }, []);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -75,7 +83,6 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     let canceled = false;
     setDetailLoading(true);
     setInvoiceDetail(null);
-    setSelectedItemId(null);
     fetchInvoicesByPrId(active.prId)
       .then((all) => {
         if (canceled) return;
@@ -271,33 +278,30 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	                        <th className="px-2 py-1 border border-outline-variant text-right w-[80px]">GST %</th>
 	                      </tr>
 	                    </thead>
-                    <tbody>
-                      {invoiceDetail.items
-                        .filter((it) => !selectedItemId || it.itemId === selectedItemId)
-                        .map((it) => {
-                          const raw = it as any;
-                          return (
-	                          <tr
-	                            key={it.id || `${it.itemId}-${it.item}`}
-	                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
-	                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
-	                          >
-		                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words font-medium">
-		                              {formatItemInline(String(it.item || it.itemId || ''), raw.specificationsJson)}
+	                    <tbody>
+	                      {invoiceDetail.items.map((it) => {
+	                          const raw = it as any;
+	                          return (
+		                          <tr
+		                            key={it.id || `${it.itemId}-${it.item}`}
+		                            className={cn('hover:bg-surface-container-low transition-colors')}
+		                          >
+			                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words font-medium">
+			                              {formatItemInline(String(it.item || it.itemId || ''), raw.specificationsJson, specNameById)}
+			                            </td>
+		                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
+		                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
+		                              {Number(it.quantity ?? 0).toFixed(2)}
 		                            </td>
-	                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
-	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
-	                              {Number(it.quantity ?? 0).toFixed(2)}
-	                            </td>
-                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
-                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
+	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
+		                          </tr>
+		                        );
+	                      })}
+	                    </tbody>
+	                  </table>
+	                </div>
+	              </div>
             ) : (
               <div className="text-sm text-on-surface-variant">No invoice details found.</div>
             )}
