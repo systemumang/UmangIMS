@@ -7781,6 +7781,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      };
 	    });
 	    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
+	    const showDiscColumn = items.some((it) => Number(it.discountPercent ?? 0) > 0);
+	    const showGstColumn = items.some((it) => Number(it.taxPercent ?? 0) > 0);
 
     const doc = await PDFDocument.create();
     let page = doc.addPage([595.28, 841.89]); // A4
@@ -7925,11 +7927,16 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       y = pageHeight - margin;
     };
 
-    const logoImage = await loadLogoImage(poRow.firmLogoUrl);
-    const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
-    drawText('PURCHASE ORDER', { bold: true, size: 16 });
-    drawText(`${poNumber || '-'}`, { bold: true, size: 11 });
-    drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9 });
+	    const logoImage = await loadLogoImage(poRow.firmLogoUrl);
+	    const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
+	    const centerXFor = (text, size, bold = false) => {
+	      const f = bold ? fontBold : font;
+	      const t = String(text ?? '');
+	      return Math.max(margin, (pageWidth - f.widthOfTextAtSize(t, size)) / 2);
+	    };
+	    drawText('PURCHASE ORDER', { bold: true, size: 16, x: centerXFor('PURCHASE ORDER', 16, true), wrap: false });
+	    drawText(`${poNumber || '-'}`, { bold: true, size: 11, x: margin, wrap: false });
+	    drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9, x: margin, wrap: false });
     if (logoImage) {
       const maxLogoWidth = 110;
       const maxLogoHeight = 45;
@@ -7979,7 +7986,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
 	    // Columns tuned for A4 width so headers don't overflow.
-	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | Disc% | GST% | Amt
+	    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Disc%) | (GST%) | Amt
 	    const colBounds = (() => {
 	      const b = [tableLeft];
 	      const serialW = 28;
@@ -7997,8 +8004,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
 	        qtyW +
 	        rateW +
-	        discW +
-	        gstW;
+	        (showDiscColumn ? discW : 0) +
+	        (showGstColumn ? gstW : 0);
 	      const amtW = Math.max(50, tableWidth - fixed);
 
 	      b.push(b[b.length - 1] + serialW);
@@ -8011,8 +8018,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      }
 	      b.push(b[b.length - 1] + qtyW);
 	      b.push(b[b.length - 1] + rateW);
-	      b.push(b[b.length - 1] + discW);
-	      b.push(b[b.length - 1] + gstW);
+	      if (showDiscColumn) b.push(b[b.length - 1] + discW);
+	      if (showGstColumn) b.push(b[b.length - 1] + gstW);
 	      b.push(b[b.length - 1] + amtW);
 
 	      // Force the last bound to exactly tableRight to avoid drift.
@@ -8025,16 +8032,31 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      serialRight: colBounds[1],
 	      itemLeft: colBounds[1],
 	      itemRight: colBounds[2],
-	      lengthRight: showDimColumns ? colBounds[3] : null,
-	      breadthRight: showDimColumns ? colBounds[4] : null,
-	      pcsRight: showDimColumns ? colBounds[5] : null,
-	      dimUnitRight: showDimColumns ? colBounds[6] : null,
-	      qtyRight: showDimColumns ? colBounds[7] : colBounds[3],
-	      rateRight: showDimColumns ? colBounds[8] : colBounds[4],
-	      discRight: showDimColumns ? colBounds[9] : colBounds[5],
-	      gstRight: showDimColumns ? colBounds[10] : colBounds[6],
-	      taxableRight: showDimColumns ? colBounds[11] : colBounds[7],
+	      lengthRight: null,
+	      breadthRight: null,
+	      pcsRight: null,
+	      dimUnitRight: null,
+	      qtyRight: null,
+	      rateRight: null,
+	      discRight: null,
+	      gstRight: null,
+	      taxableRight: null,
 	    };
+	    // Compute rights based on which optional columns are present.
+	    {
+	      let i = 2; // itemRight index
+	      if (showDimColumns) {
+	        col.lengthRight = colBounds[++i];
+	        col.breadthRight = colBounds[++i];
+	        col.pcsRight = colBounds[++i];
+	        col.dimUnitRight = colBounds[++i];
+	      }
+	      col.qtyRight = colBounds[++i];
+	      col.rateRight = colBounds[++i];
+	      if (showDiscColumn) col.discRight = colBounds[++i];
+	      if (showGstColumn) col.gstRight = colBounds[++i];
+	      col.taxableRight = colBounds[++i];
+	    }
 
 	    const loadAnyImage = async (imageUrl) => {
 	      const value = String(imageUrl ?? '').trim();
@@ -8065,8 +8087,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    }
 	    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
 	    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
-	    drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
-	    drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
+	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
+	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
 	    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
@@ -8103,8 +8125,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      }
 	      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
 	      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
-	      drawRight(Number(it.discountPercent ?? 0) > 0 ? formatNumber(it.discountPercent) : '', col.discRight - 4, rowTop - 6, { size: 8 });
-	      drawRight(Number(it.taxPercent ?? 0) > 0 ? formatNumber(it.taxPercent) : '', col.gstRight - 4, rowTop - 6, { size: 8 });
+	      if (showDiscColumn) {
+	        drawRight(Number(it.discountPercent ?? 0) > 0 ? formatNumber(it.discountPercent) : '', col.discRight - 4, rowTop - 6, { size: 8 });
+	      }
+	      if (showGstColumn) {
+	        drawRight(Number(it.taxPercent ?? 0) > 0 ? formatNumber(it.taxPercent) : '', col.gstRight - 4, rowTop - 6, { size: 8 });
+	      }
 	      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
