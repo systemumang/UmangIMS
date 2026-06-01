@@ -8043,12 +8043,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			      const unitW = 28;
 			      const qtyW = 45;
 			      const rateW = 45;
-			      const amtBeforeW = 62;
+			      const amtBeforeW = 60;
 			      const discW = 32;
-			      const discAmtW = 52;
+			      const discAmtW = 46;
 			      const gstW = 30;
-			      const gstAmtW = 48;
-			      const totalAmtW = 55;
+			      const gstAmtW = 56;
+			      const totalAmtW = 62;
 			      const showAmtBeforeColumn = Boolean(showGstAmountColumn);
 
 			      const fixedExceptItem =
@@ -8167,10 +8167,16 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      drawRight('Before GST', col.amtBeforeRight - 4, h2Y, { bold: true, size: 7 });
 	    }
 	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, h1Y, { bold: true, size: 8 });
-	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, h1Y, { bold: true, size: 8 });
-	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, h1Y, { bold: true, size: 8 });
-	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, h1Y, { bold: true, size: 8 });
-	    drawRight('Amt', col.totalAmtRight - 8, h1Y, { bold: true, size: 8 });
+		    if (showDiscAmountColumn) {
+		      drawRight('Disc', col.discAmtRight - 4, h1Y, { bold: true, size: 8 });
+		      drawRight('Amt', col.discAmtRight - 4, h2Y, { bold: true, size: 7 });
+		    }
+		    if (showGstColumn) drawRight('GST %', col.gstRight - 4, h1Y, { bold: true, size: 8 });
+		    if (showGstAmountColumn) {
+		      drawRight('GST', col.gstAmtRight - 4, h1Y, { bold: true, size: 8 });
+		      drawRight('Amt', col.gstAmtRight - 4, h2Y, { bold: true, size: 7 });
+		    }
+		    drawRight('Amt', col.totalAmtRight - 4, h1Y, { bold: true, size: 8 });
     y -= headerHeight;
 
     let grandGoods = 0;
