@@ -406,13 +406,14 @@ export default function PaymentQueueView({
               <div><span className="font-semibold">Amount Adjusted:</span> {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}</div>
               <div>
                 <span className="font-semibold">Balance Payment:</span>{' '}
-                {Math.max(
-                  0,
-                  Number(active?.invoiceAmount ?? 0) -
-                    Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
-                    Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
-                ).toFixed(2)}
-              </div>
+		                {Math.max(
+		                  0,
+		                  Number(active?.invoiceAmount ?? 0) -
+		                    Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
+		                    Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0) -
+		                    Number(invoiceDetail?.invoice?.invoice?.debitNoteAmount ?? 0)
+		                ).toFixed(2)}
+	              </div>
               <div><span className="font-semibold">E-way Bill No:</span> {String(invoiceDetail?.invoice?.invoice?.ewayBillNumber ?? '-')}</div>
               <div><span className="font-semibold">CN/Courier No:</span> {String(invoiceDetail?.invoice?.invoice?.cnNumber ?? invoiceDetail?.invoice?.invoice?.courierNumber ?? '-')}</div>
               <div><span className="font-semibold">Transporter:</span> {String(invoiceDetail?.invoice?.invoice?.transporterName ?? '-')}</div>
@@ -516,13 +517,14 @@ export default function PaymentQueueView({
                             {Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0).toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-                            {Math.max(
-                              0,
-                              Number(active.invoiceAmount ?? 0) -
-                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
-                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0)
-                            ).toFixed(2)}
-                          </td>
+	                            {Math.max(
+	                              0,
+	                              Number(active.invoiceAmount ?? 0) -
+	                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
+	                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0) -
+	                                Number(invoiceDetail?.invoice?.invoice?.debitNoteAmount ?? 0)
+	                            ).toFixed(2)}
+	                          </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                             <input
                               className={cn(inputClass, 'py-1.5')}
