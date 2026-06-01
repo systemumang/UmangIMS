@@ -7760,16 +7760,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      return v;
 	    };
 
-	    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
-	      const itemNameOnly = stripBracketText(String(r.itemName ?? '').trim()) || '-';
-	      const unitName = String(r.unitName ?? '').trim();
-	      return {
-	        label: itemNameOnly,
-	        unitName,
-	        quantity: Number(r.quantity ?? 0),
-	        rate: Number(r.rate ?? 0),
-	        discountPercent: Number(r.discountPercent ?? 0),
-	        taxPercent: Number(r.taxPercent ?? 0),
+		    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
+		      const itemNameOnly = stripBracketText(String(r.itemName ?? '').trim()) || '-';
+		      const specs = formatSpecParts(r.specificationsJson);
+		      const unitName = String(r.unitName ?? '').trim();
+		      return {
+		        label: itemNameOnly,
+		        specs,
+		        unitName,
+		        quantity: Number(r.quantity ?? 0),
+		        rate: Number(r.rate ?? 0),
+		        discountPercent: Number(r.discountPercent ?? 0),
+		        taxPercent: Number(r.taxPercent ?? 0),
 	        goodsAmount: Number(r.goodsAmount ?? 0),
 	        taxAmount: Number(r.taxAmount ?? 0),
 	        totalAmount: Number(r.totalAmount ?? 0),
@@ -8099,11 +8101,17 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     let grandIgst = 0;
     let grandDisc = 0;
     let grandTotal = 0;
-    for (const [itemIndex, it] of items.entries()) {
-      addPageIfNeeded(80);
-      const rowTop = y;
-      const labelLines = wrapLines(String(it.label ?? '').trim() || '-', font, 8, col.itemRight - col.itemLeft - 8);
-      const rowHeight = Math.max(18, labelLines.length * 11 + 8);
+	    for (const [itemIndex, it] of items.entries()) {
+	      addPageIfNeeded(80);
+	      const rowTop = y;
+	      const itemText = String(it.label ?? '').trim() || '-';
+	      const labelLines = wrapLines(itemText, font, 8, col.itemRight - col.itemLeft - 8);
+	      const specText = (Array.isArray(it.specs) ? it.specs : [])
+	        .map((s) => String(s ?? '').trim())
+	        .filter(Boolean)
+	        .join(', ');
+	      const specLines = specText ? wrapLines(`- ${specText}`, font, 7, col.itemRight - col.itemLeft - 8) : [];
+	      const rowHeight = Math.max(18, labelLines.length * 11 + (specLines.length ? specLines.length * 10 + 2 : 0) + 8);
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
       const sgstAmount = isInterState ? 0 : taxAmount / 2;
@@ -8112,11 +8120,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
       for (const x of colBounds) drawLine(x, rowBottom, x, rowBottom + rowHeight, 1);
       drawRight(String(itemIndex + 1), col.serialRight - 4, rowTop - 6, { size: 8 });
-	      let labelY = rowTop - 6;
-	      for (const line of labelLines) {
-	        drawAt(line, col.itemLeft + 4, labelY, { size: 8, bold: labelY === rowTop - 6 });
-	        labelY -= 11;
-	      }
+		      let labelY = rowTop - 6;
+		      for (const line of labelLines) {
+		        drawAt(line, col.itemLeft + 4, labelY, { size: 8, bold: labelY === rowTop - 6 });
+		        labelY -= 11;
+		      }
+		      if (specLines.length) {
+		        labelY -= 1;
+		        for (const line of specLines) {
+		          drawAt(line, col.itemLeft + 4, labelY, { size: 7, bold: false });
+		          labelY -= 10;
+		        }
+		      }
 	      if (showDimColumns) {
 	        drawRight(it.dimLength > 0 ? formatNumber(it.dimLength) : '-', col.lengthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimBreadth > 0 ? formatNumber(it.dimBreadth) : '-', col.breadthRight - 4, rowTop - 6, { size: 8 });
