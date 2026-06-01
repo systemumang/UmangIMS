@@ -3216,8 +3216,7 @@ app.get('/api/queues/payment', async (req, res) => {
 	        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
 	        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
 	        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
-	        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount,
-	        COALESCE(recq.debitNoteReceiptAmount, 0) AS debitNoteReceiptAmount
+	        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount
 	      FROM invoices inv
       INNER JOIN purchase_orders po ON po.id = inv.po_id
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
@@ -3252,21 +3251,18 @@ app.get('/api/queues/payment', async (req, res) => {
         ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
         GROUP BY ii.invoice_id
       ) qcq ON qcq.invoiceId = inv.id
-      LEFT JOIN (
-        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
-        FROM po_advance_invoice_adjustments
-        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
-           OR (receipt_type IS NULL AND (payment_mode IS NULL OR TRIM(payment_mode) = ''))
-        GROUP BY invoice_id
+	      LEFT JOIN (
+	        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	        GROUP BY invoice_id
 	      ) adj ON adj.invoiceId = inv.id
 	      LEFT JOIN (
 	        SELECT
 	          invoice_id AS invoiceId,
-	          SUM(adjusted_amount) AS actualReceiptAmount,
-	          SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN adjusted_amount ELSE 0 END) AS debitNoteReceiptAmount
+	          SUM(adjusted_amount) AS actualReceiptAmount
 	        FROM po_advance_invoice_adjustments
 	        WHERE receipt_type = 'DIRECT_PAYMENT'
-	           OR (receipt_type IS NULL AND payment_mode IS NOT NULL AND TRIM(payment_mode) <> '')
 	        GROUP BY invoice_id
 	      ) recq ON recq.invoiceId = inv.id
 	      WHERE ${where.join(' AND ')}
@@ -3279,22 +3275,15 @@ app.get('/api/queues/payment', async (req, res) => {
 	      .map((r) => {
 			        const invoiceAmount = Number(r.invoiceAmount ?? 0);
 			        const adjustedAmount = Number(r.adjustedAmount ?? 0);
-			        const paymentAmount = Number(r.paymentAmount ?? 0);
-			        const debitNoteAmount = Number(r.debitNoteAmount ?? 0);
 			        const actualReceiptAmount = Number(r.actualReceiptAmount ?? 0);
-			        const debitNoteReceiptAmount = Number(r.debitNoteReceiptAmount ?? 0);
 			        const paymentStatus = String(r.paymentStatus ?? '').toLowerCase();
 			        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
 			        const paymentModeLower = paymentMode.trim().toLowerCase();
 			        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
 
 		        const isFull = paymentStatus.includes('full');
-		        const paidAmountLegacy = Math.max(0, paymentAmount) + Math.max(0, debitNoteAmount);
-		        const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
-		        const paidFromDebitNote = Math.max(Math.max(0, debitNoteReceiptAmount), Math.max(0, debitNoteAmount));
-		        const paidNonAdvance = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
-		        const paidAmount = Math.max(0, paidNonAdvance + Math.max(0, adjustedAmount));
-		        const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - paidAmount);
+		        const paidAmount = Math.max(0, adjustedAmount) + Math.max(0, actualReceiptAmount);
+		        const remainingAmount = isFull ? 0 : invoiceAmount - paidAmount;
 		        return {
 	          invoiceId: String(r.invoiceId ?? ''),
           invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
@@ -3317,14 +3306,12 @@ app.get('/api/queues/payment', async (req, res) => {
 	          totalInvoiceQty: Number(r.totalInvoiceQty ?? 0),
 	          totalLinkedQty: Number(r.totalLinkedQty ?? 0),
 	          totalApprovedQty: Number(r.totalApprovedQty ?? 0),
-	          invoiceAmount,
-	          adjustedAmount,
-	          paidAmount,
-	          debitNoteQty: Number(r.debitNoteQty ?? 0),
-	          debitNoteAmount: Math.max(0, debitNoteAmount),
-	          remainingAmount,
-	          pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
-	        };
+		          invoiceAmount,
+		          adjustedAmount,
+		          paidAmount,
+		          remainingAmount,
+		          pendingReason: remainingAmount > 1e-9 ? 'Pending payment' : 'Paid',
+		        };
 	      })
 	      .filter((x) => x.remainingAmount > 1e-9)
 	      // Relaxed rule: allow partial linking/QC. At least some invoice qty must be linked.
@@ -3471,6 +3458,171 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
   }
 });
 
+// Invoices excess paid (negative balance)
+app.get('/api/queues/excess-paid-invoices', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const hasPaymentMode = await columnExists(pool, 'invoices', 'payment_mode');
+    const hasTallyEntryDate = await columnExists(pool, 'invoices', 'tally_entry_date');
+
+    const where = ['1=1'];
+    const params = [];
+    if (f.firmId) {
+      where.push('po.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.projectId) {
+      where.push('po.project_id = ?');
+      params.push(f.projectId);
+    }
+    if (f.supplierId) {
+      where.push('po.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(inv.invoice_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(inv.invoice_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(inv.invoice_number LIKE ? OR inv.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
+      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.id AS invoiceId,
+        inv.invoice_number AS invoiceNo,
+        inv.invoice_date AS invoiceDate,
+        inv.total_amount AS invoiceAmount,
+        inv.payment_status AS paymentStatus,
+        inv.payment_date AS paymentDate,
+        ${hasPaymentMode ? 'inv.payment_mode' : "'Credit'"} AS paymentMode,
+        ${hasTallyEntryDate ? 'inv.tally_entry_date' : 'NULL'} AS tallyEntryDate,
+        po.id AS poId,
+        po.po_number AS poNumber,
+        pr.id AS prId,
+        pr.pr_number AS prNumber,
+        po.firm_id AS firmId,
+        f.name AS firmName,
+        pr.remarks AS prRemarks,
+        po.project_id AS projectId,
+        proj.name AS projectName,
+        po.supplier_id AS supplierId,
+        s.name AS supplierName,
+        COALESCE(invq.totalInvoiceQty, 0) AS totalInvoiceQty,
+        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
+        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
+        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount
+      FROM invoices inv
+      INNER JOIN purchase_orders po ON po.id = inv.po_id
+      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
+      LEFT JOIN firms f ON f.id = po.firm_id
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(ii.quantity, 0)) AS totalInvoiceQty
+        FROM invoice_items ii
+        GROUP BY ii.invoice_id
+      ) invq ON invq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT ii.invoice_id AS invoiceId, SUM(COALESCE(gil.linked_qty, 0)) AS totalLinkedQty
+        FROM invoice_items ii
+        LEFT JOIN grn_invoice_item_links gil ON gil.invoice_item_id = ii.id
+        GROUP BY ii.invoice_id
+      ) linkq ON linkq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT
+          ii.invoice_id AS invoiceId,
+          SUM(LEAST(COALESCE(ii.quantity, 0), COALESCE(qct.approvedQty, 0))) AS totalApprovedQty
+        FROM invoice_items ii
+        INNER JOIN invoices inv2 ON inv2.id = ii.invoice_id
+        LEFT JOIN (
+          SELECT
+            g.po_id AS poId,
+            qc.item_id AS itemId,
+            SUM(COALESCE(qc.accepted_qty, 0)) AS approvedQty
+          FROM grns g
+          INNER JOIN qc_records qc ON qc.grn_id = g.id
+          GROUP BY g.po_id, qc.item_id
+        ) qct ON qct.poId = inv2.po_id AND qct.itemId = ii.item_id
+        GROUP BY ii.invoice_id
+      ) qcq ON qcq.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+        FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+        GROUP BY invoice_id
+      ) adj ON adj.invoiceId = inv.id
+      LEFT JOIN (
+        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS actualReceiptAmount
+        FROM po_advance_invoice_adjustments
+        WHERE receipt_type = 'DIRECT_PAYMENT'
+        GROUP BY invoice_id
+      ) recq ON recq.invoiceId = inv.id
+      WHERE ${where.join(' AND ')}
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC
+      `,
+      params
+    );
+
+    let out = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const invoiceAmount = Number(r.invoiceAmount ?? 0);
+        const adjustedAmount = Number(r.adjustedAmount ?? 0);
+        const actualReceiptAmount = Number(r.actualReceiptAmount ?? 0);
+        const paymentMode = r.paymentMode != null ? String(r.paymentMode) : 'Credit';
+        const tallyEntryDate = toIsoDate(r.tallyEntryDate) || undefined;
+
+        const paidAmount = Math.max(0, adjustedAmount) + Math.max(0, actualReceiptAmount);
+        const remainingAmount = invoiceAmount - paidAmount;
+        return {
+          invoiceId: String(r.invoiceId ?? ''),
+          invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+          invoiceDate: toIsoDate(r.invoiceDate) || '',
+          paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : undefined,
+          paymentDate: toIsoDate(r.paymentDate) || undefined,
+          paymentMode,
+          tallyEntryDate,
+          poId: String(r.poId ?? ''),
+          poNumber: String(r.poNumber ?? r.poId ?? ''),
+          prId: String(r.prId ?? ''),
+          prNumber: String(r.prNumber ?? r.prId ?? ''),
+          firmId: String(r.firmId ?? ''),
+          firmName: String(r.firmName ?? ''),
+          department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
+          projectId: r.projectId ? String(r.projectId) : null,
+          projectName: r.projectName ? String(r.projectName) : null,
+          supplierId: r.supplierId ? String(r.supplierId) : null,
+          supplierName: String(r.supplierName ?? ''),
+          totalInvoiceQty: Number(r.totalInvoiceQty ?? 0),
+          totalLinkedQty: Number(r.totalLinkedQty ?? 0),
+          totalApprovedQty: Number(r.totalApprovedQty ?? 0),
+          invoiceAmount,
+          adjustedAmount,
+          paidAmount,
+          remainingAmount,
+          pendingReason: remainingAmount < -1e-9 ? 'Excess paid' : 'Paid',
+        };
+      })
+      .filter((x) => x.remainingAmount < -1e-9)
+      .filter((x) => Number(x.totalLinkedQty ?? 0) > 1e-9)
+      .filter((x) => (hasTallyEntryDate ? Boolean(x.tallyEntryDate) : true));
+
+    if (f.department) out = out.filter((x) => String(x.department ?? '').trim() === f.department);
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 	// Debug helper: why an invoice is/isn't in Pending Payment.
 	// Mirrors the filters used by `/api/queues/payment` for a single invoice id.
 	app.get('/api/debug/payment-eligibility/:id', async (req, res) => {
@@ -3504,8 +3656,7 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 			        COALESCE(linkq.totalLinkedQty, 0) AS totalLinkedQty,
 			        COALESCE(qcq.totalApprovedQty, 0) AS totalApprovedQty,
 			        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
-			        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount,
-			        COALESCE(recq.debitNoteReceiptAmount, 0) AS debitNoteReceiptAmount
+			        COALESCE(recq.actualReceiptAmount, 0) AS actualReceiptAmount
 			      FROM invoices inv
 		      INNER JOIN purchase_orders po ON po.id = inv.po_id
 		      LEFT JOIN firms f ON f.id = po.firm_id
@@ -3546,13 +3697,9 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 		        GROUP BY invoice_id
 			      ) adj ON adj.invoiceId = inv.id
 			      LEFT JOIN (
-			        SELECT
-			          invoice_id AS invoiceId,
-			          SUM(adjusted_amount) AS actualReceiptAmount,
-			          SUM(CASE WHEN LOWER(TRIM(payment_mode)) = 'debit note' THEN adjusted_amount ELSE 0 END) AS debitNoteReceiptAmount
+			        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS actualReceiptAmount
 			        FROM po_advance_invoice_adjustments
 			        WHERE receipt_type = 'DIRECT_PAYMENT'
-			           OR (receipt_type IS NULL AND payment_mode IS NOT NULL AND TRIM(payment_mode) <> '')
 			        GROUP BY invoice_id
 			      ) recq ON recq.invoiceId = inv.id
 			      WHERE inv.id = ?
@@ -3571,16 +3718,9 @@ app.get('/api/queues/credit-voucher-payment', async (req, res) => {
 	    const paymentModeLower = paymentMode.trim().toLowerCase();
 		    const isCash = paymentModeLower === 'cash';
 		    const isFull = paymentStatusLower.includes('full');
-		    const paymentAmount = Math.max(0, Number(r.paymentAmount ?? 0));
-		    const debitNoteAmount = Math.max(0, Number(r.debitNoteAmount ?? 0));
-		    const actualReceiptAmount = Math.max(0, Number(r.actualReceiptAmount ?? 0));
-		    const debitNoteReceiptAmount = Math.max(0, Number(r.debitNoteReceiptAmount ?? 0));
-		    const paidAmountLegacy = paymentAmount + debitNoteAmount;
-		    const paidFromReceiptsNonDn = Math.max(0, actualReceiptAmount - debitNoteReceiptAmount);
-		    const paidFromDebitNote = Math.max(debitNoteReceiptAmount, debitNoteAmount);
-		    const paidNonAdvance = Math.max(0, Math.max(paidAmountLegacy, paidFromReceiptsNonDn + paidFromDebitNote));
-		    const paidAmount = Math.max(0, paidNonAdvance + Math.max(0, adjustedAmount));
-			    const remainingAmount = isFull ? 0 : Math.max(0, invoiceAmount - paidAmount);
+			    const actualReceiptAmount = Math.max(0, Number(r.actualReceiptAmount ?? 0));
+			    const paidAmount = Math.max(0, adjustedAmount) + actualReceiptAmount;
+				    const remainingAmount = isFull ? 0 : invoiceAmount - paidAmount;
 
 	    const totalInvoiceQty = Number(r.totalInvoiceQty ?? 0);
 	    const totalLinkedQty = Number(r.totalLinkedQty ?? 0);
@@ -13845,27 +13985,30 @@ app.delete('/api/invoices/:id', async (req, res) => {
       `,
       [invoiceId]
     );
-    if (!invMeta) return res.status(404).json({ error: 'Invoice not found' });
-    const invoiceAmount = Number(invMeta.invoiceAmount ?? 0);
+	    if (!invMeta) return res.status(404).json({ error: 'Invoice not found' });
+	    const invoiceAmount = Number(invMeta.invoiceAmount ?? 0);
 	    const adjustedAmount =
 	      adjustedAmountInput != null ? Math.max(0, adjustedAmountInput) : Number(invMeta.adjustedAmount ?? 0);
-	    const debitNoteAmount = paymentMode === 'Debit Note' ? Math.max(0, paymentAmount) : 0;
 	    const actualPaymentAmount = paymentMode === 'Debit Note' ? 0 : Math.max(0, paymentAmount);
-	    const totalPaid = adjustedAmount + actualPaymentAmount + debitNoteAmount;
-		    const paymentStatus = totalPaid >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
+	    const debitNoteAmount = paymentMode === 'Debit Note' ? Math.max(0, paymentAmount) : 0;
+	    const totalPaidInitial = adjustedAmount + actualPaymentAmount + debitNoteAmount;
+		    const paymentStatusInitial = totalPaidInitial >= invoiceAmount - 1e-9 ? 'Full Paid' : 'Partly Paid';
 		    await pool.query(
 		      `UPDATE invoices
 		       SET payment_status=?, payment_date=?, payment_amount=?, payment_mode=COALESCE(?, payment_mode),
-		           debit_note_qty=COALESCE(?, debit_note_qty), debit_note_amount=COALESCE(?, debit_note_amount), debit_note_reason=COALESCE(?, debit_note_reason),
+		           debit_note_qty=COALESCE(?, debit_note_qty),
+		           debit_note_amount=COALESCE(?, debit_note_amount),
+		           debit_note_reason=COALESCE(?, debit_note_reason),
 		           tally_entry_date=COALESCE(?, tally_entry_date), updated_by=?, updated_at=NOW()
 		       WHERE id=?`,
 		      [
-		        paymentStatus,
+		        paymentStatusInitial,
 		        paymentDate,
 		        actualPaymentAmount,
 		        paymentMode || null,
 		        paymentMode === 'Debit Note' ? debitNoteQty : null,
-		        paymentMode === 'Debit Note' ? debitNoteAmount : null,
+		        // Debit note amounts must be stored as DIRECT_PAYMENT receipts; keep invoice column at 0 to avoid double counting.
+		        paymentMode === 'Debit Note' ? 0 : null,
 		        paymentMode === 'Debit Note' ? debitNoteReason : null,
 		        tallyEntryDate || null,
 		        updatedBy,
@@ -13914,54 +14057,93 @@ app.delete('/api/invoices/:id', async (req, res) => {
         }
       }
     }
-	    if (actualPaymentAmount > 1e-9) {
+	    if (actualPaymentAmount > 1e-9 || debitNoteAmount > 1e-9) {
 	      const [[poRow]] = await pool.query('SELECT po_id AS poId FROM invoices WHERE id = ? LIMIT 1', [invoiceId]);
 	      const poId = poRow?.poId != null ? String(poRow.poId) : '';
 	      if (poId) {
 	        try {
-          await pool.query(
-            `
-            INSERT INTO po_advance_invoice_adjustments
-              (id, po_id, invoice_id, adjusted_amount, payment_mode, payment_copy, receipt_type, reference_type, entry_key, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?, ?)
-            `,
-            [
-              crypto.randomUUID(),
+	          await pool.query(
+	            `
+	            INSERT INTO po_advance_invoice_adjustments
+	              (id, po_id, invoice_id, adjusted_amount, payment_mode, payment_copy, receipt_type, reference_type, entry_key, created_by, updated_by)
+	            VALUES (?, ?, ?, ?, ?, ?, 'DIRECT_PAYMENT', 'INVOICE', ?, ?, ?)
+	            `,
+	            [
+	              crypto.randomUUID(),
 	              poId,
 	              invoiceId,
-	              actualPaymentAmount,
+	              paymentMode === 'Debit Note' ? debitNoteAmount : actualPaymentAmount,
 	              paymentMode || null,
-	              paymentCopy || null,
+	              paymentMode === 'Debit Note' ? null : paymentCopy || null,
 	              crypto.randomUUID(),
 	              updatedBy || 'system',
 	              updatedBy || 'system',
 	            ]
 	          );
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (msg.toLowerCase().includes('uniq_invoice') || msg.toLowerCase().includes('duplicate entry')) {
-            // Legacy DB: merge direct payments into the single existing row.
-            await pool.query(
-              `
-              UPDATE po_advance_invoice_adjustments
-              SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
-                  payment_mode = COALESCE(?, payment_mode),
-                  payment_copy = COALESCE(?, payment_copy),
-                  receipt_type = 'DIRECT_PAYMENT',
-                  reference_type = 'INVOICE',
-                  updated_by = ?,
-                  updated_at = NOW()
-              WHERE po_id = ? AND invoice_id = ?
+	        } catch (e) {
+	          const msg = e instanceof Error ? e.message : String(e);
+	          if (msg.toLowerCase().includes('uniq_invoice') || msg.toLowerCase().includes('duplicate entry')) {
+	            // Legacy DB: merge direct payments into the single existing row.
+	            await pool.query(
+	              `
+	              UPDATE po_advance_invoice_adjustments
+	              SET adjusted_amount = COALESCE(adjusted_amount, 0) + ?,
+	                  payment_mode = COALESCE(?, payment_mode),
+	                  payment_copy = COALESCE(?, payment_copy),
+	                  receipt_type = 'DIRECT_PAYMENT',
+	                  reference_type = 'INVOICE',
+	                  updated_by = ?,
+	                  updated_at = NOW()
+	              WHERE po_id = ? AND invoice_id = ?
 	              LIMIT 1
 	              `,
-	              [actualPaymentAmount, paymentMode || null, paymentCopy || null, updatedBy || 'system', poId, invoiceId]
+	              [
+	                paymentMode === 'Debit Note' ? debitNoteAmount : actualPaymentAmount,
+	                paymentMode || null,
+	                paymentMode === 'Debit Note' ? null : paymentCopy || null,
+	                updatedBy || 'system',
+	                poId,
+	                invoiceId,
+	              ]
 	            );
 	          } else {
 	            throw e;
 	          }
-        }
-      }
-    }
+	        }
+	      }
+	    }
+
+	    // Refresh payment_status after inserting payment/debit-note receipt rows.
+	    const [[totalsRow]] = await pool.query(
+	      `
+	      SELECT
+	        inv.total_amount AS invoiceAmount,
+	        COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
+	        COALESCE(rec.actualReceiptAmount, 0) AS actualReceiptAmount
+	      FROM invoices inv
+	      LEFT JOIN (
+	        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS adjustedAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'ADVANCE_ADJUSTMENT'
+	        GROUP BY invoice_id
+	      ) adj ON adj.invoiceId = inv.id
+	      LEFT JOIN (
+	        SELECT invoice_id AS invoiceId, SUM(adjusted_amount) AS actualReceiptAmount
+	        FROM po_advance_invoice_adjustments
+	        WHERE receipt_type = 'DIRECT_PAYMENT'
+	        GROUP BY invoice_id
+	      ) rec ON rec.invoiceId = inv.id
+	      WHERE inv.id = ?
+	      LIMIT 1
+	      `,
+	      [invoiceId]
+	    );
+	    if (totalsRow) {
+	      const invAmt = Number(totalsRow.invoiceAmount ?? 0);
+	      const totalPaid = Number(totalsRow.adjustedAmount ?? 0) + Number(totalsRow.actualReceiptAmount ?? 0);
+	      const paymentStatus = totalPaid >= invAmt - 1e-9 ? 'Full Paid' : totalPaid > 1e-9 ? 'Partly Paid' : null;
+	      await pool.query(`UPDATE invoices SET payment_status=?, updated_at=NOW() WHERE id=?`, [paymentStatus, invoiceId]);
+	    }
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

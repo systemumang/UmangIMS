@@ -247,7 +247,7 @@ export default function PaymentQueueView({
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
-				                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number((r as any).adjustedAmount ?? 0).toFixed(2)}</td> : null}
+				                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td> : null}
 			                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td> : null}
 	                      {mode !== 'tally' ? <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td> : null}
 	                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.tallyEntryDate ? formatDateDDMMYYYYOnly(r.tallyEntryDate) : '-'}</td>
@@ -403,16 +403,10 @@ export default function PaymentQueueView({
               <div><span className="font-semibold">Supplier:</span> {active?.supplierName || '-'}</div>
               <div><span className="font-semibold">Amount:</span> {Number(active?.invoiceAmount ?? 0).toFixed(2)}</div>
               <div><span className="font-semibold">Payment Mode:</span> {String(invoiceDetail?.invoice?.invoice?.paymentMode ?? active?.paymentMode ?? 'Credit')}</div>
-              <div><span className="font-semibold">Amount Adjusted:</span> {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}</div>
-              <div>
-                <span className="font-semibold">Balance Payment:</span>{' '}
-		                {Math.max(
-		                  0,
-		                  Number(active?.invoiceAmount ?? 0) -
-		                    Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
-		                    Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0) -
-		                    Number(invoiceDetail?.invoice?.invoice?.debitNoteAmount ?? 0)
-		                ).toFixed(2)}
+	              <div><span className="font-semibold">Amount Adjusted:</span> {Number(active?.adjustedAmount ?? invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}</div>
+	              <div>
+	                <span className="font-semibold">Balance Payment:</span>{' '}
+		                {Number(active?.remainingAmount ?? 0).toFixed(2)}
 	              </div>
               <div><span className="font-semibold">E-way Bill No:</span> {String(invoiceDetail?.invoice?.invoice?.ewayBillNumber ?? '-')}</div>
               <div><span className="font-semibold">CN/Courier No:</span> {String(invoiceDetail?.invoice?.invoice?.cnNumber ?? invoiceDetail?.invoice?.invoice?.courierNumber ?? '-')}</div>
@@ -510,20 +504,14 @@ export default function PaymentQueueView({
                           <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
                             {Number(active.invoiceAmount ?? 0).toFixed(2)}
                           </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-                            {Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-                            {Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
-	                            {Math.max(
-	                              0,
-	                              Number(active.invoiceAmount ?? 0) -
-	                                Number(invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0) -
-	                                Number(invoiceDetail?.invoice?.invoice?.paymentAmount ?? 0) -
-	                                Number(invoiceDetail?.invoice?.invoice?.debitNoteAmount ?? 0)
-	                            ).toFixed(2)}
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Number(active.adjustedAmount ?? invoiceDetail?.invoice?.invoice?.adjustedAmount ?? 0).toFixed(2)}
+	                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Math.max(0, Number(active.paidAmount ?? 0) - Number(active.adjustedAmount ?? 0)).toFixed(2)}
+	                          </td>
+	                          <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums" rowSpan={lines.length}>
+	                            {Number(active.remainingAmount ?? 0).toFixed(2)}
 	                          </td>
                           <td className="px-3 py-2 border border-outline-variant" rowSpan={lines.length}>
                             <input

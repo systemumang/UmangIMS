@@ -376,6 +376,7 @@ export type PaymentQueueRow = {
   supplierId?: string | null;
   supplierName: string;
   invoiceAmount: number;
+  adjustedAmount?: number;
   paymentMode?: 'Cash' | 'Credit' | string;
   tallyEntryDate?: string;
   paidAmount: number;
@@ -389,6 +390,12 @@ export type PaymentQueueRow = {
 export async function fetchQueuePayment(filters?: QueueFilters, signal?: AbortSignal): Promise<PaymentQueueRow[]> {
   const res = await fetch(`/api/queues/payment${buildQueueQuery(filters)}`, { signal });
   const data = await requireOk<{ rows?: PaymentQueueRow[] }>(res, 'Failed to load Payment queue');
+  return Array.isArray(data.rows) ? data.rows : [];
+}
+
+export async function fetchQueueExcessPaidInvoices(filters?: QueueFilters, signal?: AbortSignal): Promise<PaymentQueueRow[]> {
+  const res = await fetch(`/api/queues/excess-paid-invoices${buildQueueQuery(filters)}`, { signal });
+  const data = await requireOk<{ rows?: PaymentQueueRow[] }>(res, 'Failed to load Excess Paid Invoices queue');
   return Array.isArray(data.rows) ? data.rows : [];
 }
 

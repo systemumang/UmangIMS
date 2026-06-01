@@ -21,6 +21,7 @@ import EnterCreditVoucherQueueView from './components/views/queues/EnterCreditVo
 import ApproveCreditVoucherQueueView from './components/views/queues/ApproveCreditVoucherQueueView';
 	import LinkInvoiceGrnQueueView from './components/views/queues/LinkInvoiceGrnQueueView';
 	import PaymentQueueView from './components/views/queues/PaymentQueueView';
+import ExcessPaidInvoicesView from './components/views/queues/ExcessPaidInvoicesView';
 import CreditVoucherPaymentQueueView from './components/views/queues/CreditVoucherPaymentQueueView';
 import Spinner from './components/common/Spinner';
 import ItemIssueView from './components/views/ItemIssueView';
@@ -74,7 +75,8 @@ import {
   fetchQueueApproveCreditVoucher,
 	  fetchQueueLinkInvoiceGrn,
 	  fetchQueuePayment,
-  fetchQueueCreditVoucherPayment,
+		fetchQueueCreditVoucherPayment,
+		fetchQueueExcessPaidInvoices,
 	  fetchQueueTallyEntry,
 	  fetchQueueQc,
 	  fetchQueueSendPo,
@@ -214,8 +216,9 @@ export default function App() {
 		      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
           fetchQueueApproveCreditVoucher(undefined, ac.signal).then((r) => ['queueApproveCreditVoucher', r.length] as const),
 		      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
-		      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
+	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
 	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
+	      fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['queueExcessPaidInvoices', r.length] as const),
           fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
 	    ])
       .then((pairs) => {
@@ -342,6 +345,7 @@ export default function App() {
 		        queueTallyEntry: 'Tally Entry',
 	        queueLinkInvoiceGrn: 'Link Invoice ↔ GRN',
 			        queuePayment: 'Pending Payment',
+              queueExcessPaidInvoices: 'Excess Paid Invoices',
               queueCreditVoucherPayment: 'Pending Credit Voucher Payment',
 		      };
 	      return { title: titleByKey[view], showSearch: false };
@@ -864,6 +868,7 @@ export default function App() {
 				          {view === 'queueTallyEntry' ? <PaymentQueueView onViewPr={openPrDetail} queueLabel="Tally Entry" queuePathLabel="Tally Entry" exportPrefix="queue-tally-entry" fetchRows={fetchQueueTallyEntry} mode="tally" /> : null}
 				          {view === 'queueLinkInvoiceGrn' ? <LinkInvoiceGrnQueueView onViewPr={openPrDetail} /> : null}
 			          {view === 'queuePayment' ? <PaymentQueueView onViewPr={openPrDetail} /> : null}
+			          {view === 'queueExcessPaidInvoices' ? <ExcessPaidInvoicesView /> : null}
                 {view === 'queueCreditVoucherPayment' ? <CreditVoucherPaymentQueueView onViewPr={openPrDetail} /> : null}
 		        </div>
 		      </main>
