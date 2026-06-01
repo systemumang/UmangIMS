@@ -370,6 +370,7 @@ function getMysqlPool() {
       await ensureColumn('grn_items', 'recv_dim_pcs', 'INT NULL');
       await ensureColumn('grn_items', 'recv_dim_input_unit', 'VARCHAR(8) NULL');
       await ensureColumn('grn_items', 'recv_dim_po_unit', 'VARCHAR(8) NULL');
+      await ensureColumn('grn_items', 'round_off', 'DOUBLE NULL');
 
       await ensureColumn('invoice_items', 'dim_length', 'DOUBLE NULL');
       await ensureColumn('invoice_items', 'dim_breadth', 'DOUBLE NULL');
@@ -6947,9 +6948,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 
         const qtyReceivedInput = Number(row?.quantityReceived ?? 0);
         const roundOffInput = Number(row?.roundOff ?? 0);
+        const roundOffValue = Number.isFinite(roundOffInput) ? round2(roundOffInput) : 0;
         const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
         const qtyConverted = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : qtyReceivedInput;
-        const qtyReceivedRaw = isArea ? (qtyConverted + (Number.isFinite(roundOffInput) ? roundOffInput : 0)) : qtyReceivedInput;
+        const qtyReceivedRaw = isArea ? (qtyConverted + roundOffValue) : qtyReceivedInput;
         const qtyReceived = round2(qtyReceivedRaw);
 
         if (isArea) {
@@ -6966,9 +6968,9 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      await pool.query(
 	        `
 	        INSERT INTO grn_items
-	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit)
+	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit, round_off)
 	        VALUES
-	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?)
+	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?)
 	        `,
 	        [
             grnItemId,
@@ -6984,6 +6986,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
             isArea ? Math.trunc(Number(dimPcs)) : null,
             isArea ? inputUnit : null,
             isArea ? String(poDimUnit).trim().toLowerCase() : null,
+            isArea ? roundOffValue : null,
           ]
 	      );
 
@@ -6999,6 +7002,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
           recvDimPcs: isArea ? Math.trunc(Number(dimPcs)) : null,
           recvDimInputUnit: isArea ? inputUnit : null,
           recvDimPoUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
+          roundOff: isArea ? roundOffValue : null,
         });
 	    }
 

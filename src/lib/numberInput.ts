@@ -20,6 +20,36 @@ export function sanitizeDecimalInput(raw: string): string {
   return `${whole}.${frac}`;
 }
 
+export function sanitizeSignedDecimalInput(raw: string): string {
+  const s = String(raw ?? '');
+  let out = '';
+  let whole = '';
+  let frac = '';
+  let dotUsed = false;
+  let sign = '';
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i]!;
+    if (i === 0 && ch === '-') {
+      sign = '-';
+      continue;
+    }
+    if (ch >= '0' && ch <= '9') {
+      if (dotUsed) {
+        if (frac.length < 2) frac += ch;
+      } else {
+        whole += ch;
+      }
+      continue;
+    }
+    if (ch === '.' && !dotUsed) {
+      dotUsed = true;
+    }
+  }
+  out = sign + whole;
+  if (dotUsed) out += `.${frac}`;
+  return out;
+}
+
 export function sanitizePercentInput(raw: string): string {
   return sanitizeDecimalInput(raw);
 }

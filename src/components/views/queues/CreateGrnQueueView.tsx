@@ -6,7 +6,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { formatMax2 } from '@/src/lib/formatNumber';
-import { sanitizeDecimalInput } from '@/src/lib/numberInput';
+import { sanitizeDecimalInput, sanitizeSignedDecimalInput } from '@/src/lib/numberInput';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import Pagination from '@/src/components/common/Pagination';
@@ -787,9 +787,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                           <input
                             className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right disabled:bg-surface-container-low disabled:opacity-50')}
                             value={roundOffByItemId[it.itemId] ?? ''}
-	                            onChange={(e) =>
-	                              setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
-	                            }
+		                            onChange={(e) =>
+		                              setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeSignedDecimalInput(e.target.value) }))
+		                            }
                             inputMode="decimal"
                             placeholder={isAreaUnit ? "0.00" : "-"}
                             disabled={!isAreaUnit}
