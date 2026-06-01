@@ -1054,10 +1054,10 @@ export default function OperationsView({
     }
   };
 
-	  const getSupplierHasGst = (id: string) => {
-	    const s = suppliers.find((x) => x.id === id);
-	    return Boolean(String(s?.gstNumber ?? '').trim());
-	  };
+		  const getSupplierHasGst = (id: string) => {
+		    const s = masters.suppliers.find((x) => x.id === id);
+		    return Boolean(String(s?.gstNumber ?? '').trim());
+		  };
 
 	  return (
 	    <div className="space-y-6">

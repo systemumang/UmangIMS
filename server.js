@@ -7981,7 +7981,18 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
 	    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
 	    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
-	    drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, topY - 54, { size: 8 });
+	    {
+	      const addr = String(poRow.firmAddress ?? '').trim() || '-';
+	      const addrLines = wrapLines(addr, font, 8, halfWidth - 16);
+	      let ay = topY - 54;
+	      const shown = (addrLines.length ? addrLines : ['-']).slice(0, 2);
+	      for (const line of shown) {
+	        drawAt(line, firmX + 8, ay, { size: 8 });
+	        ay -= 10;
+	      }
+	      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
+	      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
+	    }
     y = topY - 92;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
@@ -8111,7 +8122,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
 	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, headerY - 10, { bold: true, size: 8 });
-	    drawRight(showGstAmountColumn ? 'Amt Before GST' : 'Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+	    if (showGstAmountColumn) {
+	      // Avoid header overflow by splitting across two lines inside the same cell.
+	      drawRight('Amt', col.taxableRight - 8, headerY - 8, { bold: true, size: 8 });
+	      drawRight('Before GST', col.taxableRight - 8, headerY - 15, { bold: true, size: 6 });
+	    } else {
+	      drawRight('Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+	    }
     y -= 20;
 
     let grandGoods = 0;
