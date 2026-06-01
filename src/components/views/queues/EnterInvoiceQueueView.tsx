@@ -856,12 +856,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                   <col className="w-[80px]" />
                   <col className="w-[120px]" />
                   <col className="w-[100px]" />
-                  {supplierHasGst ? (
-                    <>
-                      <col className="w-[100px]" />
-                      <col className="w-[120px]" />
-                    </>
-                  ) : null}
+	                  {supplierHasGst ? (
+	                    <>
+	                      <col className="w-[130px]" />
+	                      <col className="w-[120px]" />
+	                    </>
+	                  ) : null}
 	                <col className="w-[130px]" />
 	              </colgroup>
               <thead>
@@ -1078,10 +1078,10 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                           {supplierHasGst ? (
                             <>
                               <td className="px-1 py-2 border border-black align-middle" onClick={(e) => e.stopPropagation()}>
-                                <GstRateSelect
-                                  className="w-full"
-                                  inputClassName="py-1.5 h-8 text-[11px] text-right"
-                                  value={ln.gstPercent}
+	                                <GstRateSelect
+	                                  className="w-full"
+	                                  inputClassName="py-1.5 h-8 text-[11px]"
+	                                  value={ln.gstPercent}
                                   onChange={(val) =>
                                     setLines((prev) => {
                                       const next = prev.slice();

@@ -3,6 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { fetchQueueApproveInvoice, updateQueueApproveInvoice, type ApproveInvoiceQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { fetchInvoicesByPrId, type InvoiceWithItems } from '@/src/lib/purchaseRequests';
 import { formatPoNumber } from '@/src/lib/docNumbers';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
 import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
@@ -61,20 +62,6 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setApprovedBy('');
     setApproveDate(new Date().toISOString().slice(0, 10));
   }
-
-  const formatSpecs = (json: string) => {
-    if (!json) return '';
-    try {
-      const specs = JSON.parse(json);
-      if (Array.isArray(specs)) {
-        return specs.map((s: any) => s.value).filter(Boolean).join(', ');
-      }
-      if (specs && typeof specs === 'object') {
-        return Object.values(specs).filter(Boolean).join(', ');
-      }
-    } catch (e) {}
-    return String(json || '');
-  };
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -295,17 +282,9 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	                            className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
 	                            onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
 	                          >
-	                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words">
-	                              <div className="font-medium">{it.item || it.itemId}</div>
-	                              {formatSpecs(raw.specificationsJson) ? (
-	                                <div className="text-[11px] text-on-surface-variant mt-0.5">{formatSpecs(raw.specificationsJson)}</div>
-	                              ) : null}
-	                              {raw.dimLength ? (
-	                                <div className="text-[11px] text-on-surface-variant mt-0.5">
-	                                  {`${raw.dimLength} x ${raw.dimBreadth} x ${raw.dimPcs} ${raw.dimUnit || ''}`}
-	                                </div>
-	                              ) : null}
-	                            </td>
+		                            <td className="px-2 py-1 border border-outline-variant whitespace-normal break-words font-medium">
+		                              {formatItemInline(String(it.item || it.itemId || ''), raw.specificationsJson)}
+		                            </td>
 	                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
 	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
 	                              {Number(it.quantity ?? 0).toFixed(2)}
