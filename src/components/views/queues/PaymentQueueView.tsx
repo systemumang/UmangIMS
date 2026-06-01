@@ -355,7 +355,7 @@ export default function PaymentQueueView({
 	                  setSaving(false);
 	                  return;
 	                }
-	                if (mode === 'payment' && !String(paymentCopyInput ?? '').trim()) {
+	                if (mode === 'payment' && !isDebitNote && !String(paymentCopyInput ?? '').trim()) {
 	                  setModalError('Payment Copy is required.');
 	                  setSaving(false);
 	                  return;
@@ -464,26 +464,10 @@ export default function PaymentQueueView({
         ) : modalLoading ? (
           <div className="text-sm text-on-surface-variant">Loading invoice lines...</div>
         ) : (
-			          <div className="overflow-x-auto">
-			            <table className="w-full min-w-[1700px] table-fixed text-left border-collapse border border-outline-variant">
-			              <colgroup>
-			                <col className="w-[90px]" />
-			                <col className="w-[110px]" />
-			                <col className="w-[110px]" />
-			                <col className="w-[90px]" />
-			                <col className="w-[90px]" />
-			                <col className="w-[90px]" />
-			                <col className="w-[90px]" />
-			                <col className="w-[120px]" />
-			                <col className="w-[120px]" />
-			                <col className="w-[120px]" />
-			                <col className="w-[150px]" />
-			                <col className="w-[420px]" />
-			                <col className="w-[80px]" />
-			                <col className="w-[80px]" />
-			              </colgroup>
-			              <thead>
-			                <tr className="bg-primary text-on-primary">
+				          <div className="overflow-x-visible">
+				            <table className="w-full table-auto text-left border-collapse border border-outline-variant">
+				              <thead>
+				                <tr className="bg-primary text-on-primary">
 			                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">PO</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice No</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest border border-outline-variant">Invoice Date</th>
