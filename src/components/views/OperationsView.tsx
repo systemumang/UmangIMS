@@ -1469,18 +1469,18 @@ export default function OperationsView({
 	                            {!grnDetailLoading && !grnDetailError ? (
 	                              <div className="overflow-x-auto">
 	                                <table className="w-full min-w-[1050px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-	                                  <thead>
-	                                    <tr className="bg-primary text-on-primary">
-	                                      <th className="px-3 py-2 border border-outline-variant">Item</th>
-	                                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
-                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
-                                        <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
-	                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">GRN Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Approved Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Inv. Link Qty</th>
-	                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected</th>
-	                                    </tr>
-	                                  </thead>
+		                                  <thead>
+		                                    <tr className="bg-primary text-on-primary">
+		                                      <th className="px-3 py-2 border border-outline-variant">Item</th>
+		                                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+	                                        <th className="px-3 py-2 border border-outline-variant w-[90px]">Length</th>
+	                                        <th className="px-3 py-2 border border-outline-variant w-[90px]">Breadth</th>
+		                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">GRN Qty</th>
+		                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Approved Qty</th>
+		                                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Inv. Link Qty</th>
+		                                      <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected</th>
+		                                    </tr>
+		                                  </thead>
 	                                  <tbody>
 	                                    {(grnDetail?.grn?.items ?? []).length ? (
 	                                      (grnDetail?.grn?.items ?? [])
@@ -1493,20 +1493,20 @@ export default function OperationsView({
 	                                e.stopPropagation();
 	                                setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
 	                                }}
-	                                >
-	                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
-	                                          <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
-                                            <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
-                                              {formatSpecs(it.specificationsJson)}
-                                            </td>
-                                            <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
-                                              {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
-                                            </td>
-	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
-	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
-	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.invoiceLinkQty ?? 0)}</td>
-	                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
-	                                        </tr>
+		                                >
+		                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
+		                                          <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+	                                            <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+	                                              {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+	                                            </td>
+	                                            <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+	                                              {it.dimBreadth ? `${it.dimBreadth}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+	                                            </td>
+		                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantityReceived ?? 0)}</td>
+		                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.approvedQty ?? 0)}</td>
+		                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.invoiceLinkQty ?? 0)}</td>
+		                                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
+		                                        </tr>
 	                                ))
 	                                    ) : (
 	                                      <tr>
@@ -1531,35 +1531,35 @@ export default function OperationsView({
                                 <div className="space-y-2">
                                   <div className="overflow-x-auto">
                                     <table className="w-full min-w-[1050px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-                                      <thead>
-                                        <tr className="bg-primary text-on-primary">
-                                          <th className="px-3 py-2 border border-outline-variant">Item</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Rate</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Tax %</th>
-                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
-                                        </tr>
-                                      </thead>
+	                                      <thead>
+	                                        <tr className="bg-primary text-on-primary">
+	                                          <th className="px-3 py-2 border border-outline-variant">Item</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[90px]">Length</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[90px]">Breadth</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Qty</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Rate</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[100px]">Tax %</th>
+	                                          <th className="px-3 py-2 border border-outline-variant w-[120px]">Total</th>
+	                                        </tr>
+	                                      </thead>
                                       <tbody>
                                         {(invoiceDetail?.invoice?.items ?? []).length ? (
                                           (invoiceDetail?.invoice?.items ?? []).map((it: any, idx: number) => (
-                                            <tr key={`${String(r.invoiceId ?? '')}-it-${idx}`}>
-                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
-                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
-                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
-                                                {formatSpecs(it.specificationsJson)}
-                                              </td>
-                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
-                                                {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
-                                              </td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantity ?? 0)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rate ?? 0).toFixed(2)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.totalAmount ?? 0).toFixed(2)}</td>
-                                            </tr>
+	                                            <tr key={`${String(r.invoiceId ?? '')}-it-${idx}`}>
+	                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item ?? '-'}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+	                                                {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+	                                              </td>
+	                                              <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+	                                                {it.dimBreadth ? `${it.dimBreadth}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+	                                              </td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantity ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rate ?? 0).toFixed(2)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.totalAmount ?? 0).toFixed(2)}</td>
+	                                            </tr>
                                           ))
                                         ) : (
                                           <tr>
@@ -1588,16 +1588,16 @@ export default function OperationsView({
 		                      </div>
 		                      <div className="overflow-x-auto">
 		                      <table className="w-full min-w-[1250px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-		                      <thead>
-		                                      <tr className="bg-primary text-on-primary">
-		                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
-		                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
-		                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Specifications</th>
-		                      <th className="px-3 py-2 border border-outline-variant w-[120px]">Dimensions</th>
-		                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">PO Qty</th>
-		                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">GRN Qty</th>
-		                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Accepted Qty</th>
-		                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected Qty</th>
+			                      <thead>
+			                                      <tr className="bg-primary text-on-primary">
+			                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+			                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
+			                      <th className="px-3 py-2 border border-outline-variant w-[90px]">Length</th>
+			                      <th className="px-3 py-2 border border-outline-variant w-[90px]">Breadth</th>
+			                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">PO Qty</th>
+			                                        <th className="px-3 py-2 border border-outline-variant w-[80px]">GRN Qty</th>
+			                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Accepted Qty</th>
+			                                        <th className="px-3 py-2 border border-outline-variant w-[100px]">Rejected Qty</th>
 		                                        <th className="px-3 py-2 border border-outline-variant w-[90px]">PO Rate</th>
 		                                        <th className="px-3 py-2 border border-outline-variant w-[70px]">Disc %</th>
 		                                        <th className="px-3 py-2 border border-outline-variant w-[70px]">GST %</th>
@@ -1621,19 +1621,19 @@ export default function OperationsView({
 		                      e.stopPropagation();
 		                      setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
 		                      }}
-		                      >
-		                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
-		                      <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
-		                      {formatSpecs(it.specificationsJson)}
-		                      </td>
-		                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
-		                      {it.dimLength ? `${it.dimLength} x ${it.dimBreadth} x ${it.dimPcs} ${it.dimUnit || ''}` : '-'}
-		                      </td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
+			                      >
+			                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
+			                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
+			                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+			                      {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+			                      </td>
+			                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
+			                      {it.dimBreadth ? `${it.dimBreadth}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
+			                      </td>
+			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{qty}</td>
+			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
+			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
+			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
 		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate.toFixed(2)}</td>
 		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
 		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>

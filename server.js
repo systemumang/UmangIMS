@@ -7690,30 +7690,32 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     );
     if (!poRow) return res.status(404).send('PO not found');
 
-    const [itemRows] = await pool.query(
-      `
-      SELECT
-        iname.name AS itemName,
-        it.specifications_json AS specificationsJson,
-        poi.quantity AS quantity,
-        poi.rate AS rate,
-        poi.discount_percent AS discountPercent,
-        poi.tax_percent AS taxPercent,
-        poi.goods_amount AS goodsAmount,
-        poi.tax_amount AS taxAmount,
-        poi.total_amount AS totalAmount,
-        poi.dim_length AS dimLength,
-        poi.dim_breadth AS dimBreadth,
-        poi.dim_pcs AS dimPcs,
-        poi.dim_unit AS dimUnit
-      FROM purchase_order_items poi
-      LEFT JOIN items it ON it.id = poi.item_id
-      LEFT JOIN item_names iname ON iname.id = it.item_name_id
-      WHERE poi.po_id = ?
-      ORDER BY poi.created_at ASC
-      `,
-      [poId]
-    );
+	    const [itemRows] = await pool.query(
+	      `
+	      SELECT
+	        iname.name AS itemName,
+	        it.specifications_json AS specificationsJson,
+	        u.name AS unitName,
+	        poi.quantity AS quantity,
+	        poi.rate AS rate,
+	        poi.discount_percent AS discountPercent,
+	        poi.tax_percent AS taxPercent,
+	        poi.goods_amount AS goodsAmount,
+	        poi.tax_amount AS taxAmount,
+	        poi.total_amount AS totalAmount,
+	        poi.dim_length AS dimLength,
+	        poi.dim_breadth AS dimBreadth,
+	        poi.dim_pcs AS dimPcs,
+	        poi.dim_unit AS dimUnit
+	      FROM purchase_order_items poi
+	      LEFT JOIN items it ON it.id = poi.item_id
+	      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+	      LEFT JOIN units u ON u.id = iname.unit_id
+	      WHERE poi.po_id = ?
+	      ORDER BY poi.created_at ASC
+	      `,
+	      [poId]
+	    );
 
     const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
     const specNameById = new Map(
@@ -7742,27 +7744,43 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       }
     };
 
-    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
-      const base = String(r.itemName ?? '').trim();
-      const specs = formatSpecParts(r.specificationsJson);
-      const dims = [];
-      if (r.dimLength != null && Number(r.dimLength) > 0) dims.push(`L: ${r.dimLength}`);
-      if (r.dimBreadth != null && Number(r.dimBreadth) > 0) dims.push(`B: ${r.dimBreadth}`);
-      if (r.dimPcs != null && Number(r.dimPcs) > 0) dims.push(`Pcs: ${r.dimPcs}`);
-      if (r.dimUnit) dims.push(String(r.dimUnit));
-      const dimStr = dims.length ? `(${dims.join(', ')})` : '';
-      const label = [base, ...specs, dimStr].filter(Boolean).join(' - ') || '-';
-      return {
-        label,
-        quantity: Number(r.quantity ?? 0),
-        rate: Number(r.rate ?? 0),
-        discountPercent: Number(r.discountPercent ?? 0),
-        taxPercent: Number(r.taxPercent ?? 0),
-        goodsAmount: Number(r.goodsAmount ?? 0),
-        taxAmount: Number(r.taxAmount ?? 0),
-        totalAmount: Number(r.totalAmount ?? 0),
-      };
-    });
+	    const stripBracketText = (s) => {
+	      const raw = String(s ?? '');
+	      return raw
+	        .replace(/\[[^\]]*\]/g, ' ')
+	        .replace(/\([^)]*\)/g, ' ')
+	        .replace(/\s+/g, ' ')
+	        .trim();
+	    };
+	    const normalizeAreaUnit = (u) => {
+	      const v = String(u ?? '').trim().toLowerCase();
+	      if (!v) return '';
+	      if (['sq ft', 'sqft', 'sq.ft', 'sq.ft.', 'square feet', 'square foot'].includes(v)) return 'sqft';
+	      if (['sq m', 'sqm', 'sq.m', 'sq.m.', 'sq mtr', 'sq mtr.', 'sq meter', 'square meter'].includes(v)) return 'sqm';
+	      return v;
+	    };
+
+	    const items = (Array.isArray(itemRows) ? itemRows : []).map((r) => {
+	      const itemNameOnly = stripBracketText(String(r.itemName ?? '').trim()) || '-';
+	      const unitName = String(r.unitName ?? '').trim();
+	      return {
+	        label: itemNameOnly,
+	        unitName,
+	        quantity: Number(r.quantity ?? 0),
+	        rate: Number(r.rate ?? 0),
+	        discountPercent: Number(r.discountPercent ?? 0),
+	        taxPercent: Number(r.taxPercent ?? 0),
+	        goodsAmount: Number(r.goodsAmount ?? 0),
+	        taxAmount: Number(r.taxAmount ?? 0),
+	        totalAmount: Number(r.totalAmount ?? 0),
+	        dimLength: r.dimLength != null ? Number(r.dimLength) : 0,
+	        dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : 0,
+	        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : 0,
+	        dimUnit: String(r.dimUnit ?? '').trim(),
+	        areaUnit: normalizeAreaUnit(unitName),
+	      };
+	    });
+	    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
 
     const doc = await PDFDocument.create();
     let page = doc.addPage([595.28, 841.89]); // A4
@@ -7837,7 +7855,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const file = decodeURIComponent(value.replace(/^\/uploads\//, '')).replace(/[\\/]/g, '');
       return path.join(uploadsDir, file);
     };
-    const loadLogoImage = async (logoUrl) => {
+	    const loadLogoImage = async (logoUrl) => {
       const value = String(logoUrl ?? '').trim();
       if (!value) return null;
       try {
@@ -7926,17 +7944,25 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const halfWidth = (pageWidth - margin * 2 - 10) / 2;
     drawBox(margin, topY - 78, halfWidth, 82);
     drawBox(margin + halfWidth + 10, topY - 78, halfWidth, 82);
-    drawAt('Supplier', margin + 8, topY - 12, { bold: true, size: 9 });
-    drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
-    drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
-    drawAt(String(poRow.supplierAddress ?? '').trim() || '-', margin + 8, topY - 54, { size: 8 });
-    drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, topY - 68, { bold: true, size: 8 });
+	    drawAt('Supplier', margin + 8, topY - 12, { bold: true, size: 9 });
+	    drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
+	    drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
+	    {
+	      const addr = String(poRow.supplierAddress ?? '').trim() || '-';
+	      const addrLines = wrapLines(addr, font, 8, halfWidth - 16);
+	      let ay = topY - 54;
+	      for (const line of addrLines.slice(0, 2)) {
+	        drawAt(line, margin + 8, ay, { size: 8 });
+	        ay -= 10;
+	      }
+	    }
+	    drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, topY - 68, { bold: true, size: 8 });
 
-    const firmX = margin + halfWidth + 10;
-    drawAt('Firm / Delivery', firmX + 8, topY - 12, { bold: true, size: 9 });
-    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
-    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
-    drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, topY - 54, { size: 8 });
+	    const firmX = margin + halfWidth + 10;
+	    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
+	    drawAt(String(poRow.firmName ?? '').trim() || '-', firmX + 8, topY - 26, { bold: true, size: 9 });
+	    drawAt(`GST: ${String(poRow.firmGstNumber ?? '').trim() || '-'}`, firmX + 8, topY - 40, { size: 8 });
+	    drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, topY - 54, { size: 8 });
     y = topY - 92;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
@@ -7946,22 +7972,60 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       y -= 4;
     }
 
-    const isInterState = String(poRow.supplierGstType ?? '').trim().toLowerCase() === 'inter-state';
-    const tableLeft = margin;
-    const tableRight = pageWidth - margin;
-    const tableWidth = tableRight - tableLeft;
-    const colBounds = [tableLeft, tableLeft + 36, tableLeft + 246, tableLeft + 316, tableLeft + 379, tableLeft + 430, tableLeft + 474, tableRight];
-    const col = {
-      serialLeft: colBounds[0],
-      serialRight: colBounds[1],
-      itemLeft: colBounds[1],
-      itemRight: colBounds[2],
-      qtyRight: colBounds[3],
-      rateRight: colBounds[4],
-      discRight: colBounds[5],
-      gstRight: colBounds[6],
-      taxableRight: colBounds[7],
-    };
+	    const isInterState = String(poRow.supplierGstType ?? '').trim().toLowerCase() === 'inter-state';
+	    const tableLeft = margin;
+	    const tableRight = pageWidth - margin;
+	    const tableWidth = tableRight - tableLeft;
+	    // Columns: Sl No | Item | (Length | Breadth | Pieces | Unit) | Qty | Rate | Disc % | GST % | Amt
+	    const colBounds = (() => {
+	      const b = [tableLeft];
+	      const serialW = 36;
+	      const qtyW = 70;
+	      const rateW = 63;
+	      const discW = 51;
+	      const gstW = 44;
+	      const dimW = 44;
+	      const pcsW = 46;
+	      const unitW = 44;
+	      const dimTotalW = showDimColumns ? dimW * 2 + pcsW + unitW : 0;
+	      const itemW = Math.max(120, tableWidth - (serialW + dimTotalW + qtyW + rateW + discW + gstW + 80));
+	      b.push(b[b.length - 1] + serialW); // Sl No
+	      b.push(b[b.length - 1] + itemW); // Item
+	      if (showDimColumns) {
+	        b.push(b[b.length - 1] + dimW); // Length
+	        b.push(b[b.length - 1] + dimW); // Breadth
+	        b.push(b[b.length - 1] + pcsW); // Pieces
+	        b.push(b[b.length - 1] + unitW); // Unit
+	      }
+	      b.push(b[b.length - 1] + qtyW); // Qty
+	      b.push(b[b.length - 1] + rateW); // Rate
+	      b.push(b[b.length - 1] + discW); // Disc
+	      b.push(b[b.length - 1] + gstW); // GST
+	      b.push(tableRight); // Amt
+	      return b;
+	    })();
+
+	    const col = {
+	      serialLeft: colBounds[0],
+	      serialRight: colBounds[1],
+	      itemLeft: colBounds[1],
+	      itemRight: colBounds[2],
+	      lengthRight: showDimColumns ? colBounds[3] : null,
+	      breadthRight: showDimColumns ? colBounds[4] : null,
+	      pcsRight: showDimColumns ? colBounds[5] : null,
+	      dimUnitRight: showDimColumns ? colBounds[6] : null,
+	      qtyRight: showDimColumns ? colBounds[7] : colBounds[3],
+	      rateRight: showDimColumns ? colBounds[8] : colBounds[4],
+	      discRight: showDimColumns ? colBounds[9] : colBounds[5],
+	      gstRight: showDimColumns ? colBounds[10] : colBounds[6],
+	      taxableRight: showDimColumns ? colBounds[11] : colBounds[7],
+	    };
+
+	    const loadAnyImage = async (imageUrl) => {
+	      const value = String(imageUrl ?? '').trim();
+	      if (!value) return null;
+	      return loadLogoImage(value);
+	    };
     const headerY = y;
     const headerBottom = headerY - 16;
     page.drawRectangle({
@@ -7976,13 +8040,19 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     for (const x of colBounds) drawLine(x, headerBottom, x, headerBottom + 20, 1);
     drawLine(tableLeft, headerBottom + 20, tableRight, headerBottom + 20, 1);
     drawLine(tableLeft, headerBottom, tableRight, headerBottom, 1);
-    drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
-    drawAt('Item Description', col.itemLeft + 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
-    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+	    drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
+	    drawAt('Item Description', col.itemLeft + 4, headerY - 10, { bold: true, size: 8 });
+	    if (showDimColumns) {
+	      drawRight('L', col.lengthRight - 4, headerY - 10, { bold: true, size: 8 });
+	      drawRight('B', col.breadthRight - 4, headerY - 10, { bold: true, size: 8 });
+	      drawRight('Pcs', col.pcsRight - 4, headerY - 10, { bold: true, size: 8 });
+	      drawRight('Unit', col.dimUnitRight - 4, headerY - 10, { bold: true, size: 8 });
+	    }
+	    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight('Amt.', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
     y -= 20;
 
     let grandGoods = 0;
@@ -8005,16 +8075,22 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       drawBox(tableLeft, rowBottom, tableRight - tableLeft, rowHeight);
       for (const x of colBounds) drawLine(x, rowBottom, x, rowBottom + rowHeight, 1);
       drawRight(String(itemIndex + 1), col.serialRight - 4, rowTop - 6, { size: 8 });
-      let labelY = rowTop - 6;
-      for (const line of labelLines) {
-        drawAt(line, col.itemLeft + 4, labelY, { size: 8, bold: labelY === rowTop - 6 });
-        labelY -= 11;
-      }
-      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
-      drawRight(formatNumber(it.discountPercent), col.discRight - 4, rowTop - 6, { size: 8 });
-      drawRight(formatNumber(it.taxPercent), col.gstRight - 4, rowTop - 6, { size: 8 });
-      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
+	      let labelY = rowTop - 6;
+	      for (const line of labelLines) {
+	        drawAt(line, col.itemLeft + 4, labelY, { size: 8, bold: labelY === rowTop - 6 });
+	        labelY -= 11;
+	      }
+	      if (showDimColumns) {
+	        drawRight(it.dimLength > 0 ? formatNumber(it.dimLength) : '-', col.lengthRight - 4, rowTop - 6, { size: 8 });
+	        drawRight(it.dimBreadth > 0 ? formatNumber(it.dimBreadth) : '-', col.breadthRight - 4, rowTop - 6, { size: 8 });
+	        drawRight(it.dimPcs > 0 ? formatNumber(it.dimPcs) : '-', col.pcsRight - 4, rowTop - 6, { size: 8 });
+	        drawRight(String(it.dimUnit ?? '').trim() || '-', col.dimUnitRight - 4, rowTop - 6, { size: 8 });
+	      }
+	      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
+	      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
+	      drawRight(Number(it.discountPercent ?? 0) > 0 ? formatNumber(it.discountPercent) : '', col.discRight - 4, rowTop - 6, { size: 8 });
+	      drawRight(Number(it.taxPercent ?? 0) > 0 ? formatNumber(it.taxPercent) : '', col.gstRight - 4, rowTop - 6, { size: 8 });
+	      drawRight(formatMoney(it.goodsAmount), col.taxableRight - 8, rowTop - 6, { size: 8 });
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += taxAmount;
@@ -8031,31 +8107,14 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     y -= 18;
     const summaryWidth = 200;
     const summaryLeft = tableRight - summaryWidth;
-    const rowH = 26;
-    const toPctLabel = (value) => {
-      const n = Number(value ?? 0);
-      if (!Number.isFinite(n) || n <= 0) return '0';
-      const rounded = Number(n.toFixed(2));
-      return Number.isInteger(rounded) ? String(rounded) : String(rounded);
-    };
-    const igstPct = grandGoods > 0 ? (grandIgst / grandGoods) * 100 : 0;
-    const cgstPct = grandGoods > 0 ? (grandCgst / grandGoods) * 100 : 0;
-    const sgstPct = grandGoods > 0 ? (grandSgst / grandGoods) * 100 : 0;
-
-    const summaryRows = isInterState
-      ? [
-          ['Taxable Subtotal', formatMoney(grandGoods)],
-          [`IGST (${toPctLabel(igstPct)}%)`, formatMoney(grandIgst)],
-          ['Disc. Amount', formatMoney(grandDisc)],
-          ['Grand Total', formatMoney(grandTotal)],
-        ]
-      : [
-          ['Taxable Subtotal', formatMoney(grandGoods)],
-          [`CGST (${toPctLabel(cgstPct)}%)`, formatMoney(grandCgst)],
-          [`SGST (${toPctLabel(sgstPct)}%)`, formatMoney(grandSgst)],
-          ['Disc. Amount', formatMoney(grandDisc)],
-          ['Grand Total', formatMoney(grandTotal)],
-        ];
+	    const rowH = 26;
+	    // Summary should not show GST/Discount percentages (items may have different rates).
+	    // STC amount = taxable subtotal (before GST).
+	    const summaryRows = [
+	      ['Total STC Amount', formatMoney(grandGoods)],
+	      ['Total GST Amount', formatMoney(grandTax)],
+	      ['Grand Total', formatMoney(grandTotal)],
+	    ];
     const summaryTop = y;
     const summaryHeight = summaryRows.length * rowH;
     drawBox(summaryLeft, summaryTop - summaryHeight, summaryWidth, summaryHeight);
@@ -8093,10 +8152,37 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
     y = summaryTop - summaryHeight - 12;
 
-	    const terms = String(poRow.firmTermsConditions ?? poRow.termsConditions ?? '').trim();
-	    if (terms) {
-	      drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
-	      drawTextPreserveNewlines(terms, { size: 8, x: margin, maxWidth: 320 });
+		    const terms = String(poRow.firmTermsConditions ?? poRow.termsConditions ?? '').trim();
+		    if (terms) {
+		      drawText('Terms & Conditions:', { bold: true, size: 9, x: margin, wrap: false });
+		      drawTextPreserveNewlines(terms, { size: 8, x: margin, maxWidth: 320 });
+		    }
+
+	    // Optional authorized signature image (pass as `?signatureUrl=...`).
+	    // Supports data:image/*, http(s) URLs, or local /uploads/... paths (same rules as logoUrl).
+	    const signatureUrl = req.query?.signatureUrl != null ? String(req.query.signatureUrl).trim() : '';
+	    if (signatureUrl) {
+	      const sigImg = await loadAnyImage(signatureUrl);
+	      if (sigImg) {
+	        // Ensure there is space below terms (keep it near page bottom if needed).
+	        addPageIfNeeded(120);
+	        const maxSigW = 140;
+	        const maxSigH = 60;
+	        const scale = Math.min(maxSigW / sigImg.width, maxSigH / sigImg.height, 1);
+	        const w = sigImg.width * scale;
+	        const h = sigImg.height * scale;
+	        const sigX = tableRight - w;
+	        const sigY = Math.max(margin + 40, y - h);
+	        page.drawImage(sigImg, { x: sigX, y: sigY, width: w, height: h });
+	        page.drawText('Authorized Signatory', {
+	          x: sigX,
+	          y: sigY - 12,
+	          size: 8,
+	          font: fontBold,
+	          color: rgb(0, 0, 0),
+	        });
+	        y = sigY - 24;
+	      }
 	    }
 
     const pdfBytes = await doc.save();
