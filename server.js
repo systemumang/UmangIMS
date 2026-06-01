@@ -8037,7 +8037,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			        (showGstAmountColumn ? gstAmtW : 0) +
 			        totalAmtW;
 
-			      const itemW = Math.max(120, tableWidth - fixedExceptItem);
+			      // Item column takes the remaining space. When many numeric columns are visible,
+			      // allow item width to shrink so right-side amounts don't overlap.
+			      const itemW = Math.max(70, tableWidth - fixedExceptItem);
 
 			      const widths = [
 			        serialW,
