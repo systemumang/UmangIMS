@@ -566,10 +566,6 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   return;
                 }
 
-                const normalizedItems = items.map((it) => ({
-                  ...it,
-                  quantityReceived: Math.min(Number(it.quantityReceived ?? 0), Number(it.pendingQty ?? 0)),
-                }));
                 setSaving(true);
                 setModalError(null);
                 const updatedByName = masters.users.find((u) => u.id === updatedByUserId)?.name ?? updatedByUserId;
@@ -578,7 +574,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   materialReceivedBy: materialReceivedByUserId,
                   goodsCollectedBy: goodsCollectedByUserId,
                   updatedBy: updatedByName,
-                  items: normalizedItems.map((x) => ({
+                  items: items.map((x) => ({
                     itemId: x.itemId,
                     item: x.item,
                     quantityReceived: x.quantityReceived,

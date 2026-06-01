@@ -6,6 +6,7 @@ import { formatItemInline } from '@/src/lib/itemLabel';
 import { formatPoNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
+import { formatMax2 } from '@/src/lib/formatNumber';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { ExportCsvButton, inputClass, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 import Pagination from '@/src/components/common/Pagination';
@@ -291,7 +292,7 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{formatItemInline(r.item, r.specificationsJson, specNameById)}</td>
 	                          <td className="px-3 py-2 text-sm border border-outline-variant">{unitText || '-'}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-	                          {r.grnQty}
+	                          {formatMax2(r.grnQty)}
 	                        </td>
 	                        <td className="px-3 py-2 border border-outline-variant">
 	                          <select
@@ -325,19 +326,19 @@ export default function LinkInvoiceGrnQueueView({ onViewPr }: { onViewPr: (prId:
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant">{cand?.invoiceDate ? formatDateDDMMYYYYOnly(cand.invoiceDate) : '-'}</td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-	                          {cand ? cand.invoiceQty : '-'}
+	                          {cand ? formatMax2(cand.invoiceQty) : '-'}
 		                          {cand && unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-	                          {cand ? cand.alreadyLinkedQty : '-'}
+	                          {cand ? formatMax2(cand.alreadyLinkedQty) : '-'}
 		                          {cand && unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-	                          {r.approvedQty}
+	                          {formatMax2(r.approvedQty)}
 		                          {unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 text-sm border border-outline-variant tabular-nums">
-	                          {r.pendingLinkingQty}
+	                          {formatMax2(r.pendingLinkingQty)}
 		                          {unitText ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unitText}</span> : null}
 	                        </td>
 	                        <td className="px-3 py-2 border border-outline-variant">

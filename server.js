@@ -3651,7 +3651,7 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
         gi.id AS grnItemId,
         gi.item_id AS itemId,
         iname.name AS item,
-        u.name AS unit,
+        COALESCE(NULLIF(TRIM(u.name), ''), NULLIF(TRIM(it.unit), ''), '') AS unit,
         it.specifications_json AS specificationsJson,
         gi.received_qty AS grnQty,
         COALESCE(qc.accepted_qty, 0) AS approvedQty,
@@ -3761,6 +3761,7 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
           poNumber: meta.poNumber != null ? String(meta.poNumber) : '',
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+          unit: String(r.unit ?? '').trim(),
           specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
           grnQty: Number(r.grnQty ?? 0),
           approvedQty,
@@ -6764,11 +6765,12 @@ app.post('/api/requests/:id/po', async (req, res) => {
         const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
         const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
-        const quantity = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+        const quantityRaw = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+        const quantity = round2(quantityRaw);
         if (areaUnit) {
-          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
+          if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
         } else {
-          if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+          if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
         }
 
 	      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
@@ -7249,11 +7251,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
 		      const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
-		      const quantity = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+		      const quantityRaw = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+		      const quantity = round2(quantityRaw);
 		      if (areaUnit) {
-		        if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
+		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
 		      } else {
-		        if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
 		      }
 
 		      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
