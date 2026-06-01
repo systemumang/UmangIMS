@@ -8095,41 +8095,45 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      return loadLogoImage(value);
 	    };
     const headerY = y;
-    const headerBottom = headerY - 16;
+    // Slightly taller header so 2-line column labels don't clip.
+    const headerHeight = 26;
+    const headerBottom = headerY - (headerHeight - 4);
     page.drawRectangle({
       x: tableLeft,
       y: headerBottom,
       width: tableWidth,
-      height: 20,
+      height: headerHeight,
       color: rgb(0.88, 0.9, 0.93),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1,
     });
-    for (const x of colBounds) drawLine(x, headerBottom, x, headerBottom + 20, 1);
-    drawLine(tableLeft, headerBottom + 20, tableRight, headerBottom + 20, 1);
+    for (const x of colBounds) drawLine(x, headerBottom, x, headerBottom + headerHeight, 1);
+    drawLine(tableLeft, headerBottom + headerHeight, tableRight, headerBottom + headerHeight, 1);
     drawLine(tableLeft, headerBottom, tableRight, headerBottom, 1);
-	    drawAt('Sl No.', tableLeft + 4, headerY - 10, { bold: true, size: 8 });
-	    drawAt('Item Description', col.itemLeft + 4, headerY - 10, { bold: true, size: 8 });
+	    const h1Y = headerBottom + headerHeight - 14;
+	    const h2Y = headerBottom + 5;
+	    drawAt('Sl No.', tableLeft + 4, h1Y, { bold: true, size: 8 });
+	    drawAt('Item Description', col.itemLeft + 4, h1Y, { bold: true, size: 8 });
 	    if (showDimColumns) {
-	      drawRight('L', col.lengthRight - 4, headerY - 10, { bold: true, size: 8 });
-	      drawRight('B', col.breadthRight - 4, headerY - 10, { bold: true, size: 8 });
-	      drawRight('Pcs', col.pcsRight - 4, headerY - 10, { bold: true, size: 8 });
-	      drawRight('Unit', col.dimUnitRight - 4, headerY - 10, { bold: true, size: 8 });
+	      drawRight('L', col.lengthRight - 4, h1Y, { bold: true, size: 8 });
+	      drawRight('B', col.breadthRight - 4, h1Y, { bold: true, size: 8 });
+	      drawRight('Pcs', col.pcsRight - 4, h1Y, { bold: true, size: 8 });
+	      drawRight('Unit', col.dimUnitRight - 4, h1Y, { bold: true, size: 8 });
 	    }
-	    drawRight('Qty', col.qtyRight - 4, headerY - 10, { bold: true, size: 8 });
-	    drawRight('Rate', col.rateRight - 4, headerY - 10, { bold: true, size: 8 });
-	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, headerY - 10, { bold: true, size: 8 });
-	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, headerY - 10, { bold: true, size: 8 });
-	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, headerY - 10, { bold: true, size: 8 });
-	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, headerY - 10, { bold: true, size: 8 });
+	    drawRight('Qty', col.qtyRight - 4, h1Y, { bold: true, size: 8 });
+	    drawRight('Rate', col.rateRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showDiscAmountColumn) drawRight('Disc Amt', col.discAmtRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showGstColumn) drawRight('GST %', col.gstRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showGstAmountColumn) drawRight('GST', col.gstAmtRight - 4, h1Y, { bold: true, size: 8 });
 	    if (showGstAmountColumn) {
 	      // Avoid header overflow by splitting across two lines inside the same cell.
-	      drawRight('Amt', col.taxableRight - 8, headerY - 8, { bold: true, size: 8 });
-	      drawRight('Before GST', col.taxableRight - 8, headerY - 15, { bold: true, size: 6 });
+	      drawRight('Amt', col.taxableRight - 8, h1Y, { bold: true, size: 8 });
+	      drawRight('Before GST', col.taxableRight - 8, h2Y, { bold: true, size: 7 });
 	    } else {
-	      drawRight('Amt', col.taxableRight - 8, headerY - 10, { bold: true, size: 8 });
+	      drawRight('Amt', col.taxableRight - 8, h1Y, { bold: true, size: 8 });
 	    }
-    y -= 20;
+    y -= headerHeight;
 
     let grandGoods = 0;
     let grandTax = 0;
