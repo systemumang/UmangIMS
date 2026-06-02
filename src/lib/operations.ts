@@ -154,6 +154,7 @@ export type InvoiceReceiptRow = {
   invoiceId: string;
   amount: number;
   paymentMode?: string;
+  paymentCopy?: string;
   receiptType: string;
   referenceType?: string;
   createdBy?: string;

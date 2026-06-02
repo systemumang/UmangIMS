@@ -1505,7 +1505,9 @@ export default function OperationsView({
 	                                setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
 	                                }}
 		                                >
-		                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.item || '-'}</td>
+			                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                                              {formatItemInline(String(it?.item ?? it?.itemId ?? ''), it?.specificationsJson, specNameById)}
+                                            </td>
 		                                          <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
 	                                            <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
 	                                              {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
@@ -1635,7 +1637,9 @@ export default function OperationsView({
 		                      setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
 		                      }}
 			                      >
-			                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it?.itemLabel ?? it?.item ?? '-'}</td>
+				                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
+                                                {formatItemInline(String(it?.item ?? it?.itemLabel ?? it?.itemId ?? ''), it?.specificationsJson, specNameById) || it?.itemLabel || '-'}
+                                              </td>
 			                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
 			                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
 			                      {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
@@ -1734,16 +1738,17 @@ export default function OperationsView({
                                       {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}
                                     </div>
                                     <div className="overflow-x-auto">
-                                      <table className="w-full min-w-[760px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-                                        <thead>
-                                          <tr className="bg-primary text-on-primary">
-                                            <th className="px-3 py-2 border border-outline-variant">Type</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Amount</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
-                                            <th className="px-3 py-2 border border-outline-variant">Created At</th>
-                                            <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
-                                          </tr>
-                                        </thead>
+	                                      <table className="w-full min-w-[920px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+	                                        <thead>
+	                                          <tr className="bg-primary text-on-primary">
+	                                            <th className="px-3 py-2 border border-outline-variant">Type</th>
+	                                            <th className="px-3 py-2 border border-outline-variant">Amount</th>
+	                                            <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+                                              <th className="px-3 py-2 border border-outline-variant">Payment Copy</th>
+	                                            <th className="px-3 py-2 border border-outline-variant">Created At</th>
+	                                            <th className="px-3 py-2 border border-outline-variant w-[70px]">Del</th>
+	                                          </tr>
+	                                        </thead>
                                         <tbody>
                                           {(inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? []).length ? (
                                             (inlineInvoiceReceiptsById[String(r.invoiceId ?? '')] ?? [])
@@ -1759,11 +1764,25 @@ export default function OperationsView({
                                               >
                                                 <td className="px-3 py-2 border border-outline-variant">
                                                   {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Advance'}
-                                                </td>
-                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
-                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
-                                                <td className="px-3 py-2 border border-outline-variant">{x.createdAt ? formatDateShort(x.createdAt) : '-'}</td>
-                                                <td className="px-3 py-2 border border-outline-variant">
+	                                                </td>
+	                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
+	                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant">
+                                                    {String(x.paymentCopy ?? '').trim() ? (
+                                                      <a
+                                                        href={uploadDocumentHref(x.paymentCopy)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-primary underline"
+                                                      >
+                                                        View
+                                                      </a>
+                                                    ) : (
+                                                      '-'
+                                                    )}
+                                                  </td>
+	                                                <td className="px-3 py-2 border border-outline-variant">{x.createdAt ? formatDateShort(x.createdAt) : '-'}</td>
+	                                                <td className="px-3 py-2 border border-outline-variant">
                                                   <button
                                                     type="button"
                                                     className="text-error hover:text-error/80 transition-colors"
@@ -1787,10 +1806,10 @@ export default function OperationsView({
                                             ))
                                           ) : (
                                             <tr>
-                                              <td colSpan={5} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-                                                No receipt rows found.
-                                              </td>
-                                            </tr>
+	                                              <td colSpan={6} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+	                                                No receipt rows found.
+	                                              </td>
+	                                            </tr>
                                           )}
                                         </tbody>
                                       </table>
@@ -1875,15 +1894,16 @@ export default function OperationsView({
                                       <div className="text-sm text-error">{inlineCreditVoucherReceiptsErrorById[String(r.creditVoucherId ?? '')]}</div>
                                     ) : (
                                       <div className="overflow-x-auto rounded border border-outline-variant/30">
-                                        <table className="w-full min-w-[720px] table-fixed text-left border-collapse text-sm bg-surface">
-                                          <thead>
-                                            <tr className="bg-surface-container-high text-on-surface-variant">
-                                              <th className="px-3 py-2 border border-outline-variant w-[120px]">Date</th>
-                                              <th className="px-3 py-2 border border-outline-variant">Type</th>
-                                              <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
-                                              <th className="px-3 py-2 border border-outline-variant text-right w-[150px]">Amount</th>
-                                              <th className="px-3 py-2 border border-outline-variant w-[80px] text-center">Action</th>
-                                            </tr>
+	                                        <table className="w-full min-w-[860px] table-fixed text-left border-collapse text-sm bg-surface">
+	                                          <thead>
+	                                            <tr className="bg-surface-container-high text-on-surface-variant">
+	                                              <th className="px-3 py-2 border border-outline-variant w-[120px]">Date</th>
+	                                              <th className="px-3 py-2 border border-outline-variant">Type</th>
+	                                              <th className="px-3 py-2 border border-outline-variant">Payment Mode</th>
+                                                <th className="px-3 py-2 border border-outline-variant">Payment Copy</th>
+	                                              <th className="px-3 py-2 border border-outline-variant text-right w-[150px]">Amount</th>
+	                                              <th className="px-3 py-2 border border-outline-variant w-[80px] text-center">Action</th>
+	                                            </tr>
                                           </thead>
                                           <tbody>
                                             {(inlineCreditVoucherReceiptsById[String(r.creditVoucherId ?? '')] ?? []).length ? (
@@ -1907,11 +1927,25 @@ export default function OperationsView({
                                                     )}>
                                                       {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Adjustment'}
                                                     </span>
-                                                  </td>
-                                                  <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
-                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">
-                                                    {Number(x.amount ?? 0).toFixed(2)}
-                                                  </td>
+	                                                  </td>
+	                                                  <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
+                                                    <td className="px-3 py-2 border border-outline-variant">
+                                                      {String(x.paymentCopy ?? '').trim() ? (
+                                                        <a
+                                                          href={uploadDocumentHref(x.paymentCopy)}
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          className="text-primary underline"
+                                                        >
+                                                          View
+                                                        </a>
+                                                      ) : (
+                                                        '-'
+                                                      )}
+                                                    </td>
+	                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">
+	                                                    {Number(x.amount ?? 0).toFixed(2)}
+	                                                  </td>
                                                   <td className="px-3 py-2 border border-outline-variant text-center">
                                                     <button
                                                       type="button"
