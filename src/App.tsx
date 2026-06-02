@@ -239,7 +239,8 @@ export default function App() {
       fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
 	      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
 	      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
-      fetchOperationsCreditVouchers(undefined, ac.signal).then((r) => ['creditVouchers', r.length] as const),
+        fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['excessPaidInvoices', r.length] as const),
+	      fetchOperationsCreditVouchers(undefined, ac.signal).then((r) => ['creditVouchers', r.length] as const),
 	      fetchOperationsPayments(undefined, ac.signal).then((r) => ['payments', r.length] as const),
     ])
       .then((pairs) => {
@@ -353,14 +354,15 @@ export default function App() {
 	    return { title: 'Purchase Requests', showSearch: true };
 		  }, [mastersTab, view, stockMasterTab]);
 
-		  const sidebarActive: NavView = useMemo(() => {
-		    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
-		    if (isPendingQueueView(view)) return 'pendingTasks';
-		    if (view === 'pendingSupplierRate' || view === 'quotationMaster') return 'quotation';
-		    return view as NavView;
-		  }, [currentUser, view]);
+			  const sidebarActive: NavView = useMemo(() => {
+			    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
+          if (view === 'queueExcessPaidInvoices') return 'operations';
+			    if (isPendingQueueView(view)) return 'pendingTasks';
+			    if (view === 'pendingSupplierRate' || view === 'quotationMaster') return 'quotation';
+			    return view as NavView;
+			  }, [currentUser, view]);
 
-	  const activePendingQueue = isPendingQueueView(view) ? view : undefined;
+		  const activePendingQueue = isPendingQueueView(view) && view !== 'queueExcessPaidInvoices' ? view : undefined;
 
 		  const [prDetailScrollTarget, setPrDetailScrollTarget] = useState<'top' | 'existingPos'>('top');
 		  const [prDetailInitialView, setPrDetailInitialView] = useState<'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly'>('full');
@@ -671,8 +673,8 @@ export default function App() {
 					        setPurchaseMastersExpanded(true);
 				        setOperationsTab(tab);
 				        hideSidebarAfterViewChange();
-				        setView(tab === 'prs' ? 'purchasing' : 'operations');
-				        }}
+					        setView(tab === 'prs' ? 'purchasing' : tab === 'excessPaidInvoices' ? 'queueExcessPaidInvoices' : 'operations');
+					        }}
 
 		        onNewPurchaseRequest={() => {
 		          setSelectedRequestId(null);
@@ -819,7 +821,7 @@ export default function App() {
               }}
             />
 		          ) : null}
-				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab} /> : null}
+				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 

@@ -86,7 +86,7 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'transferMaster', label: 'Transfer Master' },
 ];
 
-export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'creditVouchers' | 'payments';
+export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
 
 export const purchaseMastersMenuItems: Array<{ key: PurchaseMastersTab; label: string }> = [
   { key: 'prs', label: 'Requisitions' },
@@ -94,6 +94,7 @@ export const purchaseMastersMenuItems: Array<{ key: PurchaseMastersTab; label: s
   { key: 'pendingAdjustments', label: 'Pending Advance Adjustment' },
   { key: 'grns', label: 'GRN' },
   { key: 'invoices', label: 'Invoices' },
+  { key: 'excessPaidInvoices', label: 'Excess Paid Invoices' },
   { key: 'creditVouchers', label: 'Credit Voucher' },
   { key: 'payments', label: 'Payments' },
 ];
@@ -203,11 +204,20 @@ export default function Sidebar({
 		    }
 		    return false;
 		  };
-			  const hasPrefix = (prefix: string) => {
-			    if (!hasAny) return true;
-			    for (const k of allowed) if (k.startsWith(prefix)) return true;
-			    return false;
-			  };
+		  const hasPrefix = (prefix: string) => {
+		    if (!hasAny) return true;
+		    for (const k of allowed) if (k.startsWith(prefix)) return true;
+		    return false;
+		  };
+      const isPurchaseTabAllowed = (tab: PurchaseMastersTab) => {
+        if (!hasAny) return true;
+        if (allowed.has(`purchase:${tab}`)) return true;
+        if (allowed.has('operations')) return true;
+        for (const k of allowed) {
+          if (k.startsWith('purchase:')) return true;
+        }
+        return false;
+      };
 
 			  const isQuotationAllowed = () => {
 			    if (!hasAny) return true;
@@ -398,7 +408,7 @@ export default function Sidebar({
 	          ) : null}
 				          {purchaseMastersExpanded && onNavigatePurchaseMasters ? (
 			            <div className="ml-7 mr-1 space-y-1">
-                  {purchaseMastersMenuItems.filter((it) => isAllowed(`purchase:${it.key}`)).map((it) => (
+                  {purchaseMastersMenuItems.filter((it) => isPurchaseTabAllowed(it.key)).map((it) => (
 	                    <button
                       key={it.key}
                       type="button"
