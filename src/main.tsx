@@ -8,6 +8,33 @@ function formatUnknownError(err: unknown) {
   return { message: String(err), stack: undefined };
 }
 
+function isDynamicImportLoadError(err: unknown) {
+  const { message, stack } = formatUnknownError(err);
+  const text = `${message}\n${stack ?? ''}`.toLowerCase();
+  return (
+    text.includes('failed to fetch dynamically imported module') ||
+    text.includes('importing a module script failed') ||
+    text.includes('loading chunk') ||
+    text.includes('chunkloaderror')
+  );
+}
+
+function recoverDynamicImportLoadError(err: unknown) {
+  if (!isDynamicImportLoadError(err)) return false;
+  const build = String((window as any).__APP_BUILD__ ?? 'unknown');
+  const key = `ims.dynamic-import-reload.${build}`;
+  try {
+    if (sessionStorage.getItem(key) === '1') return false;
+    sessionStorage.setItem(key, '1');
+  } catch {
+    return false;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('reload', Date.now().toString());
+  window.location.replace(url.toString());
+  return true;
+}
+
 function FatalScreen({ title, message, stack }: { title: string; message: string; stack?: string }) {
   return (
     <div style={{ padding: 16, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
@@ -33,6 +60,10 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { err: unkn
     return { err };
   }
 
+  componentDidCatch(err: unknown) {
+    recoverDynamicImportLoadError(err);
+  }
+
   render() {
     if (this.state.err) {
       const { message, stack } = formatUnknownError(this.state.err);
@@ -47,6 +78,7 @@ if (!rootEl) throw new Error('Missing #root element');
 const root = createRoot(rootEl);
 
 function showFatal(title: string, err: unknown) {
+  if (recoverDynamicImportLoadError(err)) return;
   const { message, stack } = formatUnknownError(err);
   root.render(
     <StrictMode>

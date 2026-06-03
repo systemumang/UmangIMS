@@ -415,10 +415,21 @@ function getMysqlPool() {
 	        ['pr_id', 'item_id'],
 	      ]);
 
-      await ensureColumn('purchase_order_items', 'dim_length', 'DOUBLE NULL');
-      await ensureColumn('purchase_order_items', 'dim_breadth', 'DOUBLE NULL');
-      await ensureColumn('purchase_order_items', 'dim_pcs', 'INT NULL');
-      await ensureColumn('purchase_order_items', 'dim_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('purchase_order_items', 'dim_length', 'DOUBLE NULL');
+	      await ensureColumn('purchase_order_items', 'dim_breadth', 'DOUBLE NULL');
+	      await ensureColumn('purchase_order_items', 'dim_pcs', 'INT NULL');
+	      await ensureColumn('purchase_order_items', 'dim_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('purchase_order_items', 'line_order', 'INT NULL');
+	      await ensureNonUniqueIndex('purchase_order_items', 'idx_poi_po_line_order', ['po_id', 'line_order']);
+	      await pool.query(`
+	        UPDATE purchase_order_items poi
+	        INNER JOIN (
+	          SELECT id, ROW_NUMBER() OVER (PARTITION BY po_id ORDER BY created_at ASC, id ASC) AS rn
+	          FROM purchase_order_items
+	          WHERE line_order IS NULL
+	        ) ranked ON ranked.id = poi.id
+	        SET poi.line_order = ranked.rn
+	      `).catch((e) => console.error('Unable to backfill purchase_order_items line order:', e));
 
       await ensureColumn('grn_items', 'recv_dim_length', 'DOUBLE NULL');
       await ensureColumn('grn_items', 'recv_dim_breadth', 'DOUBLE NULL');
@@ -1903,7 +1914,7 @@ app.get('/api/workflow/:id', async (req, res) => {
         LEFT JOIN items it ON it.id = poi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
         WHERE poi.po_id = ?
-        ORDER BY poi.created_at ASC
+        ORDER BY COALESCE(poi.line_order, 999999) ASC, poi.created_at ASC, poi.id ASC
         `,
         [poId]
       );
@@ -4316,7 +4327,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
     LEFT JOIN units u ON u.id = iname.unit_id
     WHERE poi.po_id = ?
-    ORDER BY poi.created_at ASC
+    ORDER BY COALESCE(poi.line_order, 999999) ASC, poi.created_at ASC, poi.id ASC
     `,
     [poId]
   );
@@ -6006,7 +6017,7 @@ app.get('/api/requests/:id/pos', async (req, res) => {
         LEFT JOIN items it ON it.id = poi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
         WHERE poi.po_id IN (${placeholders})
-        ORDER BY poi.created_at ASC
+        ORDER BY COALESCE(poi.line_order, 999999) ASC, poi.created_at ASC, poi.id ASC
         `,
         poIds
       );
@@ -6564,7 +6575,7 @@ app.post('/api/requests', async (req, res) => {
 	      return JSON.stringify(Object.fromEntries(entries));
 	    };
 
-	    for (const row of items) {
+		    for (const [lineIndex, row] of items.entries()) {
 	      let itemId = String(row?.itemId ?? '').trim();
 	      const itemNameId = String(row?.itemNameId ?? '').trim();
 	      const quantityInput = Number(row?.quantity ?? 0);
@@ -7034,7 +7045,7 @@ app.post('/api/requests/:id/po', async (req, res) => {
         }
       }
 
-	    for (const row of items) {
+		    for (const [lineIndex, row] of items.entries()) {
 	      const itemId = String(row?.itemId ?? '').trim();
 	      const quantityInput = Number(row?.quantity ?? 0);
 	      const rate = Number(row?.rate ?? 0);
@@ -7070,11 +7081,11 @@ app.post('/api/requests/:id/po', async (req, res) => {
 
 	      const poItemId = crypto.randomUUID();
 	      await pool.query(
-	        `
-	        INSERT INTO purchase_order_items
-	          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit)
-	        VALUES
-	          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)
+		        `
+		        INSERT INTO purchase_order_items
+		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, line_order)
+		        VALUES
+		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)
 	        `,
 	        [
             poItemId,
@@ -7088,11 +7099,12 @@ app.post('/api/requests/:id/po', async (req, res) => {
             taxAmount,
             totalAmount,
             'system',
-            areaUnit ? round2(dimLength) : null,
-            areaUnit ? round2(dimBreadth) : null,
-            areaUnit ? Math.trunc(Number(dimPcs)) : null,
-            areaUnit ? dimUnit : null,
-          ]
+	            areaUnit ? round2(dimLength) : null,
+	            areaUnit ? round2(dimBreadth) : null,
+	            areaUnit ? Math.trunc(Number(dimPcs)) : null,
+	            areaUnit ? dimUnit : null,
+	            lineIndex + 1,
+	          ]
 	      );
 
 	      outItems.push({
@@ -7212,7 +7224,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    );
 
 	    const outItems = [];
-	    for (const row of items) {
+		    for (const [lineIndex, row] of items.entries()) {
 	      const itemId = String(row?.itemId ?? '').trim();
 	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
 
@@ -7625,9 +7637,9 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      await pool.query(
 		        `
 		        INSERT INTO purchase_order_items
-		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit)
+		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, line_order)
 		        VALUES
-		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)
+		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)
 		        `,
 		        [
 		          poItemId,
@@ -7641,11 +7653,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		          taxAmount,
 		          totalAmount,
 		          'system',
-		          areaUnit ? round2(dimLength) : null,
-		          areaUnit ? round2(dimBreadth) : null,
-		          areaUnit ? Math.trunc(Number(dimPcs)) : null,
-		          areaUnit ? dimUnit : null,
-		        ]
+	            areaUnit ? round2(dimLength) : null,
+	            areaUnit ? round2(dimBreadth) : null,
+	            areaUnit ? Math.trunc(Number(dimPcs)) : null,
+	            areaUnit ? dimUnit : null,
+	            lineIndex + 1,
+	          ]
 		      );
 
       outItems.push({
@@ -8045,7 +8058,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      LEFT JOIN item_names iname ON iname.id = it.item_name_id
 	      LEFT JOIN units u ON u.id = iname.unit_id
 	      WHERE poi.po_id = ?
-	      ORDER BY poi.created_at ASC
+	      ORDER BY COALESCE(poi.line_order, 999999) ASC, poi.created_at ASC, poi.id ASC
 	      `,
 	      [poId]
 	    );
@@ -8290,10 +8303,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     }
     y -= 4;
 
-	    const topY = y;
-	    const halfWidth = (pageWidth - margin * 2 - 10) / 2;
-	    drawBox(margin, topY - 78, halfWidth, 82);
-	    drawBox(margin + halfWidth + 10, topY - 78, halfWidth, 82);
+		    const topY = y;
+		    const halfWidth = (pageWidth - margin * 2 - 10) / 2;
+		    const partyBoxHeight = 90;
+		    const partyBoxBottom = topY - partyBoxHeight + 4;
+		    drawBox(margin, partyBoxBottom, halfWidth, partyBoxHeight);
+		    drawBox(margin + halfWidth + 10, partyBoxBottom, halfWidth, partyBoxHeight);
 	    drawAt('Supplier', margin + 8, topY - 12, { bold: true, size: 9 });
 	    drawAt(String(poRow.supplierName ?? '').trim() || '-', margin + 8, topY - 26, { bold: true, size: 9 });
 	    drawAt(`GST: ${String(poRow.supplierGstNumber ?? '').trim() || '-'}`, margin + 8, topY - 40, { size: 8 });
@@ -8306,9 +8321,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        drawAt(line, margin + 8, ay, { size: 8 });
 	        ay -= 10;
 	      }
-	      const payY = topY - 68 - Math.max(0, (shown.length - 1) * 10);
-	      drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, payY, { bold: true, size: 8 });
-	    }
+		      const payY = Math.max(partyBoxBottom + 10, topY - 68 - Math.max(0, (shown.length - 1) * 10));
+		      drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, payY, { bold: true, size: 8 });
+		    }
 
 	    const firmX = margin + halfWidth + 10;
 		    drawAt('Buyer', firmX + 8, topY - 12, { bold: true, size: 9 });
@@ -8324,11 +8339,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		        ay -= 10;
 		      }
 		      // Keep a little padding from the bottom border of the box.
-		      const storeY = topY - 68 - Math.max(0, (shown.length - 1) * 10) + 4;
-		      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
-		    }
-	    // Add a bit more breathing room below the header boxes before the table starts.
-	    y = topY - 102;
+			      const storeY = Math.max(partyBoxBottom + 10, topY - 68 - Math.max(0, (shown.length - 1) * 10) + 4);
+			      drawAt(`Store: ${String(poRow.storeName ?? '').trim() || '-'}`, firmX + 8, storeY, { size: 8 });
+			    }
+		    // Add a bit more breathing room below the header boxes before the table starts.
+		    y = partyBoxBottom - 20;
 
     const ship = String(poRow.shippingAddress ?? '').trim();
     if (ship) {
@@ -8760,7 +8775,7 @@ app.put('/api/pos/:id/check-sent', async (req, res) => {
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       WHERE poi.po_id = ?
-      ORDER BY poi.created_at ASC
+      ORDER BY COALESCE(poi.line_order, 999999) ASC, poi.created_at ASC, poi.id ASC
       `,
       [poId]
     );
