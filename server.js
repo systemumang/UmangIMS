@@ -182,12 +182,52 @@ function getMysqlPool() {
   (async () => {
     try {
       const pool = mysqlPool;
-      const ensureColumn = async (table, name, def) => {
-        const [rows] = await pool.query(`SHOW COLUMNS FROM ${table} LIKE ?`, [name]);
-        if (!Array.isArray(rows) || !rows.length) {
-          await pool.query(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
-        }
-      };
+	      const ensureColumn = async (table, name, def) => {
+	        const [rows] = await pool.query(`SHOW COLUMNS FROM ${table} LIKE ?`, [name]);
+	        if (!Array.isArray(rows) || !rows.length) {
+	          await pool.query(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
+	        }
+	      };
+	      const ensureNonUniqueIndex = async (table, indexName, columns) => {
+	        try {
+	          const [rows] = await pool.query(`SHOW INDEX FROM ${table} WHERE Key_name = ?`, [indexName]);
+	          if (!Array.isArray(rows) || !rows.length) {
+	            await pool.query(`ALTER TABLE ${table} ADD INDEX ${indexName} (${columns.join(', ')})`);
+	          }
+	        } catch (e) {
+	          const msg = e instanceof Error ? e.message : String(e);
+	          if (!msg.toLowerCase().includes('duplicate')) throw e;
+	        }
+	      };
+	      const dropUniqueIndexesForExactColumns = async (table, columnSets) => {
+	        const [rows] = await pool.query(`SHOW INDEX FROM ${table}`);
+	        const byName = new Map();
+	        for (const r of Array.isArray(rows) ? rows : []) {
+	          const keyName = String(r.Key_name ?? '').trim();
+	          if (!keyName || keyName === 'PRIMARY') continue;
+	          const nonUnique = Number(r.Non_unique ?? 1);
+	          if (nonUnique !== 0) continue;
+	          if (!byName.has(keyName)) byName.set(keyName, []);
+	          byName.get(keyName).push({
+	            seq: Number(r.Seq_in_index ?? 0),
+	            column: String(r.Column_name ?? '').trim(),
+	          });
+	        }
+	        for (const [keyName, parts] of byName.entries()) {
+	          const cols = parts
+	            .slice()
+	            .sort((a, b) => a.seq - b.seq)
+	            .map((p) => p.column)
+	            .filter(Boolean);
+	          const shouldDrop = columnSets.some((set) => set.length === cols.length && set.every((col, idx) => cols[idx] === col));
+	          if (!shouldDrop) continue;
+	          try {
+	            await pool.query(`ALTER TABLE ${table} DROP INDEX ${keyName}`);
+	          } catch (e) {
+	            console.error(`Unable to drop unique index ${table}.${keyName}:`, e);
+	          }
+	        }
+	      };
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS gst_rates (
@@ -208,8 +248,14 @@ function getMysqlPool() {
       await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
 
-      await ensureColumn('purchase_order_items', 'cancelled_qty', 'DOUBLE NOT NULL DEFAULT 0');
-      await ensureColumn('purchase_order_items', 'cancel_reason', 'TEXT NULL');
+	      await ensureColumn('purchase_order_items', 'cancelled_qty', 'DOUBLE NOT NULL DEFAULT 0');
+	      await ensureColumn('purchase_order_items', 'cancel_reason', 'TEXT NULL');
+	      await ensureNonUniqueIndex('purchase_order_items', 'idx_poi_po_id', ['po_id']);
+	      await ensureNonUniqueIndex('purchase_order_items', 'idx_poi_item_id', ['item_id']);
+	      await dropUniqueIndexesForExactColumns('purchase_order_items', [
+	        ['po_id'],
+	        ['po_id', 'item_id'],
+	      ]);
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS po_advances (
@@ -359,9 +405,15 @@ function getMysqlPool() {
       await ensureColumn('purchase_requisition_items', 'dim_pcs', 'INT NULL');
       await ensureColumn('purchase_requisition_items', 'dim_unit', 'VARCHAR(8) NULL');
       await ensureColumn('purchase_requisition_items', 'approved_dim_length', 'DOUBLE NULL');
-      await ensureColumn('purchase_requisition_items', 'approved_dim_breadth', 'DOUBLE NULL');
-      await ensureColumn('purchase_requisition_items', 'approved_dim_pcs', 'INT NULL');
-      await ensureColumn('purchase_requisition_items', 'approved_dim_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('purchase_requisition_items', 'approved_dim_breadth', 'DOUBLE NULL');
+	      await ensureColumn('purchase_requisition_items', 'approved_dim_pcs', 'INT NULL');
+	      await ensureColumn('purchase_requisition_items', 'approved_dim_unit', 'VARCHAR(8) NULL');
+	      await ensureNonUniqueIndex('purchase_requisition_items', 'idx_pri_pr_id', ['pr_id']);
+	      await ensureNonUniqueIndex('purchase_requisition_items', 'idx_pri_item_id', ['item_id']);
+	      await dropUniqueIndexesForExactColumns('purchase_requisition_items', [
+	        ['pr_id'],
+	        ['pr_id', 'item_id'],
+	      ]);
 
       await ensureColumn('purchase_order_items', 'dim_length', 'DOUBLE NULL');
       await ensureColumn('purchase_order_items', 'dim_breadth', 'DOUBLE NULL');

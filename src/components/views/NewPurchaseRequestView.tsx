@@ -1183,8 +1183,7 @@ export default function NewPurchaseRequestView({
 					                  if (saving) return;
 						                  setError(null);
 						                  const rowMessages: string[] = [];
-						                  const usedKeys = new Set<string>();
-						                  const normalizedItems = items
+							                  const normalizedItems = items
 						                    .map((it, i) => {
 						                      const itemNameId = String(it.itemNameId ?? '').trim();
                                   const unitName = itemNameId ? getRowUnitName(itemNameId) : '';
@@ -1209,10 +1208,7 @@ export default function NewPurchaseRequestView({
 							                        if (missing) rowMessages[i] = '';
 							                      }
 
-						                      const dedupeKey = itemNameId ? `${itemNameId}:${JSON.stringify(specsObj)}` : '';
-						                      if (itemNameId && usedKeys.has(dedupeKey)) rowMessages[i] = 'Duplicate item specification row.';
-						                      if (dedupeKey) usedKeys.add(dedupeKey);
-						                      return {
+							                      return {
                                     itemNameId,
                                     quantity: quantityNumber,
                                     priorityId: String(it.priorityId ?? '').trim() || null,
