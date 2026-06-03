@@ -4412,6 +4412,10 @@ async function fetchGrnDetail(pool, grnId) {
 	    approvedQty: Number(r.approvedQty ?? 0),
 	    invoiceLinkQty: Number(r.invoiceLinkQty ?? 0),
 	    rejectedQty: Number(r.rejectedQty ?? 0),
+	    dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+	    dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+	    dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+	    dimUnit: r.dimUnit != null ? String(r.dimUnit) : undefined,
 	  }));
 
   const po = {

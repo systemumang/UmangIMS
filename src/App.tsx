@@ -218,7 +218,6 @@ export default function App() {
 		      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
 	      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
 	      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
-	      fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['queueExcessPaidInvoices', r.length] as const),
           fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
 	    ])
       .then((pairs) => {
