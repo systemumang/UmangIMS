@@ -13494,6 +13494,30 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
       [creditVoucherId]
     );
 
+    const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
+    const specNameById = new Map((Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()]));
+    const formatSpecParts = (specificationsJson) => {
+      const raw = String(specificationsJson ?? '').trim();
+      if (!raw) return [];
+      try {
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object') return [];
+        const out = [];
+        for (const [k, v] of Object.entries(obj)) {
+          const val = String(v ?? '').trim();
+          if (!val) continue;
+          const name = specNameById.get(String(k ?? '').trim()) || '';
+          out.push(name ? `${name}: ${val}` : val);
+        }
+        return out;
+      } catch {
+        return raw
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    };
+
     const doc = await PDFDocument.create();
     const page = doc.addPage([595.28, 841.89]); // A4
     const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -13569,7 +13593,10 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
 
     const rows = Array.isArray(itemRows) ? itemRows : [];
     for (const row of rows) {
-      const itemName = String(row?.itemName ?? '').trim() || '-';
+      const itemName = [
+        String(row?.itemName ?? '').trim(),
+        ...formatSpecParts(row?.specificationsJson),
+      ].filter(Boolean).join(' - ') || '-';
       const qty = Number(row?.quantity ?? 0);
       const rate = Number(row?.rate ?? 0);
       const amount = Number(row?.amount ?? qty * rate);
@@ -13628,6 +13655,7 @@ app.get('/api/credit-vouchers/:id/items', async (req, res) => {
         cvi.id,
         cvi.item_id AS itemId,
         COALESCE(iname.name, '') AS itemName,
+        i.specifications_json AS specificationsJson,
         u.name AS unit,
         cvi.quantity,
         cvi.rate,
@@ -13641,11 +13669,34 @@ app.get('/api/credit-vouchers/:id/items', async (req, res) => {
       `,
       [creditVoucherId]
     );
+    const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
+    const specNameById = new Map((Array.isArray(specRows) ? specRows : []).map((r) => [String(r.id ?? '').trim(), String(r.name ?? '').trim()]));
+    const formatSpecParts = (specificationsJson) => {
+      const raw = String(specificationsJson ?? '').trim();
+      if (!raw) return [];
+      try {
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object') return [];
+        const out = [];
+        for (const [k, v] of Object.entries(obj)) {
+          const val = String(v ?? '').trim();
+          if (!val) continue;
+          const name = specNameById.get(String(k ?? '').trim()) || '';
+          out.push(name ? `${name}: ${val}` : val);
+        }
+        return out;
+      } catch {
+        return raw
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    };
     res.json({
       items: (Array.isArray(rows) ? rows : []).map((r) => ({
         id: String(r.id ?? ''),
         itemId: String(r.itemId ?? ''),
-        itemName: String(r.itemName ?? ''),
+        itemName: [String(r.itemName ?? '').trim(), ...formatSpecParts(r.specificationsJson)].filter(Boolean).join(' - '),
         unit: String(r.unit ?? '').trim(),
         quantity: Number(r.quantity ?? 0),
         rate: Number(r.rate ?? 0),
