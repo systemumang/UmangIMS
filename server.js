@@ -425,6 +425,7 @@ function getMysqlPool() {
       await ensureColumn('grn_items', 'recv_dim_pcs', 'INT NULL');
       await ensureColumn('grn_items', 'recv_dim_input_unit', 'VARCHAR(8) NULL');
       await ensureColumn('grn_items', 'recv_dim_po_unit', 'VARCHAR(8) NULL');
+      await ensureColumn('grn_items', 'weight', 'DOUBLE NULL');
       await ensureColumn('grn_items', 'round_off', 'DOUBLE NULL');
 
       await ensureColumn('invoice_items', 'dim_length', 'DOUBLE NULL');
@@ -4420,10 +4421,11 @@ async function fetchGrnDetail(pool, grnId) {
 	      COALESCE(linkq.invoiceLinkQty, 0) AS invoiceLinkQty,
 	      COALESCE(qc.rejectedQty, 0) AS rejectedQty,
         gi.recv_dim_length AS dimLength,
-        gi.recv_dim_breadth AS dimBreadth,
-        gi.recv_dim_pcs AS dimPcs,
-        gi.recv_dim_input_unit AS dimUnit,
-        it.specifications_json AS specificationsJson
+	        gi.recv_dim_breadth AS dimBreadth,
+	        gi.recv_dim_pcs AS dimPcs,
+	        gi.recv_dim_input_unit AS dimUnit,
+	        gi.weight AS weight,
+	        it.specifications_json AS specificationsJson
 	    FROM grn_items gi
 	    LEFT JOIN items it ON it.id = gi.item_id
 	    LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -4468,6 +4470,7 @@ async function fetchGrnDetail(pool, grnId) {
 	    dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
 	    dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
 	    dimUnit: r.dimUnit != null ? String(r.dimUnit) : undefined,
+	    weight: r.weight != null ? Number(r.weight) : null,
 	  }));
 
   const po = {
@@ -5849,10 +5852,15 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
           ii.invoice_id AS invoiceId,
           ii.item_id AS itemId,
           iname.name AS item,
-          u.name AS unit,
-          ii.quantity AS quantity,
-          ii.rate AS rate,
-          ii.tax_percent AS taxPercent
+	          u.name AS unit,
+	          ii.quantity AS quantity,
+	          ii.rate AS rate,
+	          ii.tax_percent AS taxPercent,
+	          ii.dim_length AS dimLength,
+	          ii.dim_breadth AS dimBreadth,
+	          ii.dim_pcs AS dimPcs,
+	          ii.dim_input_unit AS dimInputUnit,
+	          it.specifications_json AS specificationsJson
         FROM invoice_items ii
         LEFT JOIN items it ON it.id = ii.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -5871,13 +5879,18 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
         itemsByInvoiceId.get(invoiceId).push({
           invoiceId,
           id: String(r.id ?? ''),
-          itemId: String(r.itemId ?? ''),
-          item: String(r.item ?? ''),
-          unit: r.unit != null ? String(r.unit) : null,
-          quantity: Number(r.quantity ?? 0),
-          rate: Number(r.rate ?? 0),
-          taxPercent: Number(r.taxPercent ?? 0),
-        });
+	          itemId: String(r.itemId ?? ''),
+	          item: String(r.item ?? ''),
+	          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+	          unit: r.unit != null ? String(r.unit) : null,
+	          quantity: Number(r.quantity ?? 0),
+	          rate: Number(r.rate ?? 0),
+	          taxPercent: Number(r.taxPercent ?? 0),
+	          dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+	          dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+	          dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+	          dimInputUnit: r.dimInputUnit != null ? String(r.dimInputUnit) : null,
+	        });
       }
     }
 
@@ -6104,8 +6117,9 @@ app.get('/api/requests/:id/grns', async (req, res) => {
           gi.item_id AS itemId,
           iname.name AS item,
           u.name AS unit,
-          it.specifications_json AS specificationsJson,
-          gi.received_qty AS quantityReceived
+	          it.specifications_json AS specificationsJson,
+	          gi.received_qty AS quantityReceived,
+	          gi.weight AS weight
         FROM grn_items gi
         LEFT JOIN items it ON it.id = gi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -6127,9 +6141,10 @@ app.get('/api/requests/:id/grns', async (req, res) => {
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
           unit: String(r.unit ?? '').trim(),
-          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
-          quantityReceived: Number(r.quantityReceived ?? 0),
-        });
+	          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+	          quantityReceived: Number(r.quantityReceived ?? 0),
+	          weight: r.weight != null ? Number(r.weight) : null,
+	        });
       }
     }
 
@@ -7218,8 +7233,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
         const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
         const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
-        const qtyReceivedInput = Number(row?.quantityReceived ?? 0);
-        const roundOffInput = Number(row?.roundOff ?? 0);
+	        const qtyReceivedInput = Number(row?.quantityReceived ?? 0);
+	        const weightInput = Number(row?.weight ?? row?.grnWeight ?? 0);
+	        const weightValue = Number.isFinite(weightInput) && weightInput > 0 ? round2(weightInput) : null;
+	        const roundOffInput = Number(row?.roundOff ?? 0);
         const roundOffValue = Number.isFinite(roundOffInput) ? round2(roundOffInput) : 0;
         const qtyInputUnit = isArea ? computeAreaQty(dimLength, dimBreadth, dimPcs) : NaN;
         const qtyConverted = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : qtyReceivedInput;
@@ -7238,11 +7255,11 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      const grnItemId = crypto.randomUUID();
 
 	      await pool.query(
-	        `
-	        INSERT INTO grn_items
-	          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit, round_off)
-	        VALUES
-	          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?)
+		        `
+		        INSERT INTO grn_items
+		          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit, weight, round_off)
+		        VALUES
+		          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
 	        `,
 	        [
             grnItemId,
@@ -7255,11 +7272,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
             updatedBy || null,
             isArea ? round2(dimLength) : null,
             isArea ? round2(dimBreadth) : null,
-            isArea ? Math.trunc(Number(dimPcs)) : null,
-            isArea ? inputUnit : null,
-            isArea ? String(poDimUnit).trim().toLowerCase() : null,
-            isArea ? roundOffValue : null,
-          ]
+	            isArea ? Math.trunc(Number(dimPcs)) : null,
+	            isArea ? inputUnit : null,
+	            isArea ? String(poDimUnit).trim().toLowerCase() : null,
+	            weightValue,
+	            isArea ? roundOffValue : null,
+	          ]
 	      );
 
 	      outItems.push({
@@ -7272,10 +7290,11 @@ app.post('/api/pos/:id/grn', async (req, res) => {
           recvDimLength: isArea ? round2(dimLength) : null,
           recvDimBreadth: isArea ? round2(dimBreadth) : null,
           recvDimPcs: isArea ? Math.trunc(Number(dimPcs)) : null,
-          recvDimInputUnit: isArea ? inputUnit : null,
-          recvDimPoUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
-          roundOff: isArea ? roundOffValue : null,
-        });
+	          recvDimInputUnit: isArea ? inputUnit : null,
+	          recvDimPoUnit: isArea ? String(poDimUnit).trim().toLowerCase() : null,
+	          weight: weightValue,
+	          roundOff: isArea ? roundOffValue : null,
+	        });
 	    }
 
 	    res.status(201).json({

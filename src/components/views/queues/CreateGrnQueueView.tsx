@@ -135,9 +135,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [materialReceivedByUserId, setMaterialReceivedByUserId] = useState('');
   const [goodsCollectedByUserId, setGoodsCollectedByUserId] = useState('');
   const [updatedByUserId, setUpdatedByUserId] = useState('');
-  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
-  const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
-  const [roundOffByItemId, setRoundOffByItemId] = useState<Record<string, string>>({});
+	  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+	  const [qtyByItemId, setQtyByItemId] = useState<Record<string, string>>({});
+	  const [weightByItemId, setWeightByItemId] = useState<Record<string, string>>({});
+	  const [roundOffByItemId, setRoundOffByItemId] = useState<Record<string, string>>({});
   const [dimsByItemId, setDimsByItemId] = useState<Record<string, { length: string; breadth: string; pcs: string }>>({});
   const [inputUnitByItemId, setInputUnitByItemId] = useState<Record<string, 'ft' | 'm'>>({});
   const [saving, setSaving] = useState(false);
@@ -154,9 +155,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     setModalOpen(false);
     setActive(null);
     setActivePoDetails(null);
-    setPendingItems([]);
-    setQtyByItemId({});
-    setRoundOffByItemId({});
+	    setPendingItems([]);
+	    setQtyByItemId({});
+	    setWeightByItemId({});
+	    setRoundOffByItemId({});
     setDimsByItemId({});
     setInputUnitByItemId({});
     setReceivedDate(todayIsoDate());
@@ -548,13 +550,15 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                     const q = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : (() => {
                       const raw = qtyByItemId[it.itemId];
                       return raw != null && String(raw).trim() ? Number(raw) : 0;
-                    })();
-                    const ro = roundOffByItemId[it.itemId];
-                    return {
-                      itemId: it.itemId,
-                      item: it.item,
-                      quantityReceived: q,
-                      roundOff: String(ro ?? '').trim() ? Number(ro) : undefined,
+	                    })();
+	                    const weight = weightByItemId[it.itemId];
+	                    const ro = roundOffByItemId[it.itemId];
+	                    return {
+	                      itemId: it.itemId,
+	                      item: it.item,
+	                      quantityReceived: q,
+	                      weight: String(weight ?? '').trim() ? Number(weight) : undefined,
+	                      roundOff: String(ro ?? '').trim() ? Number(ro) : undefined,
                       pendingQty: it.pendingQty,
                       ...(isArea ? { length: Number(dims.length), breadth: Number(dims.breadth), pcs: Number(dims.pcs || 1), inputUnit } : {}),
                     };
@@ -576,9 +580,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   updatedBy: updatedByName,
                   items: items.map((x) => ({
                     itemId: x.itemId,
-                    item: x.item,
-                    quantityReceived: x.quantityReceived,
-                    roundOff: x.roundOff,
+	                    item: x.item,
+	                    quantityReceived: x.quantityReceived,
+	                    weight: x.weight,
+	                    roundOff: x.roundOff,
                     ...(('length' in x || 'breadth' in x || 'pcs' in x) ? { length: (x as any).length, breadth: (x as any).breadth, pcs: (x as any).pcs, inputUnit: (x as any).inputUnit } : {}),
                   })),
                 })
@@ -599,7 +604,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : activePoDetails ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
+	            <table className="w-full min-w-[1500px] table-fixed text-left border-collapse border border-black text-sm [&_th]:border-black [&_td]:border-black">
 	              <colgroup>
 	                <col className="w-[120px]" />
 	                <col className="w-[160px]" />
@@ -613,9 +618,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <col className="w-[70px]" />
                   <col className="w-[100px]" />
                   <col className="w-[100px]" />
-                  <col className="w-[80px]" />
-                  <col className="w-[100px]" />
-                  <col className="w-[120px]" />
+	                  <col className="w-[80px]" />
+	                  <col className="w-[100px]" />
+	                  <col className="w-[100px]" />
+	                  <col className="w-[120px]" />
               </colgroup>
               <thead>
                 <tr className="bg-blue-700">
@@ -630,9 +636,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">Pending GRN Qty</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Unit</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN L</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN B</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN PCs</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Round Off</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN B</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN PCs</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Weight</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Round Off</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Total Qty</th>
                 </tr>
               </thead>
@@ -781,10 +788,21 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               inputMode="numeric"
                               placeholder="PCs"
                             />
-                          ) : '-'}
-                        </td>
-                        <td className="px-1 py-2 border border-black align-top">
-                          <input
+	                          ) : '-'}
+	                        </td>
+	                        <td className="px-1 py-2 border border-black align-top">
+	                          <input
+	                            className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right')}
+	                            value={weightByItemId[it.itemId] ?? ''}
+	                            onChange={(e) =>
+	                              setWeightByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
+	                            }
+	                            inputMode="decimal"
+	                            placeholder="Weight"
+	                          />
+	                        </td>
+	                        <td className="px-1 py-2 border border-black align-top">
+	                          <input
                             className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right disabled:bg-surface-container-low disabled:opacity-50')}
                             value={roundOffByItemId[it.itemId] ?? ''}
 		                            onChange={(e) =>

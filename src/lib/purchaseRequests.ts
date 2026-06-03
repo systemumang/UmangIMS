@@ -131,10 +131,11 @@ export type PoItem = {
 
 export type InvoiceItem = {
   invoiceId: string;
-  id: string;
-  itemId: string;
-  item: string;
-  quantity: number;
+	  id: string;
+	  itemId: string;
+	  item: string;
+	  specificationsJson?: string;
+	  quantity: number;
   rate: number;
   taxPercent?: number;
   dimLength?: number | null;
@@ -644,10 +645,11 @@ export async function createGrn(
       quantityReceived: number;
       length?: number;
       breadth?: number;
-      pcs?: number;
-      inputUnit?: 'ft' | 'm' | string;
-      roundOff?: number;
-    }>;
+	      pcs?: number;
+	      inputUnit?: 'ft' | 'm' | string;
+	      weight?: number;
+	      roundOff?: number;
+	    }>;
   }
 ) {
 		  const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/grn`, {
@@ -671,10 +673,11 @@ export async function createGrnForPo(
       quantityReceived: number;
       length?: number;
       breadth?: number;
-      pcs?: number;
-      inputUnit?: 'ft' | 'm' | string;
-      roundOff?: number;
-    }>;
+	      pcs?: number;
+	      inputUnit?: 'ft' | 'm' | string;
+	      weight?: number;
+	      roundOff?: number;
+	    }>;
   }
 ) {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/grn`, {
