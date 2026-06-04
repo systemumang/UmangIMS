@@ -7484,7 +7484,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    }
 
 	    const outItems = [];
-	    for (const row of items) {
+	    for (const [lineIndex, row] of items.entries()) {
 	      let itemId = String(row?.itemId ?? '').trim();
         if (!itemId) {
 		        const itemNameId = String(row?.itemNameId ?? '').trim();
