@@ -7777,12 +7777,13 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 });
 
 // Create Direct PO (not linked to any PR)
-	app.post('/api/pos', async (req, res) => {
-	  try {
-	    const pool = getMysqlPool();
-	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+		app.post('/api/pos', async (req, res) => {
+		  try {
+		    const pool = getMysqlPool();
+		    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+        const mode = normalizePoMode(req.body?.mode);
 
-	    const firmId = String(req.body?.firmId ?? '').trim();
+		    const firmId = String(req.body?.firmId ?? '').trim();
 	    const storeId = String(req.body?.storeId ?? '').trim();
 		    const projectId = req.body?.projectId != null ? String(req.body.projectId ?? '').trim() : '';
 		    const supplierIdRaw = String(req.body?.supplierId ?? '').trim();

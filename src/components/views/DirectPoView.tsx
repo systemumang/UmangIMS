@@ -378,7 +378,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
             <button type="button" className="btn btn-sm" disabled={saving} onClick={() => save('draft')}>
               {saving ? 'Saving...' : 'Save Draft'}
             </button>
-            <button type="button" className="btn-primary btn-sm" disabled={!canSave || saving} onClick={save}>
+            <button type="button" className="btn-primary btn-sm" disabled={!canSave || saving} onClick={() => save('issue')}>
               {saving ? 'Creating...' : 'Create PO'}
             </button>
           </div>
