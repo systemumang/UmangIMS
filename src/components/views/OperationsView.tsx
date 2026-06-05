@@ -177,26 +177,6 @@ export default function OperationsView({
   }, []);
 
   useEffect(() => {
-    if (!editPoFirmId) {
-      setAvailableStockByItemId({});
-      return;
-    }
-    const ac = new AbortController();
-    fetchInventorySheet(editPoFirmId, undefined, ac.signal, { includeEmpty: true })
-      .then((rows) => {
-        const byItem: Record<string, number> = {};
-        for (const r of rows ?? []) {
-          const itemId = String(r.itemId ?? '').trim();
-          if (!itemId) continue;
-          byItem[itemId] = (byItem[itemId] ?? 0) + Number(r.balance ?? 0);
-        }
-        setAvailableStockByItemId(byItem);
-      })
-      .catch(() => setAvailableStockByItemId({}));
-    return () => ac.abort();
-  }, [editPoFirmId]);
-
-  useEffect(() => {
     setTab(initialTab);
     setDetailOpen(false);
   }, [initialTab]);
@@ -385,6 +365,26 @@ export default function OperationsView({
         .map((it) => ({ value: it.id, label: it.name })),
     [editPoPoType, itemNames]
   );
+
+  useEffect(() => {
+    if (!editPoFirmId) {
+      setAvailableStockByItemId({});
+      return;
+    }
+    const ac = new AbortController();
+    fetchInventorySheet(editPoFirmId, undefined, ac.signal, { includeEmpty: true })
+      .then((rows) => {
+        const byItem: Record<string, number> = {};
+        for (const r of rows ?? []) {
+          const itemId = String(r.itemId ?? '').trim();
+          if (!itemId) continue;
+          byItem[itemId] = (byItem[itemId] ?? 0) + Number(r.balance ?? 0);
+        }
+        setAvailableStockByItemId(byItem);
+      })
+      .catch(() => setAvailableStockByItemId({}));
+    return () => ac.abort();
+  }, [editPoFirmId]);
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {
