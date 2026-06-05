@@ -9,7 +9,18 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { formatItemInline } from '@/src/lib/itemLabel';
-import { fetchSpecifications, type Specification } from '@/src/lib/masters';
+import { fetchInventorySheet } from '@/src/lib/inventory';
+import {
+  createSpecificationValue,
+  fetchItemNames,
+  fetchItems,
+  fetchSpecificationValues,
+  fetchSpecifications,
+  type Item,
+  type ItemName,
+  type Specification,
+  type SpecificationValue,
+} from '@/src/lib/masters';
 import { updatePo } from '@/src/lib/purchaseRequests';
 import {
 	          fetchOperationsCreditVouchers,
@@ -87,6 +98,55 @@ function uploadDocumentHref(value: unknown) {
   return raw;
 }
 
+function getItemNameSpecIdsFromRows(itemNames: ItemName[], itemNameId: string): string[] {
+  const row = itemNames.find((n) => n.id === itemNameId);
+  const ids = Array.isArray((row as any)?.specificationIds) ? ((row as any).specificationIds as any[]).map((x) => String(x)) : [];
+  return ids.filter(Boolean);
+}
+
+function parseSpecsJsonToObject(raw: string | undefined): Record<string, string> {
+  try {
+    const parsed = JSON.parse(String(raw ?? '{}'));
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeAreaUnitName(unitName: string) {
+  const u = String(unitName ?? '').trim().toLowerCase();
+  if (['sqft', 'sq.ft.', 'sq.ft', 'square feet', 'sq ft'].includes(u)) return 'sqft' as const;
+  if (['sqm', 'sq.m.', 'sq.m', 'square meter', 'sq mtr', 'sq m'].includes(u)) return 'sqm' as const;
+  return null;
+}
+
+function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
+  if (areaUnit === 'sqft') return 'ft';
+  if (areaUnit === 'sqm') return 'm';
+  return '';
+}
+
+function round2(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function computeAreaQty(length: number, breadth: number, pcs: number) {
+  const l = round2(length);
+  const b = round2(breadth);
+  const p = Math.trunc(pcs);
+  if (l > 0 && b > 0 && p > 0) return round2(l * b * p);
+  return 0;
+}
+
+function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
+  const n = Number(val);
+  if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
+  if (from === 'ft') return `${(n * 0.3048).toFixed(2)} m`;
+  if (from === 'm') return `${(n / 0.3048).toFixed(2)} Ft`;
+  return '';
+}
+
 export default function OperationsView({
   onViewPr,
   initialTab = 'prs',
@@ -97,18 +157,63 @@ export default function OperationsView({
   ) => void;
   initialTab?: OpsTab;
 }) {
-  const masters = useQueueMasters({ includeSuppliers: true, includeStores: true });
+  const masters = useQueueMasters({ includeSuppliers: true, includeStores: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [itemNames, setItemNames] = useState<ItemName[]>([]);
+  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
+  const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
   const [tab, setTab] = useState<OpsTab>(initialTab);
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+  const specColumnIds = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of editPoLines) {
+      if (!row.itemNameId) continue;
+      const itemName = itemNames.find((n) => n.id === row.itemNameId);
+      const ids = Array.isArray((itemName as any)?.specificationIds) ? ((itemName as any).specificationIds as any[]).map((x) => String(x)) : [];
+      for (const specId of ids.filter(Boolean)) seen.add(specId);
+    }
+    return Array.from(seen);
+  }, [editPoLines, itemNames]);
+  const itemOptions = useMemo(
+    () =>
+      itemNames
+        .filter((n) => (n.type ?? 'Goods') === editPoPoType)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((it) => ({ value: it.id, label: it.name })),
+    [editPoPoType, itemNames]
+  );
 
   useEffect(() => {
     const ac = new AbortController();
     fetchSpecifications(ac.signal).then(setSpecs).catch(() => setSpecs([]));
+    fetchItems(ac.signal).then(setItems).catch(() => setItems([]));
+    fetchItemNames(ac.signal).then(setItemNames).catch(() => setItemNames([]));
     return () => ac.abort();
   }, []);
+
+  useEffect(() => {
+    if (!editPoFirmId) {
+      setAvailableStockByItemId({});
+      return;
+    }
+    const ac = new AbortController();
+    fetchInventorySheet(editPoFirmId, undefined, ac.signal, { includeEmpty: true })
+      .then((rows) => {
+        const byItem: Record<string, number> = {};
+        for (const r of rows ?? []) {
+          const itemId = String(r.itemId ?? '').trim();
+          if (!itemId) continue;
+          byItem[itemId] = (byItem[itemId] ?? 0) + Number(r.balance ?? 0);
+        }
+        setAvailableStockByItemId(byItem);
+      })
+      .catch(() => setAvailableStockByItemId({}));
+    return () => ac.abort();
+  }, [editPoFirmId]);
 
   useEffect(() => {
     setTab(initialTab);
@@ -267,6 +372,7 @@ export default function OperationsView({
       itemNameId?: string | null;
       specs?: Record<string, string>;
       itemLabel: string;
+      unit?: string;
       poQty: number;
       grnQty: number;
       acceptedQty: number;
@@ -840,8 +946,9 @@ export default function OperationsView({
 	        (items ?? []).map((it: any) => ({
 	          itemId: String(it.itemId ?? '').trim(),
             itemNameId: it.itemNameId ? String(it.itemNameId) : null,
-            specs: it.specs ?? {},
+            specs: it.specs ?? parseSpecsJsonToObject(it.specificationsJson),
 	          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
+            unit: String(it.unit ?? '').trim(),
 	          poQty: Number(it.quantity ?? 0),
 	          grnQty: Number(it.grnQty ?? 0),
 	          acceptedQty: Number(it.acceptedQty ?? 0),
@@ -877,9 +984,87 @@ export default function OperationsView({
       setEditPoRequestedBy('');
       setEditPoRequiredDate('');
       setEditPoPoType('Goods');
-      setEditPoRemarks('');
-	    setEditPoLines([]);
-	  };
+    setEditPoRemarks('');
+    setEditPoLines([]);
+  };
+
+  const updateEditPoLine = (idx: number, patch: Partial<(typeof editPoLines)[number]>) => {
+    setEditPoLines((prev) =>
+      prev.map((line, i) => {
+        if (i !== idx) return line;
+        const next = { ...line, ...patch };
+        if (patch.itemNameId !== undefined || patch.specs !== undefined) {
+          const itemNameId = String(next.itemNameId ?? '').trim();
+          const specIds = itemNameId ? getItemNameSpecIdsFromRows(itemNames, itemNameId) : [];
+          let matchedItemId = '';
+          if (itemNameId) {
+            const candidates = items.filter((it) => it.itemNameId === itemNameId);
+            if (!specIds.length) matchedItemId = String(candidates[0]?.id ?? '');
+            else if (!specIds.some((sid) => !String(next.specs?.[sid] ?? '').trim())) {
+              const matched = candidates.find((it) => {
+                const saved = parseSpecsJsonToObject((it as any).specificationsJson);
+                return specIds.every((sid) => String(saved[sid] ?? '').trim() === String(next.specs?.[sid] ?? '').trim());
+              });
+              matchedItemId = String(matched?.id ?? '');
+            }
+          }
+          next.itemId = matchedItemId;
+          const itemNameRow = itemNames.find((x) => x.id === itemNameId) as any;
+          next.unit = String(itemNameRow?.unitName ?? itemNameRow?.unit ?? '').trim();
+          next.itemLabel = String(itemNameRow?.name ?? next.itemLabel ?? '');
+        }
+        return next;
+      })
+    );
+  };
+
+  const addEditPoLine = () =>
+    setEditPoLines((prev) => [
+      ...prev,
+      {
+        itemId: '',
+        itemNameId: '',
+        specs: {},
+        itemLabel: '',
+        unit: '',
+        poQty: 0,
+        grnQty: 0,
+        acceptedQty: 0,
+        quantity: '',
+        rate: '',
+        discountPercent: '0',
+        taxPercent: '0',
+        length: '',
+        breadth: '',
+        pcs: '1',
+      },
+    ]);
+
+  const removeEditPoLine = (idx: number) =>
+    setEditPoLines((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      return next.length
+        ? next
+        : [
+            {
+              itemId: '',
+              itemNameId: '',
+              specs: {},
+              itemLabel: '',
+              unit: '',
+              poQty: 0,
+              grnQty: 0,
+              acceptedQty: 0,
+              quantity: '',
+              rate: '',
+              discountPercent: '0',
+              taxPercent: '0',
+              length: '',
+              breadth: '',
+              pcs: '1',
+            },
+          ];
+    });
 
 	  const saveEditPo = async (mode: 'draft' | 'issue' = 'issue') => {
 	    if (!editPoId) return;
@@ -2458,105 +2643,164 @@ export default function OperationsView({
               <textarea className={cn(inputClass, 'min-h-[96px] py-2')} value={editPoRemarks} onChange={(e) => setEditPoRemarks(e.target.value)} disabled={editPoBusy} />
             </label>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-              <thead>
-                <tr className="bg-surface-container-high">
-                  <th className="px-3 py-2 border border-outline-variant">Item</th>
-                  <th className="px-3 py-2 border border-outline-variant">Qty</th>
-                  <th className="px-3 py-2 border border-outline-variant">GRN Qty</th>
-                  <th className="px-3 py-2 border border-outline-variant">Accepted Qty</th>
-                  <th className="px-3 py-2 border border-outline-variant">Rate</th>
-                  <th className="px-3 py-2 border border-outline-variant">Disc %</th>
-                  <th className="px-3 py-2 border border-outline-variant">GST %</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">GST Amount</th>
-                  <th className="px-3 py-2 border border-outline-variant text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {editPoLines.length ? (
-                  editPoLines.map((l, idx) => (
-                    <tr key={`${l.itemId}-${idx}`}>
-                      <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{l.itemLabel}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={l.quantity}
-                          onChange={(e) =>
-                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, quantity: sanitizeDecimalInput(e.target.value) } : x)))
-                          }
-                          inputMode="decimal"
-                          disabled={editPoBusy || Number(l.acceptedQty ?? 0) >= Number(l.poQty ?? 0)}
-                        />
-                      </td>
-                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(l.grnQty ?? 0)}</td>
-                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(l.acceptedQty ?? 0)}</td>
-                      <td className="px-3 py-2 border border-outline-variant">
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={l.rate}
-                          onChange={(e) =>
-                            setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, rate: sanitizeDecimalInput(e.target.value) } : x)))
-                          }
-                          inputMode="decimal"
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-on-surface">PO Items</div>
+              <button type="button" className="btn btn-sm" onClick={addEditPoLine} disabled={editPoBusy}>
+                Add Item
+              </button>
+            </div>
+
+	          <div className="overflow-x-auto rounded-xl border border-outline-variant">
+              <div className="min-w-[1700px]">
+                <div
+                  className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
+                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 90px` }}
+                >
+                  <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
+                  {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
+                    <div key={`edit-hdr-${specId}`} className="px-2 py-2 border-r border-outline-variant">
+                      {specId === '__no_specs__' ? 'Specifications' : specNameById?.[specId] ?? 'Specification'}
+                    </div>
+                  ))}
+                  <div className="px-2 py-2 border-r border-outline-variant text-center">Unit</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-center">Length</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-center">PCs</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-right">Available</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-right">Qty</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-right">Rate</div>
+                  <div className="px-2 py-2 border-r border-outline-variant text-right">Disc %</div>
+                  {getSupplierHasGst(editPoSupplierId) && <div className="px-2 py-2 border-r border-outline-variant text-right">Tax %</div>}
+                  {getSupplierHasGst(editPoSupplierId) && <div className="px-2 py-2 border-r border-outline-variant text-right">GST Amount</div>}
+                  <div className="px-2 py-2 border-r border-outline-variant text-right">Amount</div>
+                  <div className="px-2 py-2 text-right">Action</div>
+                </div>
+
+                {editPoLines.map((l, idx) => {
+                  const specIds = l.itemNameId ? getItemNameSpecIdsFromRows(itemNames, l.itemNameId) : [];
+                  const areaUnit = normalizeAreaUnitName(l.unit ?? '');
+                  const isAreaUnit = !!areaUnit;
+                  const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+                  const goodsAmount = Number(l.quantity || 0) * Number(l.rate || 0) * (1 - Number(l.discountPercent || 0) / 100);
+                  const gstAmount = goodsAmount * (Number(l.taxPercent || 0) / 100);
+                  const totalAmount = goodsAmount + gstAmount;
+                  return (
+                    <div
+                      key={`edit-line-${idx}`}
+                      className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
+                      style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 90px` }}
+                    >
+                      <div className="p-2 border-r border-outline-variant">
+                        <SearchableSelect
+                          value={String(l.itemNameId ?? '')}
+                          options={itemOptions}
+                          onChange={(itemNameId) => {
+                            const specIdsToLoad = itemNameId ? getItemNameSpecIdsFromRows(itemNames, itemNameId) : [];
+                            for (const specId of specIdsToLoad) {
+                              const key = `${itemNameId}::${specId}`;
+                              if ((specValueOptions[key] ?? []).length) continue;
+                              fetchSpecificationValues(specId, { itemNameId })
+                                .then((vals) => setSpecValueOptions((m) => ({ ...m, [key]: vals })))
+                                .catch(() => {});
+                            }
+                            updateEditPoLine(idx, { itemNameId, itemId: '', specs: {}, itemLabel: '' });
+                          }}
+                          placeholder={editPoPoType === 'Services' ? 'Search service name...' : 'Search item name...'}
                           disabled={editPoBusy}
                         />
-                      </td>
-                      <td className="px-3 py-2 border border-outline-variant">
-                        <input
-                          className={cn(inputClass, 'py-1.5')}
-                          value={l.discountPercent}
-                          onChange={(e) =>
-                            setEditPoLines((prev) =>
-                              prev.map((x, i) => (i === idx ? { ...x, discountPercent: sanitizeDecimalInput(e.target.value) } : x))
-                            )
-                          }
-                          inputMode="decimal"
-                          disabled={editPoBusy}
-                        />
-                      </td>
-                      <td className="px-3 py-2 border border-outline-variant">
-                      {getSupplierHasGst(editPoSupplierId) ? (
-                      <input
-                      className={cn(inputClass, 'py-1.5')}
-                      value={l.taxPercent}
-                      onChange={(e) =>
-                      setEditPoLines((prev) => prev.map((x, i) => (i === idx ? { ...x, taxPercent: sanitizeDecimalInput(e.target.value) } : x)))
-                      }
-                      inputMode="decimal"
-                      disabled={editPoBusy}
-                      />
-                      ) : (
-                      <div className="text-center text-xs opacity-50">-</div>
-                      )}
-                      </td>
-                      {(() => {
-                        const goodsAmt = Number(l.quantity || 0) * Number(l.rate || 0) * (1 - (Number(l.discountPercent || 0) / 100));
-                        const gstAmt = goodsAmt * (Number(l.taxPercent || 0) / 100);
-                        const totalAmt = goodsAmt + gstAmt;
-	                        return (
-	                          <>
-	                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface whitespace-nowrap">
-	                              {gstAmt.toFixed(2)}
-	                            </td>
-	                            <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface whitespace-nowrap">
-	                              {totalAmt.toFixed(2)}
-	                            </td>
-	                          </>
-	                        );
-	                      })()}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
-                      No items.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => {
+                        if (specId === '__no_specs__') {
+                          return (
+                            <div key={`edit-${idx}-spec-empty`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-80">
+                              Select Item Name to load specifications.
+                            </div>
+                          );
+                        }
+                        const isRequiredForRow = specIds.includes(specId);
+                        if (!l.itemNameId || !isRequiredForRow) return <div key={`edit-${idx}-${specId}`} className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant opacity-60">-</div>;
+                        const value = String(l.specs?.[specId] ?? '');
+                        const key = `${l.itemNameId}::${specId}`;
+                        const options = (specValueOptions[key] ?? [])
+                          .filter((sv) => String(sv.itemNameId ?? '').trim() === String(l.itemNameId ?? '').trim())
+                          .map((v) => ({ value: v.value, label: v.value }));
+                        if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                        return (
+                          <div key={`edit-${idx}-${specId}`} className="p-2 border-r border-outline-variant">
+                            <SearchableSelect
+                              value={value}
+                              options={options}
+                              placeholder="Select"
+                              disabled={editPoBusy}
+                              showCreateWhenEmpty
+                              alwaysShowCreate
+                              allowEmptyCreate
+                              closeOnCreate
+                              createLabel={(q) => (q ? `+ Add New "${q}"` : '+ Add New')}
+                              onChange={(selectedValue) => updateEditPoLine(idx, { specs: { ...(l.specs ?? {}), [specId]: selectedValue } })}
+                              onCreate={async (label) => {
+                                const v = String(label ?? '').trim();
+                                const itemNameId = String(l.itemNameId ?? '').trim();
+                                if (!v || !itemNameId) return null;
+                                try {
+                                  const created = await createSpecificationValue({ specificationId: specId, itemNameId, value: v, createdBy: 'system' });
+                                  const next = created?.specificationValue;
+                                  const finalValue = String(next?.value ?? v);
+                                  setSpecValueOptions((m) => ({ ...m, [key]: [...(m[key] ?? []), next ?? { id: `NEW-${Date.now()}`, specificationId: specId, itemNameId, value: finalValue, isActive: true }] }));
+                                  return { value: finalValue, label: finalValue };
+                                } catch {
+                                  return null;
+                                }
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                      <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">{l.unit || '-'}</div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? (
+                          <div className="space-y-1">
+                            <div className="relative">
+                              <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-2 pr-6 py-1 text-sm h-8" value={l.length ?? ''} onChange={(e) => { const val = sanitizeDecimalInput(e.target.value); const q = computeAreaQty(Number(val), Number(l.breadth), Number(l.pcs || 1)); updateEditPoLine(idx, { length: val, quantity: String(q) }); }} disabled={editPoBusy} placeholder="L" />
+                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">{dimUnit === 'm' ? 'm' : 'Ft'}</div>
+                            </div>
+                            {getConvertedDim(String(l.length ?? ''), dimUnit) ? <div className="text-[10px] text-red-600 font-medium leading-tight">{getConvertedDim(String(l.length ?? ''), dimUnit)}</div> : null}
+                          </div>
+                        ) : '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? (
+                          <div className="space-y-1">
+                            <div className="relative">
+                              <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-2 pr-6 py-1 text-sm h-8" value={l.breadth ?? ''} onChange={(e) => { const val = sanitizeDecimalInput(e.target.value); const q = computeAreaQty(Number(l.length), Number(val), Number(l.pcs || 1)); updateEditPoLine(idx, { breadth: val, quantity: String(q) }); }} disabled={editPoBusy} placeholder="B" />
+                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60 font-bold pointer-events-none">{dimUnit === 'm' ? 'm' : 'Ft'}</div>
+                            </div>
+                            {getConvertedDim(String(l.breadth ?? ''), dimUnit) ? <div className="text-[10px] text-red-600 font-medium leading-tight">{getConvertedDim(String(l.breadth ?? ''), dimUnit)}</div> : null}
+                          </div>
+                        ) : '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant">
+                        {isAreaUnit ? <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8" value={l.pcs ?? ''} onChange={(e) => { const val = sanitizeDecimalInput(e.target.value); const q = computeAreaQty(Number(l.length), Number(l.breadth), Number(val || 1)); updateEditPoLine(idx, { pcs: val, quantity: String(q) }); }} disabled={editPoBusy} placeholder="PCs" /> : '-'}
+                      </div>
+                      <div className="p-2 border-r border-outline-variant text-right text-xs">{Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}</div>
+                      <div className="p-2 border-r border-outline-variant text-right">
+                        <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70 h-8" value={l.quantity} onChange={(e) => updateEditPoLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy || isAreaUnit} placeholder="0" />
+                      </div>
+                      <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.rate} onChange={(e) => updateEditPoLine(idx, { rate: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>
+                      <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.discountPercent} onChange={(e) => updateEditPoLine(idx, { discountPercent: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>
+                      {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.taxPercent} onChange={(e) => updateEditPoLine(idx, { taxPercent: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>}
+                      {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant text-right text-xs font-medium">{gstAmount.toFixed(2)}</div>}
+                      <div className="p-2 border-r border-outline-variant text-right text-xs font-bold">{totalAmount.toFixed(2)}</div>
+                      <div className="p-2 text-right">
+                        <button type="button" className="btn btn-sm" onClick={() => removeEditPoLine(idx)} disabled={editPoBusy}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+	          </div>
 
 	          <div className="flex items-center justify-end gap-2">
 	            <button type="button" className="btn btn-sm" onClick={closeEditPoModal} disabled={editPoBusy}>
