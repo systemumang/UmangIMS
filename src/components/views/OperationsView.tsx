@@ -167,25 +167,6 @@ export default function OperationsView({
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
-  const specColumnIds = useMemo(() => {
-    const seen = new Set<string>();
-    for (const row of editPoLines) {
-      if (!row.itemNameId) continue;
-      const itemName = itemNames.find((n) => n.id === row.itemNameId);
-      const ids = Array.isArray((itemName as any)?.specificationIds) ? ((itemName as any).specificationIds as any[]).map((x) => String(x)) : [];
-      for (const specId of ids.filter(Boolean)) seen.add(specId);
-    }
-    return Array.from(seen);
-  }, [editPoLines, itemNames]);
-  const itemOptions = useMemo(
-    () =>
-      itemNames
-        .filter((n) => (n.type ?? 'Goods') === editPoPoType)
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((it) => ({ value: it.id, label: it.name })),
-    [editPoPoType, itemNames]
-  );
 
   useEffect(() => {
     const ac = new AbortController();
@@ -385,6 +366,25 @@ export default function OperationsView({
       pcs?: string;
     }>
   >([]);
+  const specColumnIds = useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of editPoLines) {
+      if (!row.itemNameId) continue;
+      const itemName = itemNames.find((n) => n.id === row.itemNameId);
+      const ids = Array.isArray((itemName as any)?.specificationIds) ? ((itemName as any).specificationIds as any[]).map((x) => String(x)) : [];
+      for (const specId of ids.filter(Boolean)) seen.add(specId);
+    }
+    return Array.from(seen);
+  }, [editPoLines, itemNames]);
+  const itemOptions = useMemo(
+    () =>
+      itemNames
+        .filter((n) => (n.type ?? 'Goods') === editPoPoType)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((it) => ({ value: it.id, label: it.name })),
+    [editPoPoType, itemNames]
+  );
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {

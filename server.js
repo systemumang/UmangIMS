@@ -2308,7 +2308,7 @@ app.get('/api/queues/check-po', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const f = readQueueFilters(req);
 
-    const where = ["po.check_po = 0"];
+	    const where = ["po.check_po = 0", "LOWER(COALESCE(po.status, '')) <> 'draft'"];
     const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');

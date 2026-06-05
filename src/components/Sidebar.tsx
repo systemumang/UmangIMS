@@ -46,6 +46,7 @@ export type NavView =
 export type PendingQueueKey =
   | 'queueApprovePr'
   | 'queueCreatePo'
+  | 'queueDraftPo'
   | 'queueCheckPo'
   | 'queueSendPo'
   | 'queueCreateGrn'
@@ -63,6 +64,7 @@ export type PendingQueueKey =
 export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> = [
   { key: 'queueApprovePr', label: 'Approve PR' },
   { key: 'queueCreatePo', label: 'Create PO' },
+  { key: 'queueDraftPo', label: 'Draft POs' },
   { key: 'queueCheckPo', label: 'Check PO' },
   { key: 'queueSendPo', label: 'Send PO' },
   { key: 'queueCreateGrn', label: 'Create GRN' },
@@ -85,12 +87,11 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'transferMaster', label: 'Transfer Master' },
 ];
 
-export type PurchaseMastersTab = 'prs' | 'pos' | 'draftPos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
+export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
 
 export const purchaseMastersMenuItems: Array<{ key: PurchaseMastersTab; label: string }> = [
   { key: 'prs', label: 'Requisitions' },
   { key: 'pos', label: 'Purchase Orders' },
-  { key: 'draftPos', label: 'Draft POs' },
   { key: 'pendingAdjustments', label: 'Pending Advance Adjustment' },
   { key: 'grns', label: 'GRN' },
   { key: 'invoices', label: 'Invoices' },

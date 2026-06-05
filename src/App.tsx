@@ -206,8 +206,9 @@ export default function App() {
 	    const ac = new AbortController();
 	    Promise.all([
 	      fetchQueueApprovePr(undefined, ac.signal).then((r) => ['queueApprovePr', r.length] as const),
-      fetchQueueCreatePo(undefined, ac.signal).then((r) => ['queueCreatePo', r.length] as const),
-      fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
+	      fetchQueueCreatePo(undefined, ac.signal).then((r) => ['queueCreatePo', r.length] as const),
+        fetchOperationsPos({ status: 'Draft' }, ac.signal).then((r) => ['queueDraftPo', r.length] as const),
+	      fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
       fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
       fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
 		      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
@@ -235,7 +236,6 @@ export default function App() {
 		    Promise.all([
 	      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
 	      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
-        fetchOperationsPos({ status: 'Draft' }, ac.signal).then((r) => ['draftPos', r.length] as const),
 	      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
 	      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
 	      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
@@ -332,10 +332,11 @@ export default function App() {
 			    if (view === 'newPurchaseRequest') return { title: 'New Purchase Request', showSearch: false };
 			    if (view === 'purchaseRequestDetail') return { title: 'Request Details', showSearch: false };
 		    if (isPendingQueueView(view)) {
-	      const titleByKey: Record<PendingQueueView, string> = {
-	        queueApprovePr: 'Approve PR',
-	        queueCreatePo: 'Create PO',
-	        queueCheckPo: 'Check PO',
+		      const titleByKey: Record<PendingQueueView, string> = {
+		        queueApprovePr: 'Approve PR',
+		        queueCreatePo: 'Create PO',
+            queueDraftPo: 'Draft POs',
+		        queueCheckPo: 'Check PO',
 	        queueSendPo: 'Send PO',
 	        queueCreateGrn: 'Create GRN',
 		        queueCheckQuality: 'Check Quality',
@@ -763,16 +764,15 @@ export default function App() {
 					              onCreated={(mode) => {
 					                setSelectedRequestId(null);
 					                setMastersExpanded(false);
-						                setStockMasterExpanded(false);
-						                setPendingExpanded(mode === 'draft' ? false : true);
-                              setPurchaseMastersExpanded(mode === 'draft');
+							                setStockMasterExpanded(false);
+							                setPendingExpanded(true);
+                              setPurchaseMastersExpanded(false);
 	                          hideSidebarAfterViewChange();
-                              if (mode === 'draft') {
-                                setOperationsTab('draftPos');
-                                setView('operations');
-                              } else {
-						                  setView('queueCheckPo');
-                              }
+	                              if (mode === 'draft') {
+	                                setView('queueDraftPo');
+	                              } else {
+							                  setView('queueCheckPo');
+	                              }
 						              }}
 				              onCancel={() => {
 				                setView('dashboard');
@@ -870,9 +870,10 @@ export default function App() {
               {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
               {view === 'damageMaster' ? <DamageMasterView onAdd={() => { setStockMasterTab('damage'); setView('stockMaster'); }} /> : null}
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
-	          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
-	          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
-	          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
+		          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
+		          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
+              {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" /> : null}
+		          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueSendPo' ? <SendPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}
 				          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
