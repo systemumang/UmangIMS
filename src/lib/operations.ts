@@ -91,7 +91,11 @@ export type OperationsPoListRow = {
   orderDate?: string | null;
   advanceDate?: string | null;
   createdAt: string;
-  status: 'Open' | 'Partial' | 'Closed';
+  updatedAt?: string;
+  requestedBy?: string | null;
+  requiredDate?: string | null;
+  sourceType?: 'PR' | 'DIRECT';
+  status: 'Draft' | 'Open' | 'Partial' | 'Closed';
   itemCount: number;
   totalAmount: number;
   advanceAmount?: number;

@@ -485,11 +485,84 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
         titleCentered
         titleClassName="text-primary text-base font-bold"
         footer={
-          <>
-            <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
-              Cancel
-            </button>
-		            <button
+	          <>
+	            <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
+	              Cancel
+	            </button>
+              {modalKind === 'po' ? (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={saving || modalLoading || !activePrId}
+                  onClick={() => {
+                    if (!activePrId) return;
+                    const picked = lines
+                      .map((l, idx) => {
+                        const areaUnit = normalizeAreaUnitName(String(l.unit ?? ''));
+                        const isAreaUnit = !!areaUnit;
+                        const length = String(l.length ?? '').trim() ? Number(l.length) : undefined;
+                        const breadth = String(l.breadth ?? '').trim() ? Number(l.breadth) : undefined;
+                        const pcs = String(l.pcs ?? '').trim() ? Number(l.pcs) : undefined;
+                        return {
+                          draftKey: `${idx}`,
+                          itemId: l.itemId,
+                          supplierId: String(l.supplierId ?? '').trim(),
+                          paymentTerms: String(l.paymentTerms ?? '').trim(),
+                          quantity: String(l.quantity ?? '').trim() ? Number(l.quantity) : 0,
+                          rate: String(l.rate ?? '').trim() ? Number(l.rate) : 0,
+                          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
+                          taxPercent: getSupplierHasGst(String(l.supplierId ?? '').trim()) ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
+                          ...(isAreaUnit ? { length, breadth, pcs } : {}),
+                        };
+                      })
+                      .filter((x) => x.itemId || x.supplierId || x.paymentTerms || Number(x.quantity) > 0 || Number(x.rate) > 0);
+                    if (!picked.length) {
+                      setModalError('Enter at least one draft line.');
+                      return;
+                    }
+                    const groups = new Map<string, { supplierName?: string; paymentTerms?: string; items: any[] }>();
+                    for (const it of picked) {
+                      const supplierName = String(supplierRows.find((s) => s.id === it.supplierId)?.name ?? '').trim();
+                      const key = it.supplierId && it.paymentTerms ? `${it.supplierId}||${it.paymentTerms}` : `draft||${it.draftKey}`;
+                      const existing = groups.get(key);
+                      const itemLine = {
+                        itemId: it.itemId,
+                        quantity: it.quantity,
+                        rate: it.rate,
+                        discountPercent: it.discountPercent,
+                        taxPercent: it.taxPercent,
+                        ...(it.length != null || it.breadth != null || it.pcs != null ? { length: it.length, breadth: it.breadth, pcs: it.pcs } : {}),
+                      };
+                      if (existing) existing.items.push(itemLine);
+                      else groups.set(key, { supplierName: supplierName || undefined, paymentTerms: it.paymentTerms || undefined, items: [itemLine] });
+                    }
+                    setSaving(true);
+                    setModalError(null);
+                    Promise.resolve()
+                      .then(async () => {
+                        for (const [, g] of groups.entries()) {
+                          await createPo(activePrId, {
+                            mode: 'draft',
+                            supplier: g.supplierName,
+                            paymentTerms: g.paymentTerms,
+                            paymentType: null,
+                            paymentMode: null,
+                            advanceAmount: 0,
+                            advanceDate: null,
+                            items: g.items,
+                          });
+                        }
+                      })
+                      .then(() => fetchQueueCreatePo(filters).then(setRows))
+                      .then(() => closeModal())
+                      .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
+                      .finally(() => setSaving(false));
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Draft'}
+                </button>
+              ) : null}
+			            <button
 		              type="button"
 		              className="btn-primary btn-sm"
 		              disabled={saving || modalLoading || !activePrId || !lines.some((l) => Number(l.quantity) > 0)}

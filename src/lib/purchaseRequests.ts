@@ -50,6 +50,8 @@ export type Po = {
   poNumber?: string;
   prId: string;
   firmId?: string;
+  storeId?: string;
+  projectId?: string;
   orderDate?: string;
   createdBy?: string;
   supplierId?: string;
@@ -59,10 +61,18 @@ export type Po = {
   supplierAddress?: string | null;
   supplierPhone?: string | null;
   paymentTerms: string;
+  paymentType?: string | null;
+  paymentMode?: string | null;
   shippingAddress?: string | null;
   termsConditions?: string | null;
-  status: 'Open' | 'Partial' | 'Closed';
+  requestedBy?: string;
+  requiredDate?: string | null;
+  remarks?: string;
+  poType?: string;
+  sourceType?: 'PR' | 'DIRECT';
+  status: 'Draft' | 'Open' | 'Partial' | 'Closed';
   createdAt: string;
+  updatedAt?: string;
   checkPo?: boolean;
   checkPoUserId?: string | null;
   checkDate?: string | null;
@@ -77,11 +87,15 @@ export type Po = {
 };
 
 export type PoItem = {
+  id?: string;
   poId: string;
   itemId: string;
+  itemLabel?: string;
+  itemNameId?: string | null;
   item: string;
   unit?: string | null;
   specificationsJson?: string;
+  specs?: Record<string, string>;
   quantity: number;
   rate: number;
   discountPercent?: number;
@@ -375,8 +389,10 @@ export async function rejectPr(prId: string, approver: string, rejectReason: str
 export async function createPo(
   prId: string,
   input: {
-    supplier: string;
-    paymentTerms: string;
+    supplier?: string;
+    supplierId?: string | null;
+    paymentTerms?: string;
+    mode?: 'draft' | 'issue';
     paymentType?: string | null;
     paymentMode?: string | null;
     advanceAmount?: number;
@@ -454,8 +470,10 @@ export async function createDirectPo(input: {
   remarks?: string;
   requestedBy?: string;
   requiredDate?: string; // YYYY-MM-DD
-  supplierId: string;
-  paymentTerms: string;
+  supplierId?: string;
+  supplier?: string;
+  paymentTerms?: string;
+  mode?: 'draft' | 'issue';
   paymentType?: string | null;
   paymentMode?: string | null;
   advanceAmount?: number;
@@ -867,16 +885,26 @@ export async function fetchPos(prId: string, signal?: AbortSignal): Promise<Arra
 export async function updatePo(
   poId: string,
   input: {
+    mode?: 'draft' | 'issue';
+    firmId?: string | null;
+    storeId?: string | null;
+    projectId?: string | null;
     supplierId?: string | null;
     supplier?: string | null;
-    paymentTerms: string;
+    poType?: string | null;
+    requestedBy?: string;
+    requiredDate?: string | null;
+    remarks?: string;
+    paymentTerms?: string;
+    paymentType?: string | null;
+    paymentMode?: string | null;
     shippingAddress?: string;
     termsConditions?: string;
-    status?: 'Open' | 'Partial' | 'Closed';
+    status?: 'Draft' | 'Open' | 'Partial' | 'Closed';
     advanceAmount?: number;
     advanceDate?: string | null;
     cancelReason?: string;
-    items: Array<{ itemId: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number }>;
+    items: Array<{ itemId?: string; itemNameId?: string | null; specs?: Record<string, string>; quantity: number; rate: number; discountPercent?: number; taxPercent?: number; length?: number; breadth?: number; pcs?: number }>;
     lineCancels?: Array<{ itemId: string; cancelledQty: number; cancelReason?: string }>;
     updatedBy?: string;
   }

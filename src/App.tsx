@@ -232,10 +232,11 @@ export default function App() {
 	  useEffect(() => {
 	    if (!currentUser) return;
 	    const ac = new AbortController();
-	    Promise.all([
-      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
-      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
-      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
+		    Promise.all([
+	      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
+	      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
+        fetchOperationsPos({ status: 'Draft' }, ac.signal).then((r) => ['draftPos', r.length] as const),
+	      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
 	      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
 	      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
         fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['excessPaidInvoices', r.length] as const),
@@ -757,16 +758,22 @@ export default function App() {
 					            />
 					          ) : null}
 
-				          {view === 'directPo' ? (
-				            <DirectPoView
-				              onCreated={() => {
-				                setSelectedRequestId(null);
-				                setMastersExpanded(false);
-					                setStockMasterExpanded(false);
-					                setPendingExpanded(true);
-                          hideSidebarAfterViewChange();
-					                setView('queueCheckPo');
-					              }}
+					          {view === 'directPo' ? (
+					            <DirectPoView
+					              onCreated={(mode) => {
+					                setSelectedRequestId(null);
+					                setMastersExpanded(false);
+						                setStockMasterExpanded(false);
+						                setPendingExpanded(mode === 'draft' ? false : true);
+                              setPurchaseMastersExpanded(mode === 'draft');
+	                          hideSidebarAfterViewChange();
+                              if (mode === 'draft') {
+                                setOperationsTab('draftPos');
+                                setView('operations');
+                              } else {
+						                  setView('queueCheckPo');
+                              }
+						              }}
 				              onCancel={() => {
 				                setView('dashboard');
 				              }}

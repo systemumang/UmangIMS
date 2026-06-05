@@ -78,7 +78,7 @@ type Line = {
   pcs: string;
 };
 
-export default function DirectPoView({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode?: 'draft' | 'issue') => void; onCancel: () => void }) {
   const inputClass =
     'w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
 
@@ -305,8 +305,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 
   const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }]);
 
-  const save = async () => {
-    if (!canSave) return;
+  const save = async (mode: 'draft' | 'issue' = 'issue') => {
+    if (mode === 'issue' && !canSave) return;
     setSaving(true);
     setError(null);
     try {
@@ -314,14 +314,24 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
       const requestedBy = String(users.find((u) => u.id === requestedByUserId)?.name ?? '').trim();
       const requiredDateIso = String(requiredDate ?? '').trim();
 
-      if (!requestedBy) throw new Error('Requested By is required.');
-      if (!requiredDateIso) throw new Error('Required Date is required.');
+      if (mode === 'issue' && !requestedBy) throw new Error('Requested By is required.');
+      if (mode === 'issue' && !requiredDateIso) throw new Error('Required Date is required.');
 
-	      const picked = lines
-	        .filter((l) => (String(l.itemId ?? '').trim() || String(l.itemNameId ?? '').trim()) && Number(l.quantity) > 0 && Number(l.rate) > 0)
-	        .map((l) => ({
-	          itemId: String(l.itemId ?? '').trim(),
-            itemNameId: String(l.itemNameId ?? '').trim(),
+		      const picked = lines
+		        .filter((l) =>
+              mode === 'draft'
+                ? Boolean(
+                    String(l.itemId ?? '').trim() ||
+                      String(l.itemNameId ?? '').trim() ||
+                      String(l.quantity ?? '').trim() ||
+                      String(l.rate ?? '').trim() ||
+                      Object.keys(l.specs ?? {}).length
+                  )
+                : (String(l.itemId ?? '').trim() || String(l.itemNameId ?? '').trim()) && Number(l.quantity) > 0 && Number(l.rate) > 0
+            )
+		        .map((l) => ({
+		          itemId: String(l.itemId ?? '').trim(),
+	            itemNameId: String(l.itemNameId ?? '').trim(),
             specs: l.specs ?? {},
 	          quantity: Number(l.quantity),
 	          rate: Number(l.rate),
@@ -333,21 +343,23 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	        }));
 
 		      await createDirectPo({
+              mode,
 		        firmId,
 		        storeId: storeId ? storeId : null,
 		        projectId: projectId ? projectId : null,
-            poType,
+	            poType,
 		        supplierId,
-            remarks: remarks.trim() || undefined,
+              supplier: String(selectedSupplier?.name ?? '').trim() || undefined,
+	            remarks: remarks.trim() || undefined,
 		        department,
-		        requestedBy,
-		        requiredDate: requiredDateIso,
-		          paymentTerms: paymentTerms.trim(),
-		        termsConditions: firmTermsConditions || undefined,
-		        items: picked,
-		      });
-	      onCreated();
-    } catch (e) {
+		        requestedBy: requestedBy || undefined,
+		        requiredDate: requiredDateIso || undefined,
+			          paymentTerms: paymentTerms.trim(),
+			        termsConditions: firmTermsConditions || undefined,
+			        items: picked,
+			      });
+		      onCreated(mode);
+	    } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
@@ -362,6 +374,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: () =>
 	          <div className="flex items-center gap-2">
             <button type="button" className="btn btn-sm" disabled={saving} onClick={onCancel}>
               Back
+            </button>
+            <button type="button" className="btn btn-sm" disabled={saving} onClick={() => save('draft')}>
+              {saving ? 'Saving...' : 'Save Draft'}
             </button>
             <button type="button" className="btn-primary btn-sm" disabled={!canSave || saving} onClick={save}>
               {saving ? 'Creating...' : 'Create PO'}

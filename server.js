@@ -244,9 +244,28 @@ function getMysqlPool() {
       await ensureColumn('purchase_orders', 'firm_gst_number', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_orders', 'payment_type', 'VARCHAR(32) NULL');
       await ensureColumn('purchase_orders', 'payment_mode', 'VARCHAR(32) NULL');
-      await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
-      await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
-      await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
+	      await ensureColumn('purchase_orders', 'cancel_reason', 'TEXT NULL');
+	      await ensureColumn('purchase_orders', 'cancelled_by', 'VARCHAR(255) NULL');
+	      await ensureColumn('purchase_orders', 'cancelled_at', 'DATETIME NULL');
+	      await ensureColumn('purchase_orders', 'draft_payload', 'LONGTEXT NULL');
+	      await ensureColumn('purchase_orders', 'po_source', "VARCHAR(16) NULL");
+	      await ensureColumn('purchase_orders', 'requested_by', 'VARCHAR(255) NULL');
+	      await ensureColumn('purchase_orders', 'required_date', 'DATE NULL');
+	      await ensureColumn('purchase_orders', 'remarks', 'TEXT NULL');
+
+	      const tryAlterNullable = async (table, column, def) => {
+	        try {
+	          await pool.query(`ALTER TABLE ${table} MODIFY COLUMN ${column} ${def}`);
+	        } catch (e) {
+	          console.error(`Unable to alter ${table}.${column}:`, e);
+	        }
+	      };
+	      await tryAlterNullable('purchase_orders', 'firm_id', 'VARCHAR(255) NULL');
+	      await tryAlterNullable('purchase_orders', 'store_id', 'VARCHAR(255) NULL');
+	      await tryAlterNullable('purchase_orders', 'project_id', 'VARCHAR(255) NULL');
+	      await tryAlterNullable('purchase_orders', 'supplier_id', 'VARCHAR(255) NULL');
+	      await tryAlterNullable('purchase_orders', 'pr_id', 'VARCHAR(255) NULL');
+	      await tryAlterNullable('purchase_orders', 'order_date', 'DATE NULL');
 
 	      await ensureColumn('purchase_order_items', 'cancelled_qty', 'DOUBLE NOT NULL DEFAULT 0');
 	      await ensureColumn('purchase_order_items', 'cancel_reason', 'TEXT NULL');
@@ -1295,6 +1314,114 @@ function fiscalYearLabel(date = new Date()) {
   return `${a}-${b}`;
 }
 
+function parseJsonObject(raw, fallback = {}) {
+  const text = String(raw ?? '').trim();
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizePoMode(raw) {
+  return String(raw ?? '').trim().toLowerCase() === 'draft' ? 'draft' : 'issue';
+}
+
+function normalizePoSource(raw) {
+  const source = String(raw ?? '').trim().toUpperCase();
+  return source === 'DIRECT' ? 'DIRECT' : 'PR';
+}
+
+function mapPoStatus(raw) {
+  const status = String(raw ?? '').trim().toLowerCase();
+  if (status === 'draft') return 'Draft';
+  if (status === 'closed') return 'Closed';
+  if (status === 'partial') return 'Partial';
+  return 'Open';
+}
+
+function validIdOrNull(value) {
+  const s = String(value ?? '').trim();
+  return s || null;
+}
+
+function validTextOrNull(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s || null;
+}
+
+function normalizePoDraftLines(lines) {
+  if (!Array.isArray(lines)) return [];
+  return lines.map((row, idx) => ({
+    id: validTextOrNull(row?.id) || `draft-line-${idx + 1}`,
+    itemId: validTextOrNull(row?.itemId),
+    itemNameId: validTextOrNull(row?.itemNameId),
+    item: validTextOrNull(row?.item),
+    itemLabel: validTextOrNull(row?.itemLabel) || validTextOrNull(row?.item) || '',
+    specificationsJson: row?.specificationsJson != null ? String(row.specificationsJson) : undefined,
+    specs: row?.specs && typeof row.specs === 'object' ? row.specs : {},
+    quantity: Number.isFinite(Number(row?.quantity)) ? Number(row.quantity) : 0,
+    rate: Number.isFinite(Number(row?.rate)) ? Number(row.rate) : 0,
+    discountPercent: Number.isFinite(Number(row?.discountPercent)) ? Number(row.discountPercent) : 0,
+    taxPercent: Number.isFinite(Number(row?.taxPercent)) ? Number(row.taxPercent) : 0,
+    unit: validTextOrNull(row?.unit),
+    dimLength: Number.isFinite(Number(row?.length ?? row?.dimLength)) ? Number(row?.length ?? row?.dimLength) : null,
+    dimBreadth: Number.isFinite(Number(row?.breadth ?? row?.dimBreadth)) ? Number(row?.breadth ?? row?.dimBreadth) : null,
+    dimPcs: Number.isFinite(Number(row?.pcs ?? row?.dimPcs)) ? Number(row?.pcs ?? row?.dimPcs) : null,
+    dimUnit: validTextOrNull(row?.inputUnit ?? row?.dimUnit),
+  }));
+}
+
+function buildPoDraftPayload(input = {}) {
+  return {
+    firmId: validIdOrNull(input.firmId),
+    storeId: validIdOrNull(input.storeId),
+    projectId: validIdOrNull(input.projectId),
+    supplierId: validIdOrNull(input.supplierId),
+    supplier: validTextOrNull(input.supplier),
+    poType: validTextOrNull(input.poType) || 'Goods',
+    paymentTerms: validTextOrNull(input.paymentTerms),
+    paymentType: validTextOrNull(input.paymentType),
+    paymentMode: validTextOrNull(input.paymentMode),
+    shippingAddress: validTextOrNull(input.shippingAddress),
+    termsConditions: validTextOrNull(input.termsConditions),
+    department: validTextOrNull(input.department),
+    requestedBy: validTextOrNull(input.requestedBy),
+    requiredDate: toIsoDate(validTextOrNull(input.requiredDate)) || validTextOrNull(input.requiredDate),
+    remarks: validTextOrNull(input.remarks),
+    advanceAmount: Math.max(0, num(input.advanceAmount, 0)),
+    advanceDate:
+      input.advanceDate === null ? null : toIsoDate(validTextOrNull(input.advanceDate)) || validTextOrNull(input.advanceDate),
+    lines: normalizePoDraftLines(input.items ?? input.lines),
+  };
+}
+
+function poDraftHeaderValue(poRow, payload, key) {
+  const payloadValue = payload?.[key];
+  if (payloadValue != null && payloadValue !== '') return payloadValue;
+  return null;
+}
+
+function normalizeSpecsMap(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const sid = String(k ?? '').trim();
+    const sval = String(v ?? '').trim();
+    if (!sid || !sval) continue;
+    out[sid] = sval;
+  }
+  return out;
+}
+
+function stableJsonStringifySorted(obj) {
+  const entries = Object.entries(obj || {}).sort(([a], [b]) => String(a).localeCompare(String(b)));
+  return JSON.stringify(Object.fromEntries(entries));
+}
+
 async function ensureDocSequencesTable(pool) {
   await pool.query(
     `
@@ -1859,10 +1986,10 @@ app.get('/api/workflow/:id', async (req, res) => {
 
     let po;
     if (poId) {
-      const [[poRow]] = await pool.query(
-        `
-        SELECT
-          po.id AS id,
+	    const [[poRow]] = await pool.query(
+	      `
+	      SELECT
+	        po.id AS id,
           po.pr_id AS prId,
           po.firm_id AS firmId,
           po.po_number AS poNumber,
@@ -4179,13 +4306,6 @@ app.get('/api/operations/prs', async (req, res) => {
   }
 });
 
-function mapPoStatus(value) {
-  const s = String(value ?? '').toLowerCase();
-  if (s === 'closed') return 'Closed';
-  if (s === 'partial') return 'Partial';
-  return 'Open';
-}
-
 async function fetchPrHeaderAndItems(pool, prId) {
   const [[prRow]] = await pool.query(
     `
@@ -4276,9 +4396,13 @@ async function fetchPoHeaderAndItems(pool, poId) {
       po.id AS id,
       po.pr_id AS prId,
       po.firm_id AS firmId,
+      po.store_id AS storeId,
+      po.project_id AS projectId,
       po.po_number AS poNumber,
       po.order_date AS orderDate,
       po.payment_terms AS paymentTerms,
+      po.payment_type AS paymentType,
+      po.payment_mode AS paymentMode,
       po.shipping_address AS shippingAddress,
       po.terms_conditions AS termsConditions,
       po.advance_amount AS advanceAmount,
@@ -4286,9 +4410,16 @@ async function fetchPoHeaderAndItems(pool, poId) {
       po.cancel_reason AS cancelReason,
       po.cancelled_by AS cancelledBy,
       po.cancelled_at AS cancelledAt,
+      po.remarks AS remarks,
+      po.draft_payload AS draftPayload,
+      po.po_source AS poSource,
+      po.requested_by AS requestedBy,
+      po.required_date AS requiredDate,
+      po.po_type AS poType,
       po.status AS status,
       po.created_by AS createdBy,
       po.created_at AS createdAt,
+      po.updated_at AS updatedAt,
       po.supplier_id AS supplierId,
       s.name AS supplier
     FROM purchase_orders po
@@ -4299,6 +4430,8 @@ async function fetchPoHeaderAndItems(pool, poId) {
     [poId]
   );
   if (!poRow) return null;
+  const draftPayload = parseJsonObject(poRow.draftPayload, {});
+  const isDraft = String(poRow.status ?? '').trim().toLowerCase() === 'draft';
 
   const [poItemRows] = await pool.query(
     `
@@ -4335,22 +4468,35 @@ async function fetchPoHeaderAndItems(pool, poId) {
   const po = {
     id: String(poRow.id ?? ''),
     poNumber: poRow.poNumber != null ? String(poRow.poNumber) : undefined,
-    prId: String(poRow.prId ?? ''),
-    firmId: String(poRow.firmId ?? ''),
+    prId: poRow.prId != null ? String(poRow.prId) : '',
+    firmId: poRow.firmId != null ? String(poRow.firmId) : undefined,
+    storeId: poRow.storeId != null ? String(poRow.storeId) : undefined,
+    projectId: poRow.projectId != null ? String(poRow.projectId) : undefined,
     orderDate: toIsoDate(poRow.orderDate) || '',
-    paymentTerms: poRow.paymentTerms != null ? String(poRow.paymentTerms) : undefined,
-    shippingAddress: poRow.shippingAddress != null ? String(poRow.shippingAddress) : undefined,
-    termsConditions: poRow.termsConditions != null ? String(poRow.termsConditions) : undefined,
+    paymentTerms: poRow.paymentTerms != null ? String(poRow.paymentTerms) : poDraftHeaderValue(poRow, draftPayload, 'paymentTerms') ?? undefined,
+    paymentType: poRow.paymentType != null ? String(poRow.paymentType) : poDraftHeaderValue(poRow, draftPayload, 'paymentType') ?? undefined,
+    paymentMode: poRow.paymentMode != null ? String(poRow.paymentMode) : poDraftHeaderValue(poRow, draftPayload, 'paymentMode') ?? undefined,
+    shippingAddress:
+      poRow.shippingAddress != null ? String(poRow.shippingAddress) : poDraftHeaderValue(poRow, draftPayload, 'shippingAddress') ?? undefined,
+    termsConditions:
+      poRow.termsConditions != null ? String(poRow.termsConditions) : poDraftHeaderValue(poRow, draftPayload, 'termsConditions') ?? undefined,
     advanceAmount: Number(poRow.advanceAmount ?? 0),
     advanceDate: toIsoDate(poRow.advanceDate) || null,
     cancelReason: poRow.cancelReason != null ? String(poRow.cancelReason) : null,
     cancelledBy: poRow.cancelledBy != null ? String(poRow.cancelledBy) : null,
     cancelledAt: toIsoDateTime(poRow.cancelledAt) || null,
     createdBy: poRow.createdBy != null ? String(poRow.createdBy) : undefined,
-    supplierId: poRow.supplierId != null ? String(poRow.supplierId) : undefined,
-    supplier: String(poRow.supplier ?? ''),
+    supplierId: poRow.supplierId != null ? String(poRow.supplierId) : poDraftHeaderValue(poRow, draftPayload, 'supplierId') ?? undefined,
+    supplier: String(poRow.supplier ?? poDraftHeaderValue(poRow, draftPayload, 'supplier') ?? ''),
+    requestedBy: poRow.requestedBy != null ? String(poRow.requestedBy) : poDraftHeaderValue(poRow, draftPayload, 'requestedBy') ?? undefined,
+    requiredDate: toIsoDate(poRow.requiredDate) || poDraftHeaderValue(poRow, draftPayload, 'requiredDate') || null,
+    remarks: poRow.remarks != null ? String(poRow.remarks) : poDraftHeaderValue(poRow, draftPayload, 'remarks') ?? undefined,
+    poType: poRow.poType != null ? String(poRow.poType) : poDraftHeaderValue(poRow, draftPayload, 'poType') ?? 'Goods',
+    sourceType: normalizePoSource(poRow.poSource || draftPayload?.sourceType),
     status: mapPoStatus(poRow.status),
     createdAt: toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
+    updatedAt: toIsoDateTime(poRow.updatedAt) || toIsoDateTime(poRow.createdAt) || new Date().toISOString(),
+    draftPayload: isDraft ? draftPayload : undefined,
   };
 
   const [specRows] = await pool.query('SELECT id, name FROM specifications ORDER BY name');
@@ -4394,7 +4540,261 @@ async function fetchPoHeaderAndItems(pool, poId) {
     totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
   }));
 
-  return { po, items };
+  const draftItems =
+    isDraft && !items.length
+      ? normalizePoDraftLines(draftPayload?.lines).map((r) => ({
+          id: String(r.id ?? ''),
+          poId: String(poRow.id ?? ''),
+          itemId: String(r.itemId ?? ''),
+          item: String(r.item ?? ''),
+          itemLabel: String(r.itemLabel ?? r.item ?? ''),
+          specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
+          unit: String(r.unit ?? '').trim(),
+          quantity: Number(r.quantity ?? 0),
+          rate: Number(r.rate ?? 0),
+          discountPercent: Number(r.discountPercent ?? 0),
+          taxPercent: Number(r.taxPercent ?? 0),
+          goodsAmount: Number(r.quantity ?? 0) * Number(r.rate ?? 0),
+          taxAmount: 0,
+          totalAmount: Number(r.quantity ?? 0) * Number(r.rate ?? 0),
+          specs: r.specs ?? {},
+          itemNameId: r.itemNameId ?? null,
+          dimLength: r.dimLength != null ? Number(r.dimLength) : null,
+          dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
+          dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
+          dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+        }))
+      : [];
+
+  return { po, items: items.length ? items : draftItems };
+}
+
+async function resolveSupplierInput(pool, supplierIdRaw, supplierNameRaw) {
+  const supplierId = String(supplierIdRaw ?? '').trim();
+  const supplierName = String(supplierNameRaw ?? '').trim();
+  if (supplierId) {
+    const [[row]] = await pool.query('SELECT id, name FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (!row?.id) return { supplierId: null, supplierName: supplierName || null };
+    return { supplierId: String(row.id), supplierName: String(row.name ?? supplierName) };
+  }
+  if (supplierName) {
+    const [rows] = await pool.query('SELECT id, name FROM suppliers WHERE name = ? LIMIT 1', [supplierName]);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row?.id) return { supplierId: null, supplierName };
+    return { supplierId: String(row.id), supplierName: String(row.name ?? supplierName) };
+  }
+  return { supplierId: null, supplierName: null };
+}
+
+async function insertPoDraft(pool, input) {
+  const payload = {
+    ...buildPoDraftPayload(input),
+    sourceType: normalizePoSource(input.sourceType),
+  };
+  const poId = crypto.randomUUID();
+  const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+  await pool.query(
+    `
+    INSERT INTO purchase_orders
+      (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, po_source, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, requested_by, required_date, draft_payload, created_by, created_at, updated_at, shipping_address, terms_conditions)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
+    `,
+    [
+      poId,
+      poNumber,
+      validIdOrNull(input.firmId),
+      validIdOrNull(input.storeId),
+      validIdOrNull(input.projectId),
+      validIdOrNull(input.supplierId),
+      validIdOrNull(input.prId),
+      validTextOrNull(input.poType) || 'Goods',
+      normalizePoSource(input.sourceType),
+      validTextOrNull(input.paymentTerms),
+      validTextOrNull(input.paymentType),
+      validTextOrNull(input.paymentMode),
+      Math.max(0, num(input.advanceAmount, 0)),
+      input.advanceDate === null ? null : toIsoDate(validTextOrNull(input.advanceDate)),
+      validTextOrNull(input.remarks),
+      validTextOrNull(input.requestedBy),
+      toIsoDate(validTextOrNull(input.requiredDate)),
+      JSON.stringify(payload),
+      'system',
+      validTextOrNull(input.shippingAddress),
+      validTextOrNull(input.termsConditions),
+    ]
+  );
+  return fetchPoHeaderAndItems(pool, poId);
+}
+
+async function updatePoDraft(pool, poId, input) {
+  const payload = {
+    ...buildPoDraftPayload(input),
+    sourceType: normalizePoSource(input.sourceType),
+  };
+  await pool.query(
+    `
+    UPDATE purchase_orders
+    SET firm_id = ?,
+        store_id = ?,
+        project_id = ?,
+        supplier_id = ?,
+        pr_id = ?,
+        po_type = ?,
+        po_source = ?,
+        payment_terms = ?,
+        payment_type = ?,
+        payment_mode = ?,
+        advance_amount = ?,
+        advance_date = ?,
+        remarks = ?,
+        requested_by = ?,
+        required_date = ?,
+        shipping_address = ?,
+        terms_conditions = ?,
+        draft_payload = ?,
+        updated_by = ?,
+        updated_at = NOW()
+    WHERE id = ?
+    `,
+    [
+      validIdOrNull(input.firmId),
+      validIdOrNull(input.storeId),
+      validIdOrNull(input.projectId),
+      validIdOrNull(input.supplierId),
+      validIdOrNull(input.prId),
+      validTextOrNull(input.poType) || 'Goods',
+      normalizePoSource(input.sourceType),
+      validTextOrNull(input.paymentTerms),
+      validTextOrNull(input.paymentType),
+      validTextOrNull(input.paymentMode),
+      Math.max(0, num(input.advanceAmount, 0)),
+      input.advanceDate === null ? null : toIsoDate(validTextOrNull(input.advanceDate)),
+      validTextOrNull(input.remarks),
+      validTextOrNull(input.requestedBy),
+      toIsoDate(validTextOrNull(input.requiredDate)),
+      validTextOrNull(input.shippingAddress),
+      validTextOrNull(input.termsConditions),
+      JSON.stringify(payload),
+      'system',
+      poId,
+    ]
+  );
+  return fetchPoHeaderAndItems(pool, poId);
+}
+
+async function resolveDraftPoItemId(pool, row, poType) {
+  let itemId = String(row?.itemId ?? '').trim();
+  if (!itemId) {
+    const itemNameId = String(row?.itemNameId ?? '').trim();
+    const specsObj = normalizeSpecsMap(row?.specs);
+    if (!itemNameId) return null;
+    const specificationsJson = stableJsonStringifySorted(specsObj);
+    const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
+    const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
+    if (found?.id) {
+      itemId = String(found.id);
+    } else {
+      const newId = crypto.randomUUID();
+      const itemCode = `IT-${newId.slice(0, 8).toUpperCase()}`;
+      const [[meta]] = await pool.query(
+        `
+        SELECT n.type AS type, u.name AS unitName
+        FROM item_names n
+        LEFT JOIN units u ON u.id = n.unit_id
+        WHERE n.id = ?
+        LIMIT 1
+        `,
+        [itemNameId]
+      );
+      const unitName = meta?.unitName != null ? String(meta.unitName) : null;
+      await pool.query(
+        `
+        INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, NOW(), NOW())
+        `,
+        [newId, itemNameId, itemCode, specificationsJson, uniqueKey, unitName, 'system']
+      );
+      itemId = newId;
+    }
+  }
+  if (!itemId) return null;
+  const [[typeRow]] = await pool.query(
+    `
+    SELECT n.type AS type
+    FROM items it
+    JOIN item_names n ON n.id = it.item_name_id
+    WHERE it.id = ?
+    LIMIT 1
+    `,
+    [itemId]
+  );
+  const itemType = String(typeRow?.type ?? '').trim() || 'Goods';
+  if (poType === 'Goods' && itemType === 'Services') throw new Error('PO Type is Goods. Service item is not allowed.');
+  if (poType === 'Services' && itemType === 'Goods') throw new Error('PO Type is Services. Goods item is not allowed.');
+  return itemId;
+}
+
+async function replacePoItemsForIssue(pool, poId, items, poType) {
+  await pool.query('DELETE FROM purchase_order_items WHERE po_id = ?', [poId]);
+  for (const [lineIndex, row] of items.entries()) {
+    const itemId = await resolveDraftPoItemId(pool, row, poType);
+    if (!itemId) throw new Error('Each item requires item selection.');
+    const quantityInput = Number(row?.quantity ?? 0);
+    const rate = Number(row?.rate ?? 0);
+    const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
+    const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
+    const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
+    const unitNameForRow = unitRow?.unit != null ? String(unitRow.unit) : null;
+    const areaUnit = normalizeAreaUnitName(unitNameForRow);
+    const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+    const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+    const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+    const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+    const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+    const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+    const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
+    const quantityRaw = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
+    const quantity = round2(quantityRaw);
+    if (areaUnit) {
+      if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) throw new Error('Each area-unit PO item requires valid length, breadth and PCs');
+    } else if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) {
+      throw new Error('Each item requires valid quantity');
+    }
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error('Each item requires valid rate');
+    const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
+    const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
+    const gross = quantity * rate;
+    const goodsAmount = gross * (1 - disc / 100);
+    const taxAmount = goodsAmount * (tax / 100);
+    const totalAmount = goodsAmount + taxAmount;
+    await pool.query(
+      `
+      INSERT INTO purchase_order_items
+        (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, line_order)
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)
+      `,
+      [
+        crypto.randomUUID(),
+        poId,
+        itemId,
+        quantity,
+        rate,
+        disc,
+        tax,
+        goodsAmount,
+        taxAmount,
+        totalAmount,
+        'system',
+        areaUnit ? round2(dimLength) : null,
+        areaUnit ? round2(dimBreadth) : null,
+        areaUnit ? Math.trunc(dimPcs) : null,
+        areaUnit ? dimUnit : null,
+        lineIndex,
+      ]
+    );
+  }
 }
 
 async function fetchGrnDetail(pool, grnId) {
@@ -4936,13 +5336,14 @@ app.get('/api/operations/payments/:id', async (req, res) => {
 
 app.get('/api/operations/pos', async (req, res) => {
   try {
-    const pool = getMysqlPool();
-    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const f = readQueueFilters(req);
-    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+	    const pool = getMysqlPool();
+	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+	    const f = readQueueFilters(req);
+	    const status = req.query?.status != null ? String(req.query.status).trim() : '';
+	    const normalizedStatus = status.toLowerCase();
 
-    const where = ['1=1'];
-    const params = [];
+	    const where = ['1=1'];
+	    const params = [];
     if (f.firmId) {
       where.push('po.firm_id = ?');
       params.push(f.firmId);
@@ -4955,12 +5356,17 @@ app.get('/api/operations/pos', async (req, res) => {
       where.push('po.project_id = ?');
       params.push(f.projectId);
     }
-    if (f.supplierId) {
-      where.push('po.supplier_id = ?');
-      params.push(f.supplierId);
-    }
-    if (f.from) {
-      where.push('DATE(po.order_date) >= ?');
+	    if (f.supplierId) {
+	      where.push('po.supplier_id = ?');
+	      params.push(f.supplierId);
+	    }
+	    if (!normalizedStatus) {
+	      where.push(`LOWER(COALESCE(po.status, '')) <> 'draft'`);
+	    } else if (normalizedStatus === 'draft') {
+	      where.push(`LOWER(COALESCE(po.status, '')) = 'draft'`);
+	    }
+	    if (f.from) {
+	      where.push('DATE(po.order_date) >= ?');
       params.push(f.from);
     }
     if (f.to) {
@@ -4988,13 +5394,18 @@ app.get('/api/operations/pos', async (req, res) => {
         proj.name AS projectName,
         po.supplier_id AS supplierId,
         s.name AS supplierName,
-        po.order_date AS orderDate,
-        po.advance_date AS advanceDate,
-        po.created_at AS createdAt,
-        po.status AS status,
-        po.advance_amount AS advanceAmount,
-        COUNT(poi.id) AS itemCount,
-        COALESCE(SUM(poi.total_amount), 0) AS totalAmount
+	        po.order_date AS orderDate,
+	        po.advance_date AS advanceDate,
+	        po.created_at AS createdAt,
+	        po.updated_at AS updatedAt,
+	        po.status AS status,
+	        po.advance_amount AS advanceAmount,
+	        po.requested_by AS requestedBy,
+	        po.required_date AS requiredDate,
+	        po.po_source AS poSource,
+	        po.draft_payload AS draftPayload,
+	        COUNT(poi.id) AS itemCount,
+	        COALESCE(SUM(poi.total_amount), 0) AS totalAmount
       FROM purchase_orders po
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
@@ -5007,36 +5418,44 @@ app.get('/api/operations/pos', async (req, res) => {
       ORDER BY po.created_at DESC
       `,
       params
-    );
+	    );
 
-    let out = (Array.isArray(rows) ? rows : []).map((r) => {
-      const rawStatus = String(r.status ?? '').toLowerCase();
-      const mappedStatus = rawStatus === 'closed' ? 'Closed' : rawStatus === 'partial' ? 'Partial' : 'Open';
-      return {
-        poId: String(r.poId ?? ''),
-        poNumber: String(r.poNumber ?? r.poId ?? ''),
-        prId: String(r.prId ?? ''),
-        prNumber: String(r.prNumber ?? r.prId ?? ''),
+	    let out = (Array.isArray(rows) ? rows : []).map((r) => {
+	      const rawStatus = String(r.status ?? '').toLowerCase();
+	      const mappedStatus = mapPoStatus(rawStatus);
+	      const draftPayload = parseJsonObject(r.draftPayload, {});
+	      const draftLines = normalizePoDraftLines(draftPayload?.lines);
+	      return {
+	        poId: String(r.poId ?? ''),
+	        poNumber: String(r.poNumber ?? r.poId ?? ''),
+	        prId: String(r.prId ?? ''),
+	        prNumber: String(r.prNumber ?? r.prId ?? ''),
         firmId: String(r.firmId ?? ''),
         firmName: String(r.firmName ?? ''),
-        department: parseDepartmentFromRemarks(r.prRemarks) || 'N/A',
-        storeId: r.storeId ? String(r.storeId) : null,
-        storeName: r.storeName ? String(r.storeName) : null,
-        projectId: r.projectId ? String(r.projectId) : null,
-        projectName: r.projectName ? String(r.projectName) : null,
-        supplierId: String(r.supplierId ?? ''),
-        supplierName: String(r.supplierName ?? ''),
-        orderDate: toIsoDate(r.orderDate) || null,
-        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
-        status: mappedStatus,
-        itemCount: Number(r.itemCount ?? 0),
-        totalAmount: Number(r.totalAmount ?? 0),
-        advanceAmount: Number(r.advanceAmount ?? 0),
-        advanceDate: toIsoDate(r.advanceDate) || null,
-      };
-    });
-    if (status) out = out.filter((x) => x.status === status);
-    res.json({ rows: out });
+	        department: parseDepartmentFromRemarks(r.prRemarks) || validTextOrNull(draftPayload?.department) || 'N/A',
+	        storeId: r.storeId ? String(r.storeId) : null,
+	        storeName: r.storeName ? String(r.storeName) : null,
+	        projectId: r.projectId ? String(r.projectId) : null,
+	        projectName: r.projectName ? String(r.projectName) : null,
+	        supplierId: String(r.supplierId ?? ''),
+	        supplierName: String(r.supplierName ?? draftPayload?.supplier ?? ''),
+	        orderDate: toIsoDate(r.orderDate) || null,
+	        createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+	        updatedAt: toIsoDateTime(r.updatedAt) || toIsoDateTime(r.createdAt) || new Date().toISOString(),
+	        status: mappedStatus,
+	        itemCount: Number(r.itemCount ?? 0) || draftLines.length,
+	        totalAmount:
+	          Number(r.totalAmount ?? 0) ||
+	          draftLines.reduce((sum, line) => sum + Number(line.quantity ?? 0) * Number(line.rate ?? 0), 0),
+	        advanceAmount: Number(r.advanceAmount ?? 0),
+	        advanceDate: toIsoDate(r.advanceDate) || null,
+	        requestedBy: r.requestedBy != null ? String(r.requestedBy) : validTextOrNull(draftPayload?.requestedBy),
+	        requiredDate: toIsoDate(r.requiredDate) || toIsoDate(draftPayload?.requiredDate) || null,
+	        sourceType: normalizePoSource(r.poSource || draftPayload?.sourceType),
+	      };
+	    });
+	    if (status && normalizedStatus !== 'draft') out = out.filter((x) => String(x.status).toLowerCase() === normalizedStatus);
+	    res.json({ rows: out });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -6519,11 +6938,12 @@ app.get('/api/material-requests/pending', async (_req, res) => {
 });
 
 app.post('/api/requests', async (req, res) => {
-  try {
-    const pool = getMysqlPool();
-    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+		  try {
+		    const pool = getMysqlPool();
+		    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+        const mode = normalizePoMode(req.body?.mode);
 
-    const firmId = String(req.body?.firmId ?? '').trim();
+		    const firmId = String(req.body?.firmId ?? '').trim();
     const storeName = String(req.body?.store ?? '').trim();
     const department = String(req.body?.department ?? '').trim();
     const remarksInput = String(req.body?.remarks ?? '').trim();
@@ -6963,11 +7383,12 @@ app.post('/api/items/last-supplier', async (req, res) => {
 app.post('/api/requests/:id/po', async (req, res) => {
   try {
     const pool = getMysqlPool();
-	    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-	    const prId = String(req.params.id ?? '').trim();
-	    if (!prId) return res.status(400).json({ error: 'id is required' });
+		    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+		    const prId = String(req.params.id ?? '').trim();
+		    if (!prId) return res.status(400).json({ error: 'id is required' });
+        const mode = normalizePoMode(req.body?.mode);
 
-	    const supplierName = String(req.body?.supplier ?? '').trim();
+		    const supplierName = String(req.body?.supplier ?? '').trim();
 	    const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
       const paymentType = req.body?.paymentType != null ? String(req.body.paymentType).trim() || null : null;
       const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
@@ -6977,18 +7398,41 @@ app.post('/api/requests/:id/po', async (req, res) => {
         advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
       const autoAdvanceDate = new Date().toISOString().slice(0, 10);
       const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
-	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
-	    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-	    const items = Array.isArray(req.body?.items) ? req.body.items : [];
-	    if (!supplierName) return res.status(400).json({ error: 'supplier is required' });
-	    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
-	    if (!items.length) return res.status(400).json({ error: 'items are required' });
+		    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+		    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+		    const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
-	    const [[prRow]] = await pool.query(
-	      'SELECT id, firm_id AS firmId, store_id AS storeId, project_id AS projectId FROM purchase_requisitions WHERE id = ? LIMIT 1',
-	      [prId]
-	    );
-	    if (!prRow) return res.status(404).json({ error: 'PR not found' });
+		    const [[prRow]] = await pool.query(
+		      'SELECT id, firm_id AS firmId, store_id AS storeId, project_id AS projectId FROM purchase_requisitions WHERE id = ? LIMIT 1',
+		      [prId]
+		    );
+		    if (!prRow) return res.status(404).json({ error: 'PR not found' });
+
+        if (mode === 'draft') {
+          const resolvedSupplier = await resolveSupplierInput(pool, req.body?.supplierId, supplierName);
+          const detail = await insertPoDraft(pool, {
+            sourceType: 'PR',
+            prId,
+            firmId: prRow.firmId ? String(prRow.firmId) : null,
+            storeId: prRow.storeId ? String(prRow.storeId) : null,
+            projectId: prRow.projectId ? String(prRow.projectId) : null,
+            supplierId: resolvedSupplier.supplierId,
+            supplier: resolvedSupplier.supplierName || supplierName || null,
+            paymentTerms,
+            paymentType,
+            paymentMode,
+            advanceAmount,
+            advanceDate,
+            shippingAddress,
+            termsConditions,
+            items,
+          });
+          return res.json({ po: detail });
+        }
+
+		    if (!supplierName) return res.status(400).json({ error: 'supplier is required' });
+		    if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+		    if (!items.length) return res.status(400).json({ error: 'items are required' });
 
 	    const [supRows] = await pool.query('SELECT id, name FROM suppliers WHERE name = ? LIMIT 1', [supplierName]);
 	    const supRow = Array.isArray(supRows) ? supRows[0] : null;
@@ -7000,20 +7444,20 @@ app.post('/api/requests/:id/po', async (req, res) => {
 
 	    await pool.query(
 	      `
-	      INSERT INTO purchase_orders
-	        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-	      VALUES
-	        (?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
-	      `,
-	      [
-	        poId,
+		      INSERT INTO purchase_orders
+		        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_source, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
+		      VALUES
+		        (?, ?, ?, ?, ?, ?, ?, 'PR', 'issued', CURDATE(), ?, ?, ?, ?, ?, NULL, ?, NOW(), NOW(), ?, ?)
+		      `,
+		      [
+		        poId,
 	        poNumber,
 	        String(prRow.firmId),
 	        String(prRow.storeId),
 	        prRow.projectId ? String(prRow.projectId) : null,
 	        supplierId,
-	        prId,
-	        paymentTerms,
+		        prId,
+		        paymentTerms,
           paymentType,
           paymentMode,
 	        advanceAmount,
@@ -7169,10 +7613,13 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    if (!items.length) return res.status(400).json({ error: 'items are required' });
 
 	    const [[poRow]] = await pool.query(
-	      'SELECT id, pr_id AS prId, firm_id AS firmId, store_id AS storeId FROM purchase_orders WHERE id = ? LIMIT 1',
+	      'SELECT id, pr_id AS prId, firm_id AS firmId, store_id AS storeId, status FROM purchase_orders WHERE id = ? LIMIT 1',
 	      [poId]
 	    );
 	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+      if (String(poRow.status ?? '').trim().toLowerCase() === 'draft') {
+        return res.status(400).json({ error: 'Draft PO cannot be used for GRN.' });
+      }
 
 	    const [poItemRows] = await pool.query(
         `
@@ -7354,13 +7801,39 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		    const advanceDateInput = req.body?.advanceDate;
 	    const normalizedAdvanceDateInput =
 	      advanceDateInput === null ? null : advanceDateInput != null ? toIsoDate(String(advanceDateInput).trim()) : undefined;
-	    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
-	    const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
-	    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
-		    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-		    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+		    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
+		    const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
+		    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
+			    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+			    const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
-        const normalizeSpecsObject = (raw) => {
+        if (mode === 'draft') {
+          const resolvedSupplier = await resolveSupplierInput(pool, supplierIdRaw, supplierNameRaw);
+          const detail = await insertPoDraft(pool, {
+            sourceType: 'DIRECT',
+            firmId: firmId || null,
+            storeId: storeId || null,
+            projectId: projectId || null,
+            supplierId: resolvedSupplier.supplierId,
+            supplier: resolvedSupplier.supplierName || supplierNameRaw || null,
+            poType,
+            department,
+            requestedBy,
+            requiredDate,
+            remarks: remarksInput,
+            paymentTerms,
+            paymentType,
+            paymentMode,
+            advanceAmount,
+            advanceDate,
+            shippingAddress,
+            termsConditions,
+            items,
+          });
+          return res.json({ po: detail });
+        }
+
+	        const normalizeSpecsObject = (raw) => {
           if (!raw || typeof raw !== 'object') return {};
           const out = {};
           for (const [k, v] of Object.entries(raw)) {
@@ -7447,14 +7920,14 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    );
 
 			    await pool.query(
-			      `
-				      INSERT INTO purchase_orders
-				        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, created_by, created_at, updated_at, shipping_address, terms_conditions)
-				      VALUES
-					        (?, ?, ?, ?, ?, ?, ?, ?, 'issued', CURDATE(), ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
-			      `,
-			      [
-		        poId,
+				      `
+					      INSERT INTO purchase_orders
+					        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, po_source, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, requested_by, required_date, created_by, created_at, updated_at, shipping_address, terms_conditions)
+					      VALUES
+						        (?, ?, ?, ?, ?, ?, ?, ?, 'DIRECT', 'issued', CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
+				      `,
+				      [
+			        poId,
 		        poNumber,
 		        firmId,
 		        effectiveStoreId,
@@ -7467,8 +7940,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	              paymentMode,
 			          advanceAmount,
 		          advanceDate,
-              remarksInput || null,
-			        'system',
+	              remarksInput || null,
+                requestedBy,
+                requiredDate,
+				        'system',
 	        shippingAddress,
 	        termsConditions,
 	      ]
@@ -7858,13 +8333,201 @@ app.put('/api/pos/:id', async (req, res) => {
     const poId = String(req.params.id ?? '').trim();
     if (!poId) return res.status(400).json({ error: 'id is required' });
 
-    const [[poRow]] = await pool.query(
-      'SELECT id, status, advance_amount AS advanceAmount, advance_date AS advanceDate FROM purchase_orders WHERE id = ? LIMIT 1',
-      [poId]
-    );
-    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+	    const [[poRow]] = await pool.query(
+	      'SELECT id, status, advance_amount AS advanceAmount, advance_date AS advanceDate FROM purchase_orders WHERE id = ? LIMIT 1',
+	      [poId]
+	    );
+	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+      const currentStatus = String(poRow.status ?? '').trim().toLowerCase();
+      const mode = normalizePoMode(req.body?.mode);
 
-    const supplierId = req.body?.supplierId != null ? String(req.body.supplierId).trim() : '';
+      if (currentStatus === 'draft') {
+        const current = await fetchPoHeaderAndItems(pool, poId);
+        if (!current) return res.status(404).json({ error: 'PO not found' });
+        const payload = current.po?.draftPayload ?? {};
+        const mergedItems = Array.isArray(req.body?.items) ? req.body.items : current.items ?? payload.lines ?? [];
+        const sourceType = normalizePoSource(req.body?.sourceType ?? current.po?.sourceType ?? payload.sourceType);
+        const requestedBy = validTextOrNull(req.body?.requestedBy) ?? validTextOrNull(current.po?.requestedBy) ?? validTextOrNull(payload.requestedBy);
+        const requiredDate =
+          toIsoDate(validTextOrNull(req.body?.requiredDate)) ||
+          toIsoDate(validTextOrNull(current.po?.requiredDate)) ||
+          toIsoDate(validTextOrNull(payload.requiredDate));
+        const firmId = validIdOrNull(req.body?.firmId) ?? validIdOrNull(current.po?.firmId) ?? validIdOrNull(payload.firmId);
+        const storeId = validIdOrNull(req.body?.storeId) ?? validIdOrNull(current.po?.storeId) ?? validIdOrNull(payload.storeId);
+        const projectId = validIdOrNull(req.body?.projectId) ?? validIdOrNull(current.po?.projectId) ?? validIdOrNull(payload.projectId);
+        const supplierResolved = await resolveSupplierInput(
+          pool,
+          req.body?.supplierId ?? current.po?.supplierId ?? payload.supplierId,
+          req.body?.supplier ?? current.po?.supplier ?? payload.supplier
+        );
+        const paymentTerms = validTextOrNull(req.body?.paymentTerms) ?? validTextOrNull(current.po?.paymentTerms) ?? validTextOrNull(payload.paymentTerms);
+        const paymentType = validTextOrNull(req.body?.paymentType) ?? validTextOrNull(current.po?.paymentType) ?? validTextOrNull(payload.paymentType);
+        const paymentMode = validTextOrNull(req.body?.paymentMode) ?? validTextOrNull(current.po?.paymentMode) ?? validTextOrNull(payload.paymentMode);
+        const shippingAddress =
+          validTextOrNull(req.body?.shippingAddress) ?? validTextOrNull(current.po?.shippingAddress) ?? validTextOrNull(payload.shippingAddress);
+        const termsConditions =
+          validTextOrNull(req.body?.termsConditions) ?? validTextOrNull(current.po?.termsConditions) ?? validTextOrNull(payload.termsConditions);
+        const remarks = validTextOrNull(req.body?.remarks) ?? validTextOrNull(current.po?.remarks) ?? validTextOrNull(payload.remarks);
+        const poType = validTextOrNull(req.body?.poType) ?? validTextOrNull(current.po?.poType) ?? validTextOrNull(payload.poType) ?? 'Goods';
+        const advanceAmount = Math.max(
+          0,
+          num(req.body?.advanceAmount, Number(current.po?.advanceAmount ?? payload.advanceAmount ?? poRow.advanceAmount ?? 0))
+        );
+        const advanceDateInput =
+          req.body?.advanceDate !== undefined ? req.body?.advanceDate : current.po?.advanceDate ?? payload.advanceDate ?? poRow.advanceDate;
+        const advanceDate = advanceAmount > 0 ? toIsoDate(validTextOrNull(advanceDateInput)) || new Date().toISOString().slice(0, 10) : null;
+        const prId = validIdOrNull(req.body?.prId) ?? validIdOrNull(current.po?.prId) ?? validIdOrNull(payload.prId);
+
+        if (mode === 'draft') {
+          const detail = await updatePoDraft(pool, poId, {
+            sourceType,
+            prId,
+            firmId,
+            storeId,
+            projectId,
+            supplierId: supplierResolved.supplierId,
+            supplier: supplierResolved.supplierName || current.po?.supplier || payload.supplier || null,
+            poType,
+            requestedBy,
+            requiredDate,
+            remarks,
+            paymentTerms,
+            paymentType,
+            paymentMode,
+            advanceAmount,
+            advanceDate,
+            shippingAddress,
+            termsConditions,
+            items: mergedItems,
+          });
+          return res.json({ po: detail });
+        }
+
+        if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
+        if (!supplierResolved.supplierId) return res.status(400).json({ error: 'Supplier is required' });
+        const issueItems = Array.isArray(mergedItems) ? mergedItems : [];
+        if (!issueItems.length) return res.status(400).json({ error: 'items are required' });
+
+        let finalPrId = prId;
+        let finalStoreId = storeId;
+        if (sourceType === 'DIRECT') {
+          if (!firmId) return res.status(400).json({ error: 'firmId is required' });
+          if (!requestedBy) return res.status(400).json({ error: 'requestedBy is required' });
+          if (!requiredDate) return res.status(400).json({ error: 'requiredDate is required' });
+          const [[fallbackStoreRow]] = await pool.query('SELECT id FROM stores WHERE firm_id = ? ORDER BY name LIMIT 1', [firmId]);
+          finalStoreId = finalStoreId || (fallbackStoreRow?.id ? String(fallbackStoreRow.id) : null);
+          if (!finalStoreId) return res.status(400).json({ error: 'Store not found for selected firm' });
+          if (!finalPrId) {
+            const directPrId = crypto.randomUUID();
+            const directPrNumber = await allocateDocNumber(pool, 'PR', new Date());
+            const directRemarks = JSON.stringify({
+              department: validTextOrNull(payload.department) ?? 'N/A',
+              directPo: true,
+              requiredDate,
+              ...(remarks ? { remarks } : {}),
+            });
+            const directRequestType = projectId ? 'Project' : 'Stock';
+            await pool.query(
+              `
+              INSERT INTO purchase_requisitions
+                (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
+              VALUES
+                (?, ?, ?, ?, ?, ?, 'approved', ?, ?, NOW(), NOW(), ?)
+              `,
+              [directPrId, directPrNumber, firmId, finalStoreId, projectId || null, requestedBy, directRemarks, 'system', directRequestType]
+            );
+            finalPrId = directPrId;
+          }
+        } else if (!finalPrId) {
+          return res.status(400).json({ error: 'PR is required' });
+        }
+
+        await pool.query('DELETE FROM po_advances WHERE po_id = ?', [poId]);
+        await replacePoItemsForIssue(pool, poId, issueItems, poType);
+        await pool.query(
+          `
+          UPDATE purchase_orders
+          SET firm_id = ?,
+              store_id = ?,
+              project_id = ?,
+              supplier_id = ?,
+              pr_id = ?,
+              po_type = ?,
+              po_source = ?,
+              status = 'issued',
+              payment_terms = ?,
+              payment_type = ?,
+              payment_mode = ?,
+              advance_amount = ?,
+              advance_date = ?,
+              remarks = ?,
+              requested_by = ?,
+              required_date = ?,
+              shipping_address = ?,
+              terms_conditions = ?,
+              draft_payload = ?,
+              updated_by = ?,
+              updated_at = NOW()
+          WHERE id = ?
+          `,
+          [
+            firmId,
+            finalStoreId,
+            projectId,
+            supplierResolved.supplierId,
+            finalPrId,
+            poType,
+            sourceType,
+            paymentTerms,
+            paymentType,
+            paymentMode,
+            advanceAmount,
+            advanceDate,
+            remarks,
+            requestedBy,
+            requiredDate,
+            shippingAddress,
+            termsConditions,
+            JSON.stringify({
+              ...buildPoDraftPayload({
+                firmId,
+                storeId: finalStoreId,
+                projectId,
+                supplierId: supplierResolved.supplierId,
+                supplier: supplierResolved.supplierName,
+                poType,
+                requestedBy,
+                requiredDate,
+                remarks,
+                paymentTerms,
+                paymentType,
+                paymentMode,
+                advanceAmount,
+                advanceDate,
+                shippingAddress,
+                termsConditions,
+                items: issueItems,
+              }),
+              sourceType,
+            }),
+            updatedBy,
+            poId,
+          ]
+        );
+        if (advanceAmount > 0 && advanceDate) {
+          await pool.query(
+            `
+            INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+            `,
+            [crypto.randomUUID(), poId, advanceDate, advanceAmount, updatedBy]
+          );
+        }
+        const detail = await fetchPoHeaderAndItems(pool, poId);
+        return res.json({ po: detail });
+      }
+
+	    const supplierId = req.body?.supplierId != null ? String(req.body.supplierId).trim() : '';
     const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
     const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
     const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
@@ -8001,10 +8664,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).send('Database is not configured.');
 
-    const poId = String(req.params.id ?? '').trim();
-    if (!poId) return res.status(400).send('id is required');
+	    const poId = String(req.params.id ?? '').trim();
+	    if (!poId) return res.status(400).send('id is required');
+      const [[statusRow]] = await pool.query('SELECT status FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+      if (!statusRow) return res.status(404).send('PO not found');
+      if (String(statusRow.status ?? '').trim().toLowerCase() === 'draft') return res.status(400).send('Draft PO cannot be downloaded as PDF.');
 
-    const [[poRow]] = await pool.query(
+	    const [[poRow]] = await pool.query(
       `
       SELECT
         po.id AS id,
@@ -8681,10 +9347,15 @@ app.put('/api/pos/:id/check-sent', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const poId = String(req.params.id ?? '').trim();
-    if (!poId) return res.status(400).json({ error: 'id is required' });
+	    const poId = String(req.params.id ?? '').trim();
+	    if (!poId) return res.status(400).json({ error: 'id is required' });
+      const [[statusRow]] = await pool.query('SELECT status FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+      if (!statusRow) return res.status(404).json({ error: 'PO not found' });
+      if (String(statusRow.status ?? '').trim().toLowerCase() === 'draft') {
+        return res.status(400).json({ error: 'Draft PO cannot be used in Check/Send workflow.' });
+      }
 
-    const checkPo = req.body?.checkPo != null ? Boolean(req.body.checkPo) : null;
+	    const checkPo = req.body?.checkPo != null ? Boolean(req.body.checkPo) : null;
     const checkPoUserId = req.body?.checkPoUserId != null ? String(req.body.checkPoUserId).trim() : null;
     const checkDate = req.body?.checkDate != null ? String(req.body.checkDate).trim() : null;
     const sentBy = req.body?.sentBy != null ? String(req.body.sentBy).trim() : null;
@@ -13136,9 +13807,10 @@ async function handleCreateInvoice(req, res) {
     if (!invoiceDate) return res.status(400).json({ error: 'invoiceDate is required' });
     if (!items.length) return res.status(400).json({ error: 'At least one item is required' });
 
-    const [[poRow]] = await pool.query('SELECT id, supplier_id AS supplierId FROM purchase_orders WHERE id = ?', [poId]);
-    if (!poRow) return res.status(404).json({ error: 'PO not found' });
-    const supplierId = String(poRow.supplierId ?? '').trim();
+	    const [[poRow]] = await pool.query('SELECT id, supplier_id AS supplierId, status FROM purchase_orders WHERE id = ?', [poId]);
+	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+      if (String(poRow.status ?? '').trim().toLowerCase() === 'draft') return res.status(400).json({ error: 'Draft PO cannot be used for invoice.' });
+	    const supplierId = String(poRow.supplierId ?? '').trim();
     if (!supplierId) return res.status(500).json({ error: 'PO is missing supplierId' });
 
     const courierCharge = Math.max(0, num(req.body?.courierCharge, 0));

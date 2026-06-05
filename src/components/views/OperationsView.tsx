@@ -46,12 +46,13 @@ import {
 } from '@/src/lib/operations';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
-type OpsTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'creditVouchers' | 'payments';
+type OpsTab = 'prs' | 'pos' | 'draftPos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'creditVouchers' | 'payments';
 type InvoiceSubTab = 'pendingAdjustments' | 'receipts';
 
 const TAB_LABEL: Record<OpsTab, string> = {
   prs: 'Purchase Requisitions',
   pos: 'Purchase Orders',
+  draftPos: 'Draft POs',
   pendingAdjustments: 'Pending Advance Adjustment',
 	  grns: 'GRN',
 	  invoices: 'Invoices',
@@ -124,6 +125,7 @@ export default function OperationsView({
 	  const statusOptions = useMemo(() => {
 	    if (tab === 'prs') return ['', 'Pending Approval', 'Approved', 'Rejected'];
 	    if (tab === 'pos') return ['', 'Open', 'Partial', 'Closed'];
+      if (tab === 'draftPos') return ['', 'Draft'];
 	    if (tab === 'pendingAdjustments') return ['', 'Open', 'Partial', 'Closed'];
 		    if (tab === 'invoices') return ['', 'Recorded', 'On Hold', 'Approved', 'Paid'];
     if (tab === 'creditVouchers') return ['', 'Recorded', 'Approved', 'Paid'];
@@ -173,7 +175,7 @@ export default function OperationsView({
     if (!r) return '';
     return currentTab === 'prs'
       ? String(r.prId)
-      : currentTab === 'pos'
+      : currentTab === 'pos' || currentTab === 'draftPos'
         ? String(r.poId)
         : currentTab === 'grns'
           ? String(r.grnId)
@@ -248,11 +250,22 @@ export default function OperationsView({
   const [editPoError, setEditPoError] = useState<string | null>(null);
   const [editPoId, setEditPoId] = useState('');
   const [editPoNumber, setEditPoNumber] = useState('');
+  const [editPoStatus, setEditPoStatus] = useState<'Draft' | 'Open' | 'Partial' | 'Closed'>('Open');
+  const [editPoSourceType, setEditPoSourceType] = useState<'PR' | 'DIRECT'>('PR');
+  const [editPoFirmId, setEditPoFirmId] = useState('');
+  const [editPoStoreId, setEditPoStoreId] = useState('');
+  const [editPoProjectId, setEditPoProjectId] = useState('');
   const [editPoSupplierId, setEditPoSupplierId] = useState('');
   const [editPoPaymentTerms, setEditPoPaymentTerms] = useState('');
+  const [editPoRequestedBy, setEditPoRequestedBy] = useState('');
+  const [editPoRequiredDate, setEditPoRequiredDate] = useState('');
+  const [editPoPoType, setEditPoPoType] = useState<'Goods' | 'Services'>('Goods');
+  const [editPoRemarks, setEditPoRemarks] = useState('');
   const [editPoLines, setEditPoLines] = useState<
     Array<{
       itemId: string;
+      itemNameId?: string | null;
+      specs?: Record<string, string>;
       itemLabel: string;
       poQty: number;
       grnQty: number;
@@ -261,13 +274,16 @@ export default function OperationsView({
       rate: string;
       discountPercent: string;
       taxPercent: string;
+      length?: string;
+      breadth?: string;
+      pcs?: string;
     }>
   >([]);
 
 	  type SortDir = 'asc' | 'desc';
 	  const defaultSortKey = useMemo(() => {
 	    if (tab === 'prs') return 'requisitionDate';
-	    if (tab === 'pos') return 'createdAt';
+		    if (tab === 'pos' || tab === 'draftPos') return 'createdAt';
 		    if (tab === 'grns') return 'createdAt';
 		    if (tab === 'invoices') return 'createdAt';
     if (tab === 'creditVouchers') return 'createdAt';
@@ -282,8 +298,8 @@ export default function OperationsView({
 		    const list: any[] =
 		        tab === 'prs'
 		          ? prs
-		          : tab === 'pos'
-		            ? pos
+			          : tab === 'pos' || tab === 'draftPos'
+			            ? pos
 		            : tab === 'pendingAdjustments'
 		              ? advancePos
 			            : tab === 'grns'
@@ -399,9 +415,11 @@ export default function OperationsView({
 	    const p =
 	      tab === 'prs'
 	        ? fetchOperationsPrs(filters, ac.signal).then(setPrs)
-	        : tab === 'pos'
-	          ? fetchOperationsPos(filters, ac.signal).then(setPos)
-	          : tab === 'pendingAdjustments'
+		        : tab === 'pos'
+		          ? fetchOperationsPos(filters, ac.signal).then(setPos)
+              : tab === 'draftPos'
+                ? fetchOperationsPos({ ...filters, status: 'Draft' }, ac.signal).then(setPos)
+		          : tab === 'pendingAdjustments'
 	            ? fetchOperationsAdvances(filters, ac.signal).then(setAdvancePos)
 	            : tab === 'grns'
 		              ? fetchOperationsGrns(filters, ac.signal).then(setGrns)
@@ -472,7 +490,7 @@ export default function OperationsView({
 
 		  function entryFromRow(row: any): DetailEntry {
 		    if (tab === 'prs') return { tab: 'prs', id: String(row.prId), title: String(row.prNumber ?? row.prId) };
-		    if (tab === 'pos') return { tab: 'pos', id: String(row.poId), title: String(row.poNumber ?? row.poId) };
+		    if (tab === 'pos' || tab === 'draftPos') return { tab: 'pos', id: String(row.poId), title: String(row.poNumber ?? row.poId) };
 		    if (tab === 'grns') return { tab: 'grns', id: String(row.grnId), title: String(row.grnNumber ?? row.grnId) };
 		    if (tab === 'invoices') return { tab: 'invoices', id: String(row.invoiceId), title: String(row.invoiceNo ?? row.invoiceId) };
 		    // Payments tab rows represent paid invoices; open invoice detail.
@@ -521,7 +539,7 @@ export default function OperationsView({
 		      return;
 		    }
     // PO rows expand inline in table with item details.
-    if (tab === 'pos') {
+	    if (tab === 'pos' || tab === 'draftPos') {
       const poId = String(row?.poId ?? '').trim();
       if (!poId) return;
       const currentlyExpanded = expandedPoIds.includes(poId);
@@ -802,26 +820,40 @@ export default function OperationsView({
     setEditPoOpen(true);
     setEditPoBusy(true);
     setEditPoError(null);
-    try {
-      const detail = await fetchOperationsPoDetail(poId);
-      const po = detail?.po?.po;
-      const items = detail?.po?.items ?? [];
-      const supplierId = String(po?.supplierId ?? row.supplierId ?? '').trim();
-      setEditPoSupplierId(supplierId);
-      setEditPoPaymentTerms(String(po?.paymentTerms ?? '').trim());
-      setEditPoLines(
-        (items ?? []).map((it: any) => ({
-          itemId: String(it.itemId ?? '').trim(),
-          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
-          poQty: Number(it.quantity ?? 0),
-          grnQty: Number(it.grnQty ?? 0),
-          acceptedQty: Number(it.acceptedQty ?? 0),
-          quantity: String(Number(it.quantity ?? 0) || ''),
-          rate: String(Number(it.rate ?? 0) || ''),
-          discountPercent: String(Number(it.discountPercent ?? 0) || 0),
-          taxPercent: String(Number(it.taxPercent ?? 0) || 0),
-        }))
-      );
+	    try {
+	      const detail = await fetchOperationsPoDetail(poId);
+	      const po = detail?.po?.po;
+	      const items = detail?.po?.items ?? [];
+	      setEditPoStatus((po?.status ?? 'Open') as any);
+        setEditPoSourceType((po?.sourceType ?? 'PR') as 'PR' | 'DIRECT');
+        setEditPoFirmId(String(po?.firmId ?? row.firmId ?? '').trim());
+        setEditPoStoreId(String(po?.storeId ?? row.storeId ?? '').trim());
+        setEditPoProjectId(String(po?.projectId ?? row.projectId ?? '').trim());
+	      const supplierId = String(po?.supplierId ?? row.supplierId ?? '').trim();
+	      setEditPoSupplierId(supplierId);
+	      setEditPoPaymentTerms(String(po?.paymentTerms ?? '').trim());
+        setEditPoRequestedBy(String(po?.requestedBy ?? row.requestedBy ?? '').trim());
+        setEditPoRequiredDate(String(po?.requiredDate ?? row.requiredDate ?? '').slice(0, 10));
+        setEditPoPoType((String(po?.poType ?? 'Goods') === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services');
+        setEditPoRemarks(String(po?.remarks ?? '').trim());
+	      setEditPoLines(
+	        (items ?? []).map((it: any) => ({
+	          itemId: String(it.itemId ?? '').trim(),
+            itemNameId: it.itemNameId ? String(it.itemNameId) : null,
+            specs: it.specs ?? {},
+	          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
+	          poQty: Number(it.quantity ?? 0),
+	          grnQty: Number(it.grnQty ?? 0),
+	          acceptedQty: Number(it.acceptedQty ?? 0),
+	          quantity: String(Number(it.quantity ?? 0) || ''),
+	          rate: String(Number(it.rate ?? 0) || ''),
+	          discountPercent: String(Number(it.discountPercent ?? 0) || 0),
+	          taxPercent: String(Number(it.taxPercent ?? 0) || 0),
+            length: String(it.dimLength ?? ''),
+            breadth: String(it.dimBreadth ?? ''),
+            pcs: String(it.dimPcs ?? ''),
+	        }))
+	      );
     } catch (e) {
       setEditPoError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -831,30 +863,53 @@ export default function OperationsView({
 
   const closeEditPoModal = () => {
     setEditPoOpen(false);
-    setEditPoBusy(false);
-    setEditPoError(null);
-    setEditPoId('');
-    setEditPoNumber('');
-    setEditPoSupplierId('');
-    setEditPoPaymentTerms('');
-    setEditPoLines([]);
-  };
+	    setEditPoBusy(false);
+	    setEditPoError(null);
+	    setEditPoId('');
+	    setEditPoNumber('');
+      setEditPoStatus('Open');
+      setEditPoSourceType('PR');
+      setEditPoFirmId('');
+      setEditPoStoreId('');
+      setEditPoProjectId('');
+	    setEditPoSupplierId('');
+	    setEditPoPaymentTerms('');
+      setEditPoRequestedBy('');
+      setEditPoRequiredDate('');
+      setEditPoPoType('Goods');
+      setEditPoRemarks('');
+	    setEditPoLines([]);
+	  };
 
-  const saveEditPo = async () => {
-    if (!editPoId) return;
-    const supplierId = String(editPoSupplierId ?? '').trim();
-    if (!supplierId) {
-      setEditPoError('Supplier is required.');
-      return;
-    }
-    const paymentTerms = String(editPoPaymentTerms ?? '').trim();
-    if (!paymentTerms) {
-      setEditPoError('Payment terms are required.');
-      return;
-    }
+	  const saveEditPo = async (mode: 'draft' | 'issue' = 'issue') => {
+	    if (!editPoId) return;
+	    const supplierId = String(editPoSupplierId ?? '').trim();
+	    if (mode === 'issue' && !supplierId) {
+	      setEditPoError('Supplier is required.');
+	      return;
+	    }
+	    const paymentTerms = String(editPoPaymentTerms ?? '').trim();
+	    if (mode === 'issue' && !paymentTerms) {
+	      setEditPoError('Payment terms are required.');
+	      return;
+	    }
+      if (mode === 'issue' && editPoSourceType === 'DIRECT') {
+        if (!String(editPoFirmId ?? '').trim()) {
+          setEditPoError('Firm is required.');
+          return;
+        }
+        if (!String(editPoRequestedBy ?? '').trim()) {
+          setEditPoError('Requested By is required.');
+          return;
+        }
+        if (!String(editPoRequiredDate ?? '').trim()) {
+          setEditPoError('Required Date is required.');
+          return;
+        }
+      }
 
-    for (const l of editPoLines) {
-      const qty = Number(l.quantity ?? 0);
+	    for (const l of editPoLines) {
+	      const qty = Number(l.quantity ?? 0);
       if (!Number.isFinite(qty) || qty <= 0) continue;
       if (qty + 1e-9 < Number(l.acceptedQty ?? 0)) {
         setEditPoError(`Qty cannot be less than Accepted Qty for: ${l.itemLabel}`);
@@ -862,41 +917,66 @@ export default function OperationsView({
       }
     }
 
-    const items = editPoLines
-      .map((l) => ({
-        itemId: String(l.itemId ?? '').trim(),
-        quantity: Number(l.quantity ?? 0),
-        rate: Number(l.rate ?? 0),
-        discountPercent: Number(l.discountPercent ?? 0),
-        taxPercent: getSupplierHasGst(supplierId) ? Number(l.taxPercent ?? 0) : 0,
-      }))
-      .filter((x) => x.itemId && Number.isFinite(x.quantity) && x.quantity > 0 && Number.isFinite(x.rate) && x.rate >= 0);
-    if (!items.length) {
-      setEditPoError('Enter Qty and Rate for at least one line.');
-      return;
-    }
+	    const items = editPoLines
+	      .map((l) => ({
+	        itemId: String(l.itemId ?? '').trim(),
+          itemNameId: l.itemNameId ? String(l.itemNameId) : undefined,
+          specs: l.specs ?? {},
+	        quantity: Number(l.quantity ?? 0),
+	        rate: Number(l.rate ?? 0),
+	        discountPercent: Number(l.discountPercent ?? 0),
+	        taxPercent: getSupplierHasGst(supplierId) ? Number(l.taxPercent ?? 0) : 0,
+          length: String(l.length ?? '').trim() ? Number(l.length) : undefined,
+          breadth: String(l.breadth ?? '').trim() ? Number(l.breadth) : undefined,
+          pcs: String(l.pcs ?? '').trim() ? Number(l.pcs) : undefined,
+	      }))
+	      .filter((x) =>
+          mode === 'draft'
+            ? Boolean(x.itemId || x.itemNameId || Number.isFinite(x.quantity) || Number.isFinite(x.rate))
+            : (x.itemId || x.itemNameId) && Number.isFinite(x.quantity) && x.quantity > 0 && Number.isFinite(x.rate) && x.rate >= 0
+        );
+	    if (mode === 'issue' && !items.length) {
+	      setEditPoError('Enter Qty and Rate for at least one line.');
+	      return;
+	    }
 
     setEditPoBusy(true);
     setEditPoError(null);
-    try {
-      await updatePo(editPoId, {
-        supplierId,
-        paymentTerms,
-        items,
-        updatedBy: 'Operations',
-      });
+	    try {
+	      await updatePo(editPoId, {
+          mode,
+          firmId: editPoFirmId || null,
+          storeId: editPoStoreId || null,
+          projectId: editPoProjectId || null,
+	        supplierId,
+          poType: editPoPoType,
+          requestedBy: editPoRequestedBy,
+          requiredDate: editPoRequiredDate || null,
+          remarks: editPoRemarks,
+	        paymentTerms,
+          paymentType: null,
+          paymentMode: null,
+	        items,
+	        updatedBy: 'Operations',
+	      });
       const refreshed = await fetchOperationsPoDetail(editPoId);
       setInlinePoDetailById((prev) => ({ ...prev, [editPoId]: refreshed }));
-      setPos((prev) =>
-        prev.map((p) =>
-          p.poId === editPoId
-            ? {
-                ...p,
-                supplierId,
-                supplierName: String(masters.suppliers.find((s) => s.id === supplierId)?.name ?? p.supplierName),
-              }
-            : p
-        )
+	      setPos((prev) =>
+	        prev.map((p) =>
+	          p.poId === editPoId
+	            ? {
+	                ...p,
+                  firmId: editPoFirmId || p.firmId,
+                  storeId: editPoStoreId || p.storeId,
+                  projectId: editPoProjectId || p.projectId,
+	                supplierId,
+	                supplierName: String(masters.suppliers.find((s) => s.id === supplierId)?.name ?? p.supplierName),
+                  requestedBy: editPoRequestedBy || p.requestedBy,
+                  requiredDate: editPoRequiredDate || p.requiredDate,
+                  status: mode === 'draft' ? 'Draft' : 'Open',
+	              }
+	            : p
+	        )
       );
       closeEditPoModal();
     } catch (e) {
@@ -1159,7 +1239,7 @@ export default function OperationsView({
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
 	        <div className="overflow-x-auto">
 		          <table className="w-full min-w-[1140px] table-fixed text-left border-collapse border border-outline-variant text-sm">
-	              {tab === 'pos' ? (
+		              {tab === 'pos' || tab === 'draftPos' ? (
 	                <colgroup>
 	                  <col className="w-[95px]" />
 	                  <col className="w-[95px]" />
@@ -1186,8 +1266,8 @@ export default function OperationsView({
                     <SortTh label="Req Date" colKey="requisitionDate" />
 	                    <SortTh label="Status" colKey="status" />
 	                  </>
-		                ) : tab === 'pos' ? (
-				                  <>
+			                ) : tab === 'pos' ? (
+					                  <>
 				                    <SortTh label="PO" colKey="poNumber" />
 				                    <SortTh label="PR" colKey="prNumber" />
 				                    <SortTh label="Firm" colKey="firmName" />
@@ -1197,10 +1277,23 @@ export default function OperationsView({
 				                    <SortTh label="Status" colKey="status" />
 						                    <SortTh label="Amount" colKey="totalAmount" />
 						                    <SortTh label="Advance" colKey="advanceAmount" />
-						                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
-						                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
-				                  </>
-		                ) : tab === 'grns' ? (
+					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">PO PDF</th>
+					                    <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
+					                  </>
+                        ) : tab === 'draftPos' ? (
+                          <>
+                            <SortTh label="PO" colKey="poNumber" />
+                            <SortTh label="Source" colKey="sourceType" />
+                            <SortTh label="PR" colKey="prNumber" />
+                            <SortTh label="Firm" colKey="firmName" />
+                            <SortTh label="Supplier" colKey="supplierName" />
+                            <SortTh label="Requested By" colKey="requestedBy" />
+                            <SortTh label="Required Date" colKey="requiredDate" />
+                            <SortTh label="Created" colKey="createdAt" />
+                            <SortTh label="Updated" colKey="updatedAt" />
+                            <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
+                          </>
+			                ) : tab === 'grns' ? (
 	                  <>
 	                    <SortTh label="GRN" colKey="grnNumber" />
 	                    <SortTh label="PO" colKey="poNumber" />
@@ -1266,20 +1359,20 @@ export default function OperationsView({
             <tbody>
 			              {loading ? (
 			                <tr>
-							                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 				                    Loading...
 				                  </td>
 				                </tr>
 				              ) : !paged.length ? (
 				                <tr>
-							                  <td colSpan={tab === 'pos' ? 11 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 				                    No records.
 				                  </td>
 				                </tr>
 		              ) : (
                 (paged as any[]).map((r) => {
 	                  const rowId = getRowId(r, tab);
-			                  const isExpanded = tab === 'pos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
+				                  const isExpanded = tab === 'pos' || tab === 'draftPos' ? expandedPoIds.includes(String(r.poId ?? '')) : false;
                       const isGrnExpanded = tab === 'grns' ? expandedGrnIds.includes(String(r.grnId ?? '')) : false;
                       const isInvoiceExpanded = tab === 'invoices' ? expandedInvoiceIds.includes(String(r.invoiceId ?? '')) : false;
                       const isInvoiceReceiptExpanded =
@@ -1287,19 +1380,19 @@ export default function OperationsView({
                           ? expandedInvoiceReceiptIds.includes(String(r.invoiceId ?? ''))
                           : false;
                       const isCreditVoucherReceiptExpanded = tab === 'creditVouchers' ? expandedCreditVoucherReceiptIds.includes(String(r.creditVoucherId ?? '')) : false;
-	                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
-		                  const detail = tab === 'pos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
-		                  const detailLoading = tab === 'pos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
-		                  const detailError = tab === 'pos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
+		                  const isAdvanceExpanded = tab === 'pos' ? expandedPoAdvanceIds.includes(String(r.poId ?? '')) : false;
+			                  const detail = tab === 'pos' || tab === 'draftPos' ? inlinePoDetailById[String(r.poId ?? '')] : null;
+			                  const detailLoading = tab === 'pos' || tab === 'draftPos' ? Boolean(inlinePoLoadingById[String(r.poId ?? '')]) : false;
+			                  const detailError = tab === 'pos' || tab === 'draftPos' ? inlinePoErrorById[String(r.poId ?? '')] : '';
 		                  const grnDetail = tab === 'grns' ? inlineGrnDetailById[String(r.grnId ?? '')] : null;
 		                  const grnDetailLoading = tab === 'grns' ? Boolean(inlineGrnLoadingById[String(r.grnId ?? '')]) : false;
 		                  const grnDetailError = tab === 'grns' ? inlineGrnErrorById[String(r.grnId ?? '')] : '';
                       const invoiceDetail = tab === 'invoices' ? inlineInvoiceDetailById[String(r.invoiceId ?? '')] : null;
                       const invoiceDetailLoading = tab === 'invoices' ? Boolean(inlineInvoiceLoadingById[String(r.invoiceId ?? '')]) : false;
                       const invoiceDetailError = tab === 'invoices' ? inlineInvoiceErrorById[String(r.invoiceId ?? '')] : '';
-		                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
-	                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
-	                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
+			                  const advanceRows = tab === 'pos' ? inlinePoAdvancesById[String(r.poId ?? '')] ?? [] : [];
+		                  const advanceLoading = tab === 'pos' ? Boolean(inlinePoAdvancesLoadingById[String(r.poId ?? '')]) : false;
+		                  const advanceError = tab === 'pos' ? inlinePoAdvancesErrorById[String(r.poId ?? '')] : '';
                   return (
                     <React.Fragment key={rowId}>
 		                      <tr
@@ -1326,8 +1419,8 @@ export default function OperationsView({
                         <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.requisitionDate)}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 	                      </>
-		                    ) : tab === 'pos' ? (
-		                      <>
+			                    ) : tab === 'pos' ? (
+			                      <>
 		                        <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
 		            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
@@ -1381,8 +1474,36 @@ export default function OperationsView({
 				                          </button>
 			                          </div>
 			                        </td>
-			                      </>
-	                    ) : tab === 'grns' ? (
+				                      </>
+                        ) : tab === 'draftPos' ? (
+                          <>
+                            <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.poNumber}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.sourceType ?? '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{formatPrNumber(r.prNumber ?? r.prId)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.firmName || '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.requestedBy || '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{r.requiredDate ? formatDateShort(r.requiredDate) : '-'}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.createdAt)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.updatedAt)}</td>
+                            <td className="px-3 py-2 border border-outline-variant">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                                  title="Edit Draft PO"
+                                  aria-label="Edit Draft PO"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditPoModal(r as OperationsPoListRow);
+                                  }}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+		                    ) : tab === 'grns' ? (
                       <>
                         <td className="px-3 py-2 border border-outline-variant font-semibold text-primary">{r.grnNumber}</td>
 	                        <td className="px-3 py-2 border border-outline-variant">{r.poNumber}</td>
@@ -1591,7 +1712,7 @@ export default function OperationsView({
                             </td>
                           </tr>
                         ) : null}
-		                      {tab === 'pos' && isExpanded ? (
+			                      {(tab === 'pos' || tab === 'draftPos') && isExpanded ? (
 		                        <tr>
 		                      <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
 		                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
@@ -2250,12 +2371,74 @@ export default function OperationsView({
       </Modal>
 
       <Modal open={editPoOpen} title={`Edit PO: ${editPoNumber || '-'}`} onClose={closeEditPoModal} fullScreen maxWidthClass="max-w-6xl">
-        <div className="space-y-4">
-          {editPoError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
+	        <div className="space-y-4">
+	          {editPoError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="space-y-1">
-              <div className={labelClass}>Supplier</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <label className="space-y-1">
+                <div className={labelClass}>Source</div>
+                <input className={inputClass} value={editPoSourceType} disabled />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>PO Type</div>
+                <select className={inputClass} value={editPoPoType} onChange={(e) => setEditPoPoType(String(e.target.value) === 'Services' ? 'Services' : 'Goods')} disabled={editPoBusy}>
+                  <option value="Goods">Goods</option>
+                  <option value="Services">Services</option>
+                </select>
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Firm</div>
+                <SearchableSelect
+                  value={editPoFirmId}
+                  options={masters.firms.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))}
+                  onChange={(v) => setEditPoFirmId(String(v ?? ''))}
+                  disabled={editPoBusy || masters.loading}
+                  placeholder="Select firm..."
+                />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Store</div>
+                <SearchableSelect
+                  value={editPoStoreId}
+                  options={masters.stores.filter((s) => !editPoFirmId || s.firmId === editPoFirmId).map((s) => ({ value: s.id, label: s.name }))}
+                  onChange={(v) => setEditPoStoreId(String(v ?? ''))}
+                  disabled={editPoBusy || masters.loading}
+                  placeholder="Select store..."
+                />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Project</div>
+                <SearchableSelect
+                  value={editPoProjectId}
+                  options={masters.projects.filter((p) => !editPoFirmId || p.firmId === editPoFirmId).map((p) => ({ value: p.id, label: p.name }))}
+                  onChange={(v) => setEditPoProjectId(String(v ?? ''))}
+                  disabled={editPoBusy || masters.loading}
+                  placeholder="Select project..."
+                />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Requested By</div>
+                <SearchableSelect
+                  value={editPoRequestedBy}
+                  options={masters.users.map((u) => ({ value: u.name, label: u.name }))}
+                  onChange={(v) => setEditPoRequestedBy(String(v ?? ''))}
+                  disabled={editPoBusy || masters.loading}
+                  placeholder="Select user..."
+                />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Required Date</div>
+                <input className={inputClass} type="date" value={editPoRequiredDate} onChange={(e) => setEditPoRequiredDate(e.target.value)} disabled={editPoBusy} />
+              </label>
+              <label className="space-y-1">
+                <div className={labelClass}>Status</div>
+                <input className={inputClass} value={editPoStatus} disabled />
+              </label>
+            </div>
+
+	          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+	            <label className="space-y-1">
+	              <div className={labelClass}>Supplier</div>
               <SearchableSelect
                 value={editPoSupplierId}
                 options={masters.suppliers.map((s) => ({ value: s.id, label: s.name }))}
@@ -2265,10 +2448,15 @@ export default function OperationsView({
               />
             </label>
             <label className="space-y-1">
-              <div className={labelClass}>Payment Terms</div>
-              <input className={inputClass} value={editPoPaymentTerms} onChange={(e) => setEditPoPaymentTerms(e.target.value)} disabled={editPoBusy} />
+	              <div className={labelClass}>Payment Terms</div>
+	              <input className={inputClass} value={editPoPaymentTerms} onChange={(e) => setEditPoPaymentTerms(e.target.value)} disabled={editPoBusy} />
+	            </label>
+	          </div>
+
+            <label className="space-y-1 block">
+              <div className={labelClass}>Remarks</div>
+              <textarea className={cn(inputClass, 'min-h-[96px] py-2')} value={editPoRemarks} onChange={(e) => setEditPoRemarks(e.target.value)} disabled={editPoBusy} />
             </label>
-          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] table-fixed text-left border-collapse border border-outline-variant text-sm">
@@ -2370,15 +2558,20 @@ export default function OperationsView({
             </table>
           </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" className="btn btn-sm" onClick={closeEditPoModal} disabled={editPoBusy}>
-              Close
-            </button>
-            <button type="button" className="btn-primary btn-sm" onClick={saveEditPo} disabled={editPoBusy}>
-              {editPoBusy ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
+	          <div className="flex items-center justify-end gap-2">
+	            <button type="button" className="btn btn-sm" onClick={closeEditPoModal} disabled={editPoBusy}>
+	              Close
+	            </button>
+              {editPoStatus === 'Draft' ? (
+                <button type="button" className="btn btn-sm" onClick={() => saveEditPo('draft')} disabled={editPoBusy}>
+                  {editPoBusy ? 'Saving...' : 'Save Draft'}
+                </button>
+              ) : null}
+	            <button type="button" className="btn-primary btn-sm" onClick={() => saveEditPo(editPoStatus === 'Draft' ? 'issue' : 'issue')} disabled={editPoBusy}>
+	              {editPoBusy ? 'Saving...' : editPoStatus === 'Draft' ? 'Issue PO' : 'Save'}
+	            </button>
+	          </div>
+	        </div>
       </Modal>
 
 			      <Modal
