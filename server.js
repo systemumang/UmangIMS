@@ -9024,20 +9024,20 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
 		    // Columns tuned for A4 width so headers don't overflow.
-		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | (Amt Before GST) | (Disc%) | (Disc Amt) | (GST%) | (GST) | Amt
+		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | Taxable Amt | Disc % | Disc Amt | GST % | GST Amt | Total Amt
 			    const colBounds = (() => {
 			      const serialW = 22;
 			      const dimW = 22;
 			      const pcsW = 24;
 			      const unitW = 28;
-			      const qtyW = 40;
+			      const qtyW = 36;
 			      const rateW = 40;
-			      const amtBeforeW = 60;
-			      const discW = 26;
-			      const discAmtW = 46;
-			      const gstW = 30;
-			      const gstAmtW = 56;
-			      const totalAmtW = 62;
+			      const amtBeforeW = 56;
+			      const discW = 34;
+			      const discAmtW = 44;
+			      const gstW = 34;
+			      const gstAmtW = 52;
+			      const totalAmtW = 58;
 			      const showAmtBeforeColumn = Boolean(showGstAmountColumn);
 
 			      const fixedExceptItem =
@@ -9136,36 +9136,50 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     for (const x of colBounds) drawLine(x, headerBottom, x, headerBottom + headerHeight, 1);
     drawLine(tableLeft, headerBottom + headerHeight, tableRight, headerBottom + headerHeight, 1);
     drawLine(tableLeft, headerBottom, tableRight, headerBottom, 1);
-	    const h1Y = headerBottom + headerHeight - 14;
-	    const h2Y = headerBottom + 5;
+	    const drawHeaderCell = (lines, left, right, opts = {}) => {
+	      const values = Array.isArray(lines) ? lines : [lines];
+	      const size = opts.size ?? 7;
+	      const f = fontBold;
+	      const usableW = Math.max(8, right - left - 6);
+	      const lineH = opts.lineHeight ?? 8;
+	      const blockH = values.length * lineH;
+	      let textY = headerBottom + (headerHeight + blockH) / 2 - lineH + 1;
+	      for (const raw of values) {
+	        const value = String(raw ?? '');
+	        const textW = f.widthOfTextAtSize(value, size);
+	        const x =
+	          opts.align === 'left'
+	            ? left + 4
+	            : opts.align === 'right'
+	              ? right - 4 - Math.min(textW, usableW)
+	              : left + (right - left - Math.min(textW, usableW)) / 2;
+	        page.drawText(value, { x, y: textY, size, font: f, color: rgb(0, 0, 0) });
+	        textY -= lineH;
+	      }
+	    };
 	    // Keep header labels inside their cells (pdf-lib doesn't clip text).
-	    // Serial column is narrow, so render as two-line right-aligned label.
-	    drawRight('Sl', col.serialRight - 2, h1Y, { bold: true, size: 8 });
-	    drawRight('No', col.serialRight - 2, h2Y, { bold: true, size: 7 });
-	    drawAt('Item', col.itemLeft + 4, h1Y, { bold: true, size: 8 });
+	    drawHeaderCell(['Sl', 'No'], col.serialLeft, col.serialRight, { size: 7 });
+	    drawHeaderCell('Item', col.itemLeft, col.itemRight, { align: 'left', size: 8 });
 	    if (showDimColumns) {
-	      drawRight('L', col.lengthRight - 4, h1Y, { bold: true, size: 8 });
-	      drawRight('B', col.breadthRight - 4, h1Y, { bold: true, size: 8 });
-	      drawRight('Pcs', col.pcsRight - 4, h1Y, { bold: true, size: 8 });
-	      drawRight('Unit', col.dimUnitRight - 4, h1Y, { bold: true, size: 8 });
+	      drawHeaderCell('L', col.itemRight, col.lengthRight, { size: 8 });
+	      drawHeaderCell('B', col.lengthRight, col.breadthRight, { size: 8 });
+	      drawHeaderCell('Pcs', col.breadthRight, col.pcsRight, { size: 7 });
+	      drawHeaderCell('Unit', col.pcsRight, col.dimUnitRight, { size: 7 });
 	    }
-	    drawRight('Qty', col.qtyRight - 4, h1Y, { bold: true, size: 8 });
-	    drawRight('Rate', col.rateRight - 4, h1Y, { bold: true, size: 8 });
+	    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : col.itemRight, col.qtyRight, { align: 'right', size: 8 });
+	    drawHeaderCell('Rate', col.qtyRight, col.rateRight, { align: 'right', size: 8 });
 	    if (showGstAmountColumn) {
-	      drawRight('Amt', col.amtBeforeRight - 4, h1Y, { bold: true, size: 8 });
-	      drawRight('Before GST', col.amtBeforeRight - 4, h2Y, { bold: true, size: 7 });
+	      drawHeaderCell(['Taxable', 'Amt'], col.rateRight, col.amtBeforeRight, { align: 'right', size: 7 });
 	    }
-	    if (showDiscColumn) drawRight('Disc %', col.discRight - 4, h1Y, { bold: true, size: 8 });
+	    if (showDiscColumn) drawHeaderCell(['Disc', '%'], showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.discRight, { align: 'right', size: 7 });
 		    if (showDiscAmountColumn) {
-		      drawRight('Disc', col.discAmtRight - 4, h1Y, { bold: true, size: 8 });
-		      drawRight('Amt', col.discAmtRight - 4, h2Y, { bold: true, size: 7 });
+		      drawHeaderCell(['Disc', 'Amt'], showDiscColumn ? col.discRight : showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.discAmtRight, { align: 'right', size: 7 });
 		    }
-		    if (showGstColumn) drawRight('GST %', col.gstRight - 4, h1Y, { bold: true, size: 8 });
+		    if (showGstColumn) drawHeaderCell(['GST', '%'], showDiscAmountColumn ? col.discAmtRight : showDiscColumn ? col.discRight : showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.gstRight, { align: 'right', size: 7 });
 		    if (showGstAmountColumn) {
-		      drawRight('GST', col.gstAmtRight - 4, h1Y, { bold: true, size: 8 });
-		      drawRight('Amt', col.gstAmtRight - 4, h2Y, { bold: true, size: 7 });
+		      drawHeaderCell(['GST', 'Amt'], showGstColumn ? col.gstRight : showDiscAmountColumn ? col.discAmtRight : showDiscColumn ? col.discRight : col.amtBeforeRight, col.gstAmtRight, { align: 'right', size: 7 });
 		    }
-		    drawRight('Amt', col.totalAmtRight - 4, h1Y, { bold: true, size: 8 });
+		    drawHeaderCell(['Total', 'Amt'], showGstAmountColumn ? col.gstAmtRight : showGstColumn ? col.gstRight : showDiscAmountColumn ? col.discAmtRight : showDiscColumn ? col.discRight : col.rateRight, col.totalAmtRight, { align: 'right', size: 7 });
     y -= headerHeight;
 
     let grandGoods = 0;
