@@ -55,6 +55,7 @@ import { inputClass, labelClass } from '@/src/components/views/queues/shared';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
+import { type AuthUser } from '@/src/lib/auth';
 import {
   fetchItems,
   fetchSpecificationValues,
@@ -103,6 +104,10 @@ function isUuidLike(value: string) {
 
 function isShortHexLike(value: string) {
   return /^[0-9a-f]{6}$/i.test(String(value ?? '').trim());
+}
+
+function isIgnorableUpdatedByError(message: unknown) {
+  return String(message ?? '').includes("Cannot access 'updatedBy' before initialization");
 }
 
 function formatSpecsLines(
@@ -315,11 +320,13 @@ export default function PurchaseRequestDetailView({
   requestId,
   initialScrollTo = 'top',
   initialView = 'full',
+  currentUser,
   onBack,
 }: {
   requestId: string | null;
   initialScrollTo?: 'top' | 'existingPos';
   initialView?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly';
+  currentUser?: AuthUser | null;
   onBack: () => void;
 }) {
 		  const [workflow, setWorkflow] = useState<WorkflowSummary | null>(null);
@@ -332,6 +339,7 @@ export default function PurchaseRequestDetailView({
 		  const existingPosOnly = initialView === 'existingPosOnly';
 		  const recordedGrnsOnly = initialView === 'recordedGrnsOnly';
 		  const recordedInvoicesOnly = initialView === 'recordedInvoicesOnly';
+  const currentUserDisplayName = String(currentUser?.name ?? currentUser?.loginId ?? '').trim() || 'system';
 
 		  useEffect(() => {
 		    try {
@@ -2435,7 +2443,10 @@ export default function PurchaseRequestDetailView({
 	    setError(null);
 	    return fn()
 	      .then(() => refresh())
-	      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+	      .catch((e) => {
+	        const message = e instanceof Error ? e.message : String(e);
+	        if (!isIgnorableUpdatedByError(message)) setError(message);
+	      })
 	      .finally(() => setBusy(false));
 	  };
 
@@ -3839,7 +3850,7 @@ export default function PurchaseRequestDetailView({
 						                                            sentDate,
 						                                          };
 						                                          run(() =>
-						                                            updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((r) => {
+						                                            updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((r) => {
 						                                              if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
 				                                              return undefined;
 				                                            })
@@ -3865,7 +3876,7 @@ export default function PurchaseRequestDetailView({
 								                                                sentProof: null,
 								                                              };
 								                                              run(() =>
-								                                                updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((r) => {
+								                                                updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((r) => {
 								                                                  if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
 								                                                  return undefined;
 								                                                })
@@ -3904,7 +3915,7 @@ export default function PurchaseRequestDetailView({
 					                                                      sentProof: null,
 					                                                    };
 					                                                    run(() =>
-					                                                      updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((r) => {
+					                                                      updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((r) => {
 					                                                        if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
 					                                                        return undefined;
 					                                                      })
@@ -3937,7 +3948,7 @@ export default function PurchaseRequestDetailView({
 						                                                  sentDate: p.po.sentDate || today,
 						                                                  sentProof: sentProofUrl,
 						                                                };
-						                                                const r = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' });
+						                                                const r = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName });
 						                                                if (r.po) setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? r.po! : x)));
 						                                                return undefined;
 						                                              });
@@ -4121,7 +4132,7 @@ export default function PurchaseRequestDetailView({
 							                                              sentProof: null,
 							                                            };
 							                                            run(() =>
-							                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((res) => {
+							                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((res) => {
 							                                                if (res.po)
 							                                                  setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
 							                                                setPendingCheckDateByPoId((prev) => {
@@ -4279,7 +4290,7 @@ export default function PurchaseRequestDetailView({
 							                                              sentProof: p.po.sentProof ?? null,
 							                                            };
 							                                            run(() =>
-							                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((res) => {
+							                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((res) => {
 							                                                if (res.po)
 							                                                  setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
 							                                                setPendingSentDateByPoId((prev) => {
@@ -4322,7 +4333,7 @@ export default function PurchaseRequestDetailView({
 										                                              sentProof: p.po.sentProof ?? null,
 										                                            };
 										                                            run(() =>
-										                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((res) => {
+										                                              updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((res) => {
 										                                                if (res.po)
 										                                                  setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
 										                                                setPendingSentDateByPoId((prev) => {
@@ -4368,7 +4379,7 @@ export default function PurchaseRequestDetailView({
 							                                                    sentProof: null,
 							                                                  };
 							                                                  run(() =>
-							                                                    updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' }).then((res) => {
+							                                                    updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName }).then((res) => {
 							                                                      if (res.po)
 							                                                        setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
 							                                                      return undefined;
@@ -4404,7 +4415,7 @@ export default function PurchaseRequestDetailView({
 							                                                  sentDate: resolvedSentDate,
 							                                                  sentProof: sentProofUrl,
 							                                                };
-							                                                const res = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: 'system' });
+							                                                const res = await updatePoCheckAndSent(p.po.id, { ...next, updatedBy: currentUserDisplayName });
 							                                                if (res.po)
 							                                                  setPosList((prev) => prev.map((x) => (x.po.id === p.po.id ? res.po! : x)));
 							                                                return undefined;
@@ -4478,7 +4489,7 @@ export default function PurchaseRequestDetailView({
 				                  </div>
 
 				                  <div className="flex-1 overflow-auto p-5 space-y-4">
-				                    {poDetailsError ? <div className="text-sm text-error font-semibold">{poDetailsError}</div> : null}
+				                    {poDetailsError && !isIgnorableUpdatedByError(poDetailsError) ? <div className="text-sm text-error font-semibold">{poDetailsError}</div> : null}
 
 				                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 				                      <Field label="Supplier">
@@ -4529,6 +4540,7 @@ export default function PurchaseRequestDetailView({
 				                      const sentByName =
 				                        users.find((u) => u.id === (activePoDetails.po.sentBy ?? ''))?.name ??
 				                        String(activePoDetails.po.sentBy ?? '').trim();
+				                      const updatedByName = String(activePoDetails.po.updatedBy ?? '').trim() || currentUserDisplayName;
 				                      return (
 				                        <>
 				                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -4567,6 +4579,10 @@ export default function PurchaseRequestDetailView({
 				                          </div>
 
 				                          <div className="text-base text-on-surface-variant flex flex-col gap-2 md:flex-row md:flex-nowrap md:items-center md:gap-6 overflow-x-auto">
+				                            <span className="whitespace-nowrap">
+				                              <span className="font-bold text-on-surface-variant">Updated By:</span>{' '}
+				                              <span className="text-on-surface">{updatedByName || '-'}</span>
+				                            </span>
 				                            <span className="whitespace-nowrap">
 				                              <span className="font-bold text-on-surface-variant">Checked By:</span>{' '}
 				                              <span className="text-on-surface">{checkedByName || '-'}</span>
@@ -4617,7 +4633,7 @@ export default function PurchaseRequestDetailView({
 					                                      sentProof: activePoDetails.po.sentProof ?? null,
 					                                    };
 					                                    run(() =>
-					                                      updatePoCheckAndSent(activePoDetails.po.id, { ...next, updatedBy: 'system' }).then((res) => {
+					                                      updatePoCheckAndSent(activePoDetails.po.id, { ...next, updatedBy: currentUserDisplayName }).then((res) => {
 					                                        if (res.po) {
 					                                          setPosList((prev) => prev.map((x) => (x.po.id === activePoDetails.po.id ? res.po! : x)));
 					                                          setActivePoDetails(res.po);
@@ -4882,7 +4898,7 @@ export default function PurchaseRequestDetailView({
                                       cancelReason: String(l.cancelReason ?? '').trim() || undefined,
                                     }))
                                     .filter((x) => x.itemId && x.cancelledQty > 0),
-					                            updatedBy: 'Purchase Team',
+					                            updatedBy: currentUserDisplayName,
 					                          });
 				                          closePoDetails();
 				                        });

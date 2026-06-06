@@ -801,6 +801,7 @@ export default function App() {
 		              requestId={selectedRequestId}
 		              initialScrollTo={prDetailScrollTarget}
 		              initialView={prDetailInitialView}
+		              currentUser={currentUser}
 		              onBack={() => {
 		                setSelectedRequestId(null);
 		                setPrDetailScrollTarget('top');
