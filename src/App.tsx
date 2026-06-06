@@ -828,7 +828,7 @@ export default function App() {
               }}
             />
 		          ) : null}
-				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab} /> : null}
+				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab} currentUser={currentUser} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
 
@@ -873,7 +873,7 @@ export default function App() {
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
 		          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
-              {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" /> : null}
+              {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" currentUser={currentUser} /> : null}
 		          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueSendPo' ? <SendPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}

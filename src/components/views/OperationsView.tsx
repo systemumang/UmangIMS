@@ -10,6 +10,7 @@ import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchInventorySheet } from '@/src/lib/inventory';
+import { type AuthUser } from '@/src/lib/auth';
 import {
   createSpecificationValue,
   fetchItemNames,
@@ -139,6 +140,10 @@ function computeAreaQty(length: number, breadth: number, pcs: number) {
   return 0;
 }
 
+function isIgnorableUpdatedByError(message: unknown) {
+  return String(message ?? '').includes("Cannot access 'updatedBy' before initialization");
+}
+
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
@@ -150,12 +155,14 @@ function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
 export default function OperationsView({
   onViewPr,
   initialTab = 'prs',
+  currentUser,
 }: {
   onViewPr?: (
     prId: string,
     opts?: { scrollTo?: 'top' | 'existingPos'; view?: 'full' | 'existingPosOnly' | 'recordedGrnsOnly' | 'recordedInvoicesOnly' }
   ) => void;
   initialTab?: OpsTab;
+  currentUser?: AuthUser | null;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeStores: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
@@ -165,6 +172,7 @@ export default function OperationsView({
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
   const [tab, setTab] = useState<OpsTab>(initialTab);
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
+  const currentUserDisplayName = String(currentUser?.name ?? currentUser?.loginId ?? '').trim() || 'system';
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
@@ -962,7 +970,8 @@ export default function OperationsView({
 	        }))
 	      );
     } catch (e) {
-      setEditPoError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setEditPoError(isIgnorableUpdatedByError(message) ? null : message);
     } finally {
       setEditPoBusy(false);
     }
@@ -1142,7 +1151,7 @@ export default function OperationsView({
           paymentType: null,
           paymentMode: null,
 	        items,
-	        updatedBy: 'Operations',
+	        updatedBy: currentUserDisplayName,
 	      });
       const refreshed = await fetchOperationsPoDetail(editPoId);
       setInlinePoDetailById((prev) => ({ ...prev, [editPoId]: refreshed }));
@@ -1165,7 +1174,8 @@ export default function OperationsView({
       );
       closeEditPoModal();
     } catch (e) {
-      setEditPoError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setEditPoError(isIgnorableUpdatedByError(message) ? null : message);
       setEditPoBusy(false);
     }
   };
@@ -2557,7 +2567,7 @@ export default function OperationsView({
 
       <Modal open={editPoOpen} title={`Edit PO: ${editPoNumber || '-'}`} onClose={closeEditPoModal} fullScreen maxWidthClass="max-w-6xl">
 	        <div className="space-y-4">
-	          {editPoError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
+	          {editPoError && !isIgnorableUpdatedByError(editPoError) ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editPoError}</div> : null}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <label className="space-y-1">
