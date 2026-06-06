@@ -8341,6 +8341,7 @@ app.put('/api/pos/:id', async (req, res) => {
 	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
       const currentStatus = String(poRow.status ?? '').trim().toLowerCase();
       const mode = normalizePoMode(req.body?.mode);
+      const updatedBy = String(req.body?.updatedBy ?? '').trim() || 'system';
 
       if (currentStatus === 'draft') {
         const current = await fetchPoHeaderAndItems(pool, poId);
@@ -8532,7 +8533,6 @@ app.put('/api/pos/:id', async (req, res) => {
     const paymentTerms = String(req.body?.paymentTerms ?? '').trim();
     const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
     const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-    const updatedBy = String(req.body?.updatedBy ?? '').trim() || 'system';
     const statusInput = String(req.body?.status ?? '').trim().toLowerCase();
     const cancelReason = req.body?.cancelReason != null ? String(req.body.cancelReason).trim() : '';
     const advanceAmount = Math.max(0, num(req.body?.advanceAmount, Number(poRow.advanceAmount ?? 0)));
