@@ -63,6 +63,14 @@ export default function DocSequencesSettingsView() {
 
   const onUpsertSequence = async (firmId: string, kind: string, fy: string, nextNo: number) => {
     if (!firmId || !kind || !fy || nextNo < 1) return;
+
+    // Validation: Check for duplicates
+    const isDuplicate = sequences.some(s => s.firm_id === firmId && s.kind === kind && s.fy === fy);
+    if (isDuplicate) {
+      setError(`Sequence already exists for this Firm, Type, and FY (${fy}).`);
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -183,7 +191,6 @@ export default function DocSequencesSettingsView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-sm font-bold text-on-surface uppercase tracking-wider">Document Sequences</div>
-            <div className="text-xs text-on-surface-variant">Manage and update sequences grouped by firm.</div>
           </div>
           
           <div className="flex items-center gap-2">
