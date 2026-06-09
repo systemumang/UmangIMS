@@ -907,7 +907,7 @@ export async function updatePo(
     advanceAmount?: number;
     advanceDate?: string | null;
     cancelReason?: string;
-    items: Array<{ itemId?: string; itemNameId?: string | null; specs?: Record<string, string>; quantity: number; rate: number; discountPercent?: number; taxPercent?: number; length?: number; breadth?: number; pcs?: number }>;
+    items: Array<{ itemId?: string; itemNameId?: string | null; specs?: Record<string, string>; quantity: number; rate: number; discountPercent?: number; taxPercent?: number; length?: number; breadth?: number; pcs?: number; remarks?: string }>;
     lineCancels?: Array<{ itemId: string; cancelledQty: number; cancelReason?: string }>;
     updatedBy?: string;
   }
