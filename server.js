@@ -8833,6 +8833,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		        dimPcs: r.dimPcs != null ? Number(r.dimPcs) : 0,
 	        dimUnit: String(r.dimUnit ?? '').trim(),
 	        areaUnit: normalizeAreaUnit(unitName),
+	        remarks: String(r.remarks ?? '').trim(),
 	      };
 	    });
 		    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
