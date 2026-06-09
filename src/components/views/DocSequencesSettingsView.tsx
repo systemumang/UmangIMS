@@ -30,6 +30,8 @@ export default function DocSequencesSettingsView() {
     nextNo: 1,
   });
 
+  const [isAdding, setIsAdding] = useState(false);
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -128,73 +130,15 @@ export default function DocSequencesSettingsView() {
 
   return (
     <div className="p-4 max-w-5xl mx-auto space-y-4">
-      {/* Add New Sequence Row */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 shadow-sm">
-        <div className="text-sm font-bold text-on-surface uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Plus size={18} className="text-primary" />
-          Add New Sequence
+      {/* Header Section */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="text-sm font-bold text-on-surface uppercase tracking-wider">Document Sequences</div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Firm</label>
-            <select 
-              className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
-              value={newSeq.firmId}
-              onChange={(e) => setNewSeq(prev => ({ ...prev, firmId: e.target.value }))}
-            >
-              {firms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Type</label>
-            <select 
-              className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
-              value={newSeq.kind}
-              onChange={(e) => setNewSeq(prev => ({ ...prev, kind: e.target.value }))}
-            >
-              {['PR', 'PO', 'GRN', 'MR', 'RFQ', 'CV'].map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-on-surface-variant">FY</label>
-            <input 
-              type="text"
-              placeholder="e.g. 26-27"
-              className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
-              value={newSeq.fy}
-              onChange={(e) => setNewSeq(prev => ({ ...prev, fy: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Start No.</label>
-            <input 
-              type="number"
-              min="1"
-              className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
-              value={newSeq.nextNo}
-              onChange={(e) => setNewSeq(prev => ({ ...prev, nextNo: parseInt(e.target.value, 10) || 1 }))}
-            />
-          </div>
-          <button 
-            disabled={busy || !newSeq.firmId || !newSeq.fy}
-            onClick={() => onUpsertSequence(newSeq.firmId, newSeq.kind, newSeq.fy, newSeq.nextNo)}
-            className="btn btn-primary h-[34px] flex items-center justify-center gap-2"
-          >
-            <Plus size={16} />
-            Add
-          </button>
-        </div>
-      </div>
-
-      {/* List Sections */}
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-bold text-on-surface uppercase tracking-wider">Document Sequences</div>
-          </div>
-          
+        
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-on-surface-variant">Filter by Firm:</span>
+            <span className="text-xs text-on-surface-variant">Filter:</span>
             <select 
               className="bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1 text-xs outline-none"
               value={selectedFirm}
@@ -204,9 +148,85 @@ export default function DocSequencesSettingsView() {
               {firms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
-        </div>
 
-        {error ? <div className="p-3 bg-error/10 text-error text-xs rounded-lg mb-3">{error}</div> : null}
+          <button 
+            type="button"
+            className="btn btn-primary text-xs h-8 px-3 flex items-center gap-1.5"
+            onClick={() => setIsAdding(!isAdding)}
+          >
+            <Plus size={14} />
+            {isAdding ? 'Close' : 'Add Sequence'}
+          </button>
+        </div>
+      </div>
+
+      {error ? <div className="p-3 bg-error/10 text-error text-xs rounded-lg">{error}</div> : null}
+
+      {/* Add New Sequence Row - Conditional */}
+      {isAdding && (
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="text-xs font-bold text-on-surface uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Plus size={16} className="text-primary" />
+            Add New Sequence
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase font-bold text-on-surface-variant">Firm</label>
+              <select 
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
+                value={newSeq.firmId}
+                onChange={(e) => setNewSeq(prev => ({ ...prev, firmId: e.target.value }))}
+              >
+                {firms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase font-bold text-on-surface-variant">Type</label>
+              <select 
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
+                value={newSeq.kind}
+                onChange={(e) => setNewSeq(prev => ({ ...prev, kind: e.target.value }))}
+              >
+                {['PR', 'PO', 'GRN', 'MR', 'RFQ', 'CV'].map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase font-bold text-on-surface-variant">FY</label>
+              <input 
+                type="text"
+                placeholder="e.g. 26-27"
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
+                value={newSeq.fy}
+                onChange={(e) => setNewSeq(prev => ({ ...prev, fy: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase font-bold text-on-surface-variant">Start No.</label>
+              <input 
+                type="number"
+                min="1"
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none"
+                value={newSeq.nextNo}
+                onChange={(e) => setNewSeq(prev => ({ ...prev, nextNo: parseInt(e.target.value, 10) || 1 }))}
+              />
+            </div>
+            <button 
+              disabled={busy || !newSeq.firmId || !newSeq.fy}
+              onClick={async () => {
+                await onUpsertSequence(newSeq.firmId, newSeq.kind, newSeq.fy, newSeq.nextNo);
+                if (!error) setIsAdding(false);
+              }}
+              className="btn btn-primary h-[34px] flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* List Sections */}
+      <div className="space-y-6">
 
         {Object.keys(grouped).length ? (
           Object.entries(grouped).map(([fId, group]) => (
