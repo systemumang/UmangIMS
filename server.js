@@ -8145,9 +8145,9 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      await pool.query(
 		        `
 		        INSERT INTO purchase_order_items
-		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, line_order)
+		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
 		        VALUES
-		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)
+		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
 		        `,
 		        [
 		          poItemId,
@@ -8165,6 +8165,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	            areaUnit ? round2(dimBreadth) : null,
 	            areaUnit ? Math.trunc(Number(dimPcs)) : null,
 	            areaUnit ? dimUnit : null,
+              validTextOrNull(row?.remarks),
 	            lineIndex + 1,
 	          ]
 		      );
