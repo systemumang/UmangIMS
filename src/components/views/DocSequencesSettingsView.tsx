@@ -15,6 +15,15 @@ type Firm = {
   name: string;
 };
 
+const DOC_TYPE_LABELS: Record<string, string> = {
+  PR: 'Purchase Request',
+  PO: 'Purchase Order',
+  GRN: 'Goods Received Note',
+  MR: 'Material Request',
+  RFQ: 'Request for Quotation',
+  CV: 'Credit Voucher',
+};
+
 export default function DocSequencesSettingsView() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -212,7 +221,7 @@ export default function DocSequencesSettingsView() {
             <div className="space-y-1">
               <label className="text-[10px] uppercase font-bold text-on-surface-variant">Type</label>
               <select className="w-full bg-surface-container-low border border-outline-variant/20 rounded px-2 py-1.5 text-sm outline-none" value={newSeq.kind} onChange={(e) => setNewSeq(prev => ({ ...prev, kind: e.target.value }))}>
-                {['PR', 'PO', 'GRN', 'MR', 'RFQ', 'CV'].map(k => <option key={k} value={k}>{k}</option>)}
+                {Object.keys(DOC_TYPE_LABELS).map(k => <option key={k} value={k}>{k} ({DOC_TYPE_LABELS[k]})</option>)}
               </select>
             </div>
             <div className="space-y-1">
@@ -255,7 +264,7 @@ export default function DocSequencesSettingsView() {
 
                       return (
                         <tr key={`${s.firm_id}-${s.kind}-${i}`} className="hover:bg-surface-container-low/30 transition-colors">
-                          <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind}</td>
+                          <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind} {DOC_TYPE_LABELS[s.kind] ? `(${DOC_TYPE_LABELS[s.kind]})` : ''}</td>
                           <td className="px-3 py-2 border border-blue-600 bg-blue-50/40">
                             <input
                               type="text"
