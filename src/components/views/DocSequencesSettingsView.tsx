@@ -110,27 +110,20 @@ export default function DocSequencesSettingsView() {
     setBusy(true);
     setError(null);
     try {
-      // 1. Create/Update the new/current sequence
-      const res = await fetch('/api/settings/doc-sequences/starting-number', {
-        method: 'POST',
+      // Use direct PUT API to update the record (handles FY rename in one step)
+      const res = await fetch('/api/settings/doc-sequences', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           firmId: originalS.firm_id,
           kind: originalS.kind,
-          fy: updatedFy,
-          startingNo: updatedNextNo,
+          oldFy: originalS.fy,
+          newFy: updatedFy,
+          nextNo: updatedNextNo,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to update sequence');
-
-      // 2. If FY was changed, delete the old sequence record
-      if (isFyChanged) {
-        await fetch(`/api/settings/doc-sequences?firmId=${encodeURIComponent(originalS.firm_id)}&kind=${encodeURIComponent(originalS.kind)}&fy=${encodeURIComponent(originalS.fy)}`, {
-          method: 'DELETE',
-        });
-      }
-
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -196,7 +189,10 @@ export default function DocSequencesSettingsView() {
           <button 
             type="button"
             className="btn btn-primary text-xs h-8 px-3 flex items-center gap-1.5"
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={() => {
+              setIsAdding(!isAdding);
+              setError(null);
+            }}
           >
             <Plus size={14} />
             {isAdding ? 'Close' : 'Add Sequence'}
@@ -257,8 +253,7 @@ export default function DocSequencesSettingsView() {
             <button 
               disabled={busy || !newSeq.firmId || !newSeq.fy}
               onClick={async () => {
-                await onUpsertSequence(newSeq.firmId, newSeq.kind, newSeq.fy, newSeq.nextNo);
-                if (!error) setIsAdding(false);
+                await onUpsertSequence(newSeq.firmId, newSeq.kind, newSeq.fy, newSeq.nextNo, true);
               }}
               className="btn btn-primary h-[34px] flex items-center justify-center gap-2"
             >
@@ -268,6 +263,7 @@ export default function DocSequencesSettingsView() {
           </div>
         </div>
       )}
+
 
       {/* List Sections */}
       <div className="space-y-6">

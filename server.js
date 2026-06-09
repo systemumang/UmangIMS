@@ -10955,6 +10955,32 @@ app.delete('/api/settings/doc-sequences', async (req, res) => {
   }
 });
 
+app.put('/api/settings/doc-sequences', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const { firmId, kind, oldFy, newFy, nextNo } = req.body;
+
+    if (!firmId || !kind || !oldFy || !newFy) {
+      return res.status(400).json({ error: 'firmId, kind, oldFy, and newFy are required' });
+    }
+
+    await pool.query(
+      `
+      UPDATE doc_sequences 
+      SET fy = ?, next_no = ? 
+      WHERE firm_id = ? AND kind = ? AND fy = ?
+      `,
+      [newFy, nextNo, firmId, kind, oldFy]
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+
 
 app.get('/api/settings/links', async (_req, res) => {
   try {
