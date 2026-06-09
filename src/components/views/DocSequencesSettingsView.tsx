@@ -248,7 +248,7 @@ export default function DocSequencesSettingsView() {
                     {group.items.map((s, idx) => (
                       <tr key={`${s.firm_id}-${s.kind}-${s.fy}-${idx}`} className="hover:bg-surface-container-low/30 transition-colors">
                         <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind}</td>
-                        <td className="px-3 py-2 border border-blue-600">
+                        <td className="px-3 py-2 border border-blue-600 bg-blue-50/40">
                           <input
                             type="text"
                             className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
@@ -262,7 +262,7 @@ export default function DocSequencesSettingsView() {
                             }}
                           />
                         </td>
-                        <td className="px-3 py-2 border border-blue-600">
+                        <td className="px-3 py-2 border border-blue-600 bg-amber-50/40">
                           <input
                             type="number"
                             min="1"
