@@ -95,6 +95,7 @@ import {
 				} from '@/src/lib/masters';
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
+import DocSequencesSettingsView from './DocSequencesSettingsView';
 
 function normalizeTenDigitPhoneInput(value: string) {
   return value.replace(/\D/g, '').slice(0, 10);
@@ -6080,6 +6081,7 @@ export default function MastersView({
 	      ) : null}
 
       {tab === 'items' ? null : null}
+      {tab === 'docSequences' ? <DocSequencesSettingsView /> : null}
     </div>
   );
 }

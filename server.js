@@ -10882,6 +10882,30 @@ app.delete('/api/masters/users/:id', async (req, res) => {
 });
 
 // --- Settings: Document Sequences ---
+app.get('/api/settings/doc-sequences', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    
+    await ensureDocSequencesTable(pool);
+    const [rows] = await pool.query(`
+      SELECT 
+        ds.firm_id,
+        f.name AS firmName,
+        ds.kind,
+        ds.fy,
+        ds.next_no
+      FROM doc_sequences ds
+      LEFT JOIN firms f ON f.id = ds.firm_id
+      ORDER BY f.name, ds.kind, ds.fy DESC
+    `);
+    
+    res.json({ sequences: rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.post('/api/settings/doc-sequences/starting-number', async (req, res) => {
   try {
     const pool = getMysqlPool();
