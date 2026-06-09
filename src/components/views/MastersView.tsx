@@ -282,7 +282,9 @@ export default function MastersView({
 					  const [newSupplierCatalogueLink, setNewSupplierCatalogueLink] = useState('');
 					  const [newSupplierMsmeApplicable, setNewSupplierMsmeApplicable] = useState(false);
 					  const [newSupplierMsmeCertificateUrl, setNewSupplierMsmeCertificateUrl] = useState('');
+					  const [newCustomerName, setNewCustomerName] = useState('');
 					  const [newCustomerMobile, setNewCustomerMobile] = useState('');
+
 					  const [newCustomerAddress, setNewCustomerAddress] = useState('');
 	          const [newCustomerCategoryName, setNewCustomerCategoryName] = useState('');
 	          const [newCustomerSubCategoryName, setNewCustomerSubCategoryName] = useState('');
