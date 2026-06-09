@@ -63,14 +63,16 @@ export default function DocSequencesSettingsView() {
     load();
   }, []);
 
-  const onUpsertSequence = async (firmId: string, kind: string, fy: string, nextNo: number) => {
+  const onUpsertSequence = async (firmId: string, kind: string, fy: string, nextNo: number, isNew: boolean = false) => {
     if (!firmId || !kind || !fy || nextNo < 1) return;
 
-    // Validation: Check for duplicates
-    const isDuplicate = sequences.some(s => s.firm_id === firmId && s.kind === kind && s.fy === fy);
-    if (isDuplicate) {
-      setError(`Sequence already exists for this Firm, Type, and FY (${fy}).`);
-      return;
+    // Only check for duplicates when adding a BRAND NEW sequence from the "Add" form
+    if (isNew) {
+      const isDuplicate = sequences.some(s => s.firm_id === firmId && s.kind === kind && s.fy === fy);
+      if (isDuplicate) {
+        setError(`Sequence already exists for this Firm, Type, and FY (${fy}).`);
+        return;
+      }
     }
 
     setBusy(true);
@@ -88,9 +90,50 @@ export default function DocSequencesSettingsView() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to update sequence');
-      await load(); // Reload to get fresh data and updated firm names
+      await load(); 
+      if (isNew) setIsAdding(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Specialized update for table rows to handle PK changes (FY change)
+  const onUpdateRow = async (originalS: DocSequence, updatedFy: string, updatedNextNo: number) => {
+    const isFyChanged = originalS.fy !== updatedFy;
+    const isNextNoChanged = originalS.next_no !== updatedNextNo;
+
+    if (!isFyChanged && !isNextNoChanged) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      // 1. Create/Update the new/current sequence
+      const res = await fetch('/api/settings/doc-sequences/starting-number', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firmId: originalS.firm_id,
+          kind: originalS.kind,
+          fy: updatedFy,
+          startingNo: updatedNextNo,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update sequence');
+
+      // 2. If FY was changed, delete the old sequence record
+      if (isFyChanged) {
+        await fetch(`/api/settings/doc-sequences?firmId=${encodeURIComponent(originalS.firm_id)}&kind=${encodeURIComponent(originalS.kind)}&fy=${encodeURIComponent(originalS.fy)}`, {
+          method: 'DELETE',
+        });
+      }
+
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      await load(); // Revert local state on error
     } finally {
       setBusy(false);
     }
@@ -245,52 +288,58 @@ export default function DocSequencesSettingsView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.items.map((s, idx) => (
-                      <tr key={`${s.firm_id}-${s.kind}-${s.fy}-${idx}`} className="hover:bg-surface-container-low/30 transition-colors">
-                        <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind}</td>
-                        <td className="px-3 py-2 border border-blue-600 bg-blue-50/40">
-                          <input
-                            type="text"
-                            className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
-                            value={s.fy}
-                            onBlur={(e) => {
-                              if (e.target.value !== s.fy) onUpsertSequence(s.firm_id, s.kind, e.target.value, s.next_no);
-                            }}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSequences(prev => prev.map((item) => (item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy) ? { ...item, fy: val } : item));
-                            }}
-                          />
-                        </td>
-                        <td className="px-3 py-2 border border-blue-600 bg-amber-50/40">
-                          <input
-                            type="number"
-                            min="1"
-                            className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
-                            value={s.next_no}
-                            onBlur={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              if (!isNaN(val) && val !== s.next_no) onUpsertSequence(s.firm_id, s.kind, s.fy, val);
-                            }}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              if (!isNaN(val)) {
-                                setSequences(prev => prev.map((item) => (item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy) ? { ...item, next_no: val } : item));
-                              }
-                            }}
-                          />
-                        </td>
-                        <td className="px-3 py-2 border border-blue-600 text-center">
-                          <button 
-                            onClick={() => onDeleteSequence(s)}
-                            disabled={busy}
-                            className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error/10 rounded transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {group.items.map((s, idx) => {
+                      const originalItem = sequences.find(item => item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy);
+                      
+                      return (
+                        <tr key={`${s.firm_id}-${s.kind}-${s.fy}-${idx}`} className="hover:bg-surface-container-low/30 transition-colors">
+                          <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind}</td>
+                          <td className="px-3 py-2 border border-blue-600 bg-blue-50/40">
+                            <input
+                              type="text"
+                              className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
+                              value={s.fy}
+                              onBlur={(e) => {
+                                // Since 's' is updated by onChange, we need to compare with the value before onChange started.
+                                // But simpler: we use a specialized update that handles the current state vs DB.
+                                onUpdateRow(s, e.target.value, s.next_no);
+                              }}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSequences(prev => prev.map((item) => (item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy) ? { ...item, fy: val } : item));
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-blue-600 bg-amber-50/40">
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
+                              value={s.next_no}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val)) onUpdateRow(s, s.fy, val);
+                              }}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val)) {
+                                  setSequences(prev => prev.map((item) => (item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy) ? { ...item, next_no: val } : item));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-blue-600 text-center">
+                            <button 
+                              onClick={() => onDeleteSequence(s)}
+                              disabled={busy}
+                              className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error/10 rounded transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
