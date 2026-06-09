@@ -109,6 +109,7 @@ export type PoItem = {
   dimBreadth?: number | null;
   dimPcs?: number | null;
   dimUnit?: 'ft' | 'm' | string | null;
+  remarks?: string | null;
 };
 
 	export type Invoice = {
@@ -408,6 +409,7 @@ export async function createPo(
       length?: number;
       breadth?: number;
       pcs?: number;
+      remarks?: string;
     }>;
   }
 ) {
@@ -491,6 +493,7 @@ export async function createDirectPo(input: {
     length?: number;
     breadth?: number;
     pcs?: number;
+    remarks?: string;
   }>;
 }) {
   const res = await fetch('/api/pos', {

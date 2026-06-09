@@ -5058,23 +5058,6 @@ export default function MastersView({
 			                        >
 			                          Edit
 			                        </button>
-					                        <button
-					                          type="button"
-					                          title="Delete"
-					                          aria-label="Delete"
-					                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-					                          onClick={() => {
-					                            if (!window.confirm(`Delete project \"${p.name}\"?`)) return;
-					                            setBusy(true);
-				                            setError(null);
-			                            deleteProject(p.id, { deletedBy: 'system' })
-			                              .then(() => refreshCurrentTab(tab))
-				                              .catch(handleMasterError)
-				                              .finally(() => setBusy(false));
-				                          }}
-				                        >
-				                          <Trash2 size={16} />
-				                        </button>
 			                      </div>
 			                    </td>
 			                  </tr>
@@ -5375,23 +5358,6 @@ export default function MastersView({
 			                      <div className="flex items-center gap-2">
 			                        <button type="button" className="btn-primary btn-sm" onClick={() => openEditModal(c.id)}>
 			                          Edit
-			                        </button>
-			                        <button
-			                          type="button"
-			                          title="Delete"
-			                          aria-label="Delete"
-			                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-error text-on-primary shadow-sm hover:bg-error/90 transition-colors disabled:opacity-50"
-			                          onClick={() => {
-			                            if (!window.confirm(`Delete customer "${c.name}"?`)) return;
-			                            setBusy(true);
-			                            setError(null);
-			                            deleteCustomer(c.id, { deletedBy: 'system' })
-			                              .then(() => refreshCurrentTab(tab))
-			                              .catch(handleMasterError)
-			                              .finally(() => setBusy(false));
-			                          }}
-			                        >
-			                          <Trash2 size={16} />
 			                        </button>
 			                      </div>
 			                    </td>

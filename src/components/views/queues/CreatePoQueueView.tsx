@@ -33,6 +33,7 @@ type Line = {
   rate: string;
   discountPercent: string;
   taxPercent: string;
+  remarks: string;
 };
 
 export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
@@ -244,6 +245,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 	            rate: suggested && Number.isFinite(suggested.rate) ? String(suggested.rate) : '',
 	            discountPercent: '',
 		            taxPercent: '0',
+                remarks: '',
 	          };
 	        });
 
@@ -512,6 +514,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           rate: String(l.rate ?? '').trim() ? Number(l.rate) : 0,
                           discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
                           taxPercent: getSupplierHasGst(String(l.supplierId ?? '').trim()) ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
+                          remarks: l.remarks.trim() || undefined,
                           ...(isAreaUnit ? { length, breadth, pcs } : {}),
                         };
                       })
@@ -531,6 +534,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         rate: it.rate,
                         discountPercent: it.discountPercent,
                         taxPercent: it.taxPercent,
+                        remarks: it.remarks,
                         ...(it.length != null || it.breadth != null || it.pcs != null ? { length: it.length, breadth: it.breadth, pcs: it.pcs } : {}),
                       };
                       if (existing) existing.items.push(itemLine);
@@ -629,6 +633,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
                           taxPercent: getSupplierHasGst(String(l.supplierId ?? '').trim()) ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
                           remainingQty: l.remainingQty,
+                          remarks: l.remarks.trim() || undefined,
                           ...(isAreaUnit ? { length, breadth, pcs } : {}),
                         };
                       })
@@ -687,6 +692,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           rate: number;
                           discountPercent: number;
                           taxPercent: number;
+                          remarks?: string;
                           length?: number;
                           breadth?: number;
                           pcs?: number;
@@ -707,6 +713,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         rate: it.rate,
                         discountPercent: it.discountPercent,
                         taxPercent: it.taxPercent,
+                        remarks: it.remarks,
                         ...(('length' in it || 'breadth' in it || 'pcs' in it)
                           ? { length: (it as any).length, breadth: (it as any).breadth, pcs: (it as any).pcs }
                           : {}),
@@ -775,6 +782,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                       <col className="w-[100px]" />
                       <col className="w-[200px]" />
                       <col className="w-[150px]" />
+                      <col className="w-[180px]" />
                     </>
                   ) : (
                     <>
@@ -805,6 +813,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant text-center">Last Rate</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
                         <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Terms</th>
+                        <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Item Remarks</th>
                       </>
                     ) : (
                       <>
@@ -1142,6 +1151,20 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   }
                                 />
                               </td>
+                              <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className={cn(inputClass, 'py-1.5 h-8 text-xs')}
+                                  value={l.remarks}
+                                  onChange={(e) =>
+                                    setLines((prev) => {
+                                      const next = prev.slice();
+                                      next[idx] = { ...next[idx]!, remarks: e.target.value };
+                                      return next;
+                                    })
+                                  }
+                                  placeholder="Item remarks..."
+                                />
+                              </td>
                             </>
                           )})()}
                         </tr>
@@ -1149,7 +1172,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                     })
 			                ) : (
 			                  <tr>
-					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 17}>
+					                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={modalKind === 'rfq' ? 4 : 18}>
 				                      No remaining items to order.
 				                    </td>
 			                  </tr>

@@ -438,6 +438,7 @@ function getMysqlPool() {
 	      await ensureColumn('purchase_order_items', 'dim_breadth', 'DOUBLE NULL');
 	      await ensureColumn('purchase_order_items', 'dim_pcs', 'INT NULL');
 	      await ensureColumn('purchase_order_items', 'dim_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('purchase_order_items', 'remarks', 'TEXT NULL');
 	      await ensureColumn('purchase_order_items', 'line_order', 'INT NULL');
 	      await ensureNonUniqueIndex('purchase_order_items', 'idx_poi_po_line_order', ['po_id', 'line_order']);
 	      await pool.query(`
@@ -4478,7 +4479,8 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.dim_length AS dimLength,
       poi.dim_breadth AS dimBreadth,
       poi.dim_pcs AS dimPcs,
-      poi.dim_unit AS dimUnit
+      poi.dim_unit AS dimUnit,
+      poi.remarks AS remarks
     FROM purchase_order_items poi
     LEFT JOIN items it ON it.id = poi.item_id
     LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -4562,6 +4564,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     goodsAmount: r.goodsAmount != null ? Number(r.goodsAmount) : undefined,
     taxAmount: r.taxAmount != null ? Number(r.taxAmount) : undefined,
     totalAmount: r.totalAmount != null ? Number(r.totalAmount) : undefined,
+    remarks: r.remarks != null ? String(r.remarks) : undefined,
   }));
 
   const draftItems =
@@ -4795,9 +4798,9 @@ async function replacePoItemsForIssue(pool, poId, items, poType) {
     await pool.query(
       `
       INSERT INTO purchase_order_items
-        (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, line_order)
+        (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
       `,
       [
         crypto.randomUUID(),
@@ -4815,6 +4818,7 @@ async function replacePoItemsForIssue(pool, poId, items, poType) {
         areaUnit ? round2(dimBreadth) : null,
         areaUnit ? Math.trunc(dimPcs) : null,
         areaUnit ? dimUnit : null,
+        validTextOrNull(row?.remarks),
         lineIndex,
       ]
     );
@@ -6455,7 +6459,8 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           poi.dim_length AS dimLength,
           poi.dim_breadth AS dimBreadth,
           poi.dim_pcs AS dimPcs,
-          poi.dim_unit AS dimUnit
+          poi.dim_unit AS dimUnit,
+          poi.remarks AS remarks
         FROM purchase_order_items poi
         LEFT JOIN items it ON it.id = poi.item_id
         LEFT JOIN item_names iname ON iname.id = it.item_name_id
@@ -6489,6 +6494,7 @@ app.get('/api/requests/:id/pos', async (req, res) => {
           dimBreadth: r.dimBreadth != null ? Number(r.dimBreadth) : null,
           dimPcs: r.dimPcs != null ? Number(r.dimPcs) : null,
           dimUnit: r.dimUnit != null ? String(r.dimUnit) : null,
+          remarks: r.remarks != null ? String(r.remarks) : null,
         });
       }
     }

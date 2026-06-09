@@ -3659,6 +3659,7 @@ export default function PurchaseRequestDetailView({
 								                        <col className="w-[100px]" />
 								                        <col className="w-[110px]" />
 								                        <col className="w-[110px]" />
+								                        <col className="w-[150px]" />
 								                        <col className="w-[190px]" />
 								                        <col className="w-[130px]" />
 								                        <col className="w-[200px]" />
