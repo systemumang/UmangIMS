@@ -31,6 +31,7 @@ export default function DocSequencesSettingsView() {
   });
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingRow, setEditingRow] = useState<DocSequence | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -289,8 +290,6 @@ export default function DocSequencesSettingsView() {
                   </thead>
                   <tbody>
                     {group.items.map((s, idx) => {
-                      const originalItem = sequences.find(item => item.firm_id === s.firm_id && item.kind === s.kind && item.fy === s.fy);
-                      
                       return (
                         <tr key={`${s.firm_id}-${s.kind}-${s.fy}-${idx}`} className="hover:bg-surface-container-low/30 transition-colors">
                           <td className="px-3 py-2 border border-blue-600 font-semibold">{s.kind}</td>
@@ -299,10 +298,12 @@ export default function DocSequencesSettingsView() {
                               type="text"
                               className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
                               value={s.fy}
+                              onFocus={() => setEditingRow({...s})}
                               onBlur={(e) => {
-                                // Since 's' is updated by onChange, we need to compare with the value before onChange started.
-                                // But simpler: we use a specialized update that handles the current state vs DB.
-                                onUpdateRow(s, e.target.value, s.next_no);
+                                if (editingRow) {
+                                  onUpdateRow(editingRow, e.target.value, s.next_no);
+                                  setEditingRow(null);
+                                }
                               }}
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -316,9 +317,13 @@ export default function DocSequencesSettingsView() {
                               min="1"
                               className="w-full bg-transparent border-none px-1 text-sm outline-none focus:ring-1 focus:ring-primary/30 rounded"
                               value={s.next_no}
+                              onFocus={() => setEditingRow({...s})}
                               onBlur={(e) => {
                                 const val = parseInt(e.target.value, 10);
-                                if (!isNaN(val)) onUpdateRow(s, s.fy, val);
+                                if (editingRow && !isNaN(val)) {
+                                  onUpdateRow(editingRow, s.fy, val);
+                                  setEditingRow(null);
+                                }
                               }}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
