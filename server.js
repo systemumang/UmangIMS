@@ -1423,38 +1423,62 @@ function stableJsonStringifySorted(obj) {
 }
 
 async function ensureDocSequencesTable(pool) {
-  await pool.query(
-    `
-    CREATE TABLE IF NOT EXISTS doc_sequences (
-      kind VARCHAR(10) NOT NULL,
-      fy VARCHAR(10) NOT NULL,
-      next_no INT NOT NULL,
-      PRIMARY KEY (kind, fy)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `
-  );
+  // Check if firm_id column exists, if not migrate
+  try {
+    const [cols] = await pool.query('SHOW COLUMNS FROM doc_sequences LIKE "firm_id"');
+    if (cols.length === 0) {
+      await pool.query('ALTER TABLE doc_sequences ADD COLUMN firm_id VARCHAR(255) NOT NULL DEFAULT "DEFAULT" FIRST');
+      await pool.query('ALTER TABLE doc_sequences DROP PRIMARY KEY');
+      await pool.query('ALTER TABLE doc_sequences ADD PRIMARY KEY (firm_id, kind, fy)');
+    }
+  } catch (e) {
+    // If table doesn't exist, create it
+    await pool.query(
+      `
+      CREATE TABLE IF NOT EXISTS doc_sequences (
+        firm_id VARCHAR(255) NOT NULL,
+        kind VARCHAR(10) NOT NULL,
+        fy VARCHAR(10) NOT NULL,
+        next_no INT NOT NULL DEFAULT 1,
+        PRIMARY KEY (firm_id, kind, fy)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `
+    );
+  }
 }
 
-async function allocateDocNumber(pool, kind, date = new Date()) {
+async function allocateDocNumber(pool, firmId, kind, date = new Date()) {
   const docKind = String(kind || '').trim().toUpperCase();
   if (!docKind) throw new Error('Missing doc kind');
   const fy = fiscalYearLabel(date);
+  const fId = String(firmId || 'DEFAULT').trim();
   await ensureDocSequencesTable(pool);
+
+  // Fetch firm sort_name
+  let sortName = 'GEN';
+  if (fId !== 'DEFAULT') {
+    const [fRows] = await pool.query('SELECT sort_name FROM firms WHERE id = ? LIMIT 1', [fId]);
+    const fRow = Array.isArray(fRows) ? fRows[0] : null;
+    if (fRow?.sort_name) {
+      sortName = String(fRow.sort_name).trim().toUpperCase();
+    }
+  }
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    await conn.query('INSERT IGNORE INTO doc_sequences (kind, fy, next_no) VALUES (?, ?, ?)', [docKind, fy, 1]);
-    const [rows] = await conn.query('SELECT next_no AS nextNo FROM doc_sequences WHERE kind=? AND fy=? FOR UPDATE', [
+    await conn.query('INSERT IGNORE INTO doc_sequences (firm_id, kind, fy, next_no) VALUES (?, ?, ?, ?)', [fId, docKind, fy, 1]);
+    const [rows] = await conn.query('SELECT next_no AS nextNo FROM doc_sequences WHERE firm_id=? AND kind=? AND fy=? FOR UPDATE', [
+      fId,
       docKind,
       fy,
     ]);
     const row = Array.isArray(rows) ? rows[0] : null;
     const nextNo = Number(row?.nextNo ?? 1);
     const useNo = Number.isFinite(nextNo) && nextNo > 0 ? nextNo : 1;
-    await conn.query('UPDATE doc_sequences SET next_no=? WHERE kind=? AND fy=?', [useNo + 1, docKind, fy]);
+    await conn.query('UPDATE doc_sequences SET next_no=? WHERE firm_id=? AND kind=? AND fy=?', [useNo + 1, fId, docKind, fy]);
     await conn.commit();
-    return `${docKind}-${fy}/${String(useNo).padStart(5, '0')}`;
+    return `${sortName}/${docKind}/${fy}/${String(useNo).padStart(5, '0')}`;
   } catch (e) {
     try {
       await conn.rollback();
@@ -4592,7 +4616,7 @@ async function insertPoDraft(pool, input) {
     sourceType: normalizePoSource(input.sourceType),
   };
   const poId = crypto.randomUUID();
-  const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+  const poNumber = await allocateDocNumber(pool, input.firmId, 'PO', new Date());
   await pool.query(
     `
     INSERT INTO purchase_orders
@@ -6835,7 +6859,7 @@ app.post('/api/material-requests', async (req, res) => {
     }
 
     const requestId = crypto.randomUUID();
-    const requestNo = await allocateDocNumber(pool, 'MR', new Date());
+    const requestNo = await allocateDocNumber(pool, firmId, 'MR', new Date());
 
     await pool.query(
 	      `INSERT INTO material_requests 
@@ -6965,7 +6989,7 @@ app.post('/api/requests', async (req, res) => {
     const storeId = String(storeRow.id);
 
     const prId = crypto.randomUUID();
-    const prNumber = await allocateDocNumber(pool, 'PR', new Date());
+    const prNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
     const remarks = JSON.stringify({ ...(department ? { department } : {}), ...(remarksInput ? { remarks: remarksInput } : {}) });
 
 	    await pool.query(
@@ -7440,7 +7464,7 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    const supplierId = String(supRow.id);
 
 	    const poId = crypto.randomUUID();
-	    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+	    const poNumber = await allocateDocNumber(pool, input.firmId, 'PO', new Date());
 
 	    await pool.query(
 	      `
@@ -7646,7 +7670,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    );
 
 	    const grnId = crypto.randomUUID();
-	    const grnNumber = await allocateDocNumber(pool, 'GRN', new Date(receivedDate));
+	    const grnNumber = await allocateDocNumber(pool, poRow.firm_id, 'GRN', new Date(receivedDate));
 
 	    await pool.query(
 	      `
@@ -7888,10 +7912,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
     }
 
 	    const poId = crypto.randomUUID();
-	    const poNumber = await allocateDocNumber(pool, 'PO', new Date());
+	    const poNumber = await allocateDocNumber(pool, input.firmId, 'PO', new Date());
 
 	    const directPrId = crypto.randomUUID();
-	    const directPrNumber = await allocateDocNumber(pool, 'PR', new Date());
+	    const directPrNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
 	    const directRemarks = JSON.stringify({
         department,
         directPo: true,
@@ -8421,7 +8445,7 @@ app.put('/api/pos/:id', async (req, res) => {
           if (!finalStoreId) return res.status(400).json({ error: 'Store not found for selected firm' });
           if (!finalPrId) {
             const directPrId = crypto.randomUUID();
-            const directPrNumber = await allocateDocNumber(pool, 'PR', new Date());
+            const directPrNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
             const directRemarks = JSON.stringify({
               department: validTextOrNull(payload.department) ?? 'N/A',
               directPo: true,
@@ -10857,7 +10881,35 @@ app.delete('/api/masters/users/:id', async (req, res) => {
   }
 });
 
-// --- Settings: Catelouge ---
+// --- Settings: Document Sequences ---
+app.post('/api/settings/doc-sequences/starting-number', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const firmId = String(req.body?.firmId || 'DEFAULT').trim();
+    const kind = String(req.body?.kind || '').trim().toUpperCase();
+    const fy = String(req.body?.fy || fiscalYearLabel(new Date())).trim();
+    const startingNo = Number(req.body?.startingNo);
+
+    if (!kind) return res.status(400).json({ error: 'kind is required' });
+    if (!Number.isFinite(startingNo) || startingNo < 1) return res.status(400).json({ error: 'startingNo must be a positive number' });
+
+    await ensureDocSequencesTable(pool);
+    await pool.query(
+      `
+      INSERT INTO doc_sequences (firm_id, kind, fy, next_no)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE next_no = VALUES(next_no)
+      `,
+      [firmId, kind, fy, startingNo]
+    );
+
+    res.json({ ok: true, firmId, kind, fy, nextNo: startingNo });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/settings/links', async (_req, res) => {
   try {
     const pool = getMysqlPool();
@@ -10948,7 +11000,7 @@ app.post('/api/requests/:id/rfq', async (req, res) => {
     if (!prRow) return res.status(404).json({ error: 'PR not found' });
 
     const rfqId = crypto.randomUUID();
-    const rfqNumber = await allocateDocNumber(pool, 'RFQ', new Date());
+    const rfqNumber = await allocateDocNumber(pool, prRow.firmId, 'RFQ', new Date());
 
     await pool.query(
       `
@@ -14067,7 +14119,7 @@ async function handleCreateCreditVoucher(req, res) {
 
     const [[poRow]] = await pool.query(
       `
-      SELECT po.id AS poId, po.supplier_id AS supplierId, COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable
+      SELECT po.id AS poId, po.firm_id AS firmId, po.supplier_id AS supplierId, COALESCE(s.credit_voucher_applicable, 0) AS creditVoucherApplicable
       FROM purchase_orders po
       LEFT JOIN suppliers s ON s.id = po.supplier_id
       WHERE po.id = ?
@@ -14076,6 +14128,7 @@ async function handleCreateCreditVoucher(req, res) {
       [poId]
     );
     if (!poRow) return res.status(404).json({ error: 'PO not found' });
+    const firmId = String(poRow.firmId ?? '').trim();
     const supplierId = String(poRow.supplierId ?? '').trim();
     if (!supplierId) return res.status(500).json({ error: 'PO is missing supplierId' });
     if (!Number(poRow.creditVoucherApplicable ?? 0)) {
@@ -14129,7 +14182,7 @@ async function handleCreateCreditVoucher(req, res) {
 
     const totalAmount = normalizedItems.reduce((sum, it) => sum + it.quantity * it.rate, 0);
     const creditVoucherId = crypto.randomUUID();
-    const voucherNumber = await allocateCreditVoucherNumber(pool, voucherDate ? new Date(voucherDate) : new Date());
+    const voucherNumber = await allocateCreditVoucherNumber(pool, firmId, voucherDate ? new Date(voucherDate) : new Date());
 
     await pool.query(
       `
@@ -14191,21 +14244,30 @@ async function handleCreateCreditVoucher(req, res) {
   }
 }
 
-async function allocateCreditVoucherNumber(pool, date = new Date()) {
-  const allocated = await allocateDocNumber(pool, 'CV', date);
-  const seq = String(allocated).split('/').pop() || '00001';
-  const fy = fiscalYearLabel(date).replace('-', '/');
-  return `${fy}-${seq}`;
+async function allocateCreditVoucherNumber(pool, firmId, date = new Date()) {
+  const allocated = await allocateDocNumber(pool, firmId, 'CV', date);
+  return allocated;
 }
 
-async function peekCreditVoucherNumber(pool, date = new Date()) {
+async function peekCreditVoucherNumber(pool, firmId, date = new Date()) {
   const fyRaw = fiscalYearLabel(date);
-  const fy = fyRaw.replace('-', '/');
+  const fId = String(firmId || 'DEFAULT').trim();
   await ensureDocSequencesTable(pool);
-  const [rows] = await pool.query('SELECT next_no AS nextNo FROM doc_sequences WHERE kind=? AND fy=? LIMIT 1', ['CV', fyRaw]);
+  
+  // Fetch firm sort_name
+  let sortName = 'GEN';
+  if (fId !== 'DEFAULT') {
+    const [fRows] = await pool.query('SELECT sort_name FROM firms WHERE id = ? LIMIT 1', [fId]);
+    const fRow = Array.isArray(fRows) ? fRows[0] : null;
+    if (fRow?.sort_name) {
+      sortName = String(fRow.sort_name).trim().toUpperCase();
+    }
+  }
+
+  const [rows] = await pool.query('SELECT next_no AS nextNo FROM doc_sequences WHERE firm_id=? AND kind=? AND fy=? LIMIT 1', [fId, 'CV', fyRaw]);
   const nextNo = Number((Array.isArray(rows) ? rows[0] : null)?.nextNo ?? 1);
   const seq = String(Number.isFinite(nextNo) && nextNo > 0 ? nextNo : 1).padStart(5, '0');
-  return `${fy}-${seq}`;
+  return `${sortName}/CV/${fyRaw}/${seq}`;
 }
 
 app.post('/api/pos/:id/credit-voucher', handleCreateCreditVoucher);
@@ -14216,8 +14278,9 @@ app.get('/api/credit-vouchers/next-number', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const voucherDateInput = String(req.query?.voucherDate ?? '').trim();
+    const firmId = String(req.query?.firmId || '').trim();
     const voucherDate = toIsoDate(voucherDateInput) || voucherDateInput;
-    const nextVoucherNo = await peekCreditVoucherNumber(pool, voucherDate ? new Date(voucherDate) : new Date());
+    const nextVoucherNo = await peekCreditVoucherNumber(pool, firmId, voucherDate ? new Date(voucherDate) : new Date());
     res.json({ voucherNo: nextVoucherNo });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

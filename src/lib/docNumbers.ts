@@ -7,8 +7,19 @@ function stripLeadingHash(raw: string) {
 export function formatDocNumber(raw: string, kind?: DocKind): string {
   const s = stripLeadingHash(raw);
   if (!s) return '';
-  // Keep the `PR-` / `PO-` / `GRN-` prefix in display (business requirement).
-  // Still normalize if kind is provided and a different known prefix is used.
+  
+  // Handle new format: UM/PR/26-27/00001
+  const parts = s.split('/');
+  if (parts.length >= 3) {
+    // If it looks like [FIRM]/[KIND]/...
+    const k = parts[1]?.toUpperCase();
+    if (['PR', 'PO', 'GRN', 'MR', 'RFQ', 'CV'].includes(k)) {
+      if (kind && k !== kind) return s;
+      return s;
+    }
+  }
+
+  // Handle old format: PR-26-27/00001
   const m = /^(PR|PO|GRN)-(.+)$/i.exec(s);
   if (!m?.[1] || !m?.[2]) return s;
   const foundKind = String(m[1] ?? '').toUpperCase() as DocKind;
