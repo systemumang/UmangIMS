@@ -5024,13 +5024,6 @@ export default function MastersView({
 				                </button>
 				              ) : null}
 				            </div>
-				            <button
-				              type="button"
-				              className="btn btn-primary disabled:opacity-50"
-				              onClick={openAddModal}
-			            >
-			              Add
-			            </button>
 			          </div>
 			          <div className="overflow-auto">
 			            <table className="min-w-[1320px] w-full text-sm border-collapse border border-blue-600">
@@ -5347,9 +5340,6 @@ export default function MastersView({
 				                </button>
 				              ) : null}
 				            </div>
-				            <button type="button" className="btn btn-primary disabled:opacity-50" onClick={openAddModal}>
-				              Add
-				            </button>
 			          </div>
 			          <div className="overflow-auto">
 				            <table className="min-w-[1600px] w-full text-sm border-collapse border border-blue-600">
