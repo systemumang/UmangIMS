@@ -10960,12 +10960,13 @@ app.put('/api/settings/doc-sequences', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const { firmId, kind, oldFy, newFy, nextNo } = req.body;
+    console.log('[API] Updating doc_sequence:', { firmId, kind, oldFy, newFy, nextNo });
 
     if (!firmId || !kind || !oldFy || !newFy) {
       return res.status(400).json({ error: 'firmId, kind, oldFy, and newFy are required' });
     }
 
-    await pool.query(
+    const [result] = await pool.query(
       `
       UPDATE doc_sequences 
       SET fy = ?, next_no = ? 
@@ -10973,12 +10974,15 @@ app.put('/api/settings/doc-sequences', async (req, res) => {
       `,
       [newFy, nextNo, firmId, kind, oldFy]
     );
+    console.log('[API] Update result:', result);
 
     res.json({ ok: true });
   } catch (e) {
+    console.error('[API] Update error:', e);
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
+
 
 
 
