@@ -39,6 +39,7 @@ export type NavView =
   | 'settings'
   | 'settingsCatalogue'
   | 'gst'
+  | 'docSequences'
   | 'issueMaster'
   | 'returnMaster'
   | 'damageMaster'
@@ -124,6 +125,7 @@ export const materialMenuItems: Array<{ key: NavView; label: string }> = [
 export const settingsMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'settingsCatalogue', label: 'Links' },
   { key: 'gst', label: 'GST' },
+  { key: 'docSequences', label: 'Doc Sequences' },
 ];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';

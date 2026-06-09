@@ -86,6 +86,7 @@ const RequestMaterialView = lazy(() => import('./components/views/RequestMateria
 const PendingIssueView = lazy(() => import('./components/views/PendingIssueView'));
 const SettingsCatalogueView = lazy(() => import('./components/views/SettingsCatalogueView'));
 const GstView = lazy(() => import('./components/views/GstView'));
+const DocSequencesSettingsView = lazy(() => import('./components/views/DocSequencesSettingsView'));
 const PendingSupplierRateView = lazy(() => import('./components/views/PendingSupplierRateView'));
 const QuotationMasterView = lazy(() => import('./components/views/QuotationMasterView'));
 
@@ -328,6 +329,7 @@ export default function App() {
 		    if (view === 'materialPendingIssue') return { title: 'Material', subtitle: 'Pending Issue', showSearch: false };
 	        if (view === 'settingsCatalogue') return { title: 'Catalogue', showSearch: false };
 	        if (view === 'gst') return { title: 'GST Rates', showSearch: false };
+	        if (view === 'docSequences') return { title: 'Doc Sequences', showSearch: false };
 			    if (view === 'directPo') return { title: 'Direct PO', showSearch: false };
 			    if (view === 'newPurchaseRequest') return { title: 'New Purchase Request', showSearch: false };
 			    if (view === 'purchaseRequestDetail') return { title: 'Request Details', showSearch: false };
@@ -846,6 +848,7 @@ export default function App() {
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
 	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
 	              {view === 'gst' ? <GstView /> : null}
+	              {view === 'docSequences' ? <DocSequencesSettingsView /> : null}
 
 		          {view === 'stockMaster' ? (
 		            <>

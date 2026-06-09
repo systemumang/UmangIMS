@@ -10934,6 +10934,28 @@ app.post('/api/settings/doc-sequences/starting-number', async (req, res) => {
   }
 });
 
+app.delete('/api/settings/doc-sequences', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const { firmId, kind, fy } = req.query;
+
+    if (!firmId || !kind || !fy) {
+      return res.status(400).json({ error: 'firmId, kind, and fy are required' });
+    }
+
+    await pool.query(
+      'DELETE FROM doc_sequences WHERE firm_id = ? AND kind = ? AND fy = ?',
+      [firmId, kind, fy]
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+
 app.get('/api/settings/links', async (_req, res) => {
   try {
     const pool = getMysqlPool();

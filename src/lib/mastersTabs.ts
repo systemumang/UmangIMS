@@ -15,14 +15,12 @@ export type MastersTab =
   | 'itemNames'
   | 'specs'
   | 'specValues'
-  | 'items'
-  | 'docSequences';
+  | 'items';
 
 export const MASTERS_TABS: Array<{ key: MastersTab; label: string }> = [
   { key: 'customers', label: 'Customers' },
   { key: 'cities', label: 'City' },
   { key: 'departments', label: 'Departments' },
-  { key: 'docSequences', label: 'Doc Sequences' },
   { key: 'firms', label: 'Firms' },
   { key: 'itemCategories', label: 'Item Categories' },
   { key: 'itemNames', label: 'Item Names' },
