@@ -1373,6 +1373,7 @@ function normalizePoDraftLines(lines) {
     dimBreadth: Number.isFinite(Number(row?.breadth ?? row?.dimBreadth)) ? Number(row?.breadth ?? row?.dimBreadth) : null,
     dimPcs: Number.isFinite(Number(row?.pcs ?? row?.dimPcs)) ? Number(row?.pcs ?? row?.dimPcs) : null,
     dimUnit: validTextOrNull(row?.inputUnit ?? row?.dimUnit),
+    remarks: validTextOrNull(row?.remarks),
   }));
 }
 
@@ -8749,7 +8750,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        poi.dim_length AS dimLength,
 	        poi.dim_breadth AS dimBreadth,
 	        poi.dim_pcs AS dimPcs,
-	        poi.dim_unit AS dimUnit
+	        poi.dim_unit AS dimUnit,
+	        poi.remarks AS remarks
 	      FROM purchase_order_items poi
 	      LEFT JOIN items it ON it.id = poi.item_id
 	      LEFT JOIN item_names iname ON iname.id = it.item_name_id
