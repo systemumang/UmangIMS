@@ -7464,7 +7464,7 @@ app.post('/api/requests/:id/po', async (req, res) => {
 	    const supplierId = String(supRow.id);
 
 	    const poId = crypto.randomUUID();
-	    const poNumber = await allocateDocNumber(pool, input.firmId, 'PO', new Date());
+	    const poNumber = await allocateDocNumber(pool, prRow.firmId, 'PO', new Date());
 
 	    await pool.query(
 	      `
@@ -7912,7 +7912,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
     }
 
 	    const poId = crypto.randomUUID();
-	    const poNumber = await allocateDocNumber(pool, input.firmId, 'PO', new Date());
+	    const poNumber = await allocateDocNumber(pool, firmId, 'PO', new Date());
 
 	    const directPrId = crypto.randomUUID();
 	    const directPrNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
