@@ -7670,7 +7670,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    );
 
 	    const grnId = crypto.randomUUID();
-	    const grnNumber = await allocateDocNumber(pool, poRow.firm_id, 'GRN', new Date(receivedDate));
+	    const grnNumber = await allocateDocNumber(pool, poRow.firmId, 'GRN', new Date(receivedDate));
 
 	    await pool.query(
 	      `
