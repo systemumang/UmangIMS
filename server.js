@@ -9287,6 +9287,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        drawRight(Number(it.taxAmount ?? 0) > 0 ? formatMoney(it.taxAmount) : '', col.gstAmtRight - 4, rowTop - 6, { size: 8 });
 	      }
 	      drawRight(formatMoney(it.totalAmount), col.totalAmtRight - 8, rowTop - 6, { size: 8 });
+	      if (remarkLines.length) {
+	        let ry = rowTop - 6;
+	        for (const line of remarkLines) {
+	          drawAt(line, col.totalAmtRight + 4, ry, { size: 7 });
+	          ry -= 10;
+	        }
+	      }
       y -= rowHeight;
       grandGoods += Number(it.goodsAmount ?? 0);
       grandTax += taxAmount;
