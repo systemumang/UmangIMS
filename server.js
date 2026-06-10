@@ -9073,6 +9073,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			      const gstW = 34;
 			      const gstAmtW = 52;
 			      const totalAmtW = 58;
+			      const remarksW = 60;
 			      const showAmtBeforeColumn = Boolean(showGstAmountColumn);
 
 			      const fixedExceptItem =
@@ -9085,7 +9086,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			        (showDiscAmountColumn ? discAmtW : 0) +
 			        (showGstColumn ? gstW : 0) +
 			        (showGstAmountColumn ? gstAmtW : 0) +
-			        totalAmtW;
+			        totalAmtW +
+			        remarksW;
 
 			      // Item column takes the remaining space. When many numeric columns are visible,
 			      // allow item width to shrink so right-side amounts don't overlap.
@@ -9103,6 +9105,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			        ...(showGstColumn ? [gstW] : []),
 			        ...(showGstAmountColumn ? [gstAmtW] : []),
 			        totalAmtW,
+			        remarksW,
 			      ];
 
 			      const b = [tableLeft];
@@ -9130,6 +9133,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      gstRight: null,
 		      gstAmtRight: null,
 		      totalAmtRight: null,
+		      remarksRight: null,
 		    };
 		    // Compute rights based on which optional columns are present.
 		    {
@@ -9148,6 +9152,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      if (showGstColumn) col.gstRight = colBounds[++i];
 		      if (showGstAmountColumn) col.gstAmtRight = colBounds[++i];
 		      col.totalAmtRight = colBounds[++i];
+		      col.remarksRight = colBounds[++i];
 		    }
 
 	    const loadAnyImage = async (imageUrl) => {
