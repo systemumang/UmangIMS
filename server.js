@@ -9220,6 +9220,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      drawHeaderCell(['GST', 'Amt'], showGstColumn ? col.gstRight : showDiscAmountColumn ? col.discAmtRight : showDiscColumn ? col.discRight : col.amtBeforeRight, col.gstAmtRight, { align: 'right', size: 7 });
 		    }
 		    drawHeaderCell(['Total', 'Amt'], showGstAmountColumn ? col.gstAmtRight : showGstColumn ? col.gstRight : showDiscAmountColumn ? col.discAmtRight : showDiscColumn ? col.discRight : col.rateRight, col.totalAmtRight, { align: 'right', size: 7 });
+		    drawHeaderCell('Remarks', col.totalAmtRight, col.remarksRight, { align: 'left', size: 8 });
     y -= headerHeight;
 
     let grandGoods = 0;
