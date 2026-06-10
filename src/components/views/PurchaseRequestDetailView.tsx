@@ -2511,6 +2511,7 @@ export default function PurchaseRequestDetailView({
 						          rate: String(it.rate ?? ''),
 						          discountPercent: Number.isFinite(discPct) && discPct !== 0 ? String(discPct) : '',
 						          taxPercent: Number.isFinite(taxPct) && taxPct !== 0 ? String(taxPct) : '',
+                      remarks: String(it.remarks ?? '').trim(),
                       cancelledQty: Number((it as any)?.cancelledQty ?? 0) ? String((it as any)?.cancelledQty) : '',
                       cancelReason: String((it as any)?.cancelReason ?? ''),
 						        };
@@ -4687,6 +4688,9 @@ export default function PurchaseRequestDetailView({
                                 <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[220px]">
                                   Cancel Reason
                                 </th>
+                                <th className="px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider border border-outline-variant w-[220px]">
+                                  Remarks
+                                </th>
 				                            </tr>
 				                          </thead>
 			                          <tbody>
@@ -4820,6 +4824,18 @@ export default function PurchaseRequestDetailView({
                                           disabled={busy}
                                         />
                                       </td>
+                                      <td className="px-3 py-2 border border-outline-variant">
+                                        <input
+                                          className={compactTableInputClass}
+                                          value={ln.remarks}
+                                          onChange={(e) =>
+                                            setEditPoLines((prev) =>
+                                              prev.map((x, i) => (i === idx ? { ...x, remarks: e.target.value } : x))
+                                            )
+                                          }
+                                          disabled={busy}
+                                        />
+                                      </td>
 			                              </tr>
 			                            ))}
 			                          </tbody>
@@ -4856,7 +4872,8 @@ export default function PurchaseRequestDetailView({
 				                            rate: Number(l.rate ?? 0),
 				                            discountPercent: Number(l.discountPercent ?? 0),
 				                            taxPercent: getSupplierHasGst(editPoSupplierId) ? Number(l.taxPercent ?? 0) : 0,
-				                          }))
+				                            remarks: String((editPoLines.find(x => x.itemId === l.itemId) as any)?.remarks ?? '').trim() || undefined,
+				                            }))
 				                          .filter(
 				                            (l) =>
 				                              l.itemId &&

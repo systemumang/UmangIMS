@@ -2669,7 +2669,7 @@ export default function OperationsView({
               <div className="min-w-[1700px]">
                 <div
                   className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 150px 90px` }}
+                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
                 >
                   <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                   {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
@@ -2704,7 +2704,7 @@ export default function OperationsView({
                     <div
                       key={`edit-line-${idx}`}
                       className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                      style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 90px` }}
+                      style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
                     >
                       <div className="p-2 border-r border-outline-variant">
                         <SearchableSelect
@@ -2807,6 +2807,15 @@ export default function OperationsView({
                       {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.taxPercent} onChange={(e) => updateEditPoLine(idx, { taxPercent: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>}
                       {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant text-right text-xs font-medium">{gstAmount.toFixed(2)}</div>}
                       <div className="p-2 border-r border-outline-variant text-right text-xs font-bold">{totalAmount.toFixed(2)}</div>
+                      <div className="p-2 border-r border-outline-variant">
+                        <input
+                          className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
+                          value={l.remarks ?? ''}
+                          onChange={(e) => updateEditPoLine(idx, { remarks: e.target.value })}
+                          disabled={editPoBusy}
+                          placeholder="Remarks"
+                        />
+                      </div>
                       <div className="p-2 text-right">
                         <button type="button" className="btn btn-sm" onClick={() => removeEditPoLine(idx)} disabled={editPoBusy}>
                           Remove
