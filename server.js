@@ -9240,8 +9240,8 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        .filter(Boolean)
 	        .join(', ');
 	      const specLines = specText ? wrapLines(`- ${specText}`, font, 7, col.itemRight - col.itemLeft - 8) : [];
-	      const remarkLines = it.remarks ? wrapLines(`Remark: ${it.remarks}`, font, 7, col.itemRight - col.itemLeft - 8) : [];
-	      const rowHeight = Math.max(18, labelLines.length * 11 + (specLines.length ? specLines.length * 10 + 2 : 0) + (remarkLines.length ? remarkLines.length * 10 + 2 : 0) + 8);
+	      const remarkLines = it.remarks ? wrapLines(it.remarks, font, 7, col.remarksRight - col.totalAmtRight - 8) : [];
+	      const rowHeight = Math.max(18, labelLines.length * 11 + (specLines.length ? specLines.length * 10 + 2 : 0) + 8, remarkLines.length * 10 + 8);
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
       const sgstAmount = isInterState ? 0 : taxAmount / 2;
