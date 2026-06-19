@@ -687,9 +687,10 @@ export async function createGrnForPo(
     receivedDate: string;
     updatedBy?: string;
     materialReceivedBy?: string | null;
-    goodsCollectedBy?: string | null;
-    items: Array<{
-      itemId: string;
+	    goodsCollectedBy?: string | null;
+	    items: Array<{
+	      poItemId?: string;
+	      itemId: string;
       item?: string;
       quantityReceived: number;
       length?: number;

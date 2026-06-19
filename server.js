@@ -454,10 +454,18 @@ function getMysqlPool() {
       await ensureColumn('grn_items', 'recv_dim_length', 'DOUBLE NULL');
       await ensureColumn('grn_items', 'recv_dim_breadth', 'DOUBLE NULL');
       await ensureColumn('grn_items', 'recv_dim_pcs', 'INT NULL');
-      await ensureColumn('grn_items', 'recv_dim_input_unit', 'VARCHAR(8) NULL');
-      await ensureColumn('grn_items', 'recv_dim_po_unit', 'VARCHAR(8) NULL');
-      await ensureColumn('grn_items', 'weight', 'DOUBLE NULL');
-      await ensureColumn('grn_items', 'round_off', 'DOUBLE NULL');
+	      await ensureColumn('grn_items', 'recv_dim_input_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('grn_items', 'recv_dim_po_unit', 'VARCHAR(8) NULL');
+	      await ensureColumn('grn_items', 'weight', 'DOUBLE NULL');
+	      await ensureColumn('grn_items', 'round_off', 'DOUBLE NULL');
+	      await ensureColumn('grn_items', 'po_item_id', 'VARCHAR(255) NULL');
+	      await ensureNonUniqueIndex('grn_items', 'idx_grn_items_grn_id', ['grn_id']);
+	      await ensureNonUniqueIndex('grn_items', 'idx_grn_items_po_item_id', ['po_item_id']);
+	      await dropUniqueIndexesForExactColumns('grn_items', [
+	        ['grn_id'],
+	        ['grn_id', 'item_id'],
+	        ['grn_id', 'po_item_id'],
+	      ]);
 
       await ensureColumn('invoice_items', 'dim_length', 'DOUBLE NULL');
       await ensureColumn('invoice_items', 'dim_breadth', 'DOUBLE NULL');
@@ -2759,19 +2767,28 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        po.created_at AS createdAt,
 		        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
 		        COALESCE(SUM(COALESCE(poi.quantity, 0)), 0) AS poQty,
-		        COALESCE(SUM(COALESCE(grnq.grnQty, 0)), 0) AS grnQty,
-		        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
+			        COALESCE(MAX(grnt.grnQty), 0) AS grnQty,
+			        COALESCE(SUM(GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(grnq.grnQty, 0))), 0) AS pendingQty
 	      FROM purchase_orders po
 	      LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
 	      LEFT JOIN purchase_requisition_items pri ON pri.pr_id = pr.id
 	      LEFT JOIN priorities p ON p.id = pri.priority_id
 	      LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
-      LEFT JOIN (
-        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
-        FROM grns g
-        INNER JOIN grn_items gi ON gi.grn_id = g.id
-        GROUP BY g.po_id, gi.item_id
-      ) grnq ON grnq.poId = poi.po_id AND grnq.itemId = poi.item_id
+	      LEFT JOIN (
+	        SELECT g.po_id AS poId, SUM(gi.received_qty) AS grnQty
+	        FROM grns g
+	        INNER JOIN grn_items gi ON gi.grn_id = g.id
+	        GROUP BY g.po_id
+	      ) grnt ON grnt.poId = po.id
+	      LEFT JOIN (
+	        SELECT g.po_id AS poId, gi.po_item_id AS poItemId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
+	        FROM grns g
+	        INNER JOIN grn_items gi ON gi.grn_id = g.id
+	        GROUP BY g.po_id, gi.po_item_id, gi.item_id
+	      ) grnq ON grnq.poId = poi.po_id AND (
+	        (grnq.poItemId IS NOT NULL AND grnq.poItemId = poi.id)
+	        OR (grnq.poItemId IS NULL AND grnq.itemId = poi.item_id)
+	      )
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
@@ -6442,8 +6459,9 @@ app.get('/api/requests/:id/pos', async (req, res) => {
       const placeholders = poIds.map(() => '?').join(',');
       const [itemRows] = await pool.query(
         `
-        SELECT
-          poi.po_id AS poId,
+	      SELECT
+	        poi.id AS id,
+	        poi.po_id AS poId,
           poi.item_id AS itemId,
           iname.name AS item,
           it.unit AS unit,
@@ -6476,8 +6494,9 @@ app.get('/api/requests/:id/pos', async (req, res) => {
         const poId = String(r.poId ?? '').trim();
         if (!poId) continue;
         if (!itemsByPoId.has(poId)) itemsByPoId.set(poId, []);
-        itemsByPoId.get(poId).push({
-          poId,
+	        itemsByPoId.get(poId).push({
+	          id: String(r.id ?? ''),
+	          poId,
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
           unit: r.unit != null ? String(r.unit) : null,
@@ -7655,9 +7674,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 
 	    const [poItemRows] = await pool.query(
         `
-        SELECT
-          poi.item_id AS itemId,
-          poi.quantity AS quantity,
+	        SELECT
+	          poi.id AS poItemId,
+	          poi.item_id AS itemId,
+	          poi.quantity AS quantity,
           poi.dim_unit AS poDimUnit,
           it.unit AS unit
         FROM purchase_order_items poi
@@ -7666,16 +7686,19 @@ app.post('/api/pos/:id/grn', async (req, res) => {
         `,
         [poId]
       );
-	    const orderedMetaByItemId = new Map(
-	      (Array.isArray(poItemRows) ? poItemRows : []).map((r) => [
-          String(r.itemId),
-          {
-            orderedQty: Number(r.quantity ?? 0),
-            poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : null,
-            unit: r.unit != null ? String(r.unit) : null,
-          },
-        ])
-	    );
+		    const orderedMetaByPoItemId = new Map();
+		    const orderedMetaByItemId = new Map();
+		    for (const r of Array.isArray(poItemRows) ? poItemRows : []) {
+		      const meta = {
+		        poItemId: String(r.poItemId ?? ''),
+		        itemId: String(r.itemId ?? ''),
+		        orderedQty: Number(r.quantity ?? 0),
+		        poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : null,
+		        unit: r.unit != null ? String(r.unit) : null,
+		      };
+		      if (meta.poItemId) orderedMetaByPoItemId.set(meta.poItemId, meta);
+		      if (meta.itemId && !orderedMetaByItemId.has(meta.itemId)) orderedMetaByItemId.set(meta.itemId, meta);
+		    }
 
 	    const grnId = crypto.randomUUID();
 	    const grnNumber = await allocateDocNumber(pool, poRow.firmId, 'GRN', new Date(receivedDate));
@@ -7702,13 +7725,17 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      ]
 	    );
 
-	    const outItems = [];
-		    for (const [lineIndex, row] of items.entries()) {
-	      const itemId = String(row?.itemId ?? '').trim();
-	      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+		    const outItems = [];
+			    for (const [lineIndex, row] of items.entries()) {
+		      const itemId = String(row?.itemId ?? '').trim();
+		      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+		      const poItemIdInput = String(row?.poItemId ?? row?.purchaseOrderItemId ?? '').trim();
 
-        const meta = orderedMetaByItemId.get(itemId);
-        const orderedQty = Number(meta?.orderedQty ?? 0);
+	        const meta = poItemIdInput ? orderedMetaByPoItemId.get(poItemIdInput) : orderedMetaByItemId.get(itemId);
+	        if (!meta) return res.status(400).json({ error: `PO item not found for GRN line ${lineIndex + 1}` });
+	        if (String(meta.itemId ?? '').trim() !== itemId) return res.status(400).json({ error: `PO item mismatch for GRN line ${lineIndex + 1}` });
+	        const poItemId = String(meta.poItemId ?? '').trim() || null;
+	        const orderedQty = Number(meta?.orderedQty ?? 0);
         const poDimUnitFromRow = meta?.poDimUnit != null ? String(meta.poDimUnit) : null;
         const areaUnit = normalizeAreaUnitName(meta?.unit);
         const poDimUnit = poDimUnitFromRow || baseDimUnitForAreaUnit(areaUnit);
@@ -7746,17 +7773,18 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      const grnItemId = crypto.randomUUID();
 
 	      await pool.query(
-		        `
-		        INSERT INTO grn_items
-		          (id, grn_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit, weight, round_off)
-		        VALUES
-		          (?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
-	        `,
-	        [
-            grnItemId,
-            grnId,
-            itemId,
-            orderedQty,
+			        `
+			        INSERT INTO grn_items
+			          (id, grn_id, po_item_id, item_id, ordered_qty, received_qty, short_qty, damaged_qty, created_by, created_at, updated_by, updated_at, recv_dim_length, recv_dim_breadth, recv_dim_pcs, recv_dim_input_unit, recv_dim_po_unit, weight, round_off)
+			        VALUES
+			          (?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
+		        `,
+		        [
+	            grnItemId,
+	            grnId,
+	            poItemId,
+	            itemId,
+	            orderedQty,
             qtyReceived,
             shortQty,
             'system',
@@ -7772,9 +7800,10 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      );
 
 	      outItems.push({
-          id: grnItemId,
-          grnId,
-          itemId,
+	          id: grnItemId,
+	          grnId,
+	          poItemId,
+	          itemId,
           item: '',
           specificationsJson: undefined,
           quantityReceived: qtyReceived,
@@ -9568,9 +9597,10 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
     if (!poId) return res.status(400).json({ error: 'id is required' });
 
     const [rows] = await pool.query(
-      `
-      SELECT
-        poi.item_id AS itemId,
+	      `
+	      SELECT
+	        poi.id AS poItemId,
+	        poi.item_id AS itemId,
         iname.name AS item,
         u.name AS unit,
         GREATEST(0, COALESCE(poi.quantity, 0) - COALESCE(linkq.linkQty, 0)) AS pendingQty,
@@ -9636,12 +9666,15 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
         poi.dim_pcs AS dimPcs,
         poi.dim_unit AS dimUnit
       FROM purchase_order_items poi
-      LEFT JOIN (
-        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
-        FROM grns g
-        INNER JOIN grn_items gi ON gi.grn_id = g.id
-        GROUP BY g.po_id, gi.item_id
-      ) grnq ON grnq.poId = poi.po_id AND grnq.itemId = poi.item_id
+	      LEFT JOIN (
+	        SELECT g.po_id AS poId, gi.po_item_id AS poItemId, gi.item_id AS itemId, SUM(gi.received_qty) AS grnQty
+	        FROM grns g
+	        INNER JOIN grn_items gi ON gi.grn_id = g.id
+	        GROUP BY g.po_id, gi.po_item_id, gi.item_id
+	      ) grnq ON grnq.poId = poi.po_id AND (
+	        (grnq.poItemId IS NOT NULL AND grnq.poItemId = poi.id)
+	        OR (grnq.poItemId IS NULL AND grnq.itemId = poi.item_id)
+	      )
       LEFT JOIN items it ON it.id = poi.item_id
       LEFT JOIN item_names iname ON iname.id = it.item_name_id
       LEFT JOIN units u ON u.id = iname.unit_id
@@ -9652,8 +9685,9 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
       [poId]
     );
 
-    const items = (Array.isArray(rows) ? rows : []).map((r) => ({
-      itemId: String(r.itemId ?? ''),
+	    const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+	      poItemId: String(r.poItemId ?? ''),
+	      itemId: String(r.itemId ?? ''),
       item: String(r.item ?? ''),
       unit: r.unit != null ? String(r.unit) : null,
       pendingQty: Number(r.pendingQty ?? 0),

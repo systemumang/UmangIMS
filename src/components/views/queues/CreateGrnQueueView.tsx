@@ -15,7 +15,7 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
+type PendingItem = { poItemId?: string; itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
 
 export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   function normalizeAreaUnitName(unitName: string) {
@@ -180,7 +180,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
       .then((items) => {
         setPendingItems(items);
         const draft: Record<string, string> = {};
-        for (const it of items) draft[it.itemId] = String(it.pendingQty ?? 0);
+	        for (const [idx, it] of items.entries()) draft[getLineKey(it, idx)] = String(it.pendingQty ?? 0);
         setQtyByItemId(draft);
       })
       .catch((e) => {
@@ -221,15 +221,28 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     if (!goodsCollectedByUserId) setGoodsCollectedByUserId(firstUserId);
   }, [goodsCollectedByUserId, masters.loading, masters.users, materialReceivedByUserId, modalOpen, updatedByUserId]);
 
-  function displayUserName(rawValue: string | null | undefined) {
-    const v = String(rawValue ?? '').trim();
-    if (!v) return '-';
-    const byId = masters.users.find((u) => String(u.id ?? '').trim() === v);
-    if (byId?.name) return String(byId.name);
-    // Hide internal ids if we don't have a name mapping.
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return '-';
-    return v;
-  }
+	  function displayUserName(rawValue: string | null | undefined) {
+	    const v = String(rawValue ?? '').trim();
+	    if (!v) return '-';
+	    const byId = masters.users.find((u) => String(u.id ?? '').trim() === v);
+	    if (byId?.name) return String(byId.name);
+	    // Hide internal ids if we don't have a name mapping.
+	    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return '-';
+	    return v;
+	  }
+
+	  function getLineKey(row: { id?: string; poItemId?: string; itemId?: string }, fallbackIndex = 0) {
+	    const poItemId = String((row as any)?.poItemId ?? (row as any)?.id ?? '').trim();
+	    if (poItemId) return poItemId;
+	    return `${String(row?.itemId ?? '').trim()}::${fallbackIndex}`;
+	  }
+
+	  function samePoLine(a: { id?: string; poItemId?: string; itemId?: string }, b: { id?: string; poItemId?: string; itemId?: string }) {
+	    const aPoItemId = String((a as any)?.poItemId ?? (a as any)?.id ?? '').trim();
+	    const bPoItemId = String((b as any)?.poItemId ?? (b as any)?.id ?? '').trim();
+	    if (aPoItemId || bPoItemId) return !!aPoItemId && aPoItemId === bPoItemId;
+	    return String(a?.itemId ?? '').trim() === String(b?.itemId ?? '').trim();
+	  }
 
   async function toggleExpandRow(row: CreateGrnQueueRow) {
     const poId = String(row.poId ?? '').trim();
@@ -370,7 +383,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
                                           return (
 	                                      <tr
-                                            key={it.itemId}
+	                                            key={getLineKey(it, 0)}
                                             className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
                                             onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
                                           >
@@ -539,22 +552,24 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                 }
                 const items = pendingItems
                   .map((it) => {
-                    const poItem = (activePoDetails.items ?? []).find((x) => String(x.itemId ?? '').trim() === String(it.itemId ?? '').trim());
+	                    const poItem = (activePoDetails.items ?? []).find((x) => samePoLine(x as any, it as any));
+	                    const lineKey = getLineKey(it, 0);
                     const poDimUnit =
                       String((poItem as any)?.dimUnit ?? '').trim() ||
                       baseDimUnitForAreaUnit(normalizeAreaUnitName(String((poItem as any)?.unit ?? '')));
                     const isArea = poDimUnit === 'ft' || poDimUnit === 'm';
-                    const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
-                    const inputUnit = (inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft')) as 'ft' | 'm';
+	                    const dims = dimsByItemId[lineKey] ?? { length: '', breadth: '', pcs: '1' };
+	                    const inputUnit = (inputUnitByItemId[lineKey] ?? (poDimUnit === 'm' ? 'm' : 'ft')) as 'ft' | 'm';
                     const qtyInputUnit = isArea ? computeAreaQty(Number(dims.length), Number(dims.breadth), Number(dims.pcs || 1)) : NaN;
                     const q = isArea ? convertAreaQty(qtyInputUnit, inputUnit, poDimUnit) : (() => {
-                      const raw = qtyByItemId[it.itemId];
+	                      const raw = qtyByItemId[lineKey];
                       return raw != null && String(raw).trim() ? Number(raw) : 0;
 	                    })();
-	                    const weight = weightByItemId[it.itemId];
-	                    const ro = roundOffByItemId[it.itemId];
-	                    return {
-	                      itemId: it.itemId,
+		                    const weight = weightByItemId[lineKey];
+		                    const ro = roundOffByItemId[lineKey];
+		                    return {
+	                      poItemId: it.poItemId,
+		                      itemId: it.itemId,
 	                      item: it.item,
 	                      quantityReceived: q,
 	                      weight: String(weight ?? '').trim() ? Number(weight) : undefined,
@@ -579,7 +594,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   goodsCollectedBy: goodsCollectedByUserId,
                   updatedBy: updatedByName,
                   items: items.map((x) => ({
-                    itemId: x.itemId,
+	                    poItemId: (x as any).poItemId,
+	                    itemId: x.itemId,
 	                    item: x.item,
 	                    quantityReceived: x.quantityReceived,
 	                    weight: x.weight,
@@ -647,7 +663,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                 {(activePoDetails.items.length ? activePoDetails.items : ([{ poId: activePoDetails.po.id, itemId: '', item: '-', quantity: 0, rate: 0 }] as any)).map(
               (it: PoItem, idx: number) => {
               const rowSpan = activePoDetails.items.length || 1;
-              const pendingRow = pendingItems.find((p) => String(p.itemId ?? '').trim() === String(it.itemId ?? '').trim());
+	              const lineKey = getLineKey(it as any, idx);
+	              const pendingRow = pendingItems.find((p) => samePoLine(it as any, p as any));
               const pendingQty = pendingRow ? Number(pendingRow.pendingQty ?? 0) : 0;
 
                       const raw = it as any;
@@ -662,8 +679,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
                       const poDimUnit = dimUnit;
                       const isAreaUnit = !!areaUnit;
-                      const dims = dimsByItemId[it.itemId] ?? { length: '', breadth: '', pcs: '1' };
-                      const inputUnit = inputUnitByItemId[it.itemId] ?? (poDimUnit === 'm' ? 'm' : 'ft');
+	                      const dims = dimsByItemId[lineKey] ?? { length: '', breadth: '', pcs: '1' };
+	                      const inputUnit = inputUnitByItemId[lineKey] ?? (poDimUnit === 'm' ? 'm' : 'ft');
 
               return (
               <tr key={`${String(it.itemId ?? idx)}-${idx}`}>
@@ -713,7 +730,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             <select
                               className={cn(inputClass, 'py-1 px-1 h-8 text-xs')}
                               value={inputUnit}
-                              onChange={(e) => setInputUnitByItemId((prev) => ({ ...prev, [it.itemId]: (e.target.value === 'm' ? 'm' : 'ft') as any }))}
+	                              onChange={(e) => setInputUnitByItemId((prev) => ({ ...prev, [lineKey]: (e.target.value === 'm' ? 'm' : 'ft') as any }))}
                             >
                               <option value="ft">ft</option>
                               <option value="m">m</option>
@@ -729,9 +746,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   value={dims.length}
                                   onChange={(e) => {
 	                                    const v = sanitizeDecimalInput(e.target.value);
-                                    setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), length: v } }));
-                                    const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
-                                    setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+	                                    setDimsByItemId((prev) => ({ ...prev, [lineKey]: { ...(prev[lineKey] ?? dims), length: v } }));
+	                                    const q = convertAreaQty(computeAreaQty(Number(v), Number(dims.breadth), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+	                                    setQtyByItemId((prev) => ({ ...prev, [lineKey]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
                                   }}
                                   inputMode="decimal"
                                   placeholder="L"
@@ -756,9 +773,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   value={dims.breadth}
                                   onChange={(e) => {
 	                                    const v = sanitizeDecimalInput(e.target.value);
-                                    setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), breadth: v } }));
-                                    const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
-                                    setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+	                                    setDimsByItemId((prev) => ({ ...prev, [lineKey]: { ...(prev[lineKey] ?? dims), breadth: v } }));
+	                                    const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(v), Number(dims.pcs || 1)), inputUnit, poDimUnit);
+	                                    setQtyByItemId((prev) => ({ ...prev, [lineKey]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
                                   }}
                                   inputMode="decimal"
                                   placeholder="B"
@@ -781,9 +798,9 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               value={dims.pcs}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                setDimsByItemId((prev) => ({ ...prev, [it.itemId]: { ...(prev[it.itemId] ?? dims), pcs: v } }));
-                                const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(dims.breadth), Number(v || 1)), inputUnit, poDimUnit);
-                                setQtyByItemId((prev) => ({ ...prev, [it.itemId]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
+	                                setDimsByItemId((prev) => ({ ...prev, [lineKey]: { ...(prev[lineKey] ?? dims), pcs: v } }));
+	                                const q = convertAreaQty(computeAreaQty(Number(dims.length), Number(dims.breadth), Number(v || 1)), inputUnit, poDimUnit);
+	                                setQtyByItemId((prev) => ({ ...prev, [lineKey]: Number.isFinite(q) && q > 0 ? String(q) : '' }));
                               }}
                               inputMode="numeric"
                               placeholder="PCs"
@@ -793,10 +810,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                        <td className="px-1 py-2 border border-black align-top">
 	                          <input
 	                            className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right')}
-	                            value={weightByItemId[it.itemId] ?? ''}
-	                            onChange={(e) =>
-	                              setWeightByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
-	                            }
+		                            value={weightByItemId[lineKey] ?? ''}
+		                            onChange={(e) =>
+		                              setWeightByItemId((prev) => ({ ...prev, [lineKey]: sanitizeDecimalInput(e.target.value) }))
+		                            }
 	                            inputMode="decimal"
 	                            placeholder="Weight"
 	                          />
@@ -804,10 +821,10 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                        <td className="px-1 py-2 border border-black align-top">
 	                          <input
                             className={cn(inputClass, 'py-1 px-2 h-8 text-xs text-right disabled:bg-surface-container-low disabled:opacity-50')}
-                            value={roundOffByItemId[it.itemId] ?? ''}
-		                            onChange={(e) =>
-		                              setRoundOffByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeSignedDecimalInput(e.target.value) }))
-		                            }
+	                            value={roundOffByItemId[lineKey] ?? ''}
+			                            onChange={(e) =>
+			                              setRoundOffByItemId((prev) => ({ ...prev, [lineKey]: sanitizeSignedDecimalInput(e.target.value) }))
+			                            }
                             inputMode="decimal"
                             placeholder={isAreaUnit ? "0.00" : "-"}
                             disabled={!isAreaUnit}
@@ -819,14 +836,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               <input
                                 className={cn(inputClass, 'py-1 pl-2 pr-12 h-8 text-xs text-right bg-surface-container-low font-bold')}
                                 value={(() => {
-                                  const q = qtyByItemId[it.itemId] ?? String(pendingQty);
+	                                  const q = qtyByItemId[lineKey] ?? String(pendingQty);
                                   if (!isAreaUnit) return q;
-                                  const ro = Number(roundOffByItemId[it.itemId] || 0);
+	                                  const ro = Number(roundOffByItemId[lineKey] || 0);
                                   if (ro === 0) return q;
                                   return (round2(Number(q) + ro)).toFixed(2);
                                 })()}
 	                                onChange={(e) =>
-	                                  setQtyByItemId((prev) => ({ ...prev, [it.itemId]: sanitizeDecimalInput(e.target.value) }))
+		                                  setQtyByItemId((prev) => ({ ...prev, [lineKey]: sanitizeDecimalInput(e.target.value) }))
 	                                }
                                 inputMode="decimal"
                                 disabled={isAreaUnit}
@@ -838,7 +855,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               )}
                             </div>
                             {isAreaUnit ? (() => {
-                              const qStr = qtyByItemId[it.itemId];
+	                              const qStr = qtyByItemId[lineKey];
                               if (!qStr) return null;
                               const areaInInputUnit = computeAreaQty(Number(dims.length), Number(dims.breadth), Number(dims.pcs || 1));
                               const inputAreaUnitLabel = inputUnit === 'm' ? 'sqm' : 'sqft';
@@ -857,8 +874,8 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                 </div>
                               );
                             })() : (() => {
-                              const q = Number(qtyByItemId[it.itemId] ?? pendingQty);
-                              const ro = Number(roundOffByItemId[it.itemId] || 0);
+	                              const q = Number(qtyByItemId[lineKey] ?? pendingQty);
+	                              const ro = Number(roundOffByItemId[lineKey] || 0);
                               if (ro === 0) return null;
                               return (
                                 <div className="text-[10px] text-blue-800 font-bold text-right pr-1">
