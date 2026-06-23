@@ -9240,12 +9240,12 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      drawHeaderCell('Pcs', col.breadthRight, col.pcsRight, { size: 7 });
 	      drawHeaderCell(['Dim', 'Unit'], col.pcsRight, col.dimUnitRight, { size: 7 });
 	    }
-	    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : col.itemRight, col.qtyRight, { align: 'right', size: 8 });
+		    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : col.itemRight, col.qtyRight, { align: 'right', size: 8 });
 		    drawHeaderCell('Unit', col.qtyRight, col.qtyUnitRight, { align: 'left', size: 8 });
 		    drawHeaderCell('Rate', col.qtyUnitRight, col.rateRight, { align: 'right', size: 8 });
-	      drawHeaderCell(['Taxable', 'Amt'], col.rateRight, col.amtBeforeRight, { align: 'right', size: 7 });
-	    }
-	    if (showDiscColumn) drawHeaderCell(['Disc', '%'], showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.discRight, { align: 'right', size: 7 });
+		    if (showGstAmountColumn) {
+		      drawHeaderCell(['Taxable', 'Amt'], col.rateRight, col.amtBeforeRight, { align: 'right', size: 7 });
+		    }
 		    if (showDiscAmountColumn) {
 		      drawHeaderCell(['Disc', 'Amt'], showDiscColumn ? col.discRight : showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.discAmtRight, { align: 'right', size: 7 });
 		    }
