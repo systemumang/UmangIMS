@@ -9088,14 +9088,15 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
 		    // Columns tuned for A4 width so headers don't overflow.
-		    // Sl No | Item | (L | B | Pcs | Unit) | Qty | Rate | Taxable Amt | Disc % | Disc Amt | GST % | GST Amt | Total Amt
+		    // Sl No | Item | (L | B | Pcs | Dim Unit) | Qty | Unit | Rate | Taxable Amt | Disc % | Disc Amt | GST % | GST Amt | Total Amt
 			    const colBounds = (() => {
 			      const serialW = 22;
 			      const dimW = 22;
 			      const pcsW = 24;
-			      const unitW = 28;
-			      const qtyW = 36;
-			      const rateW = 40;
+			      const dimUnitW = 28;
+			      const qtyW = 34;
+			      const qtyUnitW = 32;
+			      const rateW = 38;
 			      const amtBeforeW = 56;
 			      const discW = 34;
 			      const discAmtW = 44;
@@ -9107,8 +9108,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 
 			      const fixedExceptItem =
 			        serialW +
-			        (showDimColumns ? dimW + dimW + pcsW + unitW : 0) +
+			        (showDimColumns ? dimW + dimW + pcsW + dimUnitW : 0) +
 			        qtyW +
+			        qtyUnitW +
 			        rateW +
 			        (showAmtBeforeColumn ? amtBeforeW : 0) +
 			        (showDiscColumn ? discW : 0) +
@@ -9125,8 +9127,9 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			      const widths = [
 			        serialW,
 			        itemW,
-			        ...(showDimColumns ? [dimW, dimW, pcsW, unitW] : []),
+			        ...(showDimColumns ? [dimW, dimW, pcsW, dimUnitW] : []),
 			        qtyW,
+			        qtyUnitW,
 			        rateW,
 			        ...(showAmtBeforeColumn ? [amtBeforeW] : []),
 			        ...(showDiscColumn ? [discW] : []),
@@ -9155,6 +9158,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      pcsRight: null,
 	      dimUnitRight: null,
 		      qtyRight: null,
+		      qtyUnitRight: null,
 		      rateRight: null,
 		      amtBeforeRight: null,
 		      discRight: null,
@@ -9174,6 +9178,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        col.dimUnitRight = colBounds[++i];
 	      }
 		      col.qtyRight = colBounds[++i];
+		      col.qtyUnitRight = colBounds[++i];
 		      col.rateRight = colBounds[++i];
 		      if (showGstAmountColumn) col.amtBeforeRight = colBounds[++i];
 		      if (showDiscColumn) col.discRight = colBounds[++i];
@@ -9233,11 +9238,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      drawHeaderCell('L', col.itemRight, col.lengthRight, { size: 8 });
 	      drawHeaderCell('B', col.lengthRight, col.breadthRight, { size: 8 });
 	      drawHeaderCell('Pcs', col.breadthRight, col.pcsRight, { size: 7 });
-	      drawHeaderCell('Unit', col.pcsRight, col.dimUnitRight, { size: 7 });
+	      drawHeaderCell(['Dim', 'Unit'], col.pcsRight, col.dimUnitRight, { size: 7 });
 	    }
 	    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : col.itemRight, col.qtyRight, { align: 'right', size: 8 });
-	    drawHeaderCell('Rate', col.qtyRight, col.rateRight, { align: 'right', size: 8 });
-	    if (showGstAmountColumn) {
+		    drawHeaderCell('Unit', col.qtyRight, col.qtyUnitRight, { align: 'left', size: 8 });
+		    drawHeaderCell('Rate', col.qtyUnitRight, col.rateRight, { align: 'right', size: 8 });
 	      drawHeaderCell(['Taxable', 'Amt'], col.rateRight, col.amtBeforeRight, { align: 'right', size: 7 });
 	    }
 	    if (showDiscColumn) drawHeaderCell(['Disc', '%'], showGstAmountColumn ? col.amtBeforeRight : col.rateRight, col.discRight, { align: 'right', size: 7 });
@@ -9295,11 +9300,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        drawRight(it.dimLength > 0 ? formatNumber(it.dimLength) : '-', col.lengthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimBreadth > 0 ? formatNumber(it.dimBreadth) : '-', col.breadthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimPcs > 0 ? formatNumber(it.dimPcs) : '-', col.pcsRight - 4, rowTop - 6, { size: 8 });
-	        // Show the original item unit (from Item Name), not the dimension unit (ft/m).
-	        drawRight(String(it.unitName ?? '').trim() || '-', col.dimUnitRight - 4, rowTop - 6, { size: 8 });
-	      }
-	      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
-	      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
+		        drawRight(String(it.dimUnit ?? '').trim() || '-', col.dimUnitRight - 4, rowTop - 6, { size: 8 });
+		      }
+		      drawRight(formatNumber(it.quantity), col.qtyRight - 4, rowTop - 6, { size: 8 });
+		      drawAt(String(it.unitName ?? '').trim() || '-', col.qtyRight + 4, rowTop - 6, { size: 8 });
+		      drawRight(formatMoney(it.rate), col.rateRight - 4, rowTop - 6, { size: 8 });
 	      if (showGstAmountColumn) {
 	        drawRight(formatMoney(it.goodsAmount), col.amtBeforeRight - 4, rowTop - 6, { size: 8 });
 	      }
@@ -15453,3 +15458,4 @@ app.listen(port, () => {
   // Keep log simple for Hostinger runtime logs.
   console.log(`Server listening on port ${port}`);
 });
+
