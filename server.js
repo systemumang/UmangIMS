@@ -683,6 +683,9 @@ function getMysqlPool() {
 	        await ensureColumn('suppliers', 'contact_person_mobile', 'VARCHAR(32) NULL');
 	        await ensureColumn('suppliers', 'city', 'VARCHAR(255) NULL');
 	        await ensureColumn('suppliers', 'state', 'VARCHAR(255) NULL');
+		      await ensureColumn('suppliers', 'bank', 'VARCHAR(255) NULL');
+		      await ensureColumn('suppliers', 'account_number', 'VARCHAR(255) NULL');
+		      await ensureColumn('suppliers', 'ifsc_code', 'VARCHAR(64) NULL');
 		      await ensureColumn('suppliers', 'mobile_2', 'VARCHAR(32) NULL');
           await ensureColumn('suppliers', 'msme_applicable', 'TINYINT NOT NULL DEFAULT 0');
           await ensureColumn('suppliers', 'msme_certificate_url', 'LONGTEXT NULL');
@@ -9990,8 +9993,11 @@ app.get('/api/masters/suppliers', async (_req, res) => {
 	        gst_type AS gstType,
 	        credit_voucher_applicable AS creditVoucherApplicable,
 	        address,
-	        phone,
-	      email,
+		        phone,
+            bank,
+            account_number AS accountNumber,
+            ifsc_code AS ifscCode,
+		      email,
 	        contact_person AS contactPerson,
 	        contact_person_mobile AS contactPersonMobile,
 	        city,
@@ -10034,8 +10040,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	      gstType: req.body?.gstType != null ? String(req.body.gstType).trim() : null,
 	      creditVoucherApplicable: req.body?.creditVoucherApplicable ? 1 : 0,
 	      address: req.body?.address != null ? String(req.body.address).trim() : null,
-	      phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
-        email: req.body?.email != null ? String(req.body.email).trim() : null,
+		      phone: req.body?.phone != null ? String(req.body.phone).trim() : null,
+          bank: req.body?.bank != null ? String(req.body.bank).trim() : null,
+          accountNumber: req.body?.accountNumber != null ? String(req.body.accountNumber).trim() : null,
+          ifscCode: req.body?.ifscCode != null ? String(req.body.ifscCode).trim().toUpperCase() : null,
+	        email: req.body?.email != null ? String(req.body.email).trim() : null,
 	      contactPerson: req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null,
       contactPersonMobile: req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null,
       city: req.body?.city != null ? String(req.body.city).trim() : null,
@@ -10052,8 +10061,8 @@ app.post('/api/masters/suppliers', async (req, res) => {
 
 	    await pool.query(
 	      `
-	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, email, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, default_credit_days, is_vendor, catalogue_link, msme_applicable, msme_certificate_url, created_by, created_at, updated_at)
-	      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	      INSERT INTO suppliers (id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, bank, account_number, ifsc_code, email, contact_person, contact_person_mobile, city, state, mobile_2, payment_terms, default_credit_days, is_vendor, catalogue_link, msme_applicable, msme_certificate_url, created_by, created_at, updated_at)
+		      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 	      `,
 	      [
 	        supplier.id,
@@ -10062,8 +10071,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	        supplier.gstType,
 	        supplier.creditVoucherApplicable,
 	        supplier.address,
-	        supplier.phone,
-          supplier.email,
+		        supplier.phone,
+            supplier.bank,
+            supplier.accountNumber,
+            supplier.ifscCode,
+	          supplier.email,
 	        supplier.contactPerson,
         supplier.contactPersonMobile,
         supplier.city,
@@ -10087,8 +10099,11 @@ app.post('/api/masters/suppliers', async (req, res) => {
 	        gstType: supplier.gstType ?? undefined,
 	        creditVoucherApplicable: Boolean(supplier.creditVoucherApplicable),
 	        address: supplier.address ?? undefined,
-	        phone: supplier.phone ?? undefined,
-	        email: supplier.email ?? undefined,
+		        phone: supplier.phone ?? undefined,
+            bank: supplier.bank ?? undefined,
+            accountNumber: supplier.accountNumber ?? undefined,
+            ifscCode: supplier.ifscCode ?? undefined,
+		        email: supplier.email ?? undefined,
 	        contactPerson: supplier.contactPerson ?? undefined,
 	        contactPersonMobile: supplier.contactPersonMobile ?? undefined,
 	        city: supplier.city ?? undefined,
@@ -10127,7 +10142,10 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	    const creditVoucherApplicable = req.body?.creditVoucherApplicable ? 1 : 0;
 	    const address = req.body?.address != null ? String(req.body.address).trim() : null;
 	    const phone = req.body?.phone != null ? String(req.body.phone).trim() : null;
-    const email = req.body?.email != null ? String(req.body.email).trim() : null;
+      const bank = req.body?.bank != null ? String(req.body.bank).trim() : null;
+      const accountNumber = req.body?.accountNumber != null ? String(req.body.accountNumber).trim() : null;
+      const ifscCode = req.body?.ifscCode != null ? String(req.body.ifscCode).trim().toUpperCase() : null;
+	    const email = req.body?.email != null ? String(req.body.email).trim() : null;
     const contactPerson = req.body?.contactPerson != null ? String(req.body.contactPerson).trim() : null;
     const contactPersonMobile = req.body?.contactPersonMobile != null ? String(req.body.contactPersonMobile).trim() : null;
     const city = req.body?.city != null ? String(req.body.city).trim() : null;
@@ -10143,7 +10161,7 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	    await pool.query(
 	      `
 	      UPDATE suppliers
-	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, email=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, default_credit_days=?, is_vendor=?, catalogue_link=?, msme_applicable=?, msme_certificate_url=?, updated_by=?, updated_at=NOW()
+	      SET name=?, gst_number=?, gst_type=?, credit_voucher_applicable=?, address=?, phone=?, bank=?, account_number=?, ifsc_code=?, email=?, contact_person=?, contact_person_mobile=?, city=?, state=?, mobile_2=?, payment_terms=?, default_credit_days=?, is_vendor=?, catalogue_link=?, msme_applicable=?, msme_certificate_url=?, updated_by=?, updated_at=NOW()
 	      WHERE id=?
 	      `,
 	      [
@@ -10152,8 +10170,11 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 	        gstType,
 	        creditVoucherApplicable,
 	        address,
-	        phone,
-          email,
+		        phone,
+            bank,
+            accountNumber,
+            ifscCode,
+	          email,
 	        contactPerson,
 	        contactPersonMobile,
 	        city,
@@ -10172,7 +10193,7 @@ app.put('/api/masters/suppliers/:id', async (req, res) => {
 
 	    const [rows] = await pool.query(
 	      `
-	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, email, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, default_credit_days AS defaultCreditDays, is_vendor AS isVendor, catalogue_link AS catalogueLink, msme_applicable AS msmeApplicable, msme_certificate_url AS msmeCertificateUrl
+	      SELECT id, name, gst_number AS gstNumber, gst_type AS gstType, credit_voucher_applicable AS creditVoucherApplicable, address, phone, bank, account_number AS accountNumber, ifsc_code AS ifscCode, email, contact_person AS contactPerson, contact_person_mobile AS contactPersonMobile, city, state, mobile_2 AS mobile2, payment_terms AS paymentTerms, default_credit_days AS defaultCreditDays, is_vendor AS isVendor, catalogue_link AS catalogueLink, msme_applicable AS msmeApplicable, msme_certificate_url AS msmeCertificateUrl
 	      FROM suppliers WHERE id=?
 	      `,
 	      [id]
@@ -12680,7 +12701,7 @@ app.get('/api/masters/suppliers/template', async (_req, res) => {
   csvTemplateResponse(
     res,
     'suppliers-template.csv',
-    'name,gstNumber,gstType,creditVoucherApplicable,address,phone,mobile2,email,contactPerson,contactPersonMobile,city,state,paymentTerms,defaultCreditDays,isVendor,catalogueLink'
+    'name,gstNumber,gstType,creditVoucherApplicable,address,phone,bank,accountNumber,ifscCode,mobile2,email,contactPerson,contactPersonMobile,city,state,paymentTerms,defaultCreditDays,isVendor,catalogueLink'
   );
 });
 app.post('/api/masters/suppliers/import', async (req, res) => {
@@ -12707,11 +12728,11 @@ app.post('/api/masters/suppliers/import', async (req, res) => {
       await pool.query(
         `
         INSERT INTO suppliers (
-          id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, mobile_2, email,
-          contact_person, contact_person_mobile, city, state, payment_terms, default_credit_days,
+          id, name, gst_number, gst_type, credit_voucher_applicable, address, phone, bank, account_number, ifsc_code, mobile_2, email,
+	          contact_person, contact_person_mobile, city, state, payment_terms, default_credit_days,
           is_vendor, catalogue_link, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         `,
         [
           crypto.randomUUID(),
@@ -12720,8 +12741,11 @@ app.post('/api/masters/suppliers/import', async (req, res) => {
           gstType,
           creditVoucherApplicable,
           r.address != null ? String(r.address).trim() || null : null,
-          r.phone != null ? String(r.phone).trim() || null : null,
-          r.mobile2 != null ? String(r.mobile2).trim() || null : null,
+	          r.phone != null ? String(r.phone).trim() || null : null,
+            r.bank != null ? String(r.bank).trim() || null : null,
+            r.accountNumber != null ? String(r.accountNumber).trim() || null : null,
+            r.ifscCode != null ? String(r.ifscCode).trim().toUpperCase() || null : null,
+	          r.mobile2 != null ? String(r.mobile2).trim() || null : null,
           r.email != null ? String(r.email).trim() || null : null,
           r.contactPerson != null ? String(r.contactPerson).trim() || null : null,
           r.contactPersonMobile != null ? String(r.contactPersonMobile).trim() || null : null,

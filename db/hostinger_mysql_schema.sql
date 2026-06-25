@@ -234,16 +234,26 @@ CREATE TABLE item_names (
 , unit_id VARCHAR(255), item_category_id VARCHAR(255)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Table: item_opening_balances
-CREATE TABLE item_opening_balances (
-  id VARCHAR(255) PRIMARY KEY,
-  store_id VARCHAR(255) NOT NULL,
-  item_id VARCHAR(255) NOT NULL,
-  quantity DOUBLE NOT NULL DEFAULT 0,
-  year TEXT NOT NULL DEFAULT '2024-25',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, reorder_level DOUBLE NOT NULL DEFAULT 0,
-  FOREIGN KEY (store_id) REFERENCES stores(id),
-  FOREIGN KEY (item_id) REFERENCES items(id)
+CREATE TABLE item_opening_balances (
+
+  id VARCHAR(255) PRIMARY KEY,
+
+  store_id VARCHAR(255) NOT NULL,
+
+  item_id VARCHAR(255) NOT NULL,
+
+  quantity DOUBLE NOT NULL DEFAULT 0,
+
+  year TEXT NOT NULL DEFAULT '2024-25',
+
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, reorder_level DOUBLE NOT NULL DEFAULT 0,
+
+  FOREIGN KEY (store_id) REFERENCES stores(id),
+
+  FOREIGN KEY (item_id) REFERENCES items(id)
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Table: item_transfer_items
@@ -514,6 +524,9 @@ CREATE TABLE suppliers (
   name TEXT NOT NULL UNIQUE,
   gst_number VARCHAR(255),
   phone VARCHAR(255),
+  bank VARCHAR(255),
+  account_number VARCHAR(255),
+  ifsc_code VARCHAR(64),
   email VARCHAR(255),
   address TEXT,
   default_credit_days INT,

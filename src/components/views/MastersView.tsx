@@ -270,6 +270,9 @@ export default function MastersView({
             const [newSupplierCreditVoucherApplicable, setNewSupplierCreditVoucherApplicable] = useState(false);
 					  const [newSupplierAddress, setNewSupplierAddress] = useState('');
 					  const [newSupplierPhone, setNewSupplierPhone] = useState('');
+            const [newSupplierBank, setNewSupplierBank] = useState('');
+            const [newSupplierAccountNumber, setNewSupplierAccountNumber] = useState('');
+            const [newSupplierIfscCode, setNewSupplierIfscCode] = useState('');
             const [newSupplierMobile2, setNewSupplierMobile2] = useState('');
             const [newSupplierEmail, setNewSupplierEmail] = useState('');
             const [newSupplierContactPerson, setNewSupplierContactPerson] = useState('');
@@ -399,6 +402,9 @@ export default function MastersView({
 		      return [
 		        { value: 'name', label: 'Name' },
 		        { value: 'gst', label: 'GST' },
+              { value: 'bank', label: 'Bank' },
+              { value: 'accountNumber', label: 'Account Number' },
+              { value: 'ifscCode', label: 'IFSC Code' },
 		        { value: 'city', label: 'City' },
 		        { value: 'state', label: 'State' },
 		        { value: 'phone', label: 'Mobile' },
@@ -592,7 +598,10 @@ export default function MastersView({
 		          s.gstType,
 		          s.address,
 		          s.phone,
-              (s as any).email,
+                (s as any).bank,
+                (s as any).accountNumber,
+                (s as any).ifscCode,
+	              (s as any).email,
 		          s.contactPerson,
 		          s.contactPersonMobile,
 		          s.city,
@@ -603,6 +612,9 @@ export default function MastersView({
 		          (s as any).catalogueLink,
 		        ]);
 		      if (listField === 'gst') return matchesListQuery([s.gstNumber]);
+            if (listField === 'bank') return matchesListQuery([(s as any).bank]);
+            if (listField === 'accountNumber') return matchesListQuery([(s as any).accountNumber]);
+            if (listField === 'ifscCode') return matchesListQuery([(s as any).ifscCode]);
 		      if (listField === 'city') return matchesListQuery([s.city]);
 		      if (listField === 'state') return matchesListQuery([s.state]);
 		      if (listField === 'phone') return matchesListQuery([s.phone, (s as any).mobile2]);
@@ -958,6 +970,9 @@ export default function MastersView({
                   setNewSupplierCreditVoucherApplicable(false);
 						      setNewSupplierAddress('');
 						      setNewSupplierPhone('');
+                    setNewSupplierBank('');
+                    setNewSupplierAccountNumber('');
+                    setNewSupplierIfscCode('');
                   setNewSupplierMobile2('');
                   setNewSupplierEmail('');
                   setNewSupplierContactPerson('');
@@ -1087,6 +1102,9 @@ export default function MastersView({
                 setNewSupplierCreditVoucherApplicable(Boolean((row as any)?.creditVoucherApplicable));
 					      setNewSupplierAddress(row?.address ?? '');
 					      setNewSupplierPhone(row?.phone ?? '');
+                  setNewSupplierBank((row as any)?.bank ?? '');
+                  setNewSupplierAccountNumber((row as any)?.accountNumber ?? '');
+                  setNewSupplierIfscCode((row as any)?.ifscCode ?? '');
               setNewSupplierMobile2((row as any)?.mobile2 ?? '');
               setNewSupplierContactPerson((row as any)?.contactPerson ?? '');
               setNewSupplierContactPersonMobile((row as any)?.contactPersonMobile ?? '');
@@ -1841,6 +1859,9 @@ export default function MastersView({
               contactPersonMobile: (s as any).contactPersonMobile ?? '',
               city: (s as any).city ?? '',
               state: (s as any).state ?? '',
+              bank: (s as any).bank ?? '',
+              accountNumber: (s as any).accountNumber ?? '',
+              ifscCode: (s as any).ifscCode ?? '',
               paymentTerms: (s as any).paymentTerms ?? '',
               defaultCreditDays: (s as any).defaultCreditDays ?? '',
               isVendor: s.isVendor ? 'Yes' : 'No',
@@ -3017,7 +3038,34 @@ export default function MastersView({
 				                        pattern="[0-9]{10}"
 				                      />
 				                      {fieldErrors.supplierPhone ? <div className="text-xs text-error">{fieldErrors.supplierPhone}</div> : null}
-				                    </label>
+					                    </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Bank</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierBank}
+                              onChange={(e) => setNewSupplierBank(e.target.value)}
+                              placeholder="Bank name"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Number</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                              value={newSupplierAccountNumber}
+                              onChange={(e) => setNewSupplierAccountNumber(e.target.value)}
+                              placeholder="Account number"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">IFSC Code</div>
+                            <input
+                              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none uppercase"
+                              value={newSupplierIfscCode}
+                              onChange={(e) => setNewSupplierIfscCode(e.target.value.toUpperCase())}
+                              placeholder="IFSC code"
+                            />
+                          </label>
                           <label className="space-y-1">
                             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mobile 2</div>
                             <input
@@ -3230,6 +3278,9 @@ export default function MastersView({
 				                        setNewSupplierGstType('Intra-State');
 				                        setNewSupplierAddress('');
 				                        setNewSupplierPhone('');
+                                setNewSupplierBank('');
+                                setNewSupplierAccountNumber('');
+                                setNewSupplierIfscCode('');
                                 setNewSupplierMobile2('');
                                 setNewSupplierContactPerson('');
                                 setNewSupplierContactPersonMobile('');
@@ -3275,6 +3326,9 @@ export default function MastersView({
 					                        creditVoucherApplicable: newSupplierCreditVoucherApplicable,
 					                              address: newSupplierAddress.trim() || undefined,
 					                              phone: phone || undefined,
+                                bank: newSupplierBank.trim() || undefined,
+                                accountNumber: newSupplierAccountNumber.trim() || undefined,
+                                ifscCode: newSupplierIfscCode.trim() || undefined,
 					                        mobile2: newSupplierMobile2.trim() || undefined,
 					                        email: newSupplierEmail.trim() || undefined,
 					                        contactPerson: newSupplierContactPerson.trim() || undefined,
@@ -3296,6 +3350,9 @@ export default function MastersView({
 					                        creditVoucherApplicable: newSupplierCreditVoucherApplicable,
 					                              address: newSupplierAddress.trim() || undefined,
 					                              phone: phone || undefined,
+                                bank: newSupplierBank.trim() || undefined,
+                                accountNumber: newSupplierAccountNumber.trim() || undefined,
+                                ifscCode: newSupplierIfscCode.trim() || undefined,
 					                        mobile2: newSupplierMobile2.trim() || undefined,
 					                        email: newSupplierEmail.trim() || undefined,
 					                        contactPerson: newSupplierContactPerson.trim() || undefined,
@@ -3329,6 +3386,9 @@ export default function MastersView({
 			                            setNewSupplierGstType('Intra-State');
 				                            setNewSupplierAddress('');
 				                            setNewSupplierPhone('');
+                                setNewSupplierBank('');
+                                setNewSupplierAccountNumber('');
+                                setNewSupplierIfscCode('');
                                 setNewSupplierMobile2('');
                                 setNewSupplierContactPerson('');
                                 setNewSupplierContactPersonMobile('');
@@ -5195,6 +5255,9 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">GST Type</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Address</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Mobile 1</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Bank</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">Account Number</th>
+                                <th className="text-left px-3 py-2 border border-blue-600">IFSC Code</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Mobile 2</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Email</th>
                                 <th className="text-left px-3 py-2 border border-blue-600">Contact Person</th>
@@ -5216,8 +5279,11 @@ export default function MastersView({
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstType ?? ''}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600 whitespace-normal break-words">{s.address ?? ''}</td>
-                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
-                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
+	                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.phone ?? ''}</td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).bank ?? ''}</td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).accountNumber ?? ''}</td>
+                          <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).ifscCode ?? ''}</td>
+	                        <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).mobile2 ?? ''}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).email ?? ''}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPerson ?? ''}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(s as any).contactPersonMobile ?? ''}</td>

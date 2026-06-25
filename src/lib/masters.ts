@@ -18,6 +18,9 @@ export type Supplier = {
   creditVoucherApplicable?: boolean;
   address?: string | null;
   phone?: string | null;
+  bank?: string | null;
+  accountNumber?: string | null;
+  ifscCode?: string | null;
   mobile2?: string | null;
   email?: string | null;
   contactPerson?: string | null;
@@ -601,6 +604,9 @@ export async function createSupplier(input: {
   creditVoucherApplicable?: boolean;
   address?: string;
   phone?: string;
+  bank?: string;
+  accountNumber?: string;
+  ifscCode?: string;
   mobile2?: string;
   email?: string;
   contactPerson?: string;
@@ -632,6 +638,9 @@ export async function updateSupplier(
     creditVoucherApplicable?: boolean;
     address?: string;
     phone?: string;
+    bank?: string;
+    accountNumber?: string;
+    ifscCode?: string;
     mobile2?: string;
     email?: string;
     contactPerson?: string;
