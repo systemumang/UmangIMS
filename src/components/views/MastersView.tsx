@@ -349,7 +349,7 @@ export default function MastersView({
 		  const [listFields, setListFields] = useState<string[]>(['name']);
       const listField = 'all';
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-      const pageSize = 20;
+      const [pageSize, setPageSize] = useState(20);
       const [page, setPage] = useState(1);
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
@@ -756,7 +756,7 @@ export default function MastersView({
 
       useEffect(() => {
         setPage(1);
-      }, [tab, listQuery, listField, listStatusFilter, specIdForValues, specValuesFilterItemNameId]);
+      }, [tab, listQuery, listField, listStatusFilter, specIdForValues, specValuesFilterItemNameId, pageSize]);
 
       useEffect(() => {
         const totalPages = Math.max(1, Math.ceil(currentTotalItems / pageSize));
@@ -6147,7 +6147,26 @@ export default function MastersView({
 	      ) : null}
 
       {currentTotalItems > 0 ? (
-        <Pagination totalItems={currentTotalItems} page={page} pageSize={pageSize} onPageChange={setPage} className="justify-start" labelClassName="hidden" />
+        <div className="flex flex-wrap items-center justify-start gap-3">
+          <label className="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span>Rows</span>
+            <select
+              className="h-9 rounded-lg border border-outline-variant/20 bg-surface-container-low px-3 text-sm text-on-surface outline-none"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value) || 20);
+                setPage(1);
+              }}
+            >
+              {[20, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Pagination totalItems={currentTotalItems} page={page} pageSize={pageSize} onPageChange={setPage} className="justify-start" labelClassName="hidden" />
+        </div>
       ) : null}
     </div>
   );
