@@ -6147,7 +6147,7 @@ export default function MastersView({
 	      ) : null}
 
       {currentTotalItems > 0 ? (
-        <Pagination totalItems={currentTotalItems} page={page} pageSize={pageSize} onPageChange={setPage} />
+        <Pagination totalItems={currentTotalItems} page={page} pageSize={pageSize} onPageChange={setPage} className="justify-start" labelClassName="hidden" />
       ) : null}
     </div>
   );
