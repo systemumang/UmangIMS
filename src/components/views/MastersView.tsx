@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
+import Pagination from '@/src/components/common/Pagination';
 import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
@@ -348,6 +349,8 @@ export default function MastersView({
 		  const [listFields, setListFields] = useState<string[]>(['name']);
       const listField = 'all';
 		  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+      const pageSize = 20;
+      const [page, setPage] = useState(1);
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
       const [customerNameFilter, setCustomerNameFilter] = useState('');
@@ -536,9 +539,14 @@ export default function MastersView({
 				    });
 				  }, [cities, listQueryKey, listField]);
 
+      const pagedFilteredCities = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return filteredCities.slice(start, start + pageSize);
+      }, [filteredCities, page, pageSize]);
+
           const groupedCities = useMemo(() => {
             const byState = new Map<string, City[]>();
-            for (const city of filteredCities) {
+            for (const city of pagedFilteredCities) {
               const stateName = String(city.state ?? '').trim() || 'Unknown State';
               const list = byState.get(stateName) ?? [];
               list.push(city);
@@ -552,7 +560,7 @@ export default function MastersView({
                   .slice()
                   .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base' })),
               }));
-          }, [filteredCities]);
+          }, [pagedFilteredCities]);
 
 		  const filteredStores = useMemo(() => {
 		    if (!listQueryKey) return stores;
@@ -724,6 +732,41 @@ export default function MastersView({
 		      return matchesListQuery([it.itemName, full]);
 		    });
 		  }, [items, itemNames, listQueryKey, specNameLookup, listField]);
+
+      const currentTotalItems = useMemo(() => {
+        if (tab === 'firms') return filteredFirms.length;
+        if (tab === 'departments') return filteredDepartments.length;
+        if (tab === 'states') return filteredStates.length;
+        if (tab === 'cities') return filteredCities.length;
+        if (tab === 'stores') return filteredStores.length;
+        if (tab === 'projects') return filteredProjects.length;
+        if (tab === 'users') return filteredUsers.length;
+        if (tab === 'suppliers') return filteredSuppliers.length;
+        if (tab === 'customers') return filteredCustomers.length;
+        if (tab === 'transporters') return filteredTransporters.length;
+        if (tab === 'units') return filteredUnits.length;
+        if (tab === 'priorities') return filteredPriorities.length;
+        if (tab === 'itemCategories') return filteredItemCategories.length;
+        if (tab === 'itemNames') return filteredItemNames.length;
+        if (tab === 'specs') return filteredSpecs.length;
+        if (tab === 'specValues') return filteredSpecValues.length;
+        if (tab === 'items') return filteredItems.length;
+        return 0;
+      }, [tab, filteredFirms.length, filteredDepartments.length, filteredStates.length, filteredCities.length, filteredStores.length, filteredProjects.length, filteredUsers.length, filteredSuppliers.length, filteredCustomers.length, filteredTransporters.length, filteredUnits.length, filteredPriorities.length, filteredItemCategories.length, filteredItemNames.length, filteredSpecs.length, filteredSpecValues.length, filteredItems.length]);
+
+      useEffect(() => {
+        setPage(1);
+      }, [tab, listQuery, listField, listStatusFilter, specIdForValues, specValuesFilterItemNameId]);
+
+      useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(currentTotalItems / pageSize));
+        if (page > totalPages) setPage(totalPages);
+      }, [currentTotalItems, page, pageSize]);
+
+      const paginateRows = <T,>(rows: T[]) => {
+        const start = (page - 1) * pageSize;
+        return rows.slice(start, start + pageSize);
+      };
 
 	  const searchPlaceholder = useMemo(() => {
 	    if (tab === 'firms') return 'Search firms...';
@@ -4729,7 +4772,7 @@ export default function MastersView({
 				                </tr>
 					              </thead>
 					              <tbody>
-					                {filteredFirms.map((f) => (
+					                {paginateRows(filteredFirms).map((f) => (
 						                  <tr key={f.id}>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{f.name}</td>
 					                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String(f.sortName ?? '').trim() || '-'}</td>
@@ -4817,7 +4860,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredDepartments.map((d) => (
+				                {paginateRows(filteredDepartments).map((d) => (
 				                  <tr key={d.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{d.name}</td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -4876,7 +4919,7 @@ export default function MastersView({
 				                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredStates.map((s) => (
+				                {paginateRows(filteredStates).map((s) => (
 				                  <tr key={s.id}>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -5023,7 +5066,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredStores.map((s) => (
+				                {paginateRows(filteredStores).map((s) => (
 				                  <tr key={s.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">
 			                      {firmNameLookup[s.firmId] ?? s.firmId}
@@ -5099,7 +5142,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredProjects.map((p) => (
+				                {paginateRows(filteredProjects).map((p) => (
 				                  <tr key={p.id}>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">
 				                      {firmNameLookup[p.firmId] ?? p.firmId}
@@ -5170,7 +5213,7 @@ export default function MastersView({
 				                </tr>
 					              </thead>
 					              <tbody>
-					                {filteredUsers.map((u) => (
+					                {paginateRows(filteredUsers).map((u) => (
 					                  <tr key={u.id}>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((u as any).loginId ?? '')}</td>
@@ -5273,7 +5316,7 @@ export default function MastersView({
                         </tr>
                         </thead>
                         <tbody>
-                        {filteredSuppliers.map((s) => (
+                        {paginateRows(filteredSuppliers).map((s) => (
                         <tr key={s.id}>
                         <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
                         <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{s.gstNumber ?? ''}</td>
@@ -5408,7 +5451,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredCustomers.map((c) => (
+				                {paginateRows(filteredCustomers).map((c) => (
 				                  <tr key={c.id}>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{(c as any).categoryName ?? ''}</td>
@@ -5473,7 +5516,7 @@ export default function MastersView({
 		                </tr>
 			              </thead>
 			              <tbody>
-			                {filteredTransporters.map((t) => (
+			                {paginateRows(filteredTransporters).map((t) => (
 			                  <tr key={t.id}>
 		                    <td className="px-3 py-2 text-on-surface border border-blue-600">{t.name}</td>
 		                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{t.phone ?? ''}</td>
@@ -5529,7 +5572,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredUnits.map((u) => (
+				                {paginateRows(filteredUnits).map((u) => (
 				                  <tr key={u.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -5586,7 +5629,7 @@ export default function MastersView({
                         </tr>
 	                      </thead>
 	                      <tbody>
-	                        {filteredPriorities.map((p) => (
+	                        {paginateRows(filteredPriorities).map((p) => (
 	                          <tr key={p.id}>
                             <td className="px-3 py-2 text-on-surface border border-blue-600">{p.name}</td>
                             <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -5643,7 +5686,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredItemCategories.map((c) => (
+				                {paginateRows(filteredItemCategories).map((c) => (
 				                  <tr key={c.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{c.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -5718,7 +5761,7 @@ export default function MastersView({
 						                </tr>
 						              </thead>
 						              <tbody>
-						                {filteredItemNames.map((n) => (
+						                {paginateRows(filteredItemNames).map((n) => (
 						                  <tr key={n.id}>
 						                    <td className="px-3 py-2 text-on-surface border border-blue-600">{n.name}</td>
 						                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{n.unitName ?? ''}</td>
@@ -5822,7 +5865,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredSpecs.map((s) => (
+				                {paginateRows(filteredSpecs).map((s) => (
 				                  <tr key={s.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{s.name}</td>
 			                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
@@ -5921,7 +5964,7 @@ export default function MastersView({
 			                </tr>
 				              </thead>
 				              <tbody>
-				                {filteredSpecValues.map((v) => (
+				                {paginateRows(filteredSpecValues).map((v) => (
 				                  <tr key={v.id}>
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{String((v as any).itemName ?? '')}</td>
 			                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">
@@ -6004,7 +6047,7 @@ export default function MastersView({
 			                </tr>
 	              </thead>
 	              <tbody>
-	                {filteredItems.map((it) => (
+	                {paginateRows(filteredItems).map((it) => (
 	                  <tr key={it.id} className="align-top">
 			                    <td className="px-3 py-2 text-on-surface border border-blue-600">{it.itemName}</td>
 						                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[420px]">
@@ -6103,7 +6146,9 @@ export default function MastersView({
 	        </div>
 	      ) : null}
 
-      {tab === 'items' ? null : null}
+      {currentTotalItems > 0 ? (
+        <Pagination totalItems={currentTotalItems} page={page} pageSize={pageSize} onPageChange={setPage} />
+      ) : null}
     </div>
   );
 }
