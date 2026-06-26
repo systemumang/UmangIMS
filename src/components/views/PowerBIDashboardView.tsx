@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
-import { fetchRequests } from '@/src/lib/purchaseRequests';
 	import {
 	  fetchQueueApprovePr,
 	  fetchQueueCheckPo,
@@ -66,10 +65,6 @@ export default function PowerBIDashboardView({
   const [pendingLoading, setPendingLoading] = useState(true);
   const [pendingError, setPendingError] = useState<string | null>(null);
 
-  const [prStatusCounts, setPrStatusCounts] = useState<Record<string, number>>({});
-  const [prLoading, setPrLoading] = useState(true);
-  const [prError, setPrError] = useState<string | null>(null);
-
   const dayTabs = useMemo(() => {
     const list: Array<{ iso: string; label: string }> = [];
     const now = new Date();
@@ -85,60 +80,6 @@ export default function PowerBIDashboardView({
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
   const [catalogueUrl, setCatalogueUrl] = useState<string>('');
-
-  useEffect(() => {
-    const ac = new AbortController();
-    setPendingLoading(true);
-    setPendingError(null);
-    Promise.all([
-      fetchQueueApprovePr(undefined, ac.signal).then((r) => ['queueApprovePr', r.length] as const),
-      fetchQueueCreatePo(undefined, ac.signal).then((r) => ['queueCreatePo', r.length] as const),
-      fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
-      fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
-      fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
-	      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
-	      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
-	      fetchQueueEnterCreditVoucher(undefined, ac.signal).then((r) => ['queueEnterCreditVoucher', r.length] as const),
-	      fetchQueueApproveInvoice(undefined, ac.signal).then((r) => ['queueApproveInvoice', r.length] as const),
-	      fetchQueueApproveCreditVoucher(undefined, ac.signal).then((r) => ['queueApproveCreditVoucher', r.length] as const),
-	      fetchQueueTallyEntry(undefined, ac.signal).then((r) => ['queueTallyEntry', r.length] as const),
-		      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((r) => ['queueLinkInvoiceGrn', r.length] as const),
-		      fetchQueuePayment(undefined, ac.signal).then((r) => ['queuePayment', r.length] as const),
-		      fetchQueueCreditVoucherPayment(undefined, ac.signal).then((r) => ['queueCreditVoucherPayment', r.length] as const),
-		    ])
-      .then((pairs) => {
-        const next: any = {};
-        for (const [k, v] of pairs) next[k] = v;
-        setPendingCounts(next);
-      })
-      .catch((e) => {
-        if (ac.signal.aborted) return;
-        setPendingError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => setPendingLoading(false));
-    return () => ac.abort();
-  }, []);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    setPrLoading(true);
-    setPrError(null);
-    fetchRequests(ac.signal)
-      .then((reqs) => {
-        const map: Record<string, number> = {};
-        for (const r of reqs) {
-          const s = String((r as any)?.status ?? '').trim() || 'Unknown';
-          map[s] = (map[s] ?? 0) + 1;
-        }
-        setPrStatusCounts(map);
-      })
-      .catch((e) => {
-        if (ac.signal.aborted) return;
-        setPrError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => setPrLoading(false));
-    return () => ac.abort();
-  }, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -188,31 +129,6 @@ export default function PowerBIDashboardView({
   }, []);
 
   const pendingTotal = useMemo(() => pendingQueueItems.reduce((sum, it) => sum + (pendingCounts[it.key] ?? 0), 0), [pendingCounts]);
-
-  const prBars = useMemo(() => {
-    const entries = Object.entries(prStatusCounts);
-    const order = ['Pending Approval', 'Approved', 'Rejected'];
-    entries.sort((a, b) => {
-      const ai = order.indexOf(a[0]);
-      const bi = order.indexOf(b[0]);
-      if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-      return a[0].localeCompare(b[0]);
-    });
-    return entries.map(([label, value], idx) => ({
-      label,
-      value,
-      colorClass:
-        idx % 5 === 0
-          ? 'bg-blue-600'
-          : idx % 5 === 1
-            ? 'bg-emerald-600'
-            : idx % 5 === 2
-              ? 'bg-amber-500'
-              : idx % 5 === 3
-                ? 'bg-fuchsia-600'
-                : 'bg-teal-600',
-    }));
-  }, [prStatusCounts]);
 
   const pendingIconByKey: Record<PendingQueueKey, React.ComponentType<{ size?: number; className?: string }>> = useMemo(
     () => ({
@@ -422,33 +338,6 @@ export default function PowerBIDashboardView({
             </div>
           ) : null}
 	      </div>
-
-		      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-			        <div className="bg-surface-container-lowest rounded-md border-2 border-[#374151] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-	          <div className="flex items-center justify-between gap-3 mb-4">
-	            <div>
-	              <div className="text-sm font-bold text-on-surface">Purchase Requests</div>
-	              <div className="text-xs text-on-surface-variant mt-0.5">By status (live)</div>
-	            </div>
-              {prLoading ? <div className="text-xs text-on-surface-variant">Loading...</div> : null}
-	          </div>
-            {prError ? <div className="text-xs text-error">Failed to load: {prError}</div> : null}
-            {!prError ? (
-              <div className="flex items-end gap-2 h-40">
-                {(() => {
-                  const max = Math.max(1, ...prBars.map((b) => b.value));
-                  return prBars.map((b) => (
-                    <div key={b.label} className="flex-1 flex flex-col items-center justify-end gap-2">
-                      <div className="text-xs font-bold text-on-surface tabular-nums">{b.value}</div>
-                      <div className={cn('w-full rounded-lg', b.colorClass)} style={{ height: `${Math.max(14, Math.round((b.value / max) * 140))}px` }} />
-                      <div className="text-[10px] text-on-surface-variant text-center whitespace-nowrap">{b.label}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            ) : null}
-		        </div>
-		      </div>
-	    </div>
-	  );
+    </div>
+  );
 }

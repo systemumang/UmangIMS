@@ -5409,11 +5409,9 @@ app.get('/api/operations/pos', async (req, res) => {
 	      where.push('po.supplier_id = ?');
 	      params.push(f.supplierId);
 	    }
-	    if (!normalizedStatus) {
-	      where.push(`LOWER(COALESCE(po.status, '')) <> 'draft'`);
-	    } else if (normalizedStatus === 'draft') {
-	      where.push(`LOWER(COALESCE(po.status, '')) = 'draft'`);
-	    }
+    if (normalizedStatus === 'draft') {
+      where.push(`LOWER(COALESCE(po.status, '')) = 'draft'`);
+    }
 	    if (f.from) {
 	      where.push('DATE(po.order_date) >= ?');
       params.push(f.from);
