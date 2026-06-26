@@ -1353,7 +1353,7 @@ export default function OperationsView({
 	  return (
 	    <div className="space-y-6">
 
-	      <div className="flex items-center justify-end gap-3 flex-wrap">
+	      <div className="flex items-center justify-between gap-3 flex-wrap">
         {tab === 'pos' ? (
           <div className="flex items-center gap-2 flex-wrap">
             {masters.firms.map((firm) => {
