@@ -1353,29 +1353,40 @@ export default function OperationsView({
 	  return (
 	    <div className="space-y-6">
 
-	      <div className="flex items-center justify-end">
-	        <button
-	          type="button"
-	          className="btn btn-sm"
-	          onClick={exportCsv}
-	          disabled={loading}
-	          title={tab === 'pos' ? 'Download Excel' : 'Export'}
-	        >
-	          {tab === 'pos' ? 'Download Excel' : 'Export'}
-	        </button>
-	      </div>
+	      <div className="flex items-center justify-end gap-3">
+        {tab === 'pos' ? (
+          <div className="w-full max-w-[180px]">
+            <SearchableSelect
+              placeholder="All Firms"
+              value={filters.firmId ?? ''}
+              options={firmOptions}
+              onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))}
+            />
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={exportCsv}
+          disabled={loading}
+          title={tab === 'pos' ? 'Download Excel' : 'Export'}
+        >
+          {tab === 'pos' ? 'Download Excel' : 'Export'}
+        </button>
+      </div>
 
-	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
 	        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
 	          <label className="space-y-1 md:col-span-2">
 	            <div className={labelClass}>Search</div>
 	            <input className={inputClass} value={filters.q ?? ''} onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))} placeholder="id / no / supplier / firm / project..." />
 	          </label>
-	
-	          <label className="space-y-1">
-	            <div className={labelClass}>Firm</div>
-	            <SearchableSelect placeholder="All Firms" value={filters.firmId ?? ''} options={firmOptions} onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))} />
-	          </label>
+          {tab !== 'pos' ? (
+            <label className="space-y-1">
+              <div className={labelClass}>Firm</div>
+              <SearchableSelect placeholder="All Firms" value={filters.firmId ?? ''} options={firmOptions} onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))} />
+            </label>
+          ) : null}
 
 	          <label className="space-y-1">
 	            <div className={labelClass}>Store</div>
