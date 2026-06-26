@@ -1353,15 +1353,28 @@ export default function OperationsView({
 	  return (
 	    <div className="space-y-6">
 
-	      <div className="flex items-center justify-end gap-3">
+	      <div className="flex items-center justify-end gap-3 flex-wrap">
         {tab === 'pos' ? (
-          <div className="w-full max-w-[180px]">
-            <SearchableSelect
-              placeholder="All Firms"
-              value={filters.firmId ?? ''}
-              options={firmOptions}
-              onChange={(v) => setFilters((p) => ({ ...p, firmId: v }))}
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            {masters.firms.map((firm) => {
+              const label = String(firm.sortName ?? '').trim() || firm.name;
+              const isActive = String(filters.firmId ?? '') === String(firm.id ?? '');
+              return (
+                <button
+                  key={firm.id}
+                  type="button"
+                  className={cn(
+                    'px-3 h-9 rounded-lg border text-sm font-semibold transition-colors',
+                    isActive
+                      ? 'bg-primary text-on-primary border-primary'
+                      : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-container-high'
+                  )}
+                  onClick={() => setFilters((p) => ({ ...p, firmId: isActive ? '' : String(firm.id ?? '') }))}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         ) : null}
         <button
