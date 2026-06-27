@@ -9662,6 +9662,7 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
     const [rows] = await pool.query(
       `
       SELECT
+        poi.id AS poItemId,
         poi.item_id AS itemId,
         iname.name AS item,
         u.name AS unit,

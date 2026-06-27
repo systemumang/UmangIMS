@@ -956,9 +956,9 @@ export async function fetchPendingInvoiceItems(poId: string, signal?: AbortSigna
   return Array.isArray(data.items) ? data.items : [];
 }
 
-export async function fetchPendingGrnItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }>> {
+export async function fetchPendingGrnItems(poId: string, signal?: AbortSignal): Promise<Array<{ poItemId?: string; itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }>> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/pending-grn-items`, { signal });
-  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }> }>(res, 'Failed to load pending GRN items');
+  const data = await requireOk<{ items?: Array<{ poItemId?: string; itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }> }>(res, 'Failed to load pending GRN items');
   return Array.isArray(data.items) ? data.items : [];
 }
 
