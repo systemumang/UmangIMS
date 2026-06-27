@@ -2,6 +2,9 @@ import React, { Component, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { installNativeSelectContainsSearch } from './lib/nativeSelectContainsSearch';
+
+installNativeSelectContainsSearch();
 
 function formatUnknownError(err: unknown) {
   if (err instanceof Error) return { message: err.message, stack: err.stack };
