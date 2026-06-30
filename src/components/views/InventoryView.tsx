@@ -190,9 +190,10 @@ export default function InventoryView() {
 
     const balance = Number((r as any).balance ?? 0);
     const reorderLevel = Number((r as any).reorderLevel ?? 0);
+    const hasPositiveBalance = balance > 0;
     const byPendingOrder = !pendingOrderOnly || balance <= reorderLevel;
 
-    if (!selectedStoreName) return bySearch && byPendingOrder;
+    if (!selectedStoreName) return bySearch && byPendingOrder && hasPositiveBalance;
     const rowStore = getStoreLabel(r).toLowerCase();
     const wanted = selectedStoreName.toLowerCase();
     const byStore = rowStore
@@ -200,7 +201,7 @@ export default function InventoryView() {
       .map((s) => s.trim())
       .filter(Boolean)
       .includes(wanted);
-    return bySearch && byStore && byPendingOrder;
+    return bySearch && byStore && byPendingOrder && hasPositiveBalance;
   });
   const sortedRows = [...filteredRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
