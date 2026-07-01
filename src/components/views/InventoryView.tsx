@@ -506,9 +506,9 @@ export default function InventoryView() {
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-center justify-between gap-3">
           <div className="font-headline font-bold text-sm text-on-surface">Item Sheet</div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <button type="button" className={cn('btn btn-sm', selectedFirmId === ALL_FIRMS_VALUE ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(ALL_FIRMS_VALUE)}>All Firms</button>
+            <button type="button" className={cn('btn btn-sm', selectedFirmId === ALL_FIRMS_VALUE ? 'bg-error text-on-primary border-error hover:bg-error/90' : '')} onClick={() => setSelectedFirmId(ALL_FIRMS_VALUE)}>All Firms</button>
             {firms.map((f) => (
-              <button key={f.id} type="button" className={cn('btn btn-sm', selectedFirmId === f.id ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(f.id)}>
+              <button key={f.id} type="button" className={cn('btn btn-sm', selectedFirmId === f.id ? 'bg-error text-on-primary border-error hover:bg-error/90' : '')} onClick={() => setSelectedFirmId(f.id)}>
                 {String(f.sortName ?? '').trim() || f.name}
               </button>
             ))}
