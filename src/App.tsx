@@ -36,6 +36,7 @@ const DirectPoView = lazy(() => import('./components/views/DirectPoView'));
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
 import { loginWithLoginId, type AuthUser } from '@/src/lib/auth';
+import { listDamages, listIssues, listReturns, listTransfers } from '@/src/lib/stockMaster';
 	import {
 	  fetchCustomers,
 	  fetchDepartments,
