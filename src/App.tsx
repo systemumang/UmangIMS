@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
-import Sidebar, { type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockMasterTab } from './components/Sidebar';
+import Sidebar, { type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockCountKey, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
 const PowerBIDashboardView = lazy(() => import('./components/views/PowerBIDashboardView'));
 const InventoryView = lazy(() => import('./components/views/InventoryView'));
@@ -143,6 +143,7 @@ export default function App() {
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
 	      const [purchaseMastersCounts, setPurchaseMastersCounts] = useState<Partial<Record<PurchaseMastersTab, number>>>({});
+      const [stockCounts, setStockCounts] = useState<Partial<Record<StockCountKey, number>>>({});
 
   const [inFlightCount, setInFlightCount] = useState(0);  const [writeFlowActive, setWriteFlowActive] = useState(false);
   const [countsRefreshTick, setCountsRefreshTick] = useState(0);
@@ -258,6 +259,26 @@ export default function App() {
       .catch(() => {});
     return () => ac.abort();
 	  }, [currentUser, view, countsRefreshTick]);
+
+      useEffect(() => {
+        if (!currentUser) return;
+        Promise.all([
+          listIssues().then((rows) => rows.length).catch(() => 0),
+          listReturns().then((rows) => rows.length).catch(() => 0),
+          listDamages().then((rows) => rows.length).catch(() => 0),
+          listTransfers().then((rows) => rows.length).catch(() => 0),
+        ])
+          .then(([issueMaster, returnMaster, damageMaster, transferMaster]) => {
+            setStockCounts({
+              inventory: 0,
+              issueMaster,
+              returnMaster,
+              damageMaster,
+              transferMaster,
+            });
+          })
+          .catch(() => {});
+      }, [currentUser, view, countsRefreshTick]);
 
 		  useEffect(() => {
 		    if (!currentUser) return;
@@ -497,6 +518,7 @@ export default function App() {
 	                pendingQueueCounts={pendingQueueCounts}
 	                mastersCounts={mastersCounts}
 	                purchaseMastersCounts={purchaseMastersCounts}
+                stockCounts={stockCounts}
 				        activeMastersTab={sidebarActive === 'masters' ? mastersTab : undefined}
 				        mastersExpanded={mastersExpanded}
 				        pendingExpanded={pendingExpanded}

@@ -138,6 +138,7 @@ export const settingsMenuItems: Array<{ key: NavView; label: string }> = [
 ];
 
 export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
+export type StockCountKey = 'inventory' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster';
 
 export default function Sidebar({
   activeView,
@@ -157,6 +158,7 @@ export default function Sidebar({
   activeReportView,
   activeOperationsTab,
   purchaseMastersCounts,
+  stockCounts,
   isNewPurchaseRequestActive,
   onNavigate,
   onNavigatePendingQueue,
@@ -187,6 +189,7 @@ export default function Sidebar({
       reportsExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
   purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
+  stockCounts?: Partial<Record<StockCountKey, number>>;
   quotationExpanded?: boolean;
   activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
   activeReportView?: 'reportExpenses' | 'reportPendingOrder';
@@ -387,7 +390,8 @@ export default function Sidebar({
                     onClick={() => onNavigateStockView(it.key)}
                     className={cn(subRowClass, activeView === it.key ? subActiveClass : subInactiveClass)}
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      <span className="inline-flex items-center gap-2">
                       {it.key === 'inventory' ? (
                         <Package size={14} />
                       ) : it.key === 'issueMaster' ? (
@@ -399,7 +403,11 @@ export default function Sidebar({
                       ) : (
                         <Boxes size={14} />
                       )}
-                      {it.label}
+                        {it.label}
+                      </span>
+                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+                        {Number(stockCounts?.[it.key as StockCountKey] ?? 0)}
+                      </span>
                     </span>
                   </button>
 	                ))}
