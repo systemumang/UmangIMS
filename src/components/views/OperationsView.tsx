@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { cn } from '@/src/lib/utils';
@@ -1551,6 +1551,7 @@ export default function OperationsView({
                           <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Balance</th>
                           <SortTh label="Status" colKey="status" />
                           <SortTh label="Amount" colKey="invoiceAmount" />
+                              <th className="px-3 py-2 border border-outline-variant bg-primary text-on-primary">Action</th>
 			                    </>
 				                ) : tab === 'creditVouchers' ? (
 	                    <>
@@ -1583,13 +1584,13 @@ export default function OperationsView({
             <tbody>
 			              {loading ? (
 			                <tr>
-								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 13 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 				                    Loading...
 				                  </td>
 				                </tr>
 				              ) : !paged.length ? (
 				                <tr>
-								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 12 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
+								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 13 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
 				                    No records.
 				                  </td>
 				                </tr>
@@ -1774,6 +1775,20 @@ export default function OperationsView({
 	                              </td>
 					                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
 					                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(3)}</td>
+                              <td className="px-3 py-2 border border-outline-variant text-center">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                  title="View Invoice"
+                                  aria-label="View Invoice"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDetailForRow(r);
+                                  }}
+                                >
+                                  <Eye size={16} />
+                                </button>
+                              </td>
 					                      </>
 		                    ) : tab === 'creditVouchers' ? (
 		                      <>
@@ -1889,7 +1904,7 @@ export default function OperationsView({
 	                      ) : null}
                         {tab === 'invoices' && isInvoiceExpanded ? (
                           <tr>
-                            <td colSpan={12} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
+                            <td colSpan={13} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
                               {invoiceDetailLoading ? <div className="text-sm text-on-surface-variant">Loading items...</div> : null}
                               {!invoiceDetailLoading && invoiceDetailError ? <div className="text-sm text-error">{invoiceDetailError}</div> : null}
                               {!invoiceDetailLoading && !invoiceDetailError && invoiceDetail ? (
@@ -3297,6 +3312,47 @@ export default function OperationsView({
                         Payments
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
+                  <div className="px-4 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Expenses</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+                      <thead>
+                        <tr className="bg-surface-container-high">
+                          <th className="px-3 py-2 border border-outline-variant">Expense</th>
+                          <th className="px-3 py-2 border border-outline-variant w-[160px] text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          ['Courier Charge', detail.invoice?.invoice?.courierCharge],
+                          ['Packing Charge', detail.invoice?.invoice?.packingCharge],
+                          ['Labour Charge', detail.invoice?.invoice?.labourCharge],
+                          ['Other Charge', detail.invoice?.invoice?.otherCharge],
+                          ['GST on Charges', detail.invoice?.invoice?.chargesGstAmount],
+                        ]
+                          .filter(([, amount]) => Number(amount ?? 0) > 0)
+                          .map(([label, amount]) => (
+                            <tr key={String(label)}>
+                              <td className="px-3 py-2 border border-outline-variant">{label}</td>
+                              <td className="px-3 py-2 border border-outline-variant tabular-nums text-right">{Number(amount ?? 0).toFixed(3)}</td>
+                            </tr>
+                          ))}
+                        {![
+                          detail.invoice?.invoice?.courierCharge,
+                          detail.invoice?.invoice?.packingCharge,
+                          detail.invoice?.invoice?.labourCharge,
+                          detail.invoice?.invoice?.otherCharge,
+                          detail.invoice?.invoice?.chargesGstAmount,
+                        ].some((amount) => Number(amount ?? 0) > 0) ? (
+                          <tr>
+                            <td colSpan={2} className="px-3 py-4 border border-outline-variant text-on-surface-variant italic text-center">No expenses entered</td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
