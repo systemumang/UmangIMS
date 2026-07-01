@@ -14021,6 +14021,190 @@ app.get('/api/inventory/sheet', async (req, res) => {
   }
 });
 
+
+function formatReportItemLabel(itemName, specificationsJson) {
+  const base = String(itemName ?? '').trim();
+  let specs = [];
+  try {
+    const obj = typeof specificationsJson === 'string' ? JSON.parse(specificationsJson || '{}') : specificationsJson;
+    if (obj && typeof obj === 'object') {
+      specs = Object.values(obj).map((v) => String(v ?? '').trim()).filter(Boolean);
+    }
+  } catch {}
+  return [base, ...specs].filter(Boolean).join(' - ') || '-';
+}
+
+app.get('/api/reports/expenses', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const from = String(req.query.from ?? '').trim();
+    const to = String(req.query.to ?? '').trim();
+    const expense = String(req.query.expense ?? '').trim();
+    const where = ['1=1'];
+    const params = [];
+    if (from) {
+      where.push('DATE(inv.invoice_date) >= ?');
+      params.push(from);
+    }
+    if (to) {
+      where.push('DATE(inv.invoice_date) <= ?');
+      params.push(to);
+    }
+    if (expense) {
+      where.push('(ii.item_id = ? OR iname.name = ?)');
+      params.push(expense, expense);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        inv.invoice_date AS date,
+        inv.invoice_number AS invoiceNo,
+        inv.id AS invoiceId,
+        s.name AS supplier,
+        ii.item_id AS itemId,
+        iname.name AS itemName,
+        it.specifications_json AS specificationsJson,
+        COALESCE(ii.quantity, 0) AS quantity,
+        COALESCE(ii.rate, 0) AS rate,
+        COALESCE(ii.tax_percent, 0) AS taxPercent
+      FROM invoice_items ii
+      INNER JOIN invoices inv ON inv.id = ii.invoice_id
+      LEFT JOIN suppliers s ON s.id = inv.supplier_id
+      LEFT JOIN items it ON it.id = ii.item_id
+      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY inv.invoice_date DESC, inv.created_at DESC, inv.invoice_number, iname.name
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => {
+      const quantity = num(r.quantity, 0);
+      const rate = num(r.rate, 0);
+      const taxPercent = num(r.taxPercent, 0);
+      return {
+        date: toIsoDate(r.date) || '',
+        invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+        expenses: formatReportItemLabel(r.itemName, r.specificationsJson),
+        expenseId: String(r.itemId ?? ''),
+        supplier: String(r.supplier ?? ''),
+        amount: round2(quantity * rate + (quantity * rate * taxPercent) / 100),
+      };
+    });
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+async function fetchStockSummaryRows(pool) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      it.id AS itemId,
+      iname.name AS itemName,
+      it.specifications_json AS specificationsJson,
+      ic.name AS category,
+      it.reorder_level AS reorderLevel,
+      COALESCE(opening.openingQty, 0) AS openingQty,
+      COALESCE(purchase.purchaseQty, 0) AS purchaseQty,
+      COALESCE(returns.returnQty, 0) AS returnQty,
+      COALESCE(issue.issueQty, 0) AS issueQty,
+      COALESCE(damage.damageQty, 0) AS damageQty,
+      COALESCE(po.pendingPoQty, 0) AS poInProgress
+    FROM items it
+    LEFT JOIN item_names iname ON iname.id = it.item_name_id
+    LEFT JOIN item_categories ic ON ic.id = iname.item_category_id
+    LEFT JOIN (
+      SELECT item_id AS itemId, SUM(COALESCE(quantity, 0)) AS openingQty
+      FROM item_opening_balances
+      GROUP BY item_id
+    ) opening ON opening.itemId = it.id
+    LEFT JOIN (
+      SELECT qc.item_id AS itemId, SUM(COALESCE(qc.accepted_qty, 0)) AS purchaseQty
+      FROM qc_records qc
+      GROUP BY qc.item_id
+    ) purchase ON purchase.itemId = it.id
+    LEFT JOIN (
+      SELECT iri.item_id AS itemId, SUM(COALESCE(iri.quantity, 0)) AS returnQty
+      FROM item_return_items iri
+      GROUP BY iri.item_id
+    ) returns ON returns.itemId = it.id
+    LEFT JOIN (
+      SELECT iii.item_id AS itemId, SUM(COALESCE(iii.quantity, 0)) AS issueQty
+      FROM item_issue_items iii
+      GROUP BY iii.item_id
+    ) issue ON issue.itemId = it.id
+    LEFT JOIN (
+      SELECT item_id AS itemId, SUM(COALESCE(quantity, 0)) AS damageQty
+      FROM damaged_items
+      GROUP BY item_id
+    ) damage ON damage.itemId = it.id
+    LEFT JOIN (
+      SELECT
+        poi.item_id AS itemId,
+        SUM(GREATEST(COALESCE(poi.quantity, 0) - COALESCE(poi.cancelled_qty, 0) - COALESCE(grn.receivedQty, 0), 0)) AS pendingPoQty
+      FROM purchase_order_items poi
+      INNER JOIN purchase_orders po ON po.id = poi.po_id
+      LEFT JOIN (
+        SELECT g.po_id AS poId, gi.item_id AS itemId, SUM(COALESCE(gi.received_qty, 0)) AS receivedQty
+        FROM grns g
+        INNER JOIN grn_items gi ON gi.grn_id = g.id
+        GROUP BY g.po_id, gi.item_id
+      ) grn ON grn.poId = poi.po_id AND grn.itemId = poi.item_id
+      WHERE po.status IN ('Open', 'Partial')
+      GROUP BY poi.item_id
+    ) po ON po.itemId = it.id
+    WHERE it.is_active = 1
+    ORDER BY iname.name ASC
+    `
+  );
+
+  return (Array.isArray(rows) ? rows : []).map((r) => {
+    const currentBalance =
+      num(r.openingQty, 0) +
+      num(r.purchaseQty, 0) +
+      num(r.returnQty, 0) -
+      num(r.issueQty, 0) -
+      num(r.damageQty, 0);
+    const reorderLevel = num(r.reorderLevel, 0);
+    const poInProgress = num(r.poInProgress, 0);
+    return {
+      itemId: String(r.itemId ?? ''),
+      item: formatReportItemLabel(r.itemName, r.specificationsJson),
+      category: String(r.category ?? ''),
+      currentBalance: round2(currentBalance),
+      closingStock: round2(currentBalance),
+      poInProgress: round2(poInProgress),
+      reorderLevel: round2(reorderLevel),
+      shortfall: round2(Math.max(0, reorderLevel - (currentBalance + poInProgress))),
+    };
+  });
+}
+
+app.get('/api/reports/stock-summary', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    res.json({ rows: await fetchStockSummaryRows(pool) });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/reports/pending-order', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const rows = (await fetchStockSummaryRows(pool)).filter((r) => r.reorderLevel > 0 && r.currentBalance + r.poInProgress < r.reorderLevel);
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // --- Invoices ---
 async function handleCreateInvoice(req, res) {
   try {

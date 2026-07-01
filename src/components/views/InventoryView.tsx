@@ -14,11 +14,14 @@ export default function InventoryView() {
   const [stores, setStores] = useState<Store[]>([]);
   const [specNameById, setSpecNameById] = useState<Record<string, string>>({});
   const [goodsItemIds, setGoodsItemIds] = useState<Set<string>>(new Set());
+  const [itemMetaById, setItemMetaById] = useState<Record<string, { itemNameId: string; category: string }>>({});
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
   const [selectedStoreFilterId, setSelectedStoreFilterId] = useState<string>('');
   const [rows, setRows] = useState<InventorySheetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [itemNameFilterId, setItemNameFilterId] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [pendingOrderOnly, setPendingOrderOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -36,10 +39,18 @@ export default function InventoryView() {
     fetchStores().then(setStores);
     Promise.all([fetchItems(), fetchItemNames()])
       .then(([itemRows, itemNameRows]) => {
+        const itemNameById = new Map(itemNameRows.map((n) => [String(n.id), n]));
         const goodsNameIds = new Set(itemNameRows.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => String(n.id)));
         setGoodsItemIds(new Set(itemRows.filter((it) => goodsNameIds.has(String(it.itemNameId ?? ''))).map((it) => String(it.id))));
+        setItemMetaById(Object.fromEntries(itemRows.map((it) => {
+          const itemName = itemNameById.get(String(it.itemNameId ?? ''));
+          return [String(it.id), { itemNameId: String(it.itemNameId ?? ''), category: String((itemName as any)?.itemCategoryName ?? '') }];
+        })));
       })
-      .catch(() => setGoodsItemIds(new Set()));
+      .catch(() => {
+        setGoodsItemIds(new Set());
+        setItemMetaById({});
+      });
     fetchSpecifications()
       .then((list) => setSpecNameById(Object.fromEntries(list.map((s) => [s.id, s.name]))))
       .catch(() => setSpecNameById({}));
@@ -182,18 +193,21 @@ export default function InventoryView() {
     const fullLabel = getFullSheetItemLabel(r, specNameById).toLowerCase();
     const firmLabel = getFirmLabel(r).toLowerCase();
     const storeLabel = getStoreLabel(r).toLowerCase();
+    const meta = itemMetaById[String(r.itemId ?? '')] ?? { itemNameId: '', category: '' };
     const bySearch =
       fullLabel.includes(search.toLowerCase()) ||
       r.itemCode.toLowerCase().includes(search.toLowerCase()) ||
       firmLabel.includes(search.toLowerCase()) ||
       storeLabel.includes(search.toLowerCase());
+    const byItemName = !itemNameFilterId || meta.itemNameId === itemNameFilterId;
+    const byCategory = !categoryFilter || meta.category === categoryFilter;
 
     const balance = Number((r as any).balance ?? 0);
     const reorderLevel = Number((r as any).reorderLevel ?? 0);
     const hasPositiveBalance = balance > 0;
     const byPendingOrder = !pendingOrderOnly || balance <= reorderLevel;
 
-    if (!selectedStoreName) return bySearch && byPendingOrder && hasPositiveBalance;
+    if (!selectedStoreName) return bySearch && byItemName && byCategory && byPendingOrder && hasPositiveBalance;
     const rowStore = getStoreLabel(r).toLowerCase();
     const wanted = selectedStoreName.toLowerCase();
     const byStore = rowStore
@@ -201,7 +215,7 @@ export default function InventoryView() {
       .map((s) => s.trim())
       .filter(Boolean)
       .includes(wanted);
-    return bySearch && byStore && byPendingOrder && hasPositiveBalance;
+    return bySearch && byItemName && byCategory && byStore && byPendingOrder && hasPositiveBalance;
   });
   const sortedRows = [...filteredRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -233,6 +247,19 @@ export default function InventoryView() {
     }
   });
 
+  const itemNameOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of adjustedRows) {
+      const meta = itemMetaById[String(r.itemId ?? '')];
+      if (meta?.itemNameId) map.set(meta.itemNameId, String(r.itemName ?? '').trim() || getFullSheetItemLabel(r, specNameById));
+    }
+    return Array.from(map, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [adjustedRows, itemMetaById, specNameById]);
+  const categoryOptions = useMemo(() => {
+    const set = new Set(Object.values(itemMetaById).map((m) => m.category).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [itemMetaById]);
+
   const filteredStores =
     selectedFirmId === ALL_FIRMS_VALUE
       ? stores
@@ -240,6 +267,8 @@ export default function InventoryView() {
   const hasActiveFilters =
     Boolean(search.trim()) ||
     Boolean(selectedStoreFilterId) ||
+    Boolean(itemNameFilterId) ||
+    Boolean(categoryFilter) ||
     selectedFirmId !== ALL_FIRMS_VALUE ||
     pendingOrderOnly;
 	  const onSort = (key: typeof sortBy) => {
@@ -392,8 +421,19 @@ export default function InventoryView() {
 
   return (
     <div className="space-y-4">
+      <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant space-y-2">
+        <div className={labelClass}>Firm Shortcuts</div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={cn('btn btn-sm', selectedFirmId === ALL_FIRMS_VALUE ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(ALL_FIRMS_VALUE)}>All Firms</button>
+          {firms.map((f) => (
+            <button key={f.id} type="button" className={cn('btn btn-sm', selectedFirmId === f.id ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(f.id)}>
+              {String(f.sortName ?? '').trim() || f.name}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="flex items-center justify-between gap-4 bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-	        <div className="flex items-center gap-4 flex-1">
+	        <div className="flex flex-wrap items-center gap-4 flex-1">
           <div className="w-64">
             <label className={labelClass}>Select Firm</label>
             <select
@@ -435,6 +475,20 @@ export default function InventoryView() {
               ))}
             </select>
           </div>
+          <div className="w-64">
+            <label className={labelClass}>Item Name Filter</label>
+            <select value={itemNameFilterId} onChange={(e) => setItemNameFilterId(e.target.value)} className={inputClass}>
+              <option value="">All Items</option>
+              {itemNameOptions.map((it) => <option key={it.value} value={it.value}>{it.label}</option>)}
+            </select>
+          </div>
+          <div className="w-56">
+            <label className={labelClass}>Category</label>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={inputClass}>
+              <option value="">All Categories</option>
+              {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
 	          <div className="w-40">
 	            <label className={labelClass}>&nbsp;</label>
 	            <div className="flex items-center gap-2">
@@ -444,6 +498,8 @@ export default function InventoryView() {
 		                  setSelectedFirmId(ALL_FIRMS_VALUE);
 		                  setSearch('');
 		                  setSelectedStoreFilterId('');
+                  setItemNameFilterId('');
+                  setCategoryFilter('');
                       setPendingOrderOnly(false);
 		                }}
 		                disabled={!hasActiveFilters}

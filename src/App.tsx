@@ -89,6 +89,8 @@ const GstView = lazy(() => import('./components/views/GstView'));
 const DocSequencesSettingsView = lazy(() => import('./components/views/DocSequencesSettingsView'));
 const PendingSupplierRateView = lazy(() => import('./components/views/PendingSupplierRateView'));
 const QuotationMasterView = lazy(() => import('./components/views/QuotationMasterView'));
+const ExpensesReportView = lazy(() => import('./components/views/ExpensesReportView'));
+const PendingOrderReportView = lazy(() => import('./components/views/PendingOrderReportView'));
 
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
@@ -98,6 +100,9 @@ export default function App() {
 		    | 'newPurchaseRequest'
 		    | 'purchaseRequestDetail'
 		    | 'directPo'
+		    | 'reports'
+		    | 'reportExpenses'
+		    | 'reportPendingOrder'
 		    | 'stockMaster'
 		    | 'issueMaster'
 		    | 'returnMaster'
@@ -105,7 +110,7 @@ export default function App() {
 		    | 'transferMaster'
         | 'settingsCatalogue';
 			  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
-			  const [view, setView] = useState<NavView>('dashboard');
+			  const [view, setView] = useState<View>('dashboard');
 			  const [activeMaterialRequest, setActiveMaterialRequest] = useState<any | null>(null);
 
 			  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -132,6 +137,7 @@ export default function App() {
 	        const [settingsExpanded, setSettingsExpanded] = useState(false);
 	        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
 	        const [quotationExpanded, setQuotationExpanded] = useState(false);
+	        const [reportsExpanded, setReportsExpanded] = useState(false);
 	        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
@@ -309,6 +315,8 @@ export default function App() {
 				    if (view === 'operations') return { title: 'Operations', showSearch: false };
 				    if (view === 'pendingSupplierRate') return { title: 'Pending Supplier Rate', showSearch: false };
 				    if (view === 'quotationMaster') return { title: 'Quotation Master', showSearch: false };
+				    if (view === 'reportExpenses') return { title: 'Reports', subtitle: 'Expenses', showSearch: false };
+				    if (view === 'reportPendingOrder') return { title: 'Reports', subtitle: 'Pending for Order', showSearch: false };
 				    if (view === 'stockMaster') {
 			      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
 			      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
@@ -362,6 +370,7 @@ export default function App() {
           if (view === 'queueExcessPaidInvoices') return 'operations';
 			    if (isPendingQueueView(view)) return 'pendingTasks';
 			    if (view === 'pendingSupplierRate' || view === 'quotationMaster') return 'quotation';
+			    if (view === 'reportExpenses' || view === 'reportPendingOrder') return 'reports';
 			    return view as NavView;
 			  }, [currentUser, view]);
 
@@ -496,7 +505,9 @@ export default function App() {
 	              settingsExpanded={settingsExpanded}
 				        purchaseMastersExpanded={purchaseMastersExpanded}
 				        quotationExpanded={quotationExpanded}
+			        reportsExpanded={reportsExpanded}
 				        activeQuotationView={view === 'pendingSupplierRate' || view === 'quotationMaster' ? view : undefined}
+			        activeReportView={view === 'reportExpenses' || view === 'reportPendingOrder' ? view : undefined}
 				        activeOperationsTab={operationsTab}
 				        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
 				        currentUserName={currentUser?.name || currentUser?.loginId || ''}
@@ -517,6 +528,7 @@ export default function App() {
 	                  setSettingsExpanded(false);
 				        setPurchaseMastersExpanded(false);
 				        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				            setMastersExpanded((prev) => !prev);
 				            return;
 				          }
@@ -529,6 +541,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				        setPendingExpanded((prev) => !prev);
 				        return;
 				        }
@@ -541,6 +554,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				        setStockMasterExpanded((prev) => !prev);
 				        return;
 				        }
@@ -553,6 +567,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 					        setMaterialExpanded((prev) => !prev);
 					        return;
 					        }
@@ -565,6 +580,7 @@ export default function App() {
 	                setMaterialExpanded(false);
 	                setPurchaseMastersExpanded(false);
 	                setQuotationExpanded(false);
+		        setReportsExpanded(false);
 	                setSettingsExpanded((prev) => !prev);
 	                return;
 	                }
@@ -577,6 +593,7 @@ export default function App() {
 					        setMaterialExpanded(false);
 	                setSettingsExpanded(false);
 	                setQuotationExpanded(false);
+		        setReportsExpanded(false);
 					        setPurchaseMastersExpanded((prev) => !prev);
 				        return;
 				        }
@@ -593,6 +610,19 @@ export default function App() {
 				        return;
 				        }
 
+				        if (next === 'reports') {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+				        setPendingExpanded(false);
+				        setStockMasterExpanded(false);
+				        setMaterialExpanded(false);
+	              setSettingsExpanded(false);
+				        setPurchaseMastersExpanded(false);
+				        setQuotationExpanded(false);
+				        setReportsExpanded((prev) => !prev);
+				        return;
+				        }
+
 				        setSelectedRequestId(null);
 				        setMastersExpanded(false);
 				        setPendingExpanded(false);
@@ -601,6 +631,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(next === 'pendingSupplierRate' || next === 'quotationMaster');
+				        setReportsExpanded(next === 'reportExpenses' || next === 'reportPendingOrder');
 				        hideSidebarAfterViewChange();
 				        setView(next);
 				        }}
@@ -612,6 +643,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				        setPendingExpanded(true);
 				        hideSidebarAfterViewChange();
 				        setView(key);
@@ -626,6 +658,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				        hideSidebarAfterViewChange();
 				        setView('masters');
 				        }}
@@ -637,6 +670,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 				        setStockMasterExpanded(true);
 				        hideSidebarAfterViewChange();
 				        setView(next);
@@ -649,6 +683,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 	                setSettingsExpanded(false);
 					        setQuotationExpanded(false);
+		        setReportsExpanded(false);
 					        setMaterialExpanded(true);
 					        hideSidebarAfterViewChange();
 					        setView(next);
@@ -661,6 +696,7 @@ export default function App() {
 	                setMaterialExpanded(false);
 	                setPurchaseMastersExpanded(false);
 	                setQuotationExpanded(false);
+		        setReportsExpanded(false);
 	                setSettingsExpanded(true);
 	                hideSidebarAfterViewChange();
 	                setView(next);
@@ -673,11 +709,25 @@ export default function App() {
 					        setMaterialExpanded(false);
 	                setSettingsExpanded(false);
 	                setQuotationExpanded(false);
+		        setReportsExpanded(false);
 					        setPurchaseMastersExpanded(true);
 				        setOperationsTab(tab);
 				        hideSidebarAfterViewChange();
 					        setView(tab === 'prs' ? 'purchasing' : tab === 'excessPaidInvoices' ? 'queueExcessPaidInvoices' : 'operations');
 					        }}
+				        onNavigateReportView={(next) => {
+				        setSelectedRequestId(null);
+				        setMastersExpanded(false);
+				        setPendingExpanded(false);
+				        setStockMasterExpanded(false);
+				        setMaterialExpanded(false);
+	              setSettingsExpanded(false);
+				        setPurchaseMastersExpanded(false);
+				        setQuotationExpanded(false);
+				        setReportsExpanded(true);
+				        hideSidebarAfterViewChange();
+				        setView(next);
+				        }}
 
 		        onNewPurchaseRequest={() => {
 		          setSelectedRequestId(null);
@@ -690,6 +740,7 @@ export default function App() {
 		          setStockMasterExpanded(false);
 		          setPendingExpanded(false);
 	            setQuotationExpanded(false);
+		        setReportsExpanded(false);
 	            hideSidebarAfterViewChange();
 		          setView('directPo');
 		        }}
@@ -846,6 +897,8 @@ export default function App() {
 	          ) : null}
 	            {view === 'pendingSupplierRate' ? <PendingSupplierRateView /> : null}
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
+	            {view === 'reportExpenses' ? <ExpensesReportView /> : null}
+	            {view === 'reportPendingOrder' ? <PendingOrderReportView /> : null}
 	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
 	              {view === 'gst' ? <GstView /> : null}
 	              {view === 'docSequences' ? <DocSequencesSettingsView /> : null}

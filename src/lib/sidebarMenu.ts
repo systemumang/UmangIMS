@@ -4,6 +4,7 @@ import {
   pendingQueueItems,
   purchaseMastersMenuItems,
   quotationMenuItems,
+  reportsMenuItems,
   settingsMenuItems,
   stockMenuItems,
   topLevelMenuItems,
@@ -45,6 +46,9 @@ export function getSidebarPermissionItems(): SidebarPermissionItem[] {
 
   // Quotation submenu
   for (const q of quotationMenuItems) push(`quotation:${q.key}`, q.label);
+
+  // Reports submenu
+  for (const r of reportsMenuItems) push(`reports:${r.key}`, r.label);
 
   // Stable sort by label for consistent checkbox ordering.
   out.sort((a, b) => a.label.localeCompare(b.label));

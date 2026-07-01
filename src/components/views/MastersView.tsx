@@ -96,6 +96,7 @@ import {
 				} from '@/src/lib/masters';
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
+import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
 
 function normalizeTenDigitPhoneInput(value: string) {
   return value.replace(/\D/g, '').slice(0, 10);
@@ -354,6 +355,8 @@ export default function MastersView({
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
       const [customerNameFilter, setCustomerNameFilter] = useState('');
+      const [itemStockFilter, setItemStockFilter] = useState<'all' | 'inStock'>('all');
+      const [stockSummaryByItemId, setStockSummaryByItemId] = useState<Record<string, StockSummaryRow>>({});
 
 		  useEffect(() => {
 		    setListQuery('');
@@ -379,6 +382,15 @@ export default function MastersView({
 			    ]);
 		    setListStatusFilter('all');
 		  }, [tab]);
+
+      useEffect(() => {
+        if (tab !== 'items') return;
+        const ac = new AbortController();
+        fetchStockSummary(ac.signal)
+          .then((rows) => setStockSummaryByItemId(Object.fromEntries(rows.map((r) => [String(r.itemId), r]))))
+          .catch(() => setStockSummaryByItemId({}));
+        return () => ac.abort();
+      }, [tab, items.length]);
 
 	  const activeTabLabel = useMemo(() => {
 	    return MASTERS_TABS.find((t) => t.key === tab)?.label ?? 'Masters';
@@ -712,26 +724,33 @@ export default function MastersView({
           itemNames.filter((n) => (n.type ?? 'Goods') === 'Goods').map((n) => String(n.id))
         );
         const goodsOnly = items.filter((it) => goodsItemNameIds.has(String(it.itemNameId ?? '')));
-		    if (!listQueryKey) return goodsOnly;
-		    return goodsOnly.filter((it) => {
-		      const full = formatItemInline(it.itemName, it.specificationsJson, specNameLookup);
-		      if (listField === 'all')
-		        return matchesListQuery([
-		          it.itemName,
-		          it.itemCode,
-		          it.uniqueKey,
-		          it.description,
-		          it.unit,
-		          (it as any).itemLink,
-		          (it as any).videoLink,
-		          full,
-		        ]);
-		      if (listField === 'desc') return matchesListQuery([it.description]);
-		      if (listField === 'link') return matchesListQuery([(it as any).itemLink]);
-		      if (listField === 'video') return matchesListQuery([(it as any).videoLink]);
-		      return matchesListQuery([it.itemName, full]);
-		    });
-		  }, [items, itemNames, listQueryKey, specNameLookup, listField]);
+        const visible = goodsOnly.filter((it) => {
+          const closingStock = Number(stockSummaryByItemId[String(it.id)]?.closingStock ?? 0);
+          if (itemStockFilter === 'inStock' && closingStock <= 0) return false;
+          if (!listQueryKey) return true;
+          const full = formatItemInline(it.itemName, it.specificationsJson, specNameLookup);
+          if (listField === 'all')
+            return matchesListQuery([
+              it.itemName,
+              it.itemCode,
+              it.uniqueKey,
+              it.description,
+              it.unit,
+              (it as any).itemLink,
+              (it as any).videoLink,
+              full,
+            ]);
+          if (listField === 'desc') return matchesListQuery([it.description]);
+          if (listField === 'link') return matchesListQuery([(it as any).itemLink]);
+          if (listField === 'video') return matchesListQuery([(it as any).videoLink]);
+          return matchesListQuery([it.itemName, full]);
+        });
+        return visible.sort((a, b) =>
+          formatItemInline(a.itemName, a.specificationsJson, specNameLookup).localeCompare(
+            formatItemInline(b.itemName, b.specificationsJson, specNameLookup)
+          )
+        );
+      }, [items, itemNames, listQueryKey, specNameLookup, listField, itemStockFilter, stockSummaryByItemId]);
 
       const currentTotalItems = useMemo(() => {
         if (tab === 'firms') return filteredFirms.length;
@@ -756,7 +775,7 @@ export default function MastersView({
 
       useEffect(() => {
         setPage(1);
-      }, [tab, listQuery, listField, listStatusFilter, specIdForValues, specValuesFilterItemNameId, pageSize]);
+      }, [tab, listQuery, listField, listStatusFilter, specIdForValues, specValuesFilterItemNameId, itemStockFilter, pageSize]);
 
       useEffect(() => {
         const totalPages = Math.max(1, Math.ceil(currentTotalItems / pageSize));
@@ -6012,6 +6031,14 @@ export default function MastersView({
 	            <div className="flex flex-wrap items-center gap-2">
 	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
 	              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
+              <select
+                className="h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+                value={itemStockFilter}
+                onChange={(e) => setItemStockFilter(e.target.value === 'inStock' ? 'inStock' : 'all')}
+              >
+                <option value="all">All Items</option>
+                <option value="inStock">In Stock</option>
+              </select>
 	              <input
 	                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                value={listQuery}
@@ -6039,10 +6066,11 @@ export default function MastersView({
 					                  <th className="text-left px-3 py-2 border border-blue-600">Item Name</th>
 					                  <th className="text-left px-3 py-2 border border-blue-600">Item</th>
                             <th className="text-left px-3 py-2 border border-blue-600">Opening Stock</th>
+                            <th className="text-left px-3 py-2 border border-blue-600">Closing Stock</th>
+                            <th className="text-left px-3 py-2 border border-blue-600">Re-Order Level</th>
                           <th className="text-left px-3 py-2 border border-blue-600">Photo</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Item Link</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Video Link</th>
-			                  <th className="text-left px-3 py-2 border border-blue-600">Re-Order Level</th>
 			                  <th className="text-left px-3 py-2 border border-blue-600">Actions</th>
 			                </tr>
 	              </thead>
@@ -6072,6 +6100,17 @@ export default function MastersView({
                                   </button>
                                 </div>
 	                            </td>
+                              <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
+                                {Number(stockSummaryByItemId[String(it.id)]?.closingStock ?? 0)}
+                              </td>
+                              <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
+                                {(() => {
+                                  const raw = (it as any).reorderLevel;
+                                  if (raw == null || String(raw).trim() === '') return '-';
+                                  const n = Number(raw);
+                                  return Number.isFinite(n) ? n : String(raw);
+                                })()}
+                              </td>
                           <td className="px-3 py-2 text-on-surface border border-blue-600">
                             {(() => {
                               const photos = [
@@ -6101,14 +6140,6 @@ export default function MastersView({
 					                    </td>
 				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-words max-w-[220px]">
 				                      {String((it as any).videoLink ?? '').trim() || '-'}
-				                    </td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
-				                      {(() => {
-				                        const raw = (it as any).reorderLevel;
-				                        if (raw == null || String(raw).trim() === '') return '-';
-				                        const n = Number(raw);
-				                        return Number.isFinite(n) ? n : String(raw);
-				                      })()}
 				                    </td>
 				                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 			                      <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ import {
   IndianRupee,
   LayoutDashboard,
   Package,
+  BarChart3,
   Receipt,
   ShoppingCart,
   Truck,
@@ -32,6 +33,9 @@ export type NavView =
   | 'quotation'
   | 'pendingSupplierRate'
   | 'quotationMaster'
+  | 'reports'
+  | 'reportExpenses'
+  | 'reportPendingOrder'
   | 'stockMaster'
   | 'material'
   | 'materialRequest'
@@ -118,6 +122,11 @@ export const quotationMenuItems: Array<{ key: 'pendingSupplierRate' | 'quotation
   { key: 'quotationMaster', label: 'Quotation Master' },
 ];
 
+export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder'; label: string }> = [
+  { key: 'reportExpenses', label: 'Expenses' },
+  { key: 'reportPendingOrder', label: 'Pending for Order' },
+];
+
 export const materialMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'materialRequest', label: 'Request Material' },
   { key: 'materialPendingIssue', label: 'Pending Issue' },
@@ -143,7 +152,9 @@ export default function Sidebar({
   settingsExpanded,
   purchaseMastersExpanded,
   quotationExpanded,
+  reportsExpanded,
   activeQuotationView,
+  activeReportView,
   activeOperationsTab,
   purchaseMastersCounts,
   isNewPurchaseRequestActive,
@@ -154,6 +165,7 @@ export default function Sidebar({
   onNavigateMaterialView,
   onNavigateSettingsView,
   onNavigatePurchaseMasters,
+  onNavigateReportView,
   onNewPurchaseRequest,
   onDirectPo,
   currentUserName,
@@ -172,10 +184,12 @@ export default function Sidebar({
         materialExpanded?: boolean;
       settingsExpanded?: boolean;
       purchaseMastersExpanded?: boolean;
+      reportsExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
   purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
   quotationExpanded?: boolean;
   activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
+  activeReportView?: 'reportExpenses' | 'reportPendingOrder';
   isNewPurchaseRequestActive?: boolean;
   onNavigate: (view: NavView) => void;
 	  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
@@ -184,6 +198,7 @@ export default function Sidebar({
   onNavigateMaterialView?: (view: NavView) => void;
   onNavigateSettingsView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
+  onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder') => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
   currentUserName?: string;
@@ -236,6 +251,20 @@ export default function Sidebar({
 			    if (allowed.has(`quotation:${k}`)) return true;
 			    if (allowed.has('quotation')) return true;
 			    if (k === 'pendingSupplierRate' && allowed.has('pendingSupplierRate')) return true;
+			    return false;
+			  };
+
+			  const isReportsAllowed = () => {
+			    if (!hasAny) return true;
+			    if (allowed.has('reports')) return true;
+			    if (hasPrefix('reports:')) return true;
+			    return false;
+			  };
+
+			  const isReportViewAllowed = (k: 'reportExpenses' | 'reportPendingOrder') => {
+			    if (!hasAny) return true;
+			    if (allowed.has(`reports:${k}`)) return true;
+			    if (allowed.has('reports')) return true;
 			    return false;
 			  };
 
@@ -464,6 +493,39 @@ export default function Sidebar({
 	                    >
 	                      <span className="inline-flex items-center gap-2">
 	                        {it.key === 'pendingSupplierRate' ? <IndianRupee size={14} /> : <ClipboardList size={14} />}
+	                        {it.label}
+	                      </span>
+	                    </button>
+	                  ))}
+	                </div>
+	              ) : null}
+	            </>
+	          ) : null}
+
+
+	          {isReportsAllowed() ? (
+	            <>
+	              <motion.button
+	                whileHover={{ x: 4 }}
+	                type="button"
+	                onClick={() => onNavigate('reports')}
+	                className={cn(sectionRowClass, reportsExpanded || activeReportView ? activeRowClass : '')}
+	              >
+	                <BarChart3 className="mr-3 text-white" size={18} />
+	                <span className="flex-1">Reports</span>
+	                <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', reportsExpanded ? 'rotate-180' : 'rotate-0')} />
+	              </motion.button>
+	              {reportsExpanded && onNavigateReportView ? (
+	                <div className="ml-7 mr-1 space-y-1">
+	                  {reportsMenuItems.filter((it) => isReportViewAllowed(it.key)).map((it) => (
+	                    <button
+	                      key={it.key}
+	                      type="button"
+	                      onClick={() => onNavigateReportView(it.key)}
+	                      className={cn(subRowClass, activeReportView === it.key ? subActiveClass : subInactiveClass)}
+	                    >
+	                      <span className="inline-flex items-center gap-2">
+	                        {it.key === 'reportExpenses' ? <IndianRupee size={14} /> : <ClipboardList size={14} />}
 	                        {it.label}
 	                      </span>
 	                    </button>
