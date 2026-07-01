@@ -212,7 +212,7 @@ export default function GstView() {
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.001"
                   required
                   autoFocus
                   className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-lg outline-none focus:border-primary/50 transition-all font-semibold"

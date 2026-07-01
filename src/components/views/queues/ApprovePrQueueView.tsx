@@ -74,7 +74,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 
   function round2(n: number) {
     if (!Number.isFinite(n)) return NaN;
-    return Math.round(n * 100) / 100;
+    return Math.round(n * 1000) / 1000;
   }
 
   function computeAreaQty(length: number, breadth: number, pcs: number) {
@@ -90,16 +90,16 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-    if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(3)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(3)} ft`;
     return null;
   }
 
   function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
-    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(3)} sqm`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(3)} sqft`;
     return null;
   }
 
@@ -411,7 +411,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                                           })()}
                                         </td>
                             <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-                            {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(2)}
+                            {Number(expandedStockByItemId[it.itemId] ?? 0).toFixed(3)}
                             {unit ? <span className="ml-1 text-[10px] text-on-surface-variant font-bold opacity-60 uppercase">{unit}</span> : null}
                             </td>
                             </tr>
@@ -601,7 +601,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 			                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{it.quantity}</td>
 			                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((it as any).unit ?? '').trim() || '-'}</td>
 		                        <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">
-		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(2)}
+		                          {Number(modalStockByItemId[it.itemId] ?? 0).toFixed(3)}
 		                        </td>
                             <td className="px-3 py-2 border border-outline-variant bg-surface-container-high/40">
                               {isArea ? (

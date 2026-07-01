@@ -67,7 +67,7 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
   useEffect(() => {
     if (!modalOpen || !active) return;
     setPaymentDate(todayIsoDate());
-    setPaymentAmountInput(String(Number(active.remainingAmount ?? 0).toFixed(2)));
+    setPaymentAmountInput(String(Number(active.remainingAmount ?? 0).toFixed(3)));
     setPaymentModeInput('Cash');
     const ac = new AbortController();
     fetch(`/api/credit-vouchers/${encodeURIComponent(String(active.creditVoucherId ?? ''))}/items`, { signal: ac.signal })
@@ -161,9 +161,9 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPoNumber((r as any).poNumber ?? r.poId) || r.poId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || r.prId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.supplierName}</td>
-                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.voucherAmount ?? 0).toFixed(2)}</td>
-                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
-                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.voucherAmount ?? 0).toFixed(3)}</td>
+                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.paidAmount ?? 0).toFixed(3)}</td>
+                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.remainingAmount ?? 0).toFixed(3)}</td>
                   <td className="px-3 py-2 border border-outline-variant">
                     <div className="flex items-center gap-2">
                       <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>
@@ -286,9 +286,9 @@ export default function CreditVoucherPaymentQueueView({ onViewPr: _onViewPr }: {
                 {voucherItems.map((it, idx) => (
                   <tr key={`${it.itemName}-${idx}`}>
                     <td className="px-3 py-2 border border-outline-variant">{it.itemName || '-'}</td>
-                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
-                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
-                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.amount ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(3)}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(3)}</td>
+                    <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.amount ?? 0).toFixed(3)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,12 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Spinner from '@/src/components/common/Spinner';
 import { fetchExpenseReport, type ExpenseReportRow } from '@/src/lib/reports';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { inputClass, labelClass } from './queues/shared';
 
 function money(value: number) {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value ?? 0));
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(Number(value ?? 0));
 }
+
+const EXPENSE_OPTIONS = [
+  { value: 'courier', label: 'Courier Charge' },
+  { value: 'packing', label: 'Packing Charge' },
+  { value: 'labour', label: 'Labour Charge' },
+  { value: 'other', label: 'Other Charge' },
+  { value: 'chargesGst', label: 'GST on Charges' },
+];
 
 export default function ExpensesReportView() {
   const [from, setFrom] = useState('');
@@ -31,16 +39,6 @@ export default function ExpensesReportView() {
     return () => ac.abort();
   }, [from, to, expense]);
 
-  const expenseOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const row of rows) {
-      const label = String(row.expenses ?? '').trim();
-      const key = String(row.expenseId ?? label).trim();
-      if (key && label) map.set(key, label);
-    }
-    return Array.from(map, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
-  }, [rows]);
-
   const total = rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
   return (
@@ -58,7 +56,7 @@ export default function ExpensesReportView() {
           <div className={labelClass}>Select Expenses</div>
           <select className={inputClass} value={expense} onChange={(e) => setExpense(e.target.value)}>
             <option value="">All Expenses</option>
-            {expenseOptions.map((it) => (
+            {EXPENSE_OPTIONS.map((it) => (
               <option key={it.value} value={it.value}>{it.label}</option>
             ))}
           </select>

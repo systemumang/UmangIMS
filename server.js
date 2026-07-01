@@ -8928,10 +8928,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       }
     };
 
-    const formatMoney = (value) => Number(value || 0).toFixed(2);
+    const formatMoney = (value) => Number(value || 0).toFixed(3);
 	    const formatNumber = (value) => {
 	      const n = Number(value ?? 0);
-	      return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
+	      return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
 	    };
     const formatDate = (value) => {
       const iso = toIsoDate(value);
@@ -13329,7 +13329,7 @@ function baseDimUnitForAreaUnit(areaUnit) {
 function round2(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return NaN;
-  return Math.round(x * 100) / 100;
+  return Math.round(x * 1000) / 1000;
 }
 
 function computeAreaQty(length, breadth, pcs) {
@@ -14041,58 +14041,74 @@ app.get('/api/reports/expenses', async (req, res) => {
     const from = String(req.query.from ?? '').trim();
     const to = String(req.query.to ?? '').trim();
     const expense = String(req.query.expense ?? '').trim();
+    const expenseMap = new Map([
+      ['courier', 'Courier Charge'],
+      ['packing', 'Packing Charge'],
+      ['labour', 'Labour Charge'],
+      ['other', 'Other Charge'],
+      ['chargesGst', 'GST on Charges'],
+    ]);
     const where = ['1=1'];
     const params = [];
     if (from) {
-      where.push('DATE(inv.invoice_date) >= ?');
+      where.push('DATE(x.invoiceDate) >= ?');
       params.push(from);
     }
     if (to) {
-      where.push('DATE(inv.invoice_date) <= ?');
+      where.push('DATE(x.invoiceDate) <= ?');
       params.push(to);
     }
     if (expense) {
-      where.push('(ii.item_id = ? OR iname.name = ?)');
-      params.push(expense, expense);
+      where.push('(x.expenseId = ? OR x.expenses = ?)');
+      params.push(expense, expenseMap.get(expense) ?? expense);
     }
 
     const [rows] = await pool.query(
       `
       SELECT
-        inv.invoice_date AS date,
-        inv.invoice_number AS invoiceNo,
-        inv.id AS invoiceId,
-        s.name AS supplier,
-        ii.item_id AS itemId,
-        iname.name AS itemName,
-        it.specifications_json AS specificationsJson,
-        COALESCE(ii.quantity, 0) AS quantity,
-        COALESCE(ii.rate, 0) AS rate,
-        COALESCE(ii.tax_percent, 0) AS taxPercent
-      FROM invoice_items ii
-      INNER JOIN invoices inv ON inv.id = ii.invoice_id
-      LEFT JOIN suppliers s ON s.id = inv.supplier_id
-      LEFT JOIN items it ON it.id = ii.item_id
-      LEFT JOIN item_names iname ON iname.id = it.item_name_id
+        x.invoiceDate AS date,
+        x.invoiceNo,
+        x.invoiceId,
+        x.expenseId,
+        x.expenses,
+        x.supplier,
+        x.amount
+      FROM (
+        SELECT inv.invoice_date AS invoiceDate, inv.invoice_number AS invoiceNo, inv.id AS invoiceId, inv.created_at AS createdAt, 'courier' AS expenseId, 'Courier Charge' AS expenses, s.name AS supplier, COALESCE(inv.courier_charge, 0) AS amount
+        FROM invoices inv
+        LEFT JOIN suppliers s ON s.id = inv.supplier_id
+        UNION ALL
+        SELECT inv.invoice_date AS invoiceDate, inv.invoice_number AS invoiceNo, inv.id AS invoiceId, inv.created_at AS createdAt, 'packing' AS expenseId, 'Packing Charge' AS expenses, s.name AS supplier, COALESCE(inv.packing_charge, 0) AS amount
+        FROM invoices inv
+        LEFT JOIN suppliers s ON s.id = inv.supplier_id
+        UNION ALL
+        SELECT inv.invoice_date AS invoiceDate, inv.invoice_number AS invoiceNo, inv.id AS invoiceId, inv.created_at AS createdAt, 'labour' AS expenseId, 'Labour Charge' AS expenses, s.name AS supplier, COALESCE(inv.labour_charge, 0) AS amount
+        FROM invoices inv
+        LEFT JOIN suppliers s ON s.id = inv.supplier_id
+        UNION ALL
+        SELECT inv.invoice_date AS invoiceDate, inv.invoice_number AS invoiceNo, inv.id AS invoiceId, inv.created_at AS createdAt, 'other' AS expenseId, 'Other Charge' AS expenses, s.name AS supplier, COALESCE(inv.other_charge, 0) AS amount
+        FROM invoices inv
+        LEFT JOIN suppliers s ON s.id = inv.supplier_id
+        UNION ALL
+        SELECT inv.invoice_date AS invoiceDate, inv.invoice_number AS invoiceNo, inv.id AS invoiceId, inv.created_at AS createdAt, 'chargesGst' AS expenseId, 'GST on Charges' AS expenses, s.name AS supplier, COALESCE(inv.charges_gst_amount, 0) AS amount
+        FROM invoices inv
+        LEFT JOIN suppliers s ON s.id = inv.supplier_id
+      ) x
       WHERE ${where.join(' AND ')}
-      ORDER BY inv.invoice_date DESC, inv.created_at DESC, inv.invoice_number, iname.name
+        AND COALESCE(x.amount, 0) > 0
+      ORDER BY x.invoiceDate DESC, x.createdAt DESC, x.invoiceNo, x.expenses
       `,
       params
     );
 
-    const out = (Array.isArray(rows) ? rows : []).map((r) => {
-      const quantity = num(r.quantity, 0);
-      const rate = num(r.rate, 0);
-      const taxPercent = num(r.taxPercent, 0);
-      return {
-        date: toIsoDate(r.date) || '',
-        invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
-        expenses: formatReportItemLabel(r.itemName, r.specificationsJson),
-        expenseId: String(r.itemId ?? ''),
-        supplier: String(r.supplier ?? ''),
-        amount: round2(quantity * rate + (quantity * rate * taxPercent) / 100),
-      };
-    });
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      date: toIsoDate(r.date) || '',
+      invoiceNo: String(r.invoiceNo ?? r.invoiceId ?? ''),
+      expenses: String(r.expenses ?? ''),
+      expenseId: String(r.expenseId ?? ''),
+      supplier: String(r.supplier ?? ''),
+      amount: round2(num(r.amount, 0)),
+    }));
     res.json({ rows: out });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -14801,9 +14817,9 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
         drawText(line, x1 + 6, lineY, 8.5);
         lineY -= 11;
       }
-      const qtyText = qty.toFixed(2);
-      const rateText = rate.toFixed(2);
-      const amountText = amount.toFixed(2);
+      const qtyText = qty.toFixed(3);
+      const rateText = rate.toFixed(3);
+      const amountText = amount.toFixed(3);
       const numY = rowBottom + Math.max(6, (bodyRowH - 9) / 2 - 1);
       drawText(qtyText, x3 - textWidth(qtyText, 9, false) - 6, numY, 9);
       drawText(rateText, x4 - textWidth(rateText, 9, false) - 6, numY, 9);
@@ -14813,7 +14829,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     }
 
     y -= 10;
-    drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(2)}`, 380, y, 11, true);
+    drawText(`Total Amount: ${Number(header.totalAmount ?? 0).toFixed(3)}`, 380, y, 11, true);
     const signatureY = 110; // fixed visible zone above page bottom
     drawText('Supplier/Vendor Sign:', 40, signatureY, 10.5, true);
     page.drawLine({ start: { x: 170, y: signatureY + 2 }, end: { x: 330, y: signatureY + 2 }, thickness: 1.2, color: rgb(0, 0, 0) });

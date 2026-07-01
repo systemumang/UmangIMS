@@ -573,7 +573,7 @@ export default function PurchaseRequestDetailView({
 
 		const computedInvoiceAmountText = useMemo(() => {
 		  if (!Number.isFinite(computedInvoiceAmountNumber)) return '';
-		  return computedInvoiceAmountNumber.toFixed(2);
+		  return computedInvoiceAmountNumber.toFixed(3);
 		}, [computedInvoiceAmountNumber]);
 			const [invoicesForPr, setInvoicesForPr] = useState<InvoiceWithItems[]>([]);
 			const [paymentDateByInvoiceId, setPaymentDateByInvoiceId] = useState<Record<string, string>>({});
@@ -3091,15 +3091,15 @@ export default function PurchaseRequestDetailView({
 	                        const lines = Array.isArray(inv.items) && inv.items.length ? inv.items : [null];
 	                        const rowSpan = lines.length;
 	                        const amountCell =
-	                          typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount) ? inv.invoice.invoiceAmount.toFixed(2) : '-';
+	                          typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount) ? inv.invoice.invoiceAmount.toFixed(3) : '-';
 	                        const courierChargeCell =
-	                          typeof inv.invoice.courierCharge === 'number' && Number.isFinite(inv.invoice.courierCharge) ? inv.invoice.courierCharge.toFixed(2) : '-';
+	                          typeof inv.invoice.courierCharge === 'number' && Number.isFinite(inv.invoice.courierCharge) ? inv.invoice.courierCharge.toFixed(3) : '-';
 	                        const packingChargeCell =
-	                          typeof inv.invoice.packingCharge === 'number' && Number.isFinite(inv.invoice.packingCharge) ? inv.invoice.packingCharge.toFixed(2) : '-';
+	                          typeof inv.invoice.packingCharge === 'number' && Number.isFinite(inv.invoice.packingCharge) ? inv.invoice.packingCharge.toFixed(3) : '-';
 	                        const labourChargeCell =
-	                          typeof inv.invoice.labourCharge === 'number' && Number.isFinite(inv.invoice.labourCharge) ? inv.invoice.labourCharge.toFixed(2) : '-';
+	                          typeof inv.invoice.labourCharge === 'number' && Number.isFinite(inv.invoice.labourCharge) ? inv.invoice.labourCharge.toFixed(3) : '-';
 	                        const otherChargeCell =
-	                          typeof inv.invoice.otherCharge === 'number' && Number.isFinite(inv.invoice.otherCharge) ? inv.invoice.otherCharge.toFixed(2) : '-';
+	                          typeof inv.invoice.otherCharge === 'number' && Number.isFinite(inv.invoice.otherCharge) ? inv.invoice.otherCharge.toFixed(3) : '-';
 
 	                        return lines.map((it: any, idx: number) => (
 	                          <tr key={`${inv.invoice.id}||${it ? it.itemId : 'empty'}||${idx}`}>
@@ -4779,8 +4779,8 @@ export default function PurchaseRequestDetailView({
                                           const totalAmt = goodsAmt + gstAmt;
                                           return (
                                             <>
-                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface">{gstAmt.toFixed(2)}</td>
-                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface">{totalAmt.toFixed(2)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-medium text-on-surface">{gstAmt.toFixed(3)}</td>
+                                              <td className="px-3 py-2 border border-outline-variant text-right tabular-nums text-xs font-bold text-on-surface">{totalAmt.toFixed(3)}</td>
                                             </>
                                           );
                                         })()}
@@ -5063,8 +5063,8 @@ export default function PurchaseRequestDetailView({
                                                 const totalAmt = goodsAmt + gstAmt;
                                                 return (
                                                   <>
-                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right">{gstAmt.toFixed(2)}</td>
-                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right font-bold">{totalAmt.toFixed(2)}</td>
+                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right">{gstAmt.toFixed(3)}</td>
+                                                    <td className="px-2 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-right font-bold">{totalAmt.toFixed(3)}</td>
                                                   </>
                                                 );
                                               })()}
@@ -5344,7 +5344,7 @@ export default function PurchaseRequestDetailView({
 		                          <div className="text-[11px] font-bold uppercase tracking-widest text-blue-800">Invoice Amount</div>
 		                          <div className="text-lg font-extrabold tabular-nums text-on-surface">{computedInvoiceAmountText}</div>
 		                          <div className="mt-2 text-[11px] font-bold uppercase tracking-widest text-blue-800">Item Total</div>
-		                          <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceLinesTotalNumber.toFixed(2)}</div>
+		                          <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceLinesTotalNumber.toFixed(3)}</div>
 		                        </div>
 		                      </div>
 		                    </div>
@@ -5677,7 +5677,7 @@ export default function PurchaseRequestDetailView({
 			                              readOnly
 			                              tabIndex={-1}
 			                              inputMode="decimal"
-			                              step="0.01"
+			                              step="0.001"
 			                              placeholder="Total invoice amount"
 				                            />
 				                          </td>
@@ -5749,7 +5749,7 @@ export default function PurchaseRequestDetailView({
 			                                setInvoiceCourierCharge(e.target.value);
 			                              }}
 			                              inputMode="decimal"
-			                              step="0.01"
+			                              step="0.001"
 			                              placeholder="0"
 			                            />
 			                          </td>
@@ -5764,7 +5764,7 @@ export default function PurchaseRequestDetailView({
 			                                setInvoicePackingCharge(e.target.value);
 			                              }}
 			                              inputMode="decimal"
-			                              step="0.01"
+			                              step="0.001"
 			                              placeholder="0"
 			                            />
 			                          </td>
@@ -5781,7 +5781,7 @@ export default function PurchaseRequestDetailView({
 			                                setInvoiceLabourCharge(e.target.value);
 			                              }}
 			                              inputMode="decimal"
-			                              step="0.01"
+			                              step="0.001"
 			                              placeholder="0"
 			                            />
 			                          </td>
@@ -5796,7 +5796,7 @@ export default function PurchaseRequestDetailView({
 				                                setInvoiceOtherCharge(e.target.value);
 				                              }}
 				                              inputMode="decimal"
-				                              step="0.01"
+				                              step="0.001"
 				                            />
 				                          </td>
 				                        </tr>
@@ -5812,7 +5812,7 @@ export default function PurchaseRequestDetailView({
 				                                setInvoiceChargesGstAmount(e.target.value);
 				                              }}
 				                              inputMode="decimal"
-				                              step="0.01"
+				                              step="0.001"
 				                            />
 				                          </td>
 				                          <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant"></td>
@@ -6029,7 +6029,7 @@ export default function PurchaseRequestDetailView({
 			                                  type="number"
 			                                  min={0}
 			                                  inputMode="decimal"
-					                                  step="0.01"
+					                                  step="0.001"
 					                                />
 					                              </td>
 						                              <td className="px-4 py-3 border border-outline-variant">
@@ -6091,7 +6091,7 @@ export default function PurchaseRequestDetailView({
 		                  <div className="flex items-center gap-4 flex-wrap">
 		                    <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low px-4 py-2">
 		                      <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Invoice Total</div>
-		                      <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceLinesTotalNumber.toFixed(2)}</div>
+		                      <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceLinesTotalNumber.toFixed(3)}</div>
 		                    </div>
 		                    <div className="rounded-lg border border-outline-variant/30 bg-primary-container/40 px-4 py-2">
 		                      <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Invoice Total Amount</div>
@@ -6407,21 +6407,21 @@ export default function PurchaseRequestDetailView({
 			                          const rowSpan = lines.length;
 			                          const itemCount = Array.isArray(inv.items) ? inv.items.length : 0;
 			                          const amountCell =
-			                            typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount) ? inv.invoice.invoiceAmount.toFixed(2) : '-';
+			                            typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount) ? inv.invoice.invoiceAmount.toFixed(3) : '-';
 			                          const courierChargeCell =
 			                            typeof inv.invoice.courierCharge === 'number' && Number.isFinite(inv.invoice.courierCharge)
-			                              ? inv.invoice.courierCharge.toFixed(2)
+			                              ? inv.invoice.courierCharge.toFixed(3)
 			                              : '-';
 			                          const packingChargeCell =
 			                            typeof inv.invoice.packingCharge === 'number' && Number.isFinite(inv.invoice.packingCharge)
-			                              ? inv.invoice.packingCharge.toFixed(2)
+			                              ? inv.invoice.packingCharge.toFixed(3)
 			                              : '-';
 			                          const labourChargeCell =
 			                            typeof inv.invoice.labourCharge === 'number' && Number.isFinite(inv.invoice.labourCharge)
-			                              ? inv.invoice.labourCharge.toFixed(2)
+			                              ? inv.invoice.labourCharge.toFixed(3)
 			                              : '-';
 			                          const otherChargeCell =
-			                            typeof inv.invoice.otherCharge === 'number' && Number.isFinite(inv.invoice.otherCharge) ? inv.invoice.otherCharge.toFixed(2) : '-';
+			                            typeof inv.invoice.otherCharge === 'number' && Number.isFinite(inv.invoice.otherCharge) ? inv.invoice.otherCharge.toFixed(3) : '-';
 			                          const totalExtraCharges =
 			                            (typeof inv.invoice.courierCharge === 'number' && Number.isFinite(inv.invoice.courierCharge) ? inv.invoice.courierCharge : 0) +
 			                            (typeof inv.invoice.packingCharge === 'number' && Number.isFinite(inv.invoice.packingCharge) ? inv.invoice.packingCharge : 0) +
@@ -6450,7 +6450,7 @@ export default function PurchaseRequestDetailView({
 					                              Math.abs(invRateNumber - poRateNumber) > 1e-9;
 				                            const effectiveItemPriceCell =
 				                              it && typeof it.rate === 'number' && Number.isFinite(it.rate) && typeof it.quantity === 'number' && Number.isFinite(it.quantity) && it.quantity > 0
-				                                ? (it.rate + extraChargePerItemLine / it.quantity).toFixed(2)
+				                                ? (it.rate + extraChargePerItemLine / it.quantity).toFixed(3)
 				                                : '-';
 						                            const grnQtyCell = it ? Number(linkedGrnQtyByInvoiceIdItemId[`${inv.invoice.id}||${it.itemId}`] ?? 0) : '-';
 
@@ -6627,7 +6627,7 @@ export default function PurchaseRequestDetailView({
 		                          const rowSpan = lines.length;
 			                          const amountCell =
 			                            typeof inv.invoice.invoiceAmount === 'number' && Number.isFinite(inv.invoice.invoiceAmount)
-			                              ? inv.invoice.invoiceAmount.toFixed(2)
+			                              ? inv.invoice.invoiceAmount.toFixed(3)
 			                              : '-';
                                 const adjustedAmount = Number(inv.invoice.adjustedAmount ?? 0);
                                 const paymentAmount = Number(paymentAmountByInvoiceId[inv.invoice.id] ?? inv.invoice.paymentAmount ?? 0);
@@ -6670,7 +6670,7 @@ export default function PurchaseRequestDetailView({
 		                                      {amountCell}
 		                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
-			                                      {adjustedAmount.toFixed(2)}
+			                                      {adjustedAmount.toFixed(3)}
 			                                    </td>
 				                                    <td rowSpan={rowSpan} className="px-4 py-3 border border-outline-variant align-top">
 				                                      <input
@@ -6684,7 +6684,7 @@ export default function PurchaseRequestDetailView({
 				                                      />
 				                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top tabular-nums">
-			                                      {Number.isFinite(totalPaid) ? totalPaid.toFixed(2) : '-'}
+			                                      {Number.isFinite(totalPaid) ? totalPaid.toFixed(3) : '-'}
 			                                    </td>
 			                                    <td rowSpan={rowSpan} className="px-4 py-3 text-sm text-on-surface-variant border border-outline-variant align-top">
 			                                      {dueStatus}
@@ -6823,7 +6823,7 @@ export default function PurchaseRequestDetailView({
 					                          <Field label="Amount Adjusted">
                               <input
                                 className={inputClass}
-                                value={Number(activeInvoiceDetails.invoice.adjustedAmount ?? 0).toFixed(2)}
+                                value={Number(activeInvoiceDetails.invoice.adjustedAmount ?? 0).toFixed(3)}
                                 disabled
                               />
 					                          </Field>
@@ -6964,7 +6964,7 @@ export default function PurchaseRequestDetailView({
 				                          onChange={(e) => setEditInvoiceCourierCharge(e.target.value)}
 				                          disabled={busy || invoiceDetailsMode !== 'edit'}
 				                          inputMode="decimal"
-				                          step="0.01"
+				                          step="0.001"
 				                        />
 				                      </Field>
 				                      <Field label="Packing Charge">
@@ -6981,7 +6981,7 @@ export default function PurchaseRequestDetailView({
 				                          onChange={(e) => setEditInvoicePackingCharge(e.target.value)}
 				                          disabled={busy || invoiceDetailsMode !== 'edit'}
 				                          inputMode="decimal"
-				                          step="0.01"
+				                          step="0.001"
 				                        />
 				                      </Field>
 				                      <Field label="Labour Charge">
@@ -6998,7 +6998,7 @@ export default function PurchaseRequestDetailView({
 				                          onChange={(e) => setEditInvoiceLabourCharge(e.target.value)}
 				                          disabled={busy || invoiceDetailsMode !== 'edit'}
 				                          inputMode="decimal"
-				                          step="0.01"
+				                          step="0.001"
 				                        />
 				                      </Field>
 				                      <Field label="Other Charge">
@@ -7015,7 +7015,7 @@ export default function PurchaseRequestDetailView({
 				                          onChange={(e) => setEditInvoiceOtherCharge(e.target.value)}
 				                          disabled={busy || invoiceDetailsMode !== 'edit'}
 				                          inputMode="decimal"
-				                          step="0.01"
+				                          step="0.001"
 				                        />
 				                      </Field>
 				                      <Field label="Updated By">
@@ -7114,7 +7114,7 @@ export default function PurchaseRequestDetailView({
 				                                  const rateNumber = Number(l.rate ?? 0);
 				                                  const effectiveItemPriceCell =
 				                                    Number.isFinite(rateNumber) && Number.isFinite(quantityNumber) && quantityNumber > 0
-				                                      ? (rateNumber + extraChargePerItemLine / quantityNumber).toFixed(2)
+				                                      ? (rateNumber + extraChargePerItemLine / quantityNumber).toFixed(3)
 				                                      : '-';
 				                                  return (
 				                                  <tr key={l.itemId}>
@@ -7195,7 +7195,7 @@ export default function PurchaseRequestDetailView({
 					                                  typeof it.quantity === 'number' &&
 					                                  Number.isFinite(it.quantity) &&
 					                                  it.quantity > 0
-					                                    ? (it.rate + extraChargePerItemLine / it.quantity).toFixed(2)
+					                                    ? (it.rate + extraChargePerItemLine / it.quantity).toFixed(3)
 					                                    : '-';
 					                                return (
 					                                  <tr key={`${activeInvoiceDetails.invoice.id}-${it.itemId}-${idx}`}>

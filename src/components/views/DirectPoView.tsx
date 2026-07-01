@@ -40,7 +40,7 @@ function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
 }
 function round2(n: number) {
   if (!Number.isFinite(n)) return 0;
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return Math.round((n + Number.EPSILON) * 1000) / 1000;
 }
 function computeAreaQty(length: number, breadth: number, pcs: number) {
   const l = round2(length);
@@ -52,15 +52,15 @@ function computeAreaQty(length: number, breadth: number, pcs: number) {
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
-  if (from === 'ft') return `${(n * 0.3048).toFixed(2)} m`;
-  if (from === 'm') return `${(n / 0.3048).toFixed(2)} Ft`;
+  if (from === 'ft') return `${(n * 0.3048).toFixed(3)} m`;
+  if (from === 'm') return `${(n / 0.3048).toFixed(3)} Ft`;
   return '';
 }
 function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
-  if (from === 'sqft') return `${(n * 0.092903).toFixed(2)} Sq Mtr`;
-  if (from === 'sqm') return `${(n / 0.092903).toFixed(2)} Sq Ft`;
+  if (from === 'sqft') return `${(n * 0.092903).toFixed(3)} Sq Mtr`;
+  if (from === 'sqm') return `${(n / 0.092903).toFixed(3)} Sq Ft`;
   return '';
 }
 
@@ -733,7 +733,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                         ) : '-'}
                       </div>
 	                    <div className="p-2 border-r border-outline-variant text-right text-xs">
-	                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}
+	                      {Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(3)}
 	                    </div>
 	                    <div className="p-2 border-r border-outline-variant text-right">
                         <div className="space-y-1">
@@ -752,11 +752,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                             return (
                               <div className="flex flex-col items-end gap-0.5 mt-0.5">
                                 <div className="text-[10px] text-blue-700 font-bold leading-tight">
-                                  {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                  {areaInInputUnit.toFixed(3)} {inputAreaUnitLabel}
                                 </div>
                                 {inputAreaUnitLabel !== poAreaUnitLabel && (
                                   <div className="text-[10px] text-red-600 font-medium leading-tight">
-                                    (= {Number(l.quantity).toFixed(2)} {poAreaUnitLabel})
+                                    (= {Number(l.quantity).toFixed(3)} {poAreaUnitLabel})
                                   </div>
                                 )}
                               </div>
@@ -792,11 +792,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                       )}
                       {supplierHasGst && (
                         <div className="p-2 border-r border-outline-variant text-right text-xs font-medium text-on-surface flex items-center justify-end">
-                          {gstAmount.toFixed(2)}
+                          {gstAmount.toFixed(3)}
                         </div>
                       )}
                       <div className="p-2 border-r border-outline-variant text-right text-xs font-bold text-on-surface flex items-center justify-end">
-                        {totalAmount.toFixed(2)}
+                        {totalAmount.toFixed(3)}
                       </div>
                       <div className="p-2 border-r border-outline-variant">
                         <input

@@ -37,16 +37,16 @@ function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-  if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-  if (from === 'm') return `${(n * 3.28084).toFixed(2)} ft`;
+  if (from === 'ft') return `${(n / 3.28084).toFixed(3)} m`;
+  if (from === 'm') return `${(n * 3.28084).toFixed(3)} ft`;
   return null;
 }
 
 function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-  if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} sqm`;
-  if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} sqft`;
+  if (from === 'sqft') return `${(n / 10.7639).toFixed(3)} sqm`;
+  if (from === 'sqm') return `${(n * 10.7639).toFixed(3)} sqft`;
   return null;
 }
 
@@ -202,7 +202,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     const base = qty * rate;
     const afterDisc = base - (base * disc) / 100;
     const total = afterDisc + (afterDisc * gst) / 100;
-    return total.toFixed(2);
+    return total.toFixed(3);
   }
 
 	  return (

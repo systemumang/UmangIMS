@@ -6,7 +6,7 @@ export function sanitizeDecimalInput(raw: string): string {
   for (const ch of s) {
     if (ch >= '0' && ch <= '9') {
       if (dotUsed) {
-        if (frac.length < 2) frac += ch;
+        if (frac.length < 3) frac += ch;
       } else {
         whole += ch;
       }
@@ -35,7 +35,7 @@ export function sanitizeSignedDecimalInput(raw: string): string {
     }
     if (ch >= '0' && ch <= '9') {
       if (dotUsed) {
-        if (frac.length < 2) frac += ch;
+        if (frac.length < 3) frac += ch;
       } else {
         whole += ch;
       }

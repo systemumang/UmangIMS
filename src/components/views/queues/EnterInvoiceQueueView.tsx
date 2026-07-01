@@ -61,7 +61,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
   function round2(n: number) {
     if (!Number.isFinite(n)) return NaN;
-    return Math.round(n * 100) / 100;
+    return Math.round(n * 1000) / 1000;
   }
 
   function computeAreaQty(length: number, breadth: number, pcs: number) {
@@ -557,11 +557,11 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	            <div className="flex items-center gap-4 flex-wrap">
 	              <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low px-4 py-2">
 	                <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Invoice Total</div>
-	                <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceTotal.toFixed(2)}</div>
+	                <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceTotal.toFixed(3)}</div>
 	              </div>
 	              <div className="rounded-lg border border-outline-variant/30 bg-primary-container/40 px-4 py-2">
 	                <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Invoice Total Amount</div>
-	                <div className="text-base font-extrabold tabular-nums text-on-surface">{computedTotalAmount.toFixed(2)}</div>
+	                <div className="text-base font-extrabold tabular-nums text-on-surface">{computedTotalAmount.toFixed(3)}</div>
 	              </div>
 	            </div>
 	            <div className="flex items-center gap-2">
@@ -591,7 +591,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	                    return;
 	                  }
 
-	                  const invAmt = Number(computedTotalAmount.toFixed(2));
+	                  const invAmt = Number(computedTotalAmount.toFixed(3));
 	                  if (!Number.isFinite(invAmt) || invAmt < 0) {
 	                    setModalError('Invalid invoice amount');
 	                    return;
@@ -689,9 +689,9 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 			                </label>
 			                <div className="rounded-lg border border-outline-variant/30 bg-primary-container/25 p-3">
 			                  <div className="text-[11px] font-bold uppercase tracking-widest text-blue-800">Invoice Amount</div>
-			                  <div className="text-lg font-extrabold tabular-nums text-on-surface">{computedTotalAmount.toFixed(2)}</div>
+			                  <div className="text-lg font-extrabold tabular-nums text-on-surface">{computedTotalAmount.toFixed(3)}</div>
 			                  <div className="mt-2 text-[11px] font-bold uppercase tracking-widest text-blue-800">Item Total</div>
-			                  <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceTotal.toFixed(2)}</div>
+			                  <div className="text-sm font-bold tabular-nums text-on-surface">{computedInvoiceTotal.toFixed(3)}</div>
 			                </div>
 		              </div>
 		            </div>
@@ -1094,12 +1094,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                 />
                               </td>
                               <td className="px-2 py-2 border border-black text-right tabular-nums font-medium">
-                                {lineGstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {lineGstAmount.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                               </td>
                             </>
                           ) : null}
                           <td className="px-2 py-2 border border-black text-right tabular-nums font-bold">
-                            {lineTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {lineTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                           </td>
                         </tr>
                       );

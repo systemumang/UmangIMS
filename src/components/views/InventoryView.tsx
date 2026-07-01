@@ -22,7 +22,6 @@ export default function InventoryView() {
   const [search, setSearch] = useState('');
   const [itemNameFilterId, setItemNameFilterId] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [pendingOrderOnly, setPendingOrderOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [photoModal, setPhotoModal] = useState<{ title: string; photos: string[] } | null>(null);
@@ -203,11 +202,9 @@ export default function InventoryView() {
     const byCategory = !categoryFilter || meta.category === categoryFilter;
 
     const balance = Number((r as any).balance ?? 0);
-    const reorderLevel = Number((r as any).reorderLevel ?? 0);
     const hasPositiveBalance = balance > 0;
-    const byPendingOrder = !pendingOrderOnly || balance <= reorderLevel;
 
-    if (!selectedStoreName) return bySearch && byItemName && byCategory && byPendingOrder && hasPositiveBalance;
+    if (!selectedStoreName) return bySearch && byItemName && byCategory && hasPositiveBalance;
     const rowStore = getStoreLabel(r).toLowerCase();
     const wanted = selectedStoreName.toLowerCase();
     const byStore = rowStore
@@ -215,7 +212,7 @@ export default function InventoryView() {
       .map((s) => s.trim())
       .filter(Boolean)
       .includes(wanted);
-    return bySearch && byItemName && byCategory && byStore && byPendingOrder && hasPositiveBalance;
+    return bySearch && byItemName && byCategory && byStore && hasPositiveBalance;
   });
   const sortedRows = [...filteredRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -269,8 +266,7 @@ export default function InventoryView() {
     Boolean(selectedStoreFilterId) ||
     Boolean(itemNameFilterId) ||
     Boolean(categoryFilter) ||
-    selectedFirmId !== ALL_FIRMS_VALUE ||
-    pendingOrderOnly;
+    selectedFirmId !== ALL_FIRMS_VALUE;
 	  const onSort = (key: typeof sortBy) => {
 	    if (sortBy === key) {
 	      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -421,17 +417,6 @@ export default function InventoryView() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant space-y-2">
-        <div className={labelClass}>Firm Shortcuts</div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={cn('btn btn-sm', selectedFirmId === ALL_FIRMS_VALUE ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(ALL_FIRMS_VALUE)}>All Firms</button>
-          {firms.map((f) => (
-            <button key={f.id} type="button" className={cn('btn btn-sm', selectedFirmId === f.id ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(f.id)}>
-              {String(f.sortName ?? '').trim() || f.name}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="flex items-center justify-between gap-4 bg-surface-container-low p-4 rounded-xl border border-outline-variant">
 	        <div className="flex flex-wrap items-center gap-4 flex-1">
           <div className="w-64">
@@ -500,7 +485,6 @@ export default function InventoryView() {
 		                  setSelectedStoreFilterId('');
                   setItemNameFilterId('');
                   setCategoryFilter('');
-                      setPendingOrderOnly(false);
 		                }}
 		                disabled={!hasActiveFilters}
 	                className="flex-1 h-[38px] px-3 rounded-lg border border-error bg-error text-on-primary text-sm font-semibold hover:bg-error/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -513,26 +497,22 @@ export default function InventoryView() {
 			              <button type="button" className="btn btn-sm h-[38px] px-3" title="Download PDF" onClick={exportInventoryPdf}>
 			                Pdf
 			              </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingOrderOnly((v) => !v)}
-                      className={cn(
-                        'h-[38px] px-3 rounded-lg border text-sm font-semibold transition-colors',
-                        pendingOrderOnly
-                          ? 'bg-error text-on-primary border-error hover:bg-error/90'
-                          : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-container-low'
-                      )}
-                    >
-                      Pending Order
-                    </button>
 			            </div>
 			          </div>
 		        </div>
       </div>
 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-outline-variant bg-surface-container-low">
+        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-center justify-between gap-3">
           <div className="font-headline font-bold text-sm text-on-surface">Item Sheet</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button type="button" className={cn('btn btn-sm', selectedFirmId === ALL_FIRMS_VALUE ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(ALL_FIRMS_VALUE)}>All Firms</button>
+            {firms.map((f) => (
+              <button key={f.id} type="button" className={cn('btn btn-sm', selectedFirmId === f.id ? 'btn-primary' : '')} onClick={() => setSelectedFirmId(f.id)}>
+                {String(f.sortName ?? '').trim() || f.name}
+              </button>
+            ))}
+          </div>
         </div>
         
 	        <div className="overflow-x-auto">

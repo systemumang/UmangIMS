@@ -3,7 +3,7 @@ import Spinner from '@/src/components/common/Spinner';
 import { fetchPendingOrderReport, type PendingOrderReportRow } from '@/src/lib/reports';
 
 function qty(value: number) {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value ?? 0));
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(Number(value ?? 0));
 }
 
 export default function PendingOrderReportView() {

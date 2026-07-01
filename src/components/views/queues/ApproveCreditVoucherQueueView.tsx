@@ -128,7 +128,7 @@ export default function ApproveCreditVoucherQueueView({ onViewPr: _onViewPr }: {
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPoNumber((r as any).poNumber ?? r.poId) || r.poId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{formatPrNumber((r as any).prNumber ?? r.prId) || r.prId}</td>
                   <td className="px-3 py-2 border border-outline-variant text-on-surface-variant">{r.supplierName}</td>
-                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.voucherAmount ?? 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(r.voucherAmount ?? 0).toFixed(3)}</td>
                   <td className="px-3 py-2 border border-outline-variant">
                     <div className="flex items-center gap-2">
                       <button type="button" className="btn-primary btn-sm" onClick={() => { setActive(r); setModalOpen(true); }}>

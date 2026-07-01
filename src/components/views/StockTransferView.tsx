@@ -552,7 +552,7 @@ export default function StockTransferView({
 	                        <input
 	                          type="number"
 	                          min={0}
-                          step={0.01}
+                          step={0.001}
                           value={row.quantity}
                           onChange={(e) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: e.target.value } : p)))}
                           className="w-28 text-right bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"

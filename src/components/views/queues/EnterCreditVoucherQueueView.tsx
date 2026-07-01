@@ -275,7 +275,7 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
                       >
                         <td className="px-3 py-2 border border-outline-variant">{ln.item}</td>
                         <td className="px-3 py-2 border border-outline-variant text-center text-on-surface-variant text-[10px] font-bold uppercase">{ln.unit || '-'}</td>
-                        <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(ln.pendingQty ?? 0).toFixed(2)}</td>
+                        <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(ln.pendingQty ?? 0).toFixed(3)}</td>
                         <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                           <input
                             className={cn(inputClass, 'h-9 text-right')}
@@ -295,7 +295,7 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
                           />
                         </td>
                         <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">
-                          {(Number(ln.quantity || 0) * Number(ln.rate || 0)).toFixed(2)}
+                          {(Number(ln.quantity || 0) * Number(ln.rate || 0)).toFixed(3)}
                         </td>
                       </tr>
                     );

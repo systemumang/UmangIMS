@@ -129,7 +129,7 @@ function baseDimUnitForAreaUnit(areaUnit: 'sqft' | 'sqm' | null) {
 
 function round2(n: number) {
   if (!Number.isFinite(n)) return 0;
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return Math.round((n + Number.EPSILON) * 1000) / 1000;
 }
 
 function computeAreaQty(length: number, breadth: number, pcs: number) {
@@ -147,8 +147,8 @@ function isIgnorableUpdatedByError(message: unknown) {
 function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   const n = Number(val);
   if (!val || !Number.isFinite(n) || n <= 0 || !from) return '';
-  if (from === 'ft') return `${(n * 0.3048).toFixed(2)} m`;
-  if (from === 'm') return `${(n / 0.3048).toFixed(2)} Ft`;
+  if (from === 'ft') return `${(n * 0.3048).toFixed(3)} m`;
+  if (from === 'm') return `${(n / 0.3048).toFixed(3)} Ft`;
   return '';
 }
 
@@ -1652,9 +1652,9 @@ export default function OperationsView({
 		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 					                        <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
 					                        <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-					                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
+					                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(3)}</td>
 					                        <td className="px-3 py-2 border border-outline-variant tabular-nums">
-					                          {Number(r.advanceAmount ?? 0).toFixed(2)}
+					                          {Number(r.advanceAmount ?? 0).toFixed(3)}
 					                        </td>
 					                        <td className="px-3 py-2 border border-outline-variant">
                           <button
@@ -1750,8 +1750,8 @@ export default function OperationsView({
                                 <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
                                 <td className="px-3 py-2 border border-outline-variant">{r.orderDate ? formatDateShort(r.orderDate) : '-'}</td>
-                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(2)}</td>
-                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.advanceAmount ?? 0).toFixed(3)}</td>
+                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amountAdjusted ?? 0).toFixed(3)}</td>
                                 <td className="px-3 py-2 border border-outline-variant">
 	                                  <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openAdjustModal(r as any); }}>
 	                                Payment Adjustment
@@ -1765,15 +1765,15 @@ export default function OperationsView({
 				                          <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 				                          <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.invoiceDate)}</td>
-	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(2)}</td>
-	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(2)}</td>
-	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(2)}</td>
-	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(2)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.grnQty ?? 0).toFixed(3)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.approvedQty ?? 0).toFixed(3)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.adjustedAmount ?? 0).toFixed(3)}</td>
+	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.actualReceiptAmount ?? 0).toFixed(3)}</td>
 	                              <td className="px-3 py-2 border border-outline-variant tabular-nums">
-	                                {(Number(r.invoiceAmount ?? 0) - Number(r.adjustedAmount ?? 0) - Number(r.actualReceiptAmount ?? 0)).toFixed(2)}
+	                                {(Number(r.invoiceAmount ?? 0) - Number(r.adjustedAmount ?? 0) - Number(r.actualReceiptAmount ?? 0)).toFixed(3)}
 	                              </td>
 					                          <td className="px-3 py-2 border border-outline-variant">{r.status}</td>
-					                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+					                          <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(3)}</td>
 					                      </>
 		                    ) : tab === 'creditVouchers' ? (
 		                      <>
@@ -1784,9 +1784,9 @@ export default function OperationsView({
 		                        <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.status || '-'}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">{r.paymentStatus || '-'}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(2)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(2)}</td>
-		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.balanceAmount ?? 0).toFixed(2)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.totalAmount ?? 0).toFixed(3)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.paidAmount ?? 0).toFixed(3)}</td>
+		                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.balanceAmount ?? 0).toFixed(3)}</td>
 		                        <td className="px-3 py-2 border border-outline-variant">
 		                          <button
 		                            type="button"
@@ -1809,7 +1809,7 @@ export default function OperationsView({
 				                      <td className="px-3 py-2 border border-outline-variant">{r.firmName}</td>
 				                      <td className="px-3 py-2 border border-outline-variant">{r.supplierName || '-'}</td>
 				                      <td className="px-3 py-2 border border-outline-variant">{formatDateShort(r.paymentDate)}</td>
-				                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(2)}</td>
+				                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(r.amount ?? 0).toFixed(3)}</td>
                           <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">{String((r as any).mode ?? '') || '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">
@@ -1923,9 +1923,9 @@ export default function OperationsView({
 	                                                {it.dimBreadth ? `${it.dimBreadth}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
 	                                              </td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.quantity ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rate ?? 0).toFixed(2)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rate ?? 0).toFixed(3)}</td>
 	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
-	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.totalAmount ?? 0).toFixed(2)}</td>
+	                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.totalAmount ?? 0).toFixed(3)}</td>
 	                                            </tr>
                                           ))
                                         ) : (
@@ -2003,10 +2003,10 @@ export default function OperationsView({
 			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.grnQty ?? 0)}</td>
 			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.acceptedQty ?? 0)}</td>
 			                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.rejectedQty ?? 0)}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate.toFixed(2)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{rate.toFixed(3)}</td>
 		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.discountPercent ?? 0)}</td>
 		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it?.taxPercent ?? 0)}</td>
-		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{total.toFixed(2)}</td>
+		                                              <td className="px-3 py-2 border border-outline-variant tabular-nums">{total.toFixed(3)}</td>
 		                                            </tr>
 		                      );
 		                      })
@@ -2054,7 +2054,7 @@ export default function OperationsView({
                                           }}
                                         >
 	                                        <td className="px-3 py-2 border border-outline-variant">{formatDateShort(String(a.advanceDate ?? ''))}</td>
-	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(2)}</td>
+	                                        <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(a.advanceAmount ?? 0).toFixed(3)}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant">{String((a as any).paymentMode ?? '').trim() || '-'}</td>
 	                                        <td className="px-3 py-2 border border-outline-variant">
 	                                          {String((a as any).paymentCopy ?? '').trim() ? (
@@ -2086,8 +2086,8 @@ export default function OperationsView({
                                 {!inlineInvoiceReceiptsLoadingById[String(r.invoiceId ?? '')] && !inlineInvoiceReceiptsErrorById[String(r.invoiceId ?? '')] ? (
                                   <div className="space-y-2">
                                     <div className="text-xs text-on-surface-variant">
-                                      Advance: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(2)} | Payment:{' '}
-                                      {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}
+                                      Advance: {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.adjustedAmount ?? 0).toFixed(3)} | Payment:{' '}
+                                      {Number(inlineInvoiceReceiptTotalsById[String(r.invoiceId ?? '')]?.actualReceiptAmount ?? 0).toFixed(3)}
                                     </div>
                                     <div className="overflow-x-auto">
 	                                      <table className="w-full min-w-[920px] table-fixed text-left border-collapse border border-outline-variant text-sm">
@@ -2117,7 +2117,7 @@ export default function OperationsView({
                                                 <td className="px-3 py-2 border border-outline-variant">
                                                   {x.receiptType === 'DIRECT_PAYMENT' ? 'Payment' : 'Advance'}
 	                                                </td>
-	                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(2)}</td>
+	                                                <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(x.amount ?? 0).toFixed(3)}</td>
 	                                                <td className="px-3 py-2 border border-outline-variant">{x.paymentMode || '-'}</td>
                                                   <td className="px-3 py-2 border border-outline-variant">
                                                     {String(x.paymentCopy ?? '').trim() ? (
@@ -2208,9 +2208,9 @@ export default function OperationsView({
                                                   }}
                                                 >
                                                   <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.itemName || '-'}</td>
-                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(2)}</td>
-                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
-                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">{Number(it.amount ?? 0).toFixed(2)}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.quantity ?? 0).toFixed(3)}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(3)}</td>
+                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">{Number(it.amount ?? 0).toFixed(3)}</td>
                                                 </tr>
                                               ))
                                             ) : (
@@ -2231,11 +2231,11 @@ export default function OperationsView({
                                       <div className="flex items-center gap-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
                                         <div className="flex items-center gap-1.5">
                                           <div className="w-2 h-2 rounded-full bg-primary" />
-                                          Adjusted: <span className="text-primary tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.adjustedAmount ?? 0).toFixed(2)}</span>
+                                          Adjusted: <span className="text-primary tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.adjustedAmount ?? 0).toFixed(3)}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                          Paid: <span className="text-emerald-600 tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.actualReceiptAmount ?? 0).toFixed(2)}</span>
+                                          Paid: <span className="text-emerald-600 tabular-nums text-xs">{Number(inlineCreditVoucherReceiptTotalsById[String(r.creditVoucherId ?? '')]?.actualReceiptAmount ?? 0).toFixed(3)}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -2296,7 +2296,7 @@ export default function OperationsView({
                                                       )}
                                                     </td>
 	                                                  <td className="px-3 py-2 border border-outline-variant text-right tabular-nums font-medium">
-	                                                    {Number(x.amount ?? 0).toFixed(2)}
+	                                                    {Number(x.amount ?? 0).toFixed(3)}
 	                                                  </td>
                                                   <td className="px-3 py-2 border border-outline-variant text-center">
                                                     <button
@@ -2506,15 +2506,15 @@ export default function OperationsView({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3">
               <div className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Total Advance</div>
-              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustModalAdvanceAmount ?? 0).toFixed(2)}</div>
+              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustModalAdvanceAmount ?? 0).toFixed(3)}</div>
             </div>
             <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3">
               <div className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Total Adjusted</div>
-              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustTotals.totalAdjusted ?? 0).toFixed(2)}</div>
+              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustTotals.totalAdjusted ?? 0).toFixed(3)}</div>
             </div>
             <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3">
               <div className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Advance Remaining</div>
-              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustTotals.remaining ?? 0).toFixed(2)}</div>
+              <div className="text-sm font-bold tabular-nums text-on-surface">{Number(adjustTotals.remaining ?? 0).toFixed(3)}</div>
             </div>
           </div>
 
@@ -2556,7 +2556,7 @@ export default function OperationsView({
                     <tr key={inv.invoiceId}>
                       <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{inv.invoiceNo || inv.invoiceId}</td>
                       <td className="px-3 py-2 border border-outline-variant">{formatDateShort(inv.invoiceDate)}</td>
-                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(inv.invoiceAmount ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(inv.invoiceAmount ?? 0).toFixed(3)}</td>
                       <td className="px-3 py-2 border border-outline-variant">
                         <input
                           className={cn(inputClass, 'py-1.5')}
@@ -2573,7 +2573,7 @@ export default function OperationsView({
                         />
                       </td>
                       <td className="px-3 py-2 border border-outline-variant tabular-nums">
-                        {Math.max(0, Number(inv.invoiceAmount ?? 0) - (String(adjustInvoiceAmounts[inv.invoiceId] ?? '').trim() ? Number(adjustInvoiceAmounts[inv.invoiceId]) : 0)).toFixed(2)}
+                        {Math.max(0, Number(inv.invoiceAmount ?? 0) - (String(adjustInvoiceAmounts[inv.invoiceId] ?? '').trim() ? Number(adjustInvoiceAmounts[inv.invoiceId]) : 0)).toFixed(3)}
                       </td>
                       <td className="px-3 py-2 border border-outline-variant">
                         <input
@@ -2829,15 +2829,15 @@ export default function OperationsView({
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8" value={l.pcs ?? ''} onChange={(e) => { const val = sanitizeDecimalInput(e.target.value); const q = computeAreaQty(Number(l.length), Number(l.breadth), Number(val || 1)); updateEditPoLine(idx, { pcs: val, quantity: String(q) }); }} disabled={editPoBusy} placeholder="PCs" /> : '-'}
                       </div>
-                      <div className="p-2 border-r border-outline-variant text-right text-xs">{Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(2)}</div>
+                      <div className="p-2 border-r border-outline-variant text-right text-xs">{Number(availableStockByItemId[String(l.itemId ?? '').trim()] ?? 0).toFixed(3)}</div>
                       <div className="p-2 border-r border-outline-variant text-right">
                         <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70 h-8" value={l.quantity} onChange={(e) => updateEditPoLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy || isAreaUnit} placeholder="0" />
                       </div>
                       <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.rate} onChange={(e) => updateEditPoLine(idx, { rate: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>
                       <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.discountPercent} onChange={(e) => updateEditPoLine(idx, { discountPercent: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>
                       {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant"><input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm text-right h-8" value={l.taxPercent} onChange={(e) => updateEditPoLine(idx, { taxPercent: sanitizeDecimalInput(e.target.value) })} disabled={editPoBusy} placeholder="0" /></div>}
-                      {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant text-right text-xs font-medium">{gstAmount.toFixed(2)}</div>}
-                      <div className="p-2 border-r border-outline-variant text-right text-xs font-bold">{totalAmount.toFixed(2)}</div>
+                      {getSupplierHasGst(editPoSupplierId) && <div className="p-2 border-r border-outline-variant text-right text-xs font-medium">{gstAmount.toFixed(3)}</div>}
+                      <div className="p-2 border-r border-outline-variant text-right text-xs font-bold">{totalAmount.toFixed(3)}</div>
                       <div className="p-2 border-r border-outline-variant">
                         <input
                           className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-sm h-8"
@@ -3110,7 +3110,7 @@ export default function OperationsView({
 	                                >
 		                                  <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{p?.id ?? '-'}</td>
 		                                  <td className="px-3 py-2 border border-outline-variant">{formatDateShort(p?.paymentDate ?? '')}</td>
-		                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p?.amount ?? 0).toFixed(2)}</td>
+		                                  <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p?.amount ?? 0).toFixed(3)}</td>
 		                                </tr>
 		                              ))
 	                            ) : (
@@ -3210,7 +3210,7 @@ export default function OperationsView({
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.discountPercent ?? 0)}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(3)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3287,7 +3287,7 @@ export default function OperationsView({
 	                  </div>
                   <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
                     <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Amount</div>
-                    <div className="mt-1 text-on-surface-variant tabular-nums">{Number(detail.invoice?.invoice?.invoiceAmount ?? 0).toFixed(2)}</div>
+                    <div className="mt-1 text-on-surface-variant tabular-nums">{Number(detail.invoice?.invoice?.invoiceAmount ?? 0).toFixed(3)}</div>
                     <div className="mt-1 text-on-surface-variant">Payments: {detail.payments?.length ?? 0}</div>
                   </div>
                   <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-3 text-sm">
@@ -3322,7 +3322,7 @@ export default function OperationsView({
                             <td className="px-3 py-2 border border-outline-variant">{it.unit ?? '-'}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.rate ?? 0)}</td>
                             <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.taxPercent ?? 0)}</td>
-                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(it.totalAmount ?? 0).toFixed(3)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3352,7 +3352,7 @@ export default function OperationsView({
 	                          >
 	                            <td className="px-3 py-2 border border-outline-variant text-primary font-semibold">{p.id ?? '-'}</td>
 	                            <td className="px-3 py-2 border border-outline-variant">{formatDateShort(p.paymentDate)}</td>
-	                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p.amount ?? 0).toFixed(2)}</td>
+	                            <td className="px-3 py-2 border border-outline-variant tabular-nums">{Number(p.amount ?? 0).toFixed(3)}</td>
 	                            <td className="px-3 py-2 border border-outline-variant">{p.mode ?? '-'}</td>
 	                            <td className="px-3 py-2 border border-outline-variant">{p.referenceNo ?? '-'}</td>
 	                          </tr>
@@ -3370,7 +3370,7 @@ export default function OperationsView({
 		                    <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Payment</div>
 		                    <div className="mt-1 font-semibold text-on-surface">{detail.payment?.paymentId ?? '-'}</div>
 		                    <div className="mt-1 text-on-surface-variant">Date: {formatDateShort(detail.payment?.paymentDate ?? '')}</div>
-		                    <div className="mt-1 text-on-surface-variant">Amount: {Number(detail.payment?.amount ?? 0).toFixed(2)}</div>
+		                    <div className="mt-1 text-on-surface-variant">Amount: {Number(detail.payment?.amount ?? 0).toFixed(3)}</div>
 		                    <div className="mt-1 text-on-surface-variant">Status: {detail.payment?.status ?? '-'}</div>
 		                    <div className="mt-1 text-on-surface-variant">Mode: {detail.payment?.mode ?? '-'}</div>
 	                    <div className="mt-1 text-on-surface-variant">Ref: {detail.payment?.referenceNo ?? '-'}</div>

@@ -54,7 +54,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 
   function round2(n: number) {
     if (!Number.isFinite(n)) return NaN;
-    return Math.round(n * 100) / 100;
+    return Math.round(n * 1000) / 1000;
   }
 
   function computeAreaQty(length: number, breadth: number, pcs: number) {
@@ -70,16 +70,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-    if (from === 'm') return `${(n * 3.28084).toFixed(2)} Ft`;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(3)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(3)} Ft`;
     return null;
   }
 
   function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} Sq Mtr`;
-    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} Sq Ft`;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(3)} Sq Mtr`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(3)} Sq Ft`;
     return null;
   }
 
@@ -899,7 +899,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant text-center">{l.unit || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center font-semibold">{l.remainingQty}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">
-                                {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(2)}
+                                {Number(availableStockByItemId[l.itemId] ?? 0).toFixed(3)}
                               </td>
                               <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
                                 {isAreaUnit ? (
@@ -1030,11 +1030,11 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                   return (
                                     <div className="flex flex-col gap-0.5 mt-0.5 items-end">
                                       <div className="text-[10px] text-blue-700 font-bold px-1 leading-tight">
-                                        {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                        {areaInInputUnit.toFixed(3)} {inputAreaUnitLabel}
                                       </div>
                                       {inputAreaUnitLabel !== poAreaUnitLabel && (
                                         <div className="text-[10px] text-red-600 font-medium px-1 leading-tight text-right">
-                                          (= {Number(l.quantity).toFixed(2)} {poAreaUnitLabel})
+                                          (= {Number(l.quantity).toFixed(3)} {poAreaUnitLabel})
                                         </div>
                                       )}
                                     </div>
@@ -1097,10 +1097,10 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 )}
                               </td>
                               <td className="px-3 py-2 text-right border border-outline-variant text-xs font-medium text-on-surface tabular-nums">
-                                {gstAmt.toFixed(2)}
+                                {gstAmt.toFixed(3)}
                               </td>
                               <td className="px-3 py-2 text-right border border-outline-variant text-xs font-bold text-on-surface tabular-nums">
-                                {totalAmt.toFixed(2)}
+                                {totalAmt.toFixed(3)}
                               </td>
                               <td className="px-3 py-2 text-xs text-on-surface-variant border border-outline-variant">{l.lastSupplierName || '-'}</td>
                               <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums text-center">{Number(l.lastRate ?? 0) || '-'}</td>

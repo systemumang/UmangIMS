@@ -153,7 +153,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId) || '-'}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{Number(r.invoiceAmount ?? 0).toFixed(3)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.status}</td>
                       <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap">
@@ -253,7 +253,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 	                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
 	                  <div><span className="font-semibold">Invoice No:</span> {invoiceDetail.invoice.supplierInvoiceNo || '-'}</div>
 	                  <div><span className="font-semibold">Invoice Date:</span> {invoiceDetail.invoice.invoiceDate ? formatDateDDMMYYYYOnly(invoiceDetail.invoice.invoiceDate) : '-'}</div>
-	                  <div><span className="font-semibold">Amount:</span> {Number(invoiceDetail.invoice.invoiceAmount ?? 0).toFixed(2)}</div>
+	                  <div><span className="font-semibold">Amount:</span> {Number(invoiceDetail.invoice.invoiceAmount ?? 0).toFixed(3)}</div>
 	                  <div><span className="font-semibold">Eway Bill:</span> {invoiceDetail.invoice.ewayBillNumber || '-'}</div>
 	                  <div><span className="font-semibold">CN/Courier:</span> {invoiceDetail.invoice.cnNumber || invoiceDetail.invoice.courierNumber || '-'}</div>
 	                  <div>
@@ -291,10 +291,10 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
 			                            </td>
 		                            <td className="px-2 py-1 border border-outline-variant text-center">{it.unit || '-'}</td>
 		                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">
-		                              {Number(it.quantity ?? 0).toFixed(2)}
+		                              {Number(it.quantity ?? 0).toFixed(3)}
 		                            </td>
-	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(2)}</td>
-	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(2)}</td>
+	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.rate ?? 0).toFixed(3)}</td>
+	                            <td className="px-2 py-1 border border-outline-variant text-right tabular-nums">{Number(it.taxPercent ?? 0).toFixed(3)}</td>
 		                          </tr>
 		                        );
 	                      })}

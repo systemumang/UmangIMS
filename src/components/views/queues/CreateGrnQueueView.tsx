@@ -35,7 +35,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
   function round2(n: number) {
     if (!Number.isFinite(n)) return NaN;
-    return Math.round(n * 100) / 100;
+    return Math.round(n * 1000) / 1000;
   }
 
   function computeAreaQty(length: number, breadth: number, pcs: number) {
@@ -63,16 +63,16 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
   function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'ft') return `${(n / 3.28084).toFixed(2)} m`;
-    if (from === 'm') return `${(n * 3.28084).toFixed(2)} Ft`;
+    if (from === 'ft') return `${(n / 3.28084).toFixed(3)} m`;
+    if (from === 'm') return `${(n * 3.28084).toFixed(3)} Ft`;
     return null;
   }
 
   function getConvertedArea(val: string, from: 'sqft' | 'sqm' | null) {
     const n = Number(val);
     if (!val || !Number.isFinite(n) || n <= 0 || !from) return null;
-    if (from === 'sqft') return `${(n / 10.7639).toFixed(2)} Sq Mtr`;
-    if (from === 'sqm') return `${(n * 10.7639).toFixed(2)} Sq Ft`;
+    if (from === 'sqft') return `${(n / 10.7639).toFixed(3)} Sq Mtr`;
+    if (from === 'sqm') return `${(n * 10.7639).toFixed(3)} Sq Ft`;
     return null;
   }
 
@@ -840,7 +840,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                   if (!isAreaUnit) return q;
 	                                  const ro = Number(roundOffByItemId[lineKey] || 0);
                                   if (ro === 0) return q;
-                                  return (round2(Number(q) + ro)).toFixed(2);
+                                  return (round2(Number(q) + ro)).toFixed(3);
                                 })()}
 	                                onChange={(e) =>
 		                                  setQtyByItemId((prev) => ({ ...prev, [lineKey]: sanitizeDecimalInput(e.target.value) }))
@@ -864,7 +864,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               return (
                                 <div className="space-y-0.5">
                                   <div className="text-[10px] text-blue-700 font-bold leading-tight">
-                                    Area: {areaInInputUnit.toFixed(2)} {inputAreaUnitLabel}
+                                    Area: {areaInInputUnit.toFixed(3)} {inputAreaUnitLabel}
                                   </div>
                                   {inputAreaUnitLabel !== poAreaUnitLabel && (
                                     <div className="text-[10px] text-red-600 font-medium leading-tight">
@@ -879,7 +879,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               if (ro === 0) return null;
                               return (
                                 <div className="text-[10px] text-blue-800 font-bold text-right pr-1">
-                                  Total: {round2(q + ro).toFixed(2)}
+                                  Total: {round2(q + ro).toFixed(3)}
                                 </div>
                               );
                             })()}
