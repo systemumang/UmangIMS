@@ -338,10 +338,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 	          rate: Number(l.rate),
 	          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
 	          taxPercent: supplierHasGst ? (String(l.taxPercent ?? '').trim() ? Number(l.taxPercent) : 0) : 0,
-            length: String(l.length).trim() ? Number(l.length) : undefined,
-            breadth: String(l.breadth).trim() ? Number(l.breadth) : undefined,
-            pcs: String(l.pcs).trim() ? Number(l.pcs) : undefined,
-            remarks: l.remarks.trim() || undefined,
+            length: String(l.length ?? '').trim() ? Number(l.length) : undefined,
+            breadth: String(l.breadth ?? '').trim() ? Number(l.breadth) : undefined,
+            pcs: String(l.pcs ?? '').trim() ? Number(l.pcs) : undefined,
+            remarks: String(l.remarks ?? '').trim() || undefined,
 	        }));
 
 		      await createDirectPo({
@@ -400,7 +400,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                 onChange={(e) => {
                   const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
                   setPoType(next);
-                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1' }]);
+                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
                 }}
               >
                 <option value="Goods">Goods</option>
@@ -820,6 +820,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                   <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                     <tr>
                       <th className="px-3 py-2 border border-outline-variant">Service Name</th>
+                      <th className="px-3 py-2 border border-outline-variant text-center">Unit</th>
                       <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                       <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
                       <th className="px-3 py-2 border border-outline-variant">Item Remarks</th>
@@ -836,6 +837,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                             onChange={(itemNameId) => updateLine(idx, { itemNameId, itemId: '', specs: {} })}
                             placeholder="Search service name..."
                           />
+                        </td>
+                        <td className="p-2 border border-outline-variant text-center text-xs text-on-surface-variant w-24">
+                          {l.unit || '-'}
                         </td>
                         <td className="p-2 border border-outline-variant text-right w-28">
                           <input
@@ -856,7 +860,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                         <td className="p-2 border border-outline-variant">
                           <input
                             className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
-                            value={l.remarks}
+                            value={l.remarks ?? ''}
                             onChange={(e) => updateLine(idx, { remarks: e.target.value })}
                             placeholder="Item remarks..."
                           />
