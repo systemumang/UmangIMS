@@ -4794,7 +4794,7 @@ async function replacePoItemsForIssue(pool, poId, items, poType) {
     const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
     const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
     const unitNameForRow = unitRow?.unit != null ? String(unitRow.unit) : null;
-    const areaUnit = poType === 'Services' ? null : normalizeAreaUnitName(unitNameForRow);
+    const areaUnit = normalizeAreaUnitName(unitNameForRow);
     const dimUnit = baseDimUnitForAreaUnit(areaUnit);
     const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
     const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
@@ -8087,7 +8087,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      // Fetch unit for dimension logic
 		      const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
 		      const unitNameForRow = unitRow?.unit != null ? String(unitRow.unit) : null;
-			      const areaUnit = poType === 'Services' ? null : normalizeAreaUnitName(unitNameForRow);
+			      const areaUnit = normalizeAreaUnitName(unitNameForRow);
 		      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
 		      const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
 		      const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;

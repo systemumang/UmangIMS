@@ -271,6 +271,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 	          const qtyOk = Number(l.quantity) > 0;
 	          const rateOk = Number(l.rate) > 0;
 	          if (!qtyOk || !rateOk) return false;
+          const areaUnit = normalizeAreaUnitName(l.unit);
+          if (areaUnit) {
+            const areaQty = computeAreaQty(Number(l.length), Number(l.breadth), Number(l.pcs || 1));
+            if (!Number.isFinite(areaQty) || areaQty <= 0) return false;
+          }
 	          if (String(l.itemId ?? '').trim()) return true;
 	          const itemNameId = String(l.itemNameId ?? '').trim();
 	          if (!itemNameId) return false;
@@ -821,6 +826,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                     <tr>
                       <th className="px-3 py-2 border border-outline-variant">Service Name</th>
                       <th className="px-3 py-2 border border-outline-variant text-center">Unit</th>
+                      <th className="px-3 py-2 border border-outline-variant text-center">Length</th>
+                      <th className="px-3 py-2 border border-outline-variant text-center">Breadth</th>
+                      <th className="px-3 py-2 border border-outline-variant text-center">PCs</th>
                       <th className="px-3 py-2 border border-outline-variant text-right">Qty</th>
                       <th className="px-3 py-2 border border-outline-variant text-right">Rate</th>
                       <th className="px-3 py-2 border border-outline-variant">Item Remarks</th>
@@ -828,50 +836,99 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((l, idx) => (
-                      <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
-                        <td className="p-2 border border-outline-variant min-w-[360px]">
-                          <SearchableSelect
-                            value={l.itemNameId}
-                            options={itemOptions}
-                            onChange={(itemNameId) => updateLine(idx, { itemNameId, itemId: '', specs: {} })}
-                            placeholder="Search service name..."
-                          />
-                        </td>
-                        <td className="p-2 border border-outline-variant text-center text-xs text-on-surface-variant w-24">
-                          {l.unit || '-'}
-                        </td>
-                        <td className="p-2 border border-outline-variant text-right w-28">
-                          <input
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                            value={l.quantity}
-                            onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="p-2 border border-outline-variant text-right w-28">
-                          <input
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
-                            value={l.rate}
-                            onChange={(e) => updateLine(idx, { rate: sanitizeDecimalInput(e.target.value) })}
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="p-2 border border-outline-variant">
-                          <input
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
-                            value={l.remarks ?? ''}
-                            onChange={(e) => updateLine(idx, { remarks: e.target.value })}
-                            placeholder="Item remarks..."
-                          />
-                        </td>
-                        <td className="p-2 border border-outline-variant text-right w-24">
-                          <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {lines.map((l, idx) => {
+                      const areaUnit = normalizeAreaUnitName(l.unit);
+                      const isAreaUnit = !!areaUnit;
+                      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+
+                      return (
+                        <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
+                          <td className="p-2 border border-outline-variant min-w-[360px]">
+                            <SearchableSelect
+                              value={l.itemNameId}
+                              options={itemOptions}
+                              onChange={(itemNameId) => updateLine(idx, { itemNameId, itemId: '', specs: {} })}
+                              placeholder="Search service name..."
+                            />
+                          </td>
+                          <td className="p-2 border border-outline-variant text-center text-xs text-on-surface-variant w-24">
+                            {l.unit || '-'}
+                          </td>
+                          <td className="p-2 border border-outline-variant text-center w-28">
+                            {isAreaUnit ? (
+                              <input
+                                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                                value={l.length}
+                                onChange={(e) => {
+                                  const val = sanitizeDecimalInput(e.target.value);
+                                  const q = computeAreaQty(Number(val), Number(l.breadth), Number(l.pcs || 1));
+                                  updateLine(idx, { length: val, quantity: String(q) });
+                                }}
+                                placeholder={dimUnit === 'm' ? 'm' : 'Ft'}
+                              />
+                            ) : '-'}
+                          </td>
+                          <td className="p-2 border border-outline-variant text-center w-28">
+                            {isAreaUnit ? (
+                              <input
+                                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                                value={l.breadth}
+                                onChange={(e) => {
+                                  const val = sanitizeDecimalInput(e.target.value);
+                                  const q = computeAreaQty(Number(l.length), Number(val), Number(l.pcs || 1));
+                                  updateLine(idx, { breadth: val, quantity: String(q) });
+                                }}
+                                placeholder={dimUnit === 'm' ? 'm' : 'Ft'}
+                              />
+                            ) : '-'}
+                          </td>
+                          <td className="p-2 border border-outline-variant text-center w-24">
+                            {isAreaUnit ? (
+                              <input
+                                className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                                value={l.pcs}
+                                onChange={(e) => {
+                                  const val = sanitizeDecimalInput(e.target.value);
+                                  const q = computeAreaQty(Number(l.length), Number(l.breadth), Number(val || 1));
+                                  updateLine(idx, { pcs: val, quantity: String(q) });
+                                }}
+                                placeholder="PCs"
+                              />
+                            ) : '-'}
+                          </td>
+                          <td className="p-2 border border-outline-variant text-right w-28">
+                            <input
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right disabled:opacity-70"
+                              value={l.quantity}
+                              onChange={(e) => updateLine(idx, { quantity: sanitizeDecimalInput(e.target.value) })}
+                              placeholder="0"
+                              disabled={isAreaUnit}
+                            />
+                          </td>
+                          <td className="p-2 border border-outline-variant text-right w-28">
+                            <input
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm text-right"
+                              value={l.rate}
+                              onChange={(e) => updateLine(idx, { rate: sanitizeDecimalInput(e.target.value) })}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className="p-2 border border-outline-variant">
+                            <input
+                              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm"
+                              value={l.remarks ?? ''}
+                              onChange={(e) => updateLine(idx, { remarks: e.target.value })}
+                              placeholder="Item remarks..."
+                            />
+                          </td>
+                          <td className="p-2 border border-outline-variant text-right w-24">
+                            <button type="button" className="btn btn-sm" onClick={() => removeLine(idx)}>
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
