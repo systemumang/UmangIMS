@@ -116,6 +116,7 @@ type PendingItemUploadRow = {
   unitName: string;
   itemCategoryName: string;
   reorderLevel: string;
+  rate: string;
   storeOpeningBalances: Array<{ storeName: string; quantity: string }>;
   specs: Array<{ specificationId: string; value: string }>;
 };
@@ -322,6 +323,7 @@ export default function MastersView({
   const [newItemLink, setNewItemLink] = useState('');
   const [newItemVideoLink, setNewItemVideoLink] = useState('');
   const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
+  const [newItemRate, setNewItemRate] = useState('');
   const [newItemOpeningStock, setNewItemOpeningStock] = useState('');
   const [newItemStoreOpeningBalances, setNewItemStoreOpeningBalances] = useState<Array<{ storeId: string; storeName: string; quantity: string }>>([]);
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string; useCustom?: boolean }>>([
@@ -1510,6 +1512,7 @@ export default function MastersView({
 	          const duplicateExistingRows: string[] = [];
 	          const invalidReorderRows: string[] = [];
 	          const invalidOpeningRows: string[] = [];
+          const invalidRateRows: string[] = [];
 	          for (const row of rows) {
 	            const itemNameId = itemNameIdByName.get(normalizeKey(row.itemName));
 	            if (!itemNameId) continue;
@@ -1518,6 +1521,10 @@ export default function MastersView({
 	            if (row.reorderLevel.trim()) {
 	              const reorderLevelNumber = Number(row.reorderLevel);
 	              if (!Number.isFinite(reorderLevelNumber) || reorderLevelNumber < 0) invalidReorderRows.push(comboLabel);
+	            }
+	            if (row.rate.trim()) {
+	              const rateNumber = Number(row.rate);
+	              if (!Number.isFinite(rateNumber) || rateNumber < 0) invalidRateRows.push(comboLabel);
 	            }
             const badOpening = row.storeOpeningBalances.some((entry) => {
               const openingStockNumber = Number(entry.quantity);
@@ -1528,11 +1535,12 @@ export default function MastersView({
 	            inFileSignatures.add(sig);
 	            if (existingSignatures.has(sig)) duplicateExistingRows.push(comboLabel);
 	          }
-		          if (duplicateInFileRows.length || duplicateExistingRows.length || invalidReorderRows.length || invalidOpeningRows.length) {
+		          if (duplicateInFileRows.length || duplicateExistingRows.length || invalidReorderRows.length || invalidRateRows.length || invalidOpeningRows.length) {
 	            const dupInFile = Array.from(new Set(duplicateInFileRows));
 	            const dupExisting = Array.from(new Set(duplicateExistingRows));
 	            const invalidReorder = Array.from(new Set(invalidReorderRows));
             const invalidOpening = Array.from(new Set(invalidOpeningRows));
+            const invalidRate = Array.from(new Set(invalidRateRows));
 	            const issues: ItemUploadIssue[] = [
               ...dupInFile.map((combination) => ({
                 type: 'duplicate_in_file' as const,
@@ -1548,6 +1556,11 @@ export default function MastersView({
 	                type: 'invalid_reorder_level' as const,
 	                combination,
 	                message: 'Re-Order Level must be blank or a non-negative number.',
+	              })),
+	              ...invalidRate.map((combination) => ({
+	                type: 'create_failed' as const,
+	                combination,
+	                message: 'Rate must be blank or a non-negative number.',
 	              })),
               ...invalidOpening.map((combination) => ({
                 type: 'create_failed' as const,
@@ -1612,6 +1625,7 @@ export default function MastersView({
 	                unit: row.unitName || undefined,
 	                description: row.description || undefined,
 	                reorderLevel: row.reorderLevel.trim() ? Number(row.reorderLevel) : null,
+                rate: row.rate.trim() ? Number(row.rate) : 0,
                 openingStock: row.storeOpeningBalances.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0),
                 storeOpeningBalances: row.storeOpeningBalances
                   .filter((entry) => Number(entry.quantity) > 0)
@@ -1696,13 +1710,14 @@ export default function MastersView({
 	            if (tab === 'items') {
 		              const specColumns = specs.map((s) => s.name);
                   const storeColumns = stores.map((s) => `Opening Stock - ${s.name}`);
-		              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns, 'Re-Order Level'];
+		              const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns, 'Re-Order Level', 'Rate'];
 		              const sampleRow: Record<string, string> = {
 		                item_name: '',
 		                description: '',
 		                unit: '',
 		                item_category: '',
 	                  'Re-Order Level': '',
+                  Rate: '',
 		              };
 	              for (const col of specColumns) sampleRow[col] = '';
                   for (const col of storeColumns) sampleRow[col] = '';
@@ -1786,13 +1801,14 @@ export default function MastersView({
 	                  const unitName = unitColumn ? String(r[unitColumn] ?? '').trim() : '';
 	                  const itemCategoryName = categoryColumn ? String(r[categoryColumn] ?? '').trim() : '';
 	                  const reorderLevel = reorderColumn ? String(r[reorderColumn] ?? '').trim() : '';
+                  const rate = rateColumn ? String(r[rateColumn] ?? '').trim() : '';
                     const storeOpeningBalances = storeColumns
                       .map(({ storeName, column }) => ({ storeName, quantity: String(r[column] ?? '').trim() }))
                       .filter((entry) => entry.quantity);
 			                  const rowSpecs = Array.from(specIdByColumn.entries())
 		                    .map(([col, specId]) => ({ specificationId: specId, value: String(r[col] ?? '').trim() }))
 		                    .filter((x) => x.value);
-			                  return { itemName, description, unitName, itemCategoryName, reorderLevel, storeOpeningBalances, specs: rowSpecs };
+			                  return { itemName, description, unitName, itemCategoryName, reorderLevel, rate, storeOpeningBalances, specs: rowSpecs };
 		                })
                 .filter((r) => r.itemName);
               if (!rows.length) throw new Error('No valid item rows found in file.');
@@ -2780,18 +2796,14 @@ export default function MastersView({
 		                    <div className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Role</div>
 		                      <div className="flex items-center gap-2">
-		                        <select
-		                          className="flex-1 w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-		                          value={newUserRole}
-		                          onChange={(e) => setNewUserRole(e.target.value)}
-		                        >
-		                          <option value="">Select role</option>
-		                          {userRoleOptions.map((r) => (
-		                            <option key={r} value={r}>
-		                              {r}
-		                            </option>
-		                          ))}
-		                        </select>
+					                        <SearchableSelect
+					                          className="flex-1"
+					                          value={newUserRole}
+					                          options={userRoleOptions.map((r) => ({ value: r, label: r }))}
+					                          onChange={setNewUserRole}
+					                          placeholder="Select role..."
+					                          allowClear
+					                        />
 		                        <button
 		                          type="button"
 		                          title="Add role"
@@ -3857,18 +3869,16 @@ export default function MastersView({
 			                  </label>
                         <label className="space-y-1">
                           <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Type</div>
-	                          <select
-	                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-	                            value={newItemNameType}
-	                            onChange={(e) => {
-	                              const nextType = String(e.target.value) === 'Services' ? 'Services' : 'Goods';
-	                              setNewItemNameType(nextType);
-	                              if (nextType === 'Services') setNewItemNameSpecIds([]);
-	                            }}
-	                          >
-	                            <option value="Goods">Goods</option>
-	                            <option value="Services">Services</option>
-	                          </select>
+		                          <SearchableSelect
+		                            value={newItemNameType}
+		                            options={[{ value: 'Goods', label: 'Goods' }, { value: 'Services', label: 'Services' }]}
+		                            onChange={(value) => {
+		                              const nextType = value === 'Services' ? 'Services' : 'Goods';
+		                              setNewItemNameType(nextType);
+		                              if (nextType === 'Services') setNewItemNameSpecIds([]);
+		                            }}
+		                            placeholder="Select type..."
+		                          />
 	                        </label>
 						                  <label className="space-y-1">
 						                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category</div>
@@ -4532,6 +4542,19 @@ export default function MastersView({
                                 </div>
                               )}
 
+				                    <label className="space-y-1">
+				                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Rate</div>
+				                      <input
+				                        type="number"
+				                        min="0"
+				                        step="0.01"
+		                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
+		                        value={newItemRate}
+		                        onChange={(e) => setNewItemRate(e.target.value)}
+				                        placeholder="0.00"
+				                      />
+				                    </label>
+
 		                    <label className="space-y-1">
 		                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Re-Order Level (optional)</div>
 		                      <input
@@ -4699,6 +4722,7 @@ export default function MastersView({
 		                              itemLink: newItemLink.trim() || null,
 		                              videoLink: newItemVideoLink.trim() || null,
 		                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                              rate: newItemRate.trim() ? Number(newItemRate) : 0,
                                 openingStock: totalOpeningStock,
                                 storeOpeningBalances: storeOpeningBalancesPayload,
 				                              specs: newItemSpecs,
@@ -4716,6 +4740,7 @@ export default function MastersView({
 		                              itemLink: newItemLink.trim() || null,
 		                              videoLink: newItemVideoLink.trim() || null,
 		                              reorderLevel: newItemReorderLevel.trim() ? Number(newItemReorderLevel) : null,
+                              rate: newItemRate.trim() ? Number(newItemRate) : 0,
                                 openingStock: totalOpeningStock,
                                 storeOpeningBalances: storeOpeningBalancesPayload,
 				                              specs: newItemSpecs,
@@ -6031,14 +6056,13 @@ export default function MastersView({
 	            <div className="flex flex-wrap items-center gap-2">
 	              <div className="text-sm text-on-surface-variant">Showing: {filteredItems.length} / {items.length}</div>
 	              <MultiSelectFilter options={listFieldOptions} values={listFields} onChange={setListFields} />
-              <select
-                className="h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
-                value={itemStockFilter}
-                onChange={(e) => setItemStockFilter(e.target.value === 'inStock' ? 'inStock' : 'all')}
-              >
-                <option value="all">All Items</option>
-                <option value="inStock">In Stock</option>
-              </select>
+	              <SearchableSelect
+	                className="w-40"
+	                value={itemStockFilter}
+	                options={[{ value: 'all', label: 'All Items' }, { value: 'inStock', label: 'In Stock' }]}
+	                onChange={(value) => setItemStockFilter(value === 'inStock' ? 'inStock' : 'all')}
+	                placeholder="Filter stock..."
+	              />
 	              <input
 	                className="w-full sm:w-72 h-10 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 	                value={listQuery}
@@ -6068,6 +6092,7 @@ export default function MastersView({
                             <th className="text-left px-3 py-2 border border-blue-600">Opening Stock</th>
                             <th className="text-left px-3 py-2 border border-blue-600">Closing Stock</th>
                             <th className="text-left px-3 py-2 border border-blue-600">Re-Order Level</th>
+                            <th className="text-left px-3 py-2 border border-blue-600">Rate</th>
                           <th className="text-left px-3 py-2 border border-blue-600">Photo</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Item Link</th>
 				                  <th className="text-left px-3 py-2 border border-blue-600">Video Link</th>
@@ -6107,6 +6132,14 @@ export default function MastersView({
                                 {(() => {
                                   const raw = (it as any).reorderLevel;
                                   if (raw == null || String(raw).trim() === '') return '-';
+                                  const n = Number(raw);
+                                  return Number.isFinite(n) ? n : String(raw);
+                                })()}
+                              </td>
+                              <td className="px-3 py-2 text-on-surface border border-blue-600 tabular-nums">
+                                {(() => {
+                                  const raw = (it as any).rate;
+                                  if (raw == null || String(raw).trim() === '') return 0;
                                   const n = Number(raw);
                                   return Number.isFinite(n) ? n : String(raw);
                                 })()}

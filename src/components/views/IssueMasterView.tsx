@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Trash2, ArrowUpDown } from 'lucide-react';
+import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { listIssues, deleteIssue, updateIssue, type StockTransaction } from '@/src/lib/stockMaster';
-import { fetchDepartments, fetchFirms, fetchItems, fetchStores, type Department, type Firm, type Item, type Store } from '@/src/lib/masters';
+import { fetchFirms, fetchItems, fetchStores, type Firm, type Item, type Store } from '@/src/lib/masters';
 
 export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [sortBy, setSortBy] = useState<
-    'transactionNo' | 'date' | 'issueType' | 'issuedTo' | 'firm' | 'store' | 'department' | 'person' | 'total'
+    'transactionNo' | 'date' | 'issueType' | 'issuedTo' | 'firm' | 'store' | 'person' | 'total'
   >('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [viewItem, setViewItem] = useState<StockTransaction | null>(null);
@@ -37,7 +37,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
     load();
     fetchFirms().then(setFirms).catch(() => setFirms([]));
     fetchStores().then(setStores).catch(() => setStores([]));
-    fetchDepartments().then(setDepartments).catch(() => setDepartments([]));
     fetchItems().then(setItems).catch(() => setItems([]));
   }, []);
 
@@ -122,7 +121,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
       await updateIssue(editItem.id, {
         firmId: editItem.firmId,
         store: editItem.store,
-        department: editItem.department,
         person: editItem.person,
         date: editItem.date,
         issueType: editItem.issueType,
@@ -149,7 +147,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
         getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
         String(i.store ?? '').toLowerCase().includes(query) ||
         getStoreDisplay(i.store).toLowerCase().includes(query) ||
-        i.department.toLowerCase().includes(query) ||
         i.person.toLowerCase().includes(query) ||
         (i.issueType ?? '').toLowerCase().includes(query) ||
         (i.issuedTo ?? '').toLowerCase().includes(query)
@@ -183,8 +180,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	        return dir * strCmp(getFirmDisplay(a.firmId), getFirmDisplay(b.firmId));
 	      case 'store':
 	        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
-	      case 'department':
-	        return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
 	      case 'person':
 	        return dir * strCmp(String(a.person ?? ''), String(b.person ?? ''));
 	      case 'total':
@@ -272,11 +267,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	                  </button>
 	                </th>
 	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('department')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Department</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('person')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Issued By</span><ArrowUpDown size={12} />
 	                  </button>
@@ -297,7 +287,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	            <tbody className="divide-y divide-outline-variant">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-4 text-center text-on-surface-variant text-sm">
+                  <td colSpan={9} className="p-4 text-center text-on-surface-variant text-sm">
                     No issues found
                   </td>
                 </tr>
@@ -315,7 +305,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.issuedTo ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
 	                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
@@ -354,7 +343,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Issued To</span> {viewItem.issuedTo ?? '-'}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
-                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Issued By</span> {viewItem.person}</div>
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
@@ -393,52 +381,22 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
 	                <label className="space-y-1">
 	                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
-	                  <select
-	                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
+		                  <SearchableSelect
 	                    value={editItem.firmId ?? ''}
-	                    onChange={(e) => setEditItem((p) => (p ? { ...p, firmId: e.target.value } : p))}
-	                  >
-	                    {(() => {
-	                      const raw = String(editItem.firmId ?? '').trim();
-	                      const exists = firmOptions.some((f) => f.id === raw);
-	                      return !exists && raw ? <option value={raw}>{raw}</option> : null;
-	                    })()}
-	                    {firmOptions.map((f) => (
-	                      <option key={f.id} value={f.id}>
-	                        {String(f.sortName ?? '').trim() || f.name}
-	                      </option>
-	                    ))}
-	                  </select>
+	                    options={firmOptions.map((f) => ({ value: f.id, label: String(f.sortName ?? '').trim() || f.name }))}
+	                    onChange={(value) => setEditItem((p) => (p ? { ...p, firmId: value } : p))}
+	                    placeholder="Select firm..."
+	                  />
 	                </label>
 	                <label className="space-y-1">
 	                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Store</div>
-	                  <select
-	                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-	                    value={editItem.store ?? ''}
-	                    onChange={(e) => setEditItem((p) => (p ? { ...p, store: e.target.value } : p))}
-	                  >
-	                    <option value="">-</option>
-	                    {storeOptionsForFirm(editItem.firmId).map((s) => (
-	                      <option key={s.id} value={s.name}>
-	                        {s.name}
-	                      </option>
-	                    ))}
-	                  </select>
-	                </label>
-	                <label className="space-y-1">
-	                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Department</div>
-	                  <select
-	                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-	                    value={editItem.department ?? ''}
-	                    onChange={(e) => setEditItem((p) => (p ? { ...p, department: e.target.value } : p))}
-	                  >
-	                    <option value="">-</option>
-	                    {departments.map((d) => (
-	                      <option key={d.id} value={d.name}>
-	                        {d.name}
-	                      </option>
-	                    ))}
-	                  </select>
+	                  <SearchableSelect
+                    value={editItem.store ?? ''}
+                    options={storeOptionsForFirm(editItem.firmId).map((s) => ({ value: s.name, label: s.name }))}
+                    onChange={(value) => setEditItem((p) => (p ? { ...p, store: value } : p))}
+                    placeholder="Select store..."
+                    allowClear
+                  />
 	                </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issue Date</div>
@@ -446,11 +404,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issue Type</div>
-                  <select className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.issueType ?? 'Stock'} onChange={(e) => setEditItem((p) => p ? ({ ...p, issueType: e.target.value as any }) : p)}>
-                    <option value="Sales">Sales</option>
-                    <option value="Project">Project</option>
-                    <option value="Stock">Stock</option>
-                  </select>
+                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }]} onChange={(value) => setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' ? 'Project' : 'Sales' }) : p)} placeholder="Select issue type..." />
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued To</div>
@@ -474,33 +428,21 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	                    {(editItem.items ?? []).map((it, idx) => (
 	                      <tr key={idx}>
 	                        <td className="p-3">
-	                          <select
-	                            className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm"
-	                            value={it.item ?? ''}
-	                            title={it.specification ?? ''}
-	                            onChange={(e) =>
-	                              setEditItem((p) => {
-	                                if (!p) return p;
-	                                const nextItems = [...p.items];
-	                                const selectedId = e.target.value;
-	                                const selected = items.find((x) => x.id === selectedId);
-	                                const nextSpec = selected ? formatSpecs(selected.specificationsJson) : nextItems[idx].specification ?? '';
-	                                nextItems[idx] = { ...nextItems[idx], itemId: selectedId, item: selected?.itemName ?? '', specification: nextSpec };
-	                                return { ...p, items: nextItems };
-	                              })
-	                            }
-	                          >
-	                            {(() => {
-	                              const raw = String(it.item ?? '').trim();
-	                              const exists = itemOptions.some((x) => x.id === raw);
-	                              return !exists && raw ? <option value={raw}>{raw}</option> : null;
-	                            })()}
-	                            {itemOptions.map((opt) => (
-	                              <option key={opt.id} value={opt.id}>
-	                                {getFullItemLabel(opt)}
-	                              </option>
-	                            ))}
-	                          </select>
+	                          <SearchableSelect
+                            value={it.itemId || it.item || ''}
+                            options={itemOptions.map((opt) => ({ value: opt.id, label: getFullItemLabel(opt) }))}
+                            onChange={(selectedId) =>
+                              setEditItem((p) => {
+                                if (!p) return p;
+                                const nextItems = [...p.items];
+                                const selected = items.find((x) => x.id === selectedId);
+                                const nextSpec = selected ? formatSpecs(selected.specificationsJson) : nextItems[idx].specification ?? '';
+                                nextItems[idx] = { ...nextItems[idx], itemId: selectedId, item: selected?.itemName ?? selectedId, specification: nextSpec };
+                                return { ...p, items: nextItems };
+                              })
+                            }
+                            placeholder="Select item..."
+                          />
 	                        </td>
 	                        <td className="p-2 text-right">
 	                          <input type="number" className="w-28 text-right bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={String(it.quantity ?? 0)} onChange={(e) => setEditItem((p) => {

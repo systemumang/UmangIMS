@@ -8,11 +8,9 @@ import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
 import { Trash2 } from 'lucide-react';
 				import {
 				  createItem,
-				  createDepartment,
 				  createItemName,
 				  createSpecification,
 				  createSpecificationValue,
-				  fetchDepartments,
 				  fetchStores,
 				  fetchProjects,
 				  fetchUsers,
@@ -25,7 +23,6 @@ import { Trash2 } from 'lucide-react';
 				  fetchSpecifications,
 				  fetchSpecificationValues,
 				  updateItem,
-				  type Department,
 				  type Store,
 				  type Project,
 				  type Item,
@@ -76,9 +73,6 @@ export default function ItemIssueView({
 
 		  const [firms, setFirms] = useState<Firm[]>([]);
 		  const [loadingFirms, setLoadingFirms] = useState(true);
-			  const [departments, setDepartments] = useState<Department[]>([]);
-			  const [loadingDepartments, setLoadingDepartments] = useState(true);
-			  const [departmentId, setDepartmentId] = useState('');
 			  const [stores, setStores] = useState<Store[]>([]);
 			  const [loadingStores, setLoadingStores] = useState(true);
 			  const [storeId, setStoreId] = useState('');
@@ -112,6 +106,7 @@ export default function ItemIssueView({
 	  const [newItemItemNameId, setNewItemItemNameId] = useState('');
 	  const [newItemUnit, setNewItemUnit] = useState('');
 	  const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemRate, setNewItemRate] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState<Array<{ specificationId: string; value: string }>>([{ specificationId: '', value: '' }]);
   const [creatingItem, setCreatingItem] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -164,20 +159,6 @@ export default function ItemIssueView({
 		    return () => ac.abort();
 		  }, []);
 
-			  useEffect(() => {
-			    const ac = new AbortController();
-			    setLoadingDepartments(true);
-			    fetchDepartments(ac.signal)
-			      .then((rows) => setDepartments(rows))
-		      .catch((e) => {
-		        if (ac.signal.aborted) return;
-		        if (e instanceof DOMException && e.name === 'AbortError') return;
-		        if (String((e as any)?.name ?? '').toLowerCase() === 'aborterror') return;
-		        setError(e instanceof Error ? e.message : String(e));
-		      })
-		      .finally(() => setLoadingDepartments(false));
-			    return () => ac.abort();
-			  }, []);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -233,10 +214,6 @@ export default function ItemIssueView({
 		    if (!materialRequest) return;
 		    setFirmId(String(materialRequest.firmId ?? ''));
 		    setStoreId(String(materialRequest.storeId ?? ''));
-		    const rawDept = String(materialRequest.departmentId ?? materialRequest.department ?? '').trim();
-		    const deptById = departments.find((d) => d.id === rawDept);
-		    const deptByName = departments.find((d) => String(d.name ?? '').trim().toLowerCase() === rawDept.toLowerCase());
-		    setDepartmentId(String(deptById?.id ?? deptByName?.id ?? rawDept));
 		    setProjectId(String(materialRequest.projectId ?? ''));
 		    setIssueType(materialRequest.projectId ? 'Project' : 'Sales');
           setIssuedTo(String(materialRequest.userName ?? materialRequest.supplierName ?? ''));
@@ -262,7 +239,7 @@ export default function ItemIssueView({
               .filter(Boolean) as ItemDraft[];
             if (nextRows.length) setItems(nextRows);
 		      }
-		  }, [materialRequest, masterItems, specNameById, departments]);
+		  }, [materialRequest, masterItems, specNameById]);
 
 			  useEffect(() => {
 			    const ac = new AbortController();
@@ -346,7 +323,8 @@ export default function ItemIssueView({
 	          setCreateCategoryInlineName('');
 	          setCreateCategoryInlineBusy(false);
 	          setCreateCategoryInlineError(null);
-	          setCreateSpecInlineIndex(null);
+	          setNewItemRate('');
+          setCreateSpecInlineIndex(null);
 	          setCreateSpecInlineValue('');
 	          setCreateSpecInlineBusy(false);
 	          setCreateSpecInlineError(null);
@@ -418,7 +396,7 @@ export default function ItemIssueView({
   };
 
 							  const canSubmit = useMemo(() => {
-							    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+							    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 							    if (issueType === 'Project' && !projectId.trim()) return false;
 							    const normalized = items
 							      .map((it) => ({
@@ -439,7 +417,7 @@ export default function ItemIssueView({
                       return true;
                     });
 							    return normalized.length > 0;
-							  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
+							  }, [firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
 
 	  function getItemNameSpecIds(itemNameId: string): string[] {
 	    const row = itemNames.find((n) => n.id === itemNameId);
@@ -627,30 +605,6 @@ export default function ItemIssueView({
 	              onChange={setFirmId}
 	              disabled={loadingFirms}
 	              placeholder="Select firm..."
-	            />
-	          </label>
-
-	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
-	            <SearchableSelect
-	              value={departmentId}
-	              options={departments.map((d) => ({ value: d.id, label: d.name }))}
-	              onChange={setDepartmentId}
-	              disabled={loadingDepartments}
-	              placeholder="Select department..."
-	              onCreate={(label) =>
-	                createDepartment({ name: label.trim(), createdBy: 'system' }).then((res) => {
-	                  const created = res.department;
-	                  if (!created?.id) return null;
-	                  setDepartments((prev) => {
-	                    if (prev.some((p) => p.id === created.id)) return prev;
-	                    return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
-	                  });
-	                  return { value: created.id, label: created.name };
-	                })
-	              }
-	              createLabel={(q) => (q.trim() ? `+ Add Department \"${q.trim()}\"` : '+ Add Department')}
-	              closeOnCreate
 	            />
 	          </label>
 
@@ -889,11 +843,10 @@ export default function ItemIssueView({
 						                    .filter((_, i) => !rowMessages[i]);
 					                  setItemRowErrors(rowMessages);
 
-								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
 								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
-								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
-								                    setError('Please fill Firm, Store, Department, Issue By, Issue Date, and at least one valid item.');
+								                  if (!firmId || !store.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length) {
+								                    setError('Please fill Firm, Store, Issue By, Issue Date, and at least one valid item.');
 								                    return;
 						                  }
 							                  if (issueType === 'Project' && !projectId.trim()) {
@@ -906,7 +859,6 @@ export default function ItemIssueView({
 						                    firmId: firmId,
 						                    storeId: storeId,
 						                    store,
-						                    department,
 						                    projectId: issueType === 'Project' ? projectId : undefined,
 						                    person: requestedBy,
 						                    date: requiredDate,

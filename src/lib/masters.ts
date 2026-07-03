@@ -119,6 +119,7 @@ export type Item = {
   itemLink?: string | null;
   videoLink?: string | null;
   reorderLevel?: number | null;
+  rate?: number | null;
   openingStock?: number | null;
 };
 
@@ -957,6 +958,7 @@ export async function createItem(input: {
   itemLink?: string | null;
   videoLink?: string | null;
   reorderLevel?: number | null;
+  rate?: number | null;
   openingStock?: number | null;
   storeOpeningBalances?: Array<{ storeName: string; quantity: number }>;
   specs: Array<{ specificationId: string; value: string }>;
@@ -984,7 +986,9 @@ export async function updateItem(
     itemLink?: string | null;
     videoLink?: string | null;
     reorderLevel?: number | null;
+    rate?: number | null;
     openingStock?: number | null;
+    storeOpeningBalances?: Array<{ storeName: string; quantity: number }>;
     specs: Array<{ specificationId: string; value: string }>;
     updatedBy?: string;
   }

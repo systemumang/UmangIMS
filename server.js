@@ -705,6 +705,7 @@ function getMysqlPool() {
 		      await ensureColumn('item_names', 'catalogue_link', 'TEXT NULL');
           await ensureColumn('item_names', 'type', "VARCHAR(16) NOT NULL DEFAULT 'Goods'");
 		      await ensureColumn('items', 'opening_stock', 'DOUBLE NOT NULL DEFAULT 0');
+          await ensureColumn('items', 'rate', 'DOUBLE NOT NULL DEFAULT 0');
           await ensureColumn('purchase_orders', 'po_type', "VARCHAR(16) NOT NULL DEFAULT 'Goods'");
           await ensureColumn('payments', 'credit_voucher_id', 'VARCHAR(255) NULL');
 		      await ensureColumn('material_requests', 'firm_id', 'VARCHAR(255) NULL');
@@ -12222,7 +12223,15 @@ app.post('/api/masters/items', async (req, res) => {
 	    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
 	      return res.status(400).json({ error: 'reorderLevel must be a number' });
 	    }
-	    const openingStockRaw = req.body?.openingStock;
+	    const rateRaw = req.body?.rate;
+    const rate =
+      rateRaw === null || rateRaw === undefined || String(rateRaw).trim() === ''
+        ? 0
+        : Math.max(0, Number(rateRaw));
+    if (rateRaw !== null && rateRaw !== undefined && String(rateRaw).trim() !== '' && !Number.isFinite(rate)) {
+      return res.status(400).json({ error: 'rate must be a number' });
+    }
+    const openingStockRaw = req.body?.openingStock;
 	    const openingStock =
 	      openingStockRaw === null || openingStockRaw === undefined || String(openingStockRaw).trim() === ''
 	        ? 0
@@ -12241,8 +12250,8 @@ app.post('/api/masters/items', async (req, res) => {
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
 	    await pool.query(
-		      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-		      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
+		      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, rate, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+		      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(rate) ? rate : 0, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
 		    );
     if (storeOpeningBalances.length) {
       const [allStores] = await pool.query('SELECT id, name FROM stores');
@@ -12273,7 +12282,7 @@ app.post('/api/masters/items', async (req, res) => {
 		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
 		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
                  it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
-			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.opening_stock AS openingStock
+			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.rate AS rate, it.opening_stock AS openingStock
 		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
@@ -12311,7 +12320,15 @@ app.put('/api/masters/items/:id', async (req, res) => {
 	    if (reorderLevelRaw !== null && reorderLevelRaw !== undefined && String(reorderLevelRaw).trim() !== '' && !Number.isFinite(reorderLevel)) {
 	      return res.status(400).json({ error: 'reorderLevel must be a number' });
 	    }
-	    const openingStockRaw = req.body?.openingStock;
+	    const rateRaw = req.body?.rate;
+    const rate =
+      rateRaw === null || rateRaw === undefined || String(rateRaw).trim() === ''
+        ? 0
+        : Math.max(0, Number(rateRaw));
+    if (rateRaw !== null && rateRaw !== undefined && String(rateRaw).trim() !== '' && !Number.isFinite(rate)) {
+      return res.status(400).json({ error: 'rate must be a number' });
+    }
+    const openingStockRaw = req.body?.openingStock;
 	    const openingStock =
 	      openingStockRaw === null || openingStockRaw === undefined || String(openingStockRaw).trim() === ''
 	        ? 0
@@ -12325,8 +12342,8 @@ app.put('/api/masters/items/:id', async (req, res) => {
     const specificationsJson = JSON.stringify(Object.fromEntries(specs.map((s) => [String(s.specificationId), String(s.value)])));
     const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 	    await pool.query(
-		      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, opening_stock=?, updated_by=?, updated_at=NOW() WHERE id=?',
-		      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(openingStock) ? openingStock : 0, updatedBy, id]
+		      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, rate=?, opening_stock=?, updated_by=?, updated_at=NOW() WHERE id=?',
+		      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(rate) ? rate : 0, Number.isFinite(openingStock) ? openingStock : 0, updatedBy, id]
 		    );
     if (storeOpeningBalances.length) {
       const [allStores] = await pool.query('SELECT id, name FROM stores');
@@ -12357,7 +12374,7 @@ app.put('/api/masters/items/:id', async (req, res) => {
 		      SELECT it.id, it.item_name_id AS itemNameId, it.item_code AS itemCode, n.name AS itemName,
 		             it.specifications_json AS specificationsJson, it.unique_key AS uniqueKey, it.description, it.unit,
                  it.photo_1 AS photo1, it.photo_2 AS photo2, it.photo_3 AS photo3, it.photo_4 AS photo4, it.photo_5 AS photo5,
-			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.opening_stock AS openingStock
+			             it.item_link AS itemLink, it.video_link AS videoLink, it.reorder_level AS reorderLevel, it.rate AS rate, it.opening_stock AS openingStock
 		      FROM items it JOIN item_names n ON n.id=it.item_name_id WHERE it.id=?
       `,
       [id]
@@ -13132,7 +13149,7 @@ app.post('/api/masters/specification-values/import', async (req, res) => {
 
 // Items
 app.get('/api/masters/items/template', async (_req, res) => {
-  csvTemplateResponse(res, 'items-template.csv', 'itemName,unit,description,specs,Re-Order Level');
+  csvTemplateResponse(res, 'items-template.csv', 'itemName,unit,description,specs,Re-Order Level,Rate');
 });
 app.post('/api/masters/items/import', async (req, res) => {
   try {
@@ -13155,6 +13172,8 @@ app.post('/api/masters/items/import', async (req, res) => {
         const description = r.description != null ? String(r.description).trim() : '';
         const reorderRaw = r['Re-Order Level'] ?? r.reorderLevel ?? r.reorder_level ?? '';
         const reorderLevel = String(reorderRaw ?? '').trim();
+        const rateRaw = r.Rate ?? r.rate ?? r.itemRate ?? r.item_rate ?? '';
+        const rate = String(rateRaw ?? '').trim();
         const specsRaw = String(r.specs ?? '').trim();
         const specs = [];
         if (specsRaw) {
@@ -13170,7 +13189,7 @@ app.post('/api/masters/items/import', async (req, res) => {
         }
         const itemNameId = itemNameIdByName.get(normalizeKey(itemName)) || null;
         if (itemName && !itemNameId) unknownItemNames.add(itemName);
-        return { itemName, itemNameId, unit, description, reorderLevel, specs };
+        return { itemName, itemNameId, unit, description, reorderLevel, rate, specs };
       })
       .filter((r) => r.itemName);
 
@@ -13205,8 +13224,9 @@ app.post('/api/masters/items/import', async (req, res) => {
       const specificationsJson = JSON.stringify(specsObj);
       const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
       const parsedReorderLevel = r.reorderLevel ? Number(r.reorderLevel) : null;
+      const parsedRate = r.rate ? Number(r.rate) : 0;
       await pool.query(
-        'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, rate, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
         [
           id,
           itemNameId,
