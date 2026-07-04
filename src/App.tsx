@@ -93,6 +93,38 @@ const QuotationMasterView = lazy(() => import('./components/views/QuotationMaste
 const ExpensesReportView = lazy(() => import('./components/views/ExpensesReportView'));
 const PendingOrderReportView = lazy(() => import('./components/views/PendingOrderReportView'));
 
+function isStaleChunkError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|ChunkLoadError/i.test(message);
+}
+
+class ChunkErrorBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: isStaleChunkError(error) };
+  }
+
+  componentDidCatch(error: unknown) {
+    if (!isStaleChunkError(error)) return;
+    const key = 'ims.chunkReloaded';
+    if (sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    window.location.reload();
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="min-h-[220px] flex items-center justify-center">
+          <Spinner className="h-10 w-10 border-[3px]" />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
 		  type PendingQueueView = PendingQueueKey;
 		  type View =
@@ -795,6 +827,8 @@ export default function App() {
 	          />
 	        
 			        <div className="px-3 md:px-4 py-4 space-y-6 w-full">
+                <ChunkErrorBoundary>
+
                 <Suspense
                   fallback={
                     <div className="min-h-[220px] flex items-center justify-center">
@@ -967,6 +1001,8 @@ export default function App() {
 			          {view === 'queueExcessPaidInvoices' ? <ExcessPaidInvoicesView /> : null}
 	                {view === 'queueCreditVoucherPayment' ? <CreditVoucherPaymentQueueView onViewPr={openPrDetail} /> : null}
                 </Suspense>
+
+                </ChunkErrorBoundary>
 			        </div>
 		      </main>
 

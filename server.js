@@ -15685,7 +15685,21 @@ app.post('/api/invoices/:id/logistics', async (req, res) => {
   }
 });
 
-app.use(express.static(distDir, { index: false }));
+function setStaticCacheHeaders(res, filePath) {
+  if (filePath.endsWith('index.html')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return;
+  }
+  if (/\.[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(filePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return;
+  }
+  res.setHeader('Cache-Control', 'no-cache');
+}
+
+app.use(express.static(distDir, { index: false, setHeaders: setStaticCacheHeaders }));
 
 // Ensure missing API routes don't fall back to SPA HTML (which breaks JSON parsing in the client).
 app.use('/api', (_req, res) => {
@@ -15694,6 +15708,9 @@ app.use('/api', (_req, res) => {
 
 // SPA fallback (React Router / client-side routes).
 app.use((_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(distDir, 'index.html'));
 });
 
