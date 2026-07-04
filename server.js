@@ -8883,8 +8883,22 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const pageHeight = 841.89;
     let y = 841.89 - margin;
 
+    const toPdfText = (value) => String(value ?? '')
+      .replace(/\u20b9/g, 'Rs.')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/[\u2022\u00b7]/g, '-')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+      .replace(/[ \t]+/g, ' ');
+
+    const safePdfFileName = (value) => {
+      const name = toPdfText(value).replace(/[\\/:*?"<>|]+/g, '_').trim();
+      return name || 'purchase-order';
+    };
+
     const wrapLines = (text, f, size, maxWidth) => {
-      const raw = String(text ?? '').replace(/\r?\n/g, ' ').trim();
+      const raw = toPdfText(text).replace(/\r?\n/g, ' ').trim();
       if (!raw) return [''];
       const words = raw.split(/\s+/).filter(Boolean);
       const lines = [];
@@ -8911,7 +8925,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       const lineHeight = opts.lineHeight ?? size + 4;
       const color = opts.color ?? rgb(0, 0, 0);
 
-      const lines = opts.wrap === false ? [String(text ?? '')] : wrapLines(text, f, size, maxWidth);
+      const lines = opts.wrap === false ? [toPdfText(text)] : wrapLines(text, f, size, maxWidth);
       for (const line of lines) {
         page.drawText(String(line ?? ''), { x, y, size, font: f, color });
         y -= lineHeight;
@@ -8920,7 +8934,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const drawTextPreserveNewlines = (text, opts = {}) => {
       const parts = String(text ?? '').split(/\r?\n/);
       for (const part of parts) {
-        const line = String(part ?? '');
+        const line = toPdfText(part);
         if (line.trim()) {
           drawText(line, opts);
         } else {
@@ -8990,7 +9004,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
       page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, color: rgb(0, 0, 0) });
     };
     const drawAt = (text, x, textY, opts = {}) => {
-      page.drawText(String(text ?? ''), {
+      page.drawText(toPdfText(text), {
         x,
         y: textY,
         size: opts.size ?? 8,
@@ -9001,7 +9015,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     const drawRight = (text, rightX, textY, opts = {}) => {
       const size = opts.size ?? 8;
       const f = opts.bold ? fontBold : font;
-      const value = String(text ?? '');
+      const value = toPdfText(text);
       page.drawText(value, {
         x: rightX - f.widthOfTextAtSize(value, size),
         y: textY,
@@ -9020,7 +9034,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
 	    const centerXFor = (text, size, bold = false) => {
 	      const f = bold ? fontBold : font;
-	      const t = String(text ?? '');
+	      const t = toPdfText(text);
 	      return Math.max(margin, (pageWidth - f.widthOfTextAtSize(t, size)) / 2);
 	    };
 	    drawText('PURCHASE ORDER', { bold: true, size: 16, x: centerXFor('PURCHASE ORDER', 16, true), wrap: false });
@@ -9221,7 +9235,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      const blockH = values.length * lineH;
 	      let textY = headerBottom + (headerHeight + blockH) / 2 - lineH + 1;
 	      for (const raw of values) {
-	        const value = String(raw ?? '');
+	        const value = toPdfText(raw);
 	        const textW = f.widthOfTextAtSize(value, size);
 	        const x =
 	          opts.align === 'left'
@@ -9435,7 +9449,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('Content-Disposition', `attachment; filename=\"${poNumber || poId}.pdf\"`);
+    res.setHeader('Content-Disposition', `attachment; filename=\"${safePdfFileName(poNumber || poId)}.pdf\"`);
     res.send(Buffer.from(pdfBytes));
   } catch (e) {
     res.status(500).send(e instanceof Error ? e.message : String(e));
@@ -14747,7 +14761,7 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
     const drawText = (text, x, y, size = 10, useBold = false) => {
-      page.drawText(String(text ?? ''), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
+      page.drawText(toPdfText(text), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
     };
     const textWidth = (text, size = 10, useBold = false) =>
       (useBold ? bold : font).widthOfTextAtSize(String(text ?? ''), size);
