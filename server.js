@@ -11909,7 +11909,7 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
       .map((r) => String(r.name ?? '').trim())
       .filter(Boolean)
       .map((name) => `Opening Stock - ${name}`);
-    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns];
+    const header = ['item_name', 'description', 'unit', 'item_category', ...specColumns, ...storeColumns, 'Re-Order Level', 'Rate'];
     const lines = [header.map(toCsvCell).join(',')];
 
     for (let i = 0; i < 25; i += 1) {
@@ -11920,6 +11920,8 @@ app.get('/api/masters/item-names/:id/items-template', async (req, res) => {
         String(itemNameRow.itemCategoryName ?? ''),
         ...specColumns.map(() => ''),
         ...storeColumns.map(() => ''),
+        '',
+        '',
       ];
       lines.push(row.map(toCsvCell).join(','));
     }
@@ -13250,6 +13252,7 @@ app.post('/api/masters/items/import', async (req, res) => {
           r.description || null,
           r.unit || null,
           Number.isFinite(parsedReorderLevel) ? Math.max(0, parsedReorderLevel) : null,
+          Number.isFinite(parsedRate) ? Math.max(0, parsedRate) : 0,
         ]
       );
     }

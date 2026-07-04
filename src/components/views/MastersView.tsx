@@ -1778,12 +1778,17 @@ export default function MastersView({
               const descriptionColumn = headerMap.get('description') ?? '';
 	              const unitColumn = headerMap.get('unit') ?? '';
 	              const categoryColumn = headerMap.get('item_category') ?? headerMap.get('item category') ?? '';
-	              const reorderColumn =
-	                headerMap.get('re-order level') ??
-	                headerMap.get('reorder level') ??
-	                headerMap.get('reorder_level') ??
-	                headerMap.get('reorderlevel') ??
-	                '';
+		              const reorderColumn =
+		                headerMap.get('re-order level') ??
+		                headerMap.get('reorder level') ??
+		                headerMap.get('reorder_level') ??
+		                headerMap.get('reorderlevel') ??
+		                '';
+		              const rateColumn =
+		                headerMap.get('rate') ??
+		                headerMap.get('itemrate') ??
+		                headerMap.get('item_rate') ??
+		                '';
                 const storeColumns = stores.map((store) => {
                   const key = normalizeKey(`Opening Stock - ${store.name}`);
                   const col = headerMap.get(key);
@@ -2013,7 +2018,7 @@ export default function MastersView({
           }
 	          if (tab === 'items') {
                 const storeColumns = stores.map((s) => `Opening Stock - ${s.name}`);
-		            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), ...storeColumns, 'Re-Order Level'];
+		            const header = ['item_name', 'description', 'unit', 'item_category', ...specs.map((s) => s.name), ...storeColumns, 'Re-Order Level', 'Rate'];
 	            const rows = items.map((it) => {
               const specObj = (() => {
                 try {
@@ -2033,8 +2038,9 @@ export default function MastersView({
 	                item_category: itemNames.find((n) => n.id === it.itemNameId)?.itemCategoryName ?? '',
 	                ...Object.fromEntries(specs.map((s) => [s.name, specByName[s.name] ?? ''])),
                     ...Object.fromEntries(storeColumns.map((col) => [col, ''])),
-		                  'Re-Order Level': it.reorderLevel ?? '',
-			              };
+                  'Re-Order Level': it.reorderLevel ?? '',
+                  Rate: it.rate ?? '',
+                };
 	            });
             return downloadTextFile(`${key}-${stamp}.csv`, toCsv(header, rows), 'text/csv; charset=utf-8');
           }
