@@ -338,6 +338,7 @@ export default function OperationsView({
   const [editPoLines, setEditPoLines] = useState<
     Array<{
       itemId: string;
+      poItemId?: string;
       itemNameId?: string | null;
       specs?: Record<string, string>;
       itemLabel: string;
@@ -954,6 +955,7 @@ export default function OperationsView({
 	      setEditPoLines(
 	        (items ?? []).map((it: any) => ({
 	          itemId: String(it.itemId ?? '').trim(),
+            poItemId: String(it.id ?? '').trim(),
             itemNameId: it.itemNameId ? String(it.itemNameId) : null,
             specs: it.specs ?? parseSpecsJsonToObject(it.specificationsJson),
 	          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
@@ -1034,6 +1036,7 @@ export default function OperationsView({
       ...prev,
       {
         itemId: '',
+        poItemId: '',
         itemNameId: '',
         specs: {},
         itemLabel: '',
@@ -1060,6 +1063,7 @@ export default function OperationsView({
         : [
             {
               itemId: '',
+        poItemId: '',
               itemNameId: '',
               specs: {},
               itemLabel: '',
@@ -1118,6 +1122,7 @@ export default function OperationsView({
 	    const items = editPoLines
 	      .map((l) => ({
 	        itemId: String(l.itemId ?? '').trim(),
+          poItemId: String(l.poItemId ?? '').trim() || undefined,
           itemNameId: l.itemNameId ? String(l.itemNameId) : undefined,
           specs: l.specs ?? {},
 	        quantity: Number(l.quantity ?? 0),
@@ -1692,6 +1697,7 @@ export default function OperationsView({
 				                          >
 				                            <IndianRupee size={16} />
 				                          </button>
+				                          {Number((r as OperationsPoListRow).grnCount ?? 0) <= 0 ? (
 				                          <button
 				                            type="button"
 				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
@@ -1704,6 +1710,7 @@ export default function OperationsView({
 				                          >
 				                            <Pencil size={16} />
 				                          </button>
+				                          ) : null}
 			                          </div>
 			                        </td>
 				                      </>

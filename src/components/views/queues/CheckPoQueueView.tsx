@@ -3,7 +3,7 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { Download } from 'lucide-react';
 import { formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import { formatItemInline } from '@/src/lib/itemLabel';
-import { fetchPos, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/purchaseRequests';
+import { fetchPos, returnPoToDraft, updatePoCheckAndSent, type Po, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueCheckPo, type CheckPoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { cn } from '@/src/lib/utils';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
@@ -181,6 +181,26 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
     return () => ac.abort();
   }, [active, modalOpen]);
 
+  async function sendActivePoToDraft() {
+    if (!active) return;
+    const remarks = window.prompt('Remarks for moving this PO back to Draft:', 'Returned to draft for correction')?.trim();
+    if (!remarks) {
+      setModalError('Remarks are required to move PO back to Draft.');
+      return;
+    }
+    const by = masters.users.find((u) => u.id === checkUserId)?.name ?? 'Purchase Team';
+    setSaving(true);
+    setModalError(null);
+    try {
+      await returnPoToDraft(active.poId, { remarks, updatedBy: by });
+      await fetchQueueCheckPo(filters).then(setRows);
+      closeModal();
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
   function closeModal() {
     setModalOpen(false);
     setActive(null);
@@ -461,6 +481,9 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
           <>
             <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
               Cancel
+            </button>
+            <button type="button" className="btn btn-sm" disabled={saving || !active} onClick={sendActivePoToDraft}>
+              Draft
             </button>
             <button
               type="button"

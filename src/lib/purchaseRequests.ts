@@ -941,6 +941,17 @@ export async function updatePoCheckAndSent(
   return requireOk<{ po?: { po: Po; items: PoItem[] } }>(res, 'Failed to update PO check/sent');
 }
 
+export async function returnPoToDraft(
+  poId: string,
+  input: { remarks: string; updatedBy?: string }
+) {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/return-draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ po?: { po: Po; items: PoItem[] } }>(res, 'Failed to return PO to draft');
+}
 export async function deletePo(poId: string, input?: { deletedBy?: string; cancelReason?: string }) {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}`, {
     method: 'DELETE',

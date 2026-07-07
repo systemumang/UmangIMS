@@ -99,6 +99,7 @@ export type OperationsPoListRow = {
   itemCount: number;
   totalAmount: number;
   advanceAmount?: number;
+  grnCount?: number;
 };
 
 export type PoAdvanceRow = {

@@ -4488,6 +4488,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       poi.item_id AS itemId,
       iname.name AS item,
       u.name AS unit,
+      it.item_name_id AS itemNameId,
       it.specifications_json AS specificationsJson,
       poi.quantity AS quantity,
       poi.rate AS rate,
@@ -4576,6 +4577,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     poId: String(r.poId ?? ''),
     itemId: String(r.itemId ?? ''),
     item: String(r.item ?? ''),
+    itemNameId: r.itemNameId != null ? String(r.itemNameId) : null,
     itemLabel: [String(r.item ?? '').trim(), ...formatSpecParts(r.specificationsJson)].filter(Boolean).join(' - ') || String(r.item ?? ''),
     specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
     unit: String(r.unit ?? '').trim(),
@@ -5453,10 +5455,16 @@ app.get('/api/operations/pos', async (req, res) => {
 	        po.po_source AS poSource,
 	        po.draft_payload AS draftPayload,
 	        COUNT(poi.id) AS itemCount,
-	        COALESCE(SUM(poi.total_amount), 0) AS totalAmount
+	        COALESCE(SUM(poi.total_amount), 0) AS totalAmount,
+	        COALESCE(MAX(grnq.grnCount), 0) AS grnCount
       FROM purchase_orders po
       LEFT JOIN purchase_requisitions pr ON pr.id = po.pr_id
       LEFT JOIN purchase_order_items poi ON poi.po_id = po.id
+      LEFT JOIN (
+        SELECT po_id AS poId, COUNT(*) AS grnCount
+        FROM grns
+        GROUP BY po_id
+      ) grnq ON grnq.poId = po.id
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN stores st ON st.id = po.store_id
       LEFT JOIN projects proj ON proj.id = po.project_id
@@ -5496,6 +5504,7 @@ app.get('/api/operations/pos', async (req, res) => {
 	          Number(r.totalAmount ?? 0) ||
 	          draftLines.reduce((sum, line) => sum + Number(line.quantity ?? 0) * Number(line.rate ?? 0), 0),
 	        advanceAmount: Number(r.advanceAmount ?? 0),
+        grnCount: Number(r.grnCount ?? 0),
 	        advanceDate: toIsoDate(r.advanceDate) || null,
 	        requestedBy: r.requestedBy != null ? String(r.requestedBy) : validTextOrNull(draftPayload?.requestedBy),
 	        requiredDate: toIsoDate(r.requiredDate) || toIsoDate(draftPayload?.requiredDate) || null,
@@ -8399,7 +8408,7 @@ app.put('/api/pos/:id', async (req, res) => {
     if (!poId) return res.status(400).json({ error: 'id is required' });
 
 	    const [[poRow]] = await pool.query(
-	      'SELECT id, status, advance_amount AS advanceAmount, advance_date AS advanceDate FROM purchase_orders WHERE id = ? LIMIT 1',
+	      'SELECT id, status, po_type AS poType, advance_amount AS advanceAmount, advance_date AS advanceDate FROM purchase_orders WHERE id = ? LIMIT 1',
 	      [poId]
 	    );
 	    if (!poRow) return res.status(404).json({ error: 'PO not found' });
@@ -8609,6 +8618,7 @@ app.put('/api/pos/:id', async (req, res) => {
       advanceAmount > 0 ? (normalizedAdvanceDateInput ?? existingAdvanceDate ?? autoAdvanceDate) : null;
     const lineCancels = Array.isArray(req.body?.lineCancels) ? req.body.lineCancels : [];
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    const poType = String(req.body?.poType ?? poRow.poType ?? 'Goods').trim() === 'Services' ? 'Services' : 'Goods';
 
     if (!paymentTerms) return res.status(400).json({ error: 'paymentTerms is required' });
     if (!items.length) return res.status(400).json({ error: 'items are required' });
@@ -8662,13 +8672,27 @@ app.put('/api/pos/:id', async (req, res) => {
       if (itemId && cancelledQty > 0) cancelByItemId.set(itemId, { cancelledQty, reason });
     }
 
-    for (const row of items) {
-      const itemId = String(row?.itemId ?? '').trim();
+    for (const [lineIndex, row] of items.entries()) {
+      const itemId = await resolveDraftPoItemId(pool, row, poType);
+      if (!itemId) return res.status(400).json({ error: 'Each item requires item selection.' });
+
       const quantity = num(row?.quantity, NaN);
       const rate = num(row?.rate, NaN);
       const discountPercent = Math.max(0, num(row?.discountPercent, 0));
       const taxPercent = Math.max(0, num(row?.taxPercent, 0));
-      if (!itemId || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(rate) || rate < 0) continue;
+      if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(rate) || rate < 0) {
+        return res.status(400).json({ error: `Invalid Qty or Rate for PO line ${lineIndex + 1}` });
+      }
+
+      const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
+      const areaUnit = normalizeAreaUnitName(unitRow?.unit != null ? String(unitRow.unit) : null);
+      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
+      const dimLengthInput = row?.length ?? row?.dimLength ?? row?.dim_length;
+      const dimBreadthInput = row?.breadth ?? row?.dimBreadth ?? row?.dim_breadth;
+      const dimPcsInput = row?.pcs ?? row?.dimPcs ?? row?.dim_pcs;
+      const dimLength = dimLengthInput != null && String(dimLengthInput).trim() !== '' ? num(dimLengthInput, NaN) : NaN;
+      const dimBreadth = dimBreadthInput != null && String(dimBreadthInput).trim() !== '' ? num(dimBreadthInput, NaN) : NaN;
+      const dimPcs = dimPcsInput != null && String(dimPcsInput).trim() !== '' ? num(dimPcsInput, NaN) : 1;
 
       const lineCancel = cancelByItemId.get(itemId) || { cancelledQty: 0, reason: '' };
       const cancelledQty = Math.max(0, Math.min(quantity, num(lineCancel.cancelledQty, 0)));
@@ -8676,27 +8700,93 @@ app.put('/api/pos/:id', async (req, res) => {
       const goodsAmount = effectiveQty * rate * (1 - discountPercent / 100);
       const taxAmount = goodsAmount * (taxPercent / 100);
       const totalAmount = goodsAmount + taxAmount;
+      const poItemId = String(row?.poItemId ?? row?.purchaseOrderItemId ?? row?.id ?? '').trim();
+      const updateWithItemId = [
+        itemId,
+        quantity,
+        rate,
+        discountPercent || null,
+        taxPercent || null,
+        cancelledQty,
+        lineCancel.reason || null,
+        goodsAmount,
+        taxAmount,
+        totalAmount,
+        areaUnit ? round2(dimLength) : null,
+        areaUnit ? round2(dimBreadth) : null,
+        areaUnit ? Math.trunc(dimPcs) : null,
+        areaUnit ? dimUnit : null,
+        validTextOrNull(row?.remarks),
+        lineIndex,
+        updatedBy,
+      ];
 
-      await pool.query(
-        `
-        UPDATE purchase_order_items
-        SET quantity = ?,
-            rate = ?,
-            discount_percent = ?,
-            tax_percent = ?,
-            cancelled_qty = ?,
-            cancel_reason = ?,
-            goods_amount = ?,
-            tax_amount = ?,
-            total_amount = ?,
-            updated_by = ?,
-            updated_at = NOW()
-        WHERE po_id = ? AND item_id = ?
-        `,
-        [quantity, rate, discountPercent || null, taxPercent || null, cancelledQty, lineCancel.reason || null, goodsAmount, taxAmount, totalAmount, updatedBy, poId, itemId]
-      );
+      let result;
+      if (poItemId) {
+        [result] = await pool.query(
+          `
+          UPDATE purchase_order_items
+          SET item_id = ?,
+              quantity = ?,
+              rate = ?,
+              discount_percent = ?,
+              tax_percent = ?,
+              cancelled_qty = ?,
+              cancel_reason = ?,
+              goods_amount = ?,
+              tax_amount = ?,
+              total_amount = ?,
+              dim_length = ?,
+              dim_breadth = ?,
+              dim_pcs = ?,
+              dim_unit = ?,
+              remarks = ?,
+              line_order = ?,
+              updated_by = ?,
+              updated_at = NOW()
+          WHERE po_id = ? AND id = ?
+          `,
+          [...updateWithItemId, poId, poItemId]
+        );
+      } else {
+        [result] = await pool.query(
+          `
+          UPDATE purchase_order_items
+          SET quantity = ?,
+              rate = ?,
+              discount_percent = ?,
+              tax_percent = ?,
+              cancelled_qty = ?,
+              cancel_reason = ?,
+              goods_amount = ?,
+              tax_amount = ?,
+              total_amount = ?,
+              dim_length = ?,
+              dim_breadth = ?,
+              dim_pcs = ?,
+              dim_unit = ?,
+              remarks = ?,
+              line_order = ?,
+              updated_by = ?,
+              updated_at = NOW()
+          WHERE po_id = ? AND item_id = ?
+          `,
+          updateWithItemId.slice(1).concat([poId, itemId])
+        );
+      }
+
+      if (!Number(result?.affectedRows ?? 0)) {
+        await pool.query(
+          `
+          INSERT INTO purchase_order_items
+            (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, cancelled_qty, cancel_reason, goods_amount, tax_amount, total_amount, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order, created_by, created_at, updated_by, updated_at)
+          VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
+          `,
+          [crypto.randomUUID(), poId, ...updateWithItemId, updatedBy]
+        );
+      }
     }
-
     const detail = await fetchPoHeaderAndItems(pool, poId);
     if (!detail) return res.status(404).json({ error: 'PO not found' });
     res.json({ po: detail });
@@ -9456,6 +9546,82 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
   }
 });
 
+app.post('/api/pos/:id/return-draft', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const remarks = String(req.body?.remarks ?? '').trim();
+    const updatedBy = String(req.body?.updatedBy ?? '').trim() || 'system';
+    if (!remarks) return res.status(400).json({ error: 'Remarks are required to return PO to Draft.' });
+
+    const [[poRow]] = await pool.query(
+      `
+      SELECT id, status
+      FROM purchase_orders
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [poId]
+    );
+    if (!poRow) return res.status(404).json({ error: 'PO not found' });
+
+    const [[grnRow]] = await pool.query('SELECT id FROM grns WHERE po_id = ? LIMIT 1', [poId]);
+    if (grnRow?.id) return res.status(400).json({ error: 'PO with GRN cannot be returned to Draft.' });
+    const [[invoiceRow]] = await pool.query('SELECT id FROM invoices WHERE po_id = ? LIMIT 1', [poId]);
+    if (invoiceRow?.id) return res.status(400).json({ error: 'PO with Invoice cannot be returned to Draft.' });
+
+    const current = await fetchPoHeaderAndItems(pool, poId);
+    if (!current) return res.status(404).json({ error: 'PO not found' });
+    const payload = buildPoDraftPayload({
+      sourceType: current.po?.sourceType,
+      prId: current.po?.prId,
+      firmId: current.po?.firmId,
+      storeId: current.po?.storeId,
+      projectId: current.po?.projectId,
+      supplierId: current.po?.supplierId,
+      supplier: current.po?.supplier,
+      poType: current.po?.poType,
+      requestedBy: current.po?.requestedBy,
+      requiredDate: current.po?.requiredDate,
+      remarks,
+      paymentTerms: current.po?.paymentTerms,
+      paymentType: current.po?.paymentType,
+      paymentMode: current.po?.paymentMode,
+      advanceAmount: current.po?.advanceAmount,
+      advanceDate: current.po?.advanceDate,
+      shippingAddress: current.po?.shippingAddress,
+      termsConditions: current.po?.termsConditions,
+      items: current.items,
+    });
+
+    await pool.query(
+      `
+      UPDATE purchase_orders
+      SET status = 'draft',
+          remarks = ?,
+          draft_payload = ?,
+          check_po = 0,
+          check_po_user_id = NULL,
+          check_date = NULL,
+          sent_by = NULL,
+          sent_date = NULL,
+          sent_proof = NULL,
+          updated_by = ?,
+          updated_at = NOW()
+      WHERE id = ?
+      `,
+      [remarks, JSON.stringify({ ...payload, sourceType: current.po?.sourceType ?? payload.sourceType }), updatedBy, poId]
+    );
+
+    const detail = await fetchPoHeaderAndItems(pool, poId);
+    res.json({ po: detail });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 // Update PO check/sent flags (used by Check PO / Send PO queues)
 app.put('/api/pos/:id/check-sent', async (req, res) => {
   try {
