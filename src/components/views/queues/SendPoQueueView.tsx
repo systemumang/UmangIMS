@@ -102,6 +102,8 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
   const [sentProofFile, setSentProofFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [draftRemarksOpen, setDraftRemarksOpen] = useState(false);
+  const [draftRemarks, setDraftRemarks] = useState('Returned to draft for correction');
   const [detailLoading, setDetailLoading] = useState(false);
   const [expandedPoId, setExpandedPoId] = useState<string>('');
   const [expandedLoadingPoId, setExpandedLoadingPoId] = useState<string>('');
@@ -137,6 +139,8 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     const ac = new AbortController();
     setDetailLoading(true);
     setModalError(null);
+    setDraftRemarksOpen(false);
+    setDraftRemarks('Returned to draft for correction');
     setActivePoDetails(null);
     fetchPos(active.prId, ac.signal)
       .then((pos) => {
@@ -154,7 +158,7 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
 
   async function sendActivePoToDraft() {
     if (!active) return;
-    const remarks = window.prompt('Remarks for moving this PO back to Draft:', 'Returned to draft for correction')?.trim();
+    const remarks = draftRemarks.trim();
     if (!remarks) {
       setModalError('Remarks are required to move PO back to Draft.');
       return;
@@ -181,6 +185,8 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
     setSentProofFile(null);
     setSaving(false);
     setModalError(null);
+    setDraftRemarksOpen(false);
+    setDraftRemarks('Returned to draft for correction');
     setActivePoDetails(null);
     setDetailLoading(false);
   }
@@ -456,7 +462,16 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
             <button type="button" className="btn btn-sm" disabled={saving} onClick={closeModal}>
               Cancel
             </button>
-            <button type="button" className="btn btn-sm" disabled={saving || !active} onClick={sendActivePoToDraft}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={saving || !active}
+              onClick={() => {
+                setDraftRemarks('Returned to draft for correction');
+                setDraftRemarksOpen(true);
+                setModalError(null);
+              }}
+            >
               Draft
             </button>
             <button
@@ -498,7 +513,30 @@ export default function SendPoQueueView({ onViewPr }: { onViewPr: (prId: string)
         }
       >
         {modalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{modalError}</div> : null}
-
+        {draftRemarksOpen ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
+            <div className="w-full max-w-md rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-2xl">
+              <div className="text-base font-bold text-on-surface">Move PO Back to Draft</div>
+              <label className="mt-4 block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
+                Remarks
+                <textarea
+                  className="mt-2 min-h-[96px] w-full resize-y rounded-lg border border-black bg-surface-container-low px-3 py-2 text-sm font-normal normal-case tracking-normal text-on-surface outline-none focus:ring-1 focus:ring-black"
+                  value={draftRemarks}
+                  onChange={(e) => setDraftRemarks(e.target.value)}
+                  autoFocus
+                />
+              </label>
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" className="btn btn-sm" disabled={saving} onClick={() => setDraftRemarksOpen(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-primary btn-sm" disabled={saving} onClick={sendActivePoToDraft}>
+                  {saving ? 'Saving...' : 'Draft'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {detailLoading ? (
           <div className="text-sm text-on-surface-variant">Loading PO details...</div>
         ) : active && activePoDetails ? (
