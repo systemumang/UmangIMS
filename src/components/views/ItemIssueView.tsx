@@ -13,6 +13,7 @@ import { Trash2 } from 'lucide-react';
 				  createSpecificationValue,
 				  fetchStores,
 				  fetchProjects,
+				  fetchDepartments,
 				  fetchUsers,
 				  fetchItemNames,
 				  fetchUnits,
@@ -25,6 +26,7 @@ import { Trash2 } from 'lucide-react';
 				  updateItem,
 				  type Store,
 				  type Project,
+				  type Department,
 				  type Item,
 				  type ItemName,
 				  type Specification,
@@ -78,9 +80,12 @@ export default function ItemIssueView({
 			  const [storeId, setStoreId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
-			  const [issueType, setIssueType] = useState<'Sales' | 'Project'>('Sales');
-			  const [issuedTo, setIssuedTo] = useState('');
-			  const [projectId, setProjectId] = useState('');
+				  const [issueType, setIssueType] = useState<'Sales' | 'Project' | 'Internal Used'>('Sales');
+				  const [issuedTo, setIssuedTo] = useState('');
+				  const [projectId, setProjectId] = useState('');
+				  const [departments, setDepartments] = useState<Department[]>([]);
+				  const [loadingDepartments, setLoadingDepartments] = useState(true);
+				  const [department, setDepartment] = useState('');
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
@@ -210,8 +215,25 @@ export default function ItemIssueView({
 			    return () => ac.abort();
 			  }, []);
 
-		  useEffect(() => {
-		    if (!materialRequest) return;
+			  useEffect(() => {
+			    const ac = new AbortController();
+			    setLoadingDepartments(true);
+			    fetchDepartments(ac.signal)
+			      .then(setDepartments)
+			      .catch((e) => {
+			        if (!ac.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+			      })
+			      .finally(() => setLoadingDepartments(false));
+			    return () => ac.abort();
+			  }, []);
+
+			  useEffect(() => {
+			    if (issueType !== 'Project') setProjectId('');
+			    if (issueType !== 'Internal Used') setDepartment('');
+			  }, [issueType]);
+
+			  useEffect(() => {
+			    if (!materialRequest) return;
 		    setFirmId(String(materialRequest.firmId ?? ''));
 		    setStoreId(String(materialRequest.storeId ?? ''));
 		    setProjectId(String(materialRequest.projectId ?? ''));
@@ -398,6 +420,7 @@ export default function ItemIssueView({
 							  const canSubmit = useMemo(() => {
 							    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 							    if (issueType === 'Project' && !projectId.trim()) return false;
+							    if (issueType === 'Internal Used' && !department.trim()) return false;
 							    const normalized = items
 							      .map((it) => ({
 	                    itemId: String(it.itemId ?? '').trim(),
@@ -417,7 +440,7 @@ export default function ItemIssueView({
                       return true;
                     });
 							    return normalized.length > 0;
-							  }, [firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
+							  }, [department, firmId, items, projectId, requestedByUserId, requiredDate, issueType, storeId]);
 
 	  function getItemNameSpecIds(itemNameId: string): string[] {
 	    const row = itemNames.find((n) => n.id === itemNameId);
@@ -598,7 +621,7 @@ export default function ItemIssueView({
 				      <div className="rounded-2xl bg-surface-container-low p-3 shadow-sm">
 		        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Firm</div>
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issuing Firm</div>
 	            <SearchableSelect
 	              value={firmId}
 	              options={firms.map((f) => ({ value: f.id, label: f.name }))}
@@ -609,7 +632,7 @@ export default function ItemIssueView({
 	          </label>
 
 	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Store</div>
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issuing Store</div>
 	            <SearchableSelect
 	              value={storeId}
 	              options={storeOptions}
@@ -644,8 +667,9 @@ export default function ItemIssueView({
 			              options={[
 			                { value: 'Sales', label: 'Sales' },
 			                { value: 'Project', label: 'Project' },
+			                { value: 'Internal Used', label: 'Internal Used' },
 			              ]}
-			              onChange={(v) => setIssueType(v === 'Project' ? 'Project' : 'Sales')}
+			              onChange={(v) => setIssueType(v === 'Project' || v === 'Internal Used' ? v : 'Sales')}
 			              placeholder="Search issue type..."
 			            />
 			          </label>
@@ -675,6 +699,18 @@ export default function ItemIssueView({
 		              />
 		            </label>
 		          ) : null}
+			          {issueType === 'Internal Used' ? (
+			            <label className="space-y-1 md:col-span-2">
+			              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
+			              <SearchableSelect
+			                value={department}
+			                options={departments.map((d) => ({ value: d.name, label: d.name }))}
+			                onChange={setDepartment}
+			                disabled={loadingDepartments}
+			                placeholder={loadingDepartments ? 'Loading departments...' : 'Select department...'}
+			              />
+			            </label>
+			          ) : null}
 		        </div>
 		      </div>
 
@@ -853,6 +889,10 @@ export default function ItemIssueView({
 							                    setError('Please select a Project Name for Project-type issues.');
 							                    return;
 							                  }
+				                  if (issueType === 'Internal Used' && !department.trim()) {
+				                    setError('Please select a Department for Internal Used issues.');
+				                    return;
+				                  }
 
 					                  setSaving(true);
 						                  createIssue({
@@ -860,6 +900,7 @@ export default function ItemIssueView({
 						                    storeId: storeId,
 						                    store,
 						                    projectId: issueType === 'Project' ? projectId : undefined,
+				                    department: issueType === 'Internal Used' ? department : '',
 						                    person: requestedBy,
 						                    date: requiredDate,
 						                    issueType,

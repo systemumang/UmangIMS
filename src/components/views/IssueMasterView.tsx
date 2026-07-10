@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Search, Trash2, ArrowUpDown } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { listIssues, deleteIssue, updateIssue, type StockTransaction } from '@/src/lib/stockMaster';
-import { fetchFirms, fetchItems, fetchStores, type Firm, type Item, type Store } from '@/src/lib/masters';
+import { fetchFirms, fetchItems, fetchStores, fetchDepartments, fetchProjects, type Firm, type Item, type Store, type Department, type Project } from '@/src/lib/masters';
 
 export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [editError, setEditError] = useState('');
   const [q, setQ] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -38,6 +41,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
     fetchFirms().then(setFirms).catch(() => setFirms([]));
     fetchStores().then(setStores).catch(() => setStores([]));
     fetchItems().then(setItems).catch(() => setItems([]));
+    fetchDepartments().then(setDepartments).catch(() => setDepartments([]));
+    fetchProjects().then(setProjects).catch(() => setProjects([]));
   }, []);
 
   const firmOptions = firms
@@ -116,11 +121,23 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 
   const saveEdit = async () => {
     if (!editItem) return;
+    if (editItem.issueType === 'Project' && !String(editItem.projectId ?? '').trim()) {
+      setEditError('Please select a Project Name for Project-type issues.');
+      return;
+    }
+    if (editItem.issueType === 'Internal Used' && !String(editItem.department ?? '').trim()) {
+      setEditError('Please select a Department for Internal Used issues.');
+      return;
+    }
+    setEditError('');
     setEditBusy(true);
     try {
       await updateIssue(editItem.id, {
         firmId: editItem.firmId,
+        storeId: editItem.storeId,
         store: editItem.store,
+        department: editItem.issueType === 'Internal Used' ? editItem.department : '',
+        projectId: editItem.issueType === 'Project' ? editItem.projectId : undefined,
         person: editItem.person,
         date: editItem.date,
         issueType: editItem.issueType,
@@ -129,6 +146,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
       });
       setEditItem(null);
       load();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : String(e));
     } finally {
       setEditBusy(false);
     }
@@ -344,6 +363,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Issued By</span> {viewItem.person}</div>
+                {viewItem.issueType === 'Internal Used' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department || '-'}</div> : null}
+                {viewItem.issueType === 'Project' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Project</span> {projects.find((p) => p.id === viewItem.projectId)?.name || viewItem.projectId || '-'}</div> : null}
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
 	                <table className="w-full text-left border-collapse text-sm">
@@ -373,11 +394,12 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	            <div className="p-4 border-b border-outline-variant flex justify-between items-center">
 	              <div className="font-bold text-lg text-on-surface">Edit Issue - {editItem.transactionNo}</div>
 	              <div className="flex items-center gap-2">
-	                <button className="btn btn-sm" onClick={() => setEditItem(null)} disabled={editBusy}>Cancel</button>
+	                <button className="btn btn-sm" onClick={() => { setEditError(''); setEditItem(null); }} disabled={editBusy}>Cancel</button>
 	                <button className="btn btn-sm" onClick={saveEdit} disabled={editBusy}>Save</button>
 	              </div>
 	            </div>
 	            <div className="p-5 overflow-auto space-y-4 flex-1">
+              {editError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant p-3 text-sm text-on-surface-variant">{editError}</div> : null}
 	              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
 	                <label className="space-y-1">
 	                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
@@ -404,12 +426,24 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issue Type</div>
-                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }]} onChange={(value) => setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' ? 'Project' : 'Sales' }) : p)} placeholder="Select issue type..." />
+                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }, { value: 'Internal Used', label: 'Internal Used' }]} onChange={(value) => { setEditError(''); setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' || value === 'Internal Used' ? value : 'Sales', projectId: value === 'Project' ? p.projectId : undefined, department: value === 'Internal Used' ? p.department : '' }) : p); }} placeholder="Select issue type..." />
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued To</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.issuedTo ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, issuedTo: e.target.value }) : p)} />
                 </label>
+                {editItem.issueType === 'Project' ? (
+                  <label className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project Name</div>
+                    <SearchableSelect value={editItem.projectId ?? ''} options={projects.filter((p) => !editItem.firmId || p.firmId === editItem.firmId).map((p) => ({ value: p.id, label: p.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, projectId: value }) : p)} placeholder="Select project..." />
+                  </label>
+                ) : null}
+                {editItem.issueType === 'Internal Used' ? (
+                  <label className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Department</div>
+                    <SearchableSelect value={editItem.department ?? ''} options={departments.map((d) => ({ value: d.name, label: d.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, department: value }) : p)} placeholder="Select department..." />
+                  </label>
+                ) : null}
                 <label className="space-y-1 md:col-span-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued By</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.person ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, person: e.target.value }) : p)} />

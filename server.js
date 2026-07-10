@@ -13650,6 +13650,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         id: row.id,
         transactionNo: row.transaction_no || row.id,
         firmId: row.firm_id,
+        storeId: row.store_id || row.from_store_id,
         store: row.store_name || row.store_id || row.from_store_id || row.store,
         department: row.department,
         person: row.person || row.requested_by,
@@ -13693,6 +13694,14 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     const id = crypto.randomUUID();
     const transactionNo = await getNextTransactionNo(pool, table, prefix);
     const data = req.body;
+
+    if (table === 'item_issues') {
+      const issueType = String(data.issueType ?? '').trim();
+      const department = String(data.department ?? '').trim();
+      if (issueType === 'Internal Used' && !department) {
+        return res.status(400).json({ error: 'Department is required for Internal Used issues.' });
+      }
+    }
 
     const storeId = data.storeId || data.store;
     const toStoreId = data.toStoreId || data.toStore;
@@ -13852,6 +13861,53 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
 
 app.get('/api/stock-transactions/issues', (req, res) => handleListTransactions(req, res, 'item_issues', 'item_issue_items', 'issue'));
 app.post('/api/stock-transactions/issues', (req, res) => handleCreateTransaction(req, res, 'item_issues', 'item_issue_items', 'issue', 'ISS'));
+app.put('/api/stock-transactions/issues/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const id = String(req.params.id ?? '').trim();
+    const data = req.body ?? {};
+    const issueType = String(data.issueType ?? '').trim();
+    const department = String(data.department ?? '').trim();
+    const projectId = String(data.projectId ?? '').trim();
+    const allowedIssueTypes = new Set(['Sales', 'Project', 'Internal Used']);
+    if (!allowedIssueTypes.has(issueType)) return res.status(400).json({ error: 'Invalid issue type.' });
+    if (issueType === 'Project' && !projectId) return res.status(400).json({ error: 'Project is required for Project-type issues.' });
+    if (issueType === 'Internal Used' && !department) {
+      return res.status(400).json({ error: 'Department is required for Internal Used issues.' });
+    }
+
+    const [[current]] = await pool.query('SELECT id, store_id AS storeId FROM item_issues WHERE id = ? LIMIT 1', [id]);
+    if (!current) return res.status(404).json({ error: 'Issue not found.' });
+    let storeId = String(data.storeId ?? '').trim();
+    if (!storeId && data.store) {
+      const [[storeRow]] = await pool.query('SELECT id FROM stores WHERE name = ? AND firm_id = ? LIMIT 1', [String(data.store).trim(), String(data.firmId ?? '').trim()]);
+      storeId = String(storeRow?.id ?? '').trim();
+    }
+    storeId = storeId || String(current.storeId ?? '').trim();
+
+    await pool.query(
+      `UPDATE item_issues
+       SET firm_id = ?, store_id = ?, department = ?, project_id = ?, person = ?, date = ?, issue_type = ?, issued_to = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [
+        String(data.firmId ?? '').trim(),
+        storeId,
+        issueType === 'Internal Used' ? department : null,
+        issueType === 'Project' ? projectId : null,
+        String(data.person ?? '').trim(),
+        data.date,
+        issueType,
+        String(data.issuedTo ?? '').trim() || null,
+        id,
+      ]
+    );
+    res.json({ issue: { ...data, id, storeId, department: issueType === 'Internal Used' ? department : '', projectId: issueType === 'Project' ? projectId : undefined } });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 app.delete('/api/stock-transactions/issues/:id', async (req, res) => {
   try {
     const pool = getMysqlPool();

@@ -22,7 +22,7 @@ export type StockTransaction = {
   toDepartment?: string;
   person: string;
   date: string;
-  issueType?: 'Sales' | 'Project';
+  issueType?: 'Sales' | 'Project' | 'Internal Used';
   issuedTo?: string;
   returnType?: 'Sales' | 'Project';
   customerName?: string;
