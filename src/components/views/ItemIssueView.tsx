@@ -80,7 +80,7 @@ export default function ItemIssueView({
 			  const [storeId, setStoreId] = useState('');
 			  const [projects, setProjects] = useState<Project[]>([]);
 			  const [loadingProjects, setLoadingProjects] = useState(true);
-				  const [issueType, setIssueType] = useState<'Sales' | 'Project' | 'Internal Used'>('Sales');
+				  const [issueType, setIssueType] = useState<'Sales' | 'Project' | 'Internal Use'>('Sales');
 				  const [issuedTo, setIssuedTo] = useState('');
 				  const [projectId, setProjectId] = useState('');
 				  const [departments, setDepartments] = useState<Department[]>([]);
@@ -229,7 +229,7 @@ export default function ItemIssueView({
 
 			  useEffect(() => {
 			    if (issueType !== 'Project') setProjectId('');
-			    if (issueType !== 'Internal Used') setDepartment('');
+			    if (issueType !== 'Internal Use') setDepartment('');
 			  }, [issueType]);
 
 			  useEffect(() => {
@@ -420,7 +420,7 @@ export default function ItemIssueView({
 							  const canSubmit = useMemo(() => {
 							    if (!firmId || !storeId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
 							    if (issueType === 'Project' && !projectId.trim()) return false;
-							    if (issueType === 'Internal Used' && !department.trim()) return false;
+							    if (issueType === 'Internal Use' && !department.trim()) return false;
 							    const normalized = items
 							      .map((it) => ({
 	                    itemId: String(it.itemId ?? '').trim(),
@@ -667,9 +667,9 @@ export default function ItemIssueView({
 			              options={[
 			                { value: 'Sales', label: 'Sales' },
 			                { value: 'Project', label: 'Project' },
-			                { value: 'Internal Used', label: 'Internal Used' },
+			                { value: 'Internal Use', label: 'Internal Use' },
 			              ]}
-			              onChange={(v) => setIssueType(v === 'Project' || v === 'Internal Used' ? v : 'Sales')}
+			              onChange={(v) => setIssueType(v === 'Project' || v === 'Internal Use' ? v : 'Sales')}
 			              placeholder="Search issue type..."
 			            />
 			          </label>
@@ -699,7 +699,7 @@ export default function ItemIssueView({
 		              />
 		            </label>
 		          ) : null}
-			          {issueType === 'Internal Used' ? (
+			          {issueType === 'Internal Use' ? (
 			            <label className="space-y-1 md:col-span-2">
 			              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
 			              <SearchableSelect
@@ -889,8 +889,8 @@ export default function ItemIssueView({
 							                    setError('Please select a Project Name for Project-type issues.');
 							                    return;
 							                  }
-				                  if (issueType === 'Internal Used' && !department.trim()) {
-				                    setError('Please select a Department for Internal Used issues.');
+				                  if (issueType === 'Internal Use' && !department.trim()) {
+				                    setError('Please select a Department for Internal Use issues.');
 				                    return;
 				                  }
 
@@ -900,7 +900,7 @@ export default function ItemIssueView({
 						                    storeId: storeId,
 						                    store,
 						                    projectId: issueType === 'Project' ? projectId : undefined,
-				                    department: issueType === 'Internal Used' ? department : '',
+				                    department: issueType === 'Internal Use' ? department : '',
 						                    person: requestedBy,
 						                    date: requiredDate,
 						                    issueType,

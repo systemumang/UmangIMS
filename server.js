@@ -13655,7 +13655,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         department: row.department,
         person: row.person || row.requested_by,
         date: toIsoDate(row.date) || toIsoDate(row.created_at),
-        issueType: row.issue_type,
+        issueType: row.issue_type === 'Internal Used' ? 'Internal Use' : row.issue_type,
         issuedTo: row.issued_to,
         returnType: row.return_type,
         customerName: row.customer_name,
@@ -13698,8 +13698,8 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     if (table === 'item_issues') {
       const issueType = String(data.issueType ?? '').trim();
       const department = String(data.department ?? '').trim();
-      if (issueType === 'Internal Used' && !department) {
-        return res.status(400).json({ error: 'Department is required for Internal Used issues.' });
+      if (issueType === 'Internal Use' && !department) {
+        return res.status(400).json({ error: 'Department is required for Internal Use issues.' });
       }
     }
 
@@ -13871,11 +13871,11 @@ app.put('/api/stock-transactions/issues/:id', async (req, res) => {
     const issueType = String(data.issueType ?? '').trim();
     const department = String(data.department ?? '').trim();
     const projectId = String(data.projectId ?? '').trim();
-    const allowedIssueTypes = new Set(['Sales', 'Project', 'Internal Used']);
+    const allowedIssueTypes = new Set(['Sales', 'Project', 'Internal Use']);
     if (!allowedIssueTypes.has(issueType)) return res.status(400).json({ error: 'Invalid issue type.' });
     if (issueType === 'Project' && !projectId) return res.status(400).json({ error: 'Project is required for Project-type issues.' });
-    if (issueType === 'Internal Used' && !department) {
-      return res.status(400).json({ error: 'Department is required for Internal Used issues.' });
+    if (issueType === 'Internal Use' && !department) {
+      return res.status(400).json({ error: 'Department is required for Internal Use issues.' });
     }
 
     const [[current]] = await pool.query('SELECT id, store_id AS storeId FROM item_issues WHERE id = ? LIMIT 1', [id]);
@@ -13894,7 +13894,7 @@ app.put('/api/stock-transactions/issues/:id', async (req, res) => {
       [
         String(data.firmId ?? '').trim(),
         storeId,
-        issueType === 'Internal Used' ? department : null,
+        issueType === 'Internal Use' ? department : null,
         issueType === 'Project' ? projectId : null,
         String(data.person ?? '').trim(),
         data.date,
@@ -13903,7 +13903,7 @@ app.put('/api/stock-transactions/issues/:id', async (req, res) => {
         id,
       ]
     );
-    res.json({ issue: { ...data, id, storeId, department: issueType === 'Internal Used' ? department : '', projectId: issueType === 'Project' ? projectId : undefined } });
+    res.json({ issue: { ...data, id, storeId, department: issueType === 'Internal Use' ? department : '', projectId: issueType === 'Project' ? projectId : undefined } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

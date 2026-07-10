@@ -125,8 +125,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
       setEditError('Please select a Project Name for Project-type issues.');
       return;
     }
-    if (editItem.issueType === 'Internal Used' && !String(editItem.department ?? '').trim()) {
-      setEditError('Please select a Department for Internal Used issues.');
+    if (editItem.issueType === 'Internal Use' && !String(editItem.department ?? '').trim()) {
+      setEditError('Please select a Department for Internal Use issues.');
       return;
     }
     setEditError('');
@@ -136,7 +136,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
         firmId: editItem.firmId,
         storeId: editItem.storeId,
         store: editItem.store,
-        department: editItem.issueType === 'Internal Used' ? editItem.department : '',
+        department: editItem.issueType === 'Internal Use' ? editItem.department : '',
         projectId: editItem.issueType === 'Project' ? editItem.projectId : undefined,
         person: editItem.person,
         date: editItem.date,
@@ -363,7 +363,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Issued By</span> {viewItem.person}</div>
-                {viewItem.issueType === 'Internal Used' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department || '-'}</div> : null}
+                {viewItem.issueType === 'Internal Use' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department || '-'}</div> : null}
                 {viewItem.issueType === 'Project' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Project</span> {projects.find((p) => p.id === viewItem.projectId)?.name || viewItem.projectId || '-'}</div> : null}
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
@@ -426,7 +426,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issue Type</div>
-                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }, { value: 'Internal Used', label: 'Internal Used' }]} onChange={(value) => { setEditError(''); setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' || value === 'Internal Used' ? value : 'Sales', projectId: value === 'Project' ? p.projectId : undefined, department: value === 'Internal Used' ? p.department : '' }) : p); }} placeholder="Select issue type..." />
+                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }, { value: 'Internal Use', label: 'Internal Use' }]} onChange={(value) => { setEditError(''); setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' || value === 'Internal Use' ? value : 'Sales', projectId: value === 'Project' ? p.projectId : undefined, department: value === 'Internal Use' ? p.department : '' }) : p); }} placeholder="Select issue type..." />
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued To</div>
@@ -438,7 +438,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                     <SearchableSelect value={editItem.projectId ?? ''} options={projects.filter((p) => !editItem.firmId || p.firmId === editItem.firmId).map((p) => ({ value: p.id, label: p.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, projectId: value }) : p)} placeholder="Select project..." />
                   </label>
                 ) : null}
-                {editItem.issueType === 'Internal Used' ? (
+                {editItem.issueType === 'Internal Use' ? (
                   <label className="space-y-1">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Department</div>
                     <SearchableSelect value={editItem.department ?? ''} options={departments.map((d) => ({ value: d.name, label: d.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, department: value }) : p)} placeholder="Select department..." />
