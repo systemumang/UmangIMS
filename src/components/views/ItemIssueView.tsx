@@ -457,6 +457,18 @@ export default function ItemIssueView({
     }
   };
 
+  const getCreatedItemSpecValues = (itemNameId: string, specificationId: string) => {
+    const uniqueValues = new Map<string, string>();
+    for (const item of masterItems) {
+      if (item.itemNameId !== itemNameId) continue;
+      const value = String(parseSpecObject(item.specificationsJson)[specificationId] ?? '').trim();
+      if (!value) continue;
+      const normalized = value.toLocaleLowerCase();
+      if (!uniqueValues.has(normalized)) uniqueValues.set(normalized, value);
+    }
+    return Array.from(uniqueValues.values()).sort((a, b) => a.localeCompare(b));
+  };
+
   const resolveSelectedItem = (itemNameId: string, specValues: Record<string, string>) => {
     if (!itemNameId) return null;
     const specIds = getItemNameSpecIds(itemNameId);
@@ -766,8 +778,10 @@ export default function ItemIssueView({
                                   {getItemNameSpecIds(row.itemNameId).map((specId) => {
                                     const specName = specNameById?.[specId] ?? specId;
                                     const value = String(row.specs?.[specId] ?? '');
-                                    const key = specValueKey(row.itemNameId, specId);
-                                    const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
+                                    const options = getCreatedItemSpecValues(row.itemNameId, specId).map((itemValue) => ({
+                                      value: itemValue,
+                                      label: itemValue,
+                                    }));
                                     if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
                                     return (
                                       <label key={`${idx}-${specId}`} className="space-y-1">
