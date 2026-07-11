@@ -597,10 +597,17 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                           }
 	                          const value = String(l.specs?.[specId] ?? '');
 	                          const key = specValueKey(l.itemNameId, specId);
-	                          const options = (specValueOptions[key] ?? [])
-	                            // Show only values mapped to this Item Name (no global/other-item values).
-	                            .filter((sv) => String(sv.itemNameId ?? '').trim() === String(l.itemNameId ?? '').trim())
-	                            .map((v) => ({ value: v.value, label: v.value }));
+	                          const uniqueOptions = new Map<string, { value: string; label: string }>();
+	                          for (const specValue of specValueOptions[key] ?? []) {
+	                            if (String(specValue.itemNameId ?? '').trim() !== String(l.itemNameId ?? '').trim()) continue;
+	                            const optionValue = String(specValue.value ?? '').trim();
+	                            if (!optionValue) continue;
+	                            const normalized = optionValue.toLocaleLowerCase();
+	                            if (!uniqueOptions.has(normalized)) {
+	                              uniqueOptions.set(normalized, { value: optionValue, label: optionValue });
+	                            }
+	                          }
+	                          const options = Array.from(uniqueOptions.values()).sort((a, b) => a.label.localeCompare(b.label));
 	                          if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
 	                          return (
 	                            <div key={`${idx}-${specId}`} className="p-2 border-r border-outline-variant">
