@@ -48,6 +48,74 @@ app.get('/health', (_req, res) => {
 });
 
 let mysqlPool = null;
+const SPEC_VALUE_REPAIR_INTERVAL_MS = 30 * 60 * 1000;
+let specValueRepairRunning = false;
+
+async function repairMissingItemSpecificationValues(pool, { itemId = '' } = {}) {
+  if (!pool) return { specificationValuesCreated: 0, mappingsCreated: 0 };
+  const params = [];
+  let itemFilter = '';
+  if (itemId) {
+    itemFilter = 'AND it.id = ?';
+    params.push(itemId);
+  }
+  const [rows] = await pool.query(
+    `SELECT it.id, it.item_name_id AS itemNameId, it.specifications_json AS specificationsJson
+     FROM items it
+     WHERE it.item_name_id IS NOT NULL AND JSON_VALID(it.specifications_json) ${itemFilter}`,
+    params
+  );
+  let specificationValuesCreated = 0;
+  let mappingsCreated = 0;
+  const seen = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const itemNameId = String(row.itemNameId ?? '').trim();
+    if (!itemNameId) continue;
+    let specifications = row.specificationsJson;
+    if (typeof specifications === 'string') {
+      try { specifications = JSON.parse(specifications); } catch { continue; }
+    }
+    if (!specifications || Array.isArray(specifications) || typeof specifications !== 'object') continue;
+    for (const [rawSpecificationId, rawValue] of Object.entries(specifications)) {
+      const specificationId = String(rawSpecificationId ?? '').trim();
+      const value = String(rawValue ?? '').trim();
+      if (!specificationId || !value) continue;
+      const key = `${itemNameId}\u0000${specificationId}\u0000${value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const [mappingResult] = await pool.query(
+        'INSERT IGNORE INTO item_name_specifications (item_name_id, specification_id, created_at) VALUES (?, ?, NOW())',
+        [itemNameId, specificationId]
+      );
+      mappingsCreated += Number(mappingResult?.affectedRows ?? 0);
+      const [valueResult] = await pool.query(
+        `INSERT IGNORE INTO specification_values
+           (id, specification_id, item_name_id, value, is_active, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 1, 'system-item-repair', NOW(), NOW())`,
+        [crypto.randomUUID(), specificationId, itemNameId, value]
+      );
+      specificationValuesCreated += Number(valueResult?.affectedRows ?? 0);
+    }
+  }
+  return { specificationValuesCreated, mappingsCreated };
+}
+
+async function runScheduledSpecValueRepair() {
+  if (specValueRepairRunning) return;
+  const pool = getMysqlPool();
+  if (!pool) return;
+  specValueRepairRunning = true;
+  try {
+    const result = await repairMissingItemSpecificationValues(pool);
+    if (result.specificationValuesCreated || result.mappingsCreated) {
+      console.log('Repaired missing item specification data:', result);
+    }
+  } catch (e) {
+    console.error('Unable to repair missing item specification data:', e);
+  } finally {
+    specValueRepairRunning = false;
+  }
+}
 function getMysqlPool() {
   if (mysqlPool) return mysqlPool;
   const host = process.env.DB_HOST || '127.0.0.1';
@@ -12435,6 +12503,7 @@ app.post('/api/masters/items', async (req, res) => {
 		      'INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, photo_1, photo_2, photo_3, photo_4, photo_5, item_link, video_link, reorder_level, rate, opening_stock, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
 		      [id, itemNameId, itemCode, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(rate) ? rate : 0, Number.isFinite(openingStock) ? openingStock : 0, createdBy]
 		    );
+    await repairMissingItemSpecificationValues(pool, { itemId: id });
     if (storeOpeningBalances.length) {
       const [allStores] = await pool.query('SELECT id, name FROM stores');
       const storeIdByName = new Map(
@@ -12527,6 +12596,7 @@ app.put('/api/masters/items/:id', async (req, res) => {
 		      'UPDATE items SET item_name_id=?, specifications_json=?, unique_key=?, description=?, unit=?, photo_1=?, photo_2=?, photo_3=?, photo_4=?, photo_5=?, item_link=?, video_link=?, reorder_level=?, rate=?, opening_stock=?, updated_by=?, updated_at=NOW() WHERE id=?',
 		      [itemNameId, specificationsJson, uniqueKey, description, unit, photo1, photo2, photo3, photo4, photo5, itemLink, videoLink, Number.isFinite(reorderLevel) ? reorderLevel : null, Number.isFinite(rate) ? rate : 0, Number.isFinite(openingStock) ? openingStock : 0, updatedBy, id]
 		    );
+    await repairMissingItemSpecificationValues(pool, { itemId: id });
     if (storeOpeningBalances.length) {
       const [allStores] = await pool.query('SELECT id, name FROM stores');
       const storeIdByName = new Map(
@@ -15956,5 +16026,8 @@ app.use((_req, res) => {
 app.listen(port, () => {
   // Keep log simple for Hostinger runtime logs.
   console.log(`Server listening on port ${port}`);
+  void runScheduledSpecValueRepair();
+  const repairTimer = setInterval(() => void runScheduledSpecValueRepair(), SPEC_VALUE_REPAIR_INTERVAL_MS);
+  repairTimer.unref?.();
 });
 
