@@ -1388,6 +1388,17 @@ export default function MastersView({
     });
     return () => ac.abort();
   }, []);
+  useEffect(() => {
+    if (tab !== 'specValues' || specs.length) return;
+    const ac = new AbortController();
+    fetchSpecifications(ac.signal)
+      .then(setSpecs)
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => ac.abort();
+  }, [tab, specs.length]);
 
 	  useEffect(() => {
 	    const ac = new AbortController();
@@ -1403,11 +1414,12 @@ export default function MastersView({
 		        return;
 		      }
 		
-		      const all = await Promise.all(
+		      const all = await Promise.allSettled(
 		        specs.map((s) => fetchSpecificationValues(s.id, { signal: ac.signal, itemNameId: specValuesFilterItemNameId || undefined }))
 		      );
 		      const flat = all
-		        .flat()
+                .filter((result): result is PromiseFulfilledResult<SpecificationValue[]> => result.status === 'fulfilled')
+                .flatMap((result) => result.value)
 	        .sort((a, b) => {
           const an = specNameLookup[a.specificationId] ?? '';
           const bn = specNameLookup[b.specificationId] ?? '';
@@ -5960,9 +5972,9 @@ export default function MastersView({
 			            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Specification</div>
 			            <SearchableSelect
 			              value={specIdForValues}
-		              options={[{ value: '', label: 'All' }, ...specs.map((s) => ({ value: s.id, label: s.name }))]}
+		              options={[{ value: '', label: 'All Specifications' }, ...specs.map((s) => ({ value: s.id, label: s.name }))]}
 		              onChange={setSpecIdForValues}
-		              placeholder="Search specification..."
+		              placeholder="All Specifications"
 		              onCreate={async (label) => {
 		                const name = label.trim();
 		                if (!name) return null;
