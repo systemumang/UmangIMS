@@ -36,8 +36,46 @@ import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 	  fetchQueueCreditVoucherPayment,
 	  fetchQueueTallyEntry,
 	  fetchQueueQc,
-	  fetchQueueSendPo,
+		fetchQueueSendPo,
 		} from '@/src/lib/queues';
+
+type DailySectionCard = {
+  key: string;
+  label: string;
+  color: string;
+};
+
+const dailyMasterCards: DailySectionCard[] = [
+  { key: 'firms', label: 'Firms', color: 'bg-slate-700' },
+  { key: 'stores', label: 'Stores', color: 'bg-blue-600' },
+  { key: 'departments', label: 'Departments', color: 'bg-cyan-600' },
+  { key: 'users', label: 'Users', color: 'bg-indigo-600' },
+  { key: 'suppliers', label: 'Suppliers', color: 'bg-emerald-600' },
+  { key: 'customers', label: 'Customers', color: 'bg-lime-600' },
+  { key: 'transporters', label: 'Transporters', color: 'bg-teal-600' },
+  { key: 'projects', label: 'Projects', color: 'bg-fuchsia-600' },
+  { key: 'units', label: 'Units', color: 'bg-amber-500' },
+  { key: 'itemCategories', label: 'Item Categories', color: 'bg-orange-500' },
+  { key: 'itemNames', label: 'Item Names', color: 'bg-violet-600' },
+  { key: 'specifications', label: 'Specifications', color: 'bg-rose-600' },
+  { key: 'specificationValues', label: 'Specification Values', color: 'bg-purple-700' },
+  { key: 'items', label: 'Stock Items', color: 'bg-sky-600' },
+  { key: 'masters', label: 'Masters Total', color: 'bg-slate-800' },
+];
+
+const dailyOperationsCards: DailySectionCard[] = [
+  { key: 'prs', label: 'Requisitions', color: 'bg-blue-600' },
+  { key: 'pos', label: 'Purchase Orders', color: 'bg-emerald-600' },
+  { key: 'grns', label: 'GRN', color: 'bg-amber-500' },
+  { key: 'invoices', label: 'Invoices', color: 'bg-fuchsia-600' },
+  { key: 'payments', label: 'Payments', color: 'bg-teal-600' },
+  { key: 'issues', label: 'Issues', color: 'bg-sky-600' },
+  { key: 'returns', label: 'Returns', color: 'bg-cyan-700' },
+  { key: 'damages', label: 'Damages', color: 'bg-rose-600' },
+  { key: 'transfers', label: 'Transfers', color: 'bg-indigo-700' },
+  { key: 'operations', label: 'Operations Total', color: 'bg-slate-800' },
+  { key: 'total', label: 'Grand Total', color: 'bg-black' },
+];
 
 function formatDDMMYYYY(d: Date) {
   const dd = String(d.getDate()).padStart(2, '0');
@@ -82,6 +120,8 @@ export default function PowerBIDashboardView({
   const [dailyLoading, setDailyLoading] = useState(true);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
+  const [dailyMastersBreakdown, setDailyMastersBreakdown] = useState<Record<string, number>>({});
+  const [dailyOperationsBreakdown, setDailyOperationsBreakdown] = useState<Record<string, number>>({});
   const [catalogueUrl, setCatalogueUrl] = useState<string>('');
 
   useEffect(() => {
@@ -94,6 +134,8 @@ export default function PowerBIDashboardView({
         if (!res.ok) throw new Error((data as any)?.error ? String((data as any).error) : `Failed to load daily activity (${res.status})`);
         const counts = (data as any)?.counts;
         setDailyCounts(counts && typeof counts === 'object' ? counts : {});
+        setDailyMastersBreakdown(counts?.mastersBreakdown && typeof counts.mastersBreakdown === 'object' ? counts.mastersBreakdown : {});
+        setDailyOperationsBreakdown(counts?.operationsBreakdown && typeof counts.operationsBreakdown === 'object' ? counts.operationsBreakdown : {});
       })
       .catch((e) => {
         if (ac.signal.aborted) return;
@@ -205,6 +247,22 @@ export default function PowerBIDashboardView({
               ? 'bg-teal-50'
               : 'bg-indigo-50';
 
+  const renderDailyCards = (cards: DailySectionCard[], source: Record<string, number>) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((card) => {
+        const value = card.key in source ? source[card.key] : dailyCounts[card.key];
+        return (
+          <div key={card.key} className="rounded-md border-2 border-[#111827] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+            <div className={cn('px-4 py-2 text-xs font-bold text-white', card.color)}>{card.label}</div>
+            <div className="px-4 py-3 bg-white">
+              <div className="text-2xl font-extrabold text-on-surface tabular-nums">{Number(value ?? 0)}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
 	    <div className="space-y-6">
 	      <div className="flex items-start justify-between gap-4">
@@ -306,27 +364,39 @@ export default function PowerBIDashboardView({
 	                {t.label}
 	              </button>
 	            ))}
-	          </div>
+          </div>
           {dailyError ? <div className="text-xs text-error">{dailyError}</div> : null}
           {!dailyError ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { key: 'masters', label: 'Masters', color: 'bg-indigo-600' },
-                { key: 'prs', label: 'Requisitions', color: 'bg-blue-600' },
-                { key: 'pos', label: 'Purchase Orders', color: 'bg-emerald-600' },
-                { key: 'grns', label: 'GRN', color: 'bg-amber-500' },
-                { key: 'invoices', label: 'Invoices', color: 'bg-fuchsia-600' },
-                { key: 'payments', label: 'Payments', color: 'bg-teal-600' },
-	                { key: 'stock', label: 'Stock Item', color: 'bg-sky-600' },
-                { key: 'total', label: 'Total', color: 'bg-slate-800' },
-              ].map((c) => (
-                <div key={c.key} className="rounded-md border-2 border-[#111827] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-                  <div className={cn('px-4 py-2 text-xs font-bold text-white', c.color)}>{c.label}</div>
-                  <div className="px-4 py-3 bg-white">
-                    <div className="text-2xl font-extrabold text-on-surface tabular-nums">{Number(dailyCounts[c.key] ?? 0)}</div>
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-bold text-on-surface">Masters</div>
+                    <div className="text-xs text-on-surface-variant">Breakdown of actual master records created on the selected date.</div>
+                  </div>
+                  <div className="text-xs font-semibold text-on-surface-variant">
+                    Total: <span className="text-on-surface">{Number(dailyCounts.masters ?? 0)}</span>
                   </div>
                 </div>
-              ))}
+                {renderDailyCards(dailyMasterCards, { ...dailyMastersBreakdown, masters: Number(dailyCounts.masters ?? 0) })}
+              </div>
+
+              <div className="border-t border-[#111827]/20 pt-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-bold text-on-surface">Operations</div>
+                    <div className="text-xs text-on-surface-variant">Purchase and stock movement transactions created on the selected date.</div>
+                  </div>
+                  <div className="text-xs font-semibold text-on-surface-variant">
+                    Total: <span className="text-on-surface">{Number(dailyCounts.operations ?? 0)}</span>
+                  </div>
+                </div>
+                {renderDailyCards(dailyOperationsCards, {
+                  ...dailyOperationsBreakdown,
+                  operations: Number(dailyCounts.operations ?? 0),
+                  total: Number(dailyCounts.total ?? 0),
+                })}
+              </div>
             </div>
           ) : null}
         </div>

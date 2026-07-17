@@ -13603,7 +13603,30 @@ app.get('/api/dashboard/activity', async (req, res) => {
       return Number(rows?.[0]?.c ?? 0);
     };
 
-    const mastersParts = await Promise.all([
+    const [
+      firms,
+      stores,
+      departments,
+      users,
+      suppliers,
+      customers,
+      transporters,
+      projects,
+      units,
+      itemCategories,
+      itemNames,
+      specifications,
+      specificationValues,
+      items,
+      prs,
+      pos,
+      grns,
+      invoices,
+      issues,
+      returns,
+      damages,
+      transfers,
+    ] = await Promise.all([
       countByDay('firms'),
       countByDay('stores'),
       countByDay('departments'),
@@ -13618,36 +13641,59 @@ app.get('/api/dashboard/activity', async (req, res) => {
       countByDay('specifications'),
       countByDay('specification_values'),
       countByDay('items'),
-    ]);
-    const masters = mastersParts.reduce((a, b) => a + b, 0);
-
-    const prs = await countByDay('purchase_requisitions');
-    const pos = await countByDay('purchase_orders');
-    const grns = await countByDay('grns');
-    const invoices = await countByDay('invoices');
-    // Count actual payment entries by payment_date rather than generic invoice updates.
-    const payments = await countByDateField('invoices', 'payment_date', 'AND payment_status IS NOT NULL AND TRIM(payment_status) <> ""');
-
-    const stockParts = await Promise.all([
+      countByDay('purchase_requisitions'),
+      countByDay('purchase_orders'),
+      countByDay('grns'),
+      countByDay('invoices'),
       countByDay('item_issues'),
       countByDay('item_returns'),
       countByDay('item_damages'),
       countByDay('item_transfers'),
     ]);
-    const stock = stockParts.reduce((a, b) => a + b, 0);
 
-    const total = masters + prs + pos + grns + invoices + payments + stock;
+    // Count actual payment entries by payment_date rather than generic invoice updates.
+    const payments = await countByDateField('invoices', 'payment_date', 'AND payment_status IS NOT NULL AND TRIM(payment_status) <> ""');
+
+    const mastersBreakdown = {
+      firms,
+      stores,
+      departments,
+      users,
+      suppliers,
+      customers,
+      transporters,
+      projects,
+      units,
+      itemCategories,
+      itemNames,
+      specifications,
+      specificationValues,
+      items,
+    };
+    const masters = Object.values(mastersBreakdown).reduce((sum, count) => sum + Number(count ?? 0), 0);
+
+    const operationsBreakdown = {
+      prs,
+      pos,
+      grns,
+      invoices,
+      payments,
+      issues,
+      returns,
+      damages,
+      transfers,
+    };
+    const operations = Object.values(operationsBreakdown).reduce((sum, count) => sum + Number(count ?? 0), 0);
+
+    const total = masters + operations;
 
     res.json({
       counts: {
         masters,
-        prs,
-        pos,
-        grns,
-        invoices,
-        payments,
-        stock,
+        operations,
         total,
+        mastersBreakdown,
+        operationsBreakdown,
       },
     });
   } catch (e) {
