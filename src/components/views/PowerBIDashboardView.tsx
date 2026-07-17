@@ -47,7 +47,10 @@ function formatDDMMYYYY(d: Date) {
 }
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function PowerBIDashboardView({
@@ -99,6 +102,44 @@ export default function PowerBIDashboardView({
       .finally(() => setDailyLoading(false));
     return () => ac.abort();
   }, [activeDayIso]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setPendingLoading(true);
+    setPendingError(null);
+
+    Promise.all([
+      fetchQueueApprovePr(undefined, ac.signal).then((rows) => ['queueApprovePr', rows.length] as const),
+      fetchQueueCreatePo(undefined, ac.signal).then((rows) => ['queueCreatePo', rows.length] as const),
+      fetchQueueCheckPo(undefined, ac.signal).then((rows) => ['queueCheckPo', rows.length] as const),
+      fetchQueueSendPo(undefined, ac.signal).then((rows) => ['queueSendPo', rows.length] as const),
+      fetchQueueCreateGrn(undefined, ac.signal).then((rows) => ['queueCreateGrn', rows.length] as const),
+      fetchQueueQc(undefined, ac.signal).then((rows) => ['queueCheckQuality', rows.length] as const),
+      fetchQueueEnterInvoice(undefined, ac.signal).then((rows) => ['queueEnterInvoice', rows.length] as const),
+      fetchQueueEnterCreditVoucher(undefined, ac.signal).then((rows) => ['queueEnterCreditVoucher', rows.length] as const),
+      fetchQueueApproveInvoice(undefined, ac.signal).then((rows) => ['queueApproveInvoice', rows.length] as const),
+      fetchQueueApproveCreditVoucher(undefined, ac.signal).then((rows) => ['queueApproveCreditVoucher', rows.length] as const),
+      fetchQueueTallyEntry(undefined, ac.signal).then((rows) => ['queueTallyEntry', rows.length] as const),
+      fetchQueueLinkInvoiceGrn(undefined, ac.signal).then((rows) => ['queueLinkInvoiceGrn', rows.length] as const),
+      fetchQueuePayment(undefined, ac.signal).then((rows) => ['queuePayment', rows.length] as const),
+      fetchQueueCreditVoucherPayment(undefined, ac.signal).then((rows) => ['queueCreditVoucherPayment', rows.length] as const),
+    ])
+      .then((pairs) => {
+        if (ac.signal.aborted) return;
+        const next = {} as Record<PendingQueueKey, number>;
+        for (const [key, count] of pairs) next[key] = count;
+        setPendingCounts(next);
+      })
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        setPendingError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setPendingLoading(false);
+      });
+
+    return () => ac.abort();
+  }, []);
 
 	  useEffect(() => {
 	    // Fast path: show button even if API call is slow/blocked.

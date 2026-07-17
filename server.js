@@ -13508,8 +13508,20 @@ app.get('/api/dashboard/activity', async (req, res) => {
     const day = String(req.query?.date ?? '').trim(); // YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return res.status(400).json({ error: 'date (YYYY-MM-DD) is required' });
 
+    const dayStart = `${day} 00:00:00`;
+    const nextDayDate = new Date(`${day}T00:00:00`);
+    nextDayDate.setDate(nextDayDate.getDate() + 1);
+    const nextDay = `${nextDayDate.getFullYear()}-${String(nextDayDate.getMonth() + 1).padStart(2, '0')}-${String(nextDayDate.getDate()).padStart(2, '0')}`;
+    const nextDayStart = `${nextDay} 00:00:00`;
+
     const countByDay = async (table, field = 'created_at', extraWhere = '', extraParams = []) => {
-      const sql = `SELECT COUNT(*) AS c FROM ${table} WHERE DATE(${field}) = ? ${extraWhere}`;
+      const sql = `SELECT COUNT(*) AS c FROM ${table} WHERE ${field} >= ? AND ${field} < ? ${extraWhere}`;
+      const [rows] = await pool.query(sql, [dayStart, nextDayStart, ...extraParams]);
+      return Number(rows?.[0]?.c ?? 0);
+    };
+
+    const countByDateField = async (table, field, extraWhere = '', extraParams = []) => {
+      const sql = `SELECT COUNT(*) AS c FROM ${table} WHERE ${field} = ? ${extraWhere}`;
       const [rows] = await pool.query(sql, [day, ...extraParams]);
       return Number(rows?.[0]?.c ?? 0);
     };
@@ -13536,8 +13548,8 @@ app.get('/api/dashboard/activity', async (req, res) => {
     const pos = await countByDay('purchase_orders');
     const grns = await countByDay('grns');
     const invoices = await countByDay('invoices');
-    // Payments are stored on invoices; count invoices updated on the day with a payment status.
-    const payments = await countByDay('invoices', 'updated_at', 'AND payment_status IS NOT NULL AND TRIM(payment_status) <> ""');
+    // Count actual payment entries by payment_date rather than generic invoice updates.
+    const payments = await countByDateField('invoices', 'payment_date', 'AND payment_status IS NOT NULL AND TRIM(payment_status) <> ""');
 
     const stockParts = await Promise.all([
       countByDay('item_issues'),
