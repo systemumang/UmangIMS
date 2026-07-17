@@ -79,8 +79,9 @@ async function repairMissingItemSpecificationValues(pool, { itemId = '' } = {}) 
     for (const [rawSpecificationId, rawValue] of Object.entries(specifications)) {
       const specificationId = String(rawSpecificationId ?? '').trim();
       const value = String(rawValue ?? '').trim();
+      const normalizedValue = value.toLowerCase();
       if (!specificationId || !value) continue;
-      const key = `${itemNameId}\u0000${specificationId}\u0000${value}`;
+      const key = `${itemNameId}\u0000${specificationId}\u0000${normalizedValue}`;
       if (seen.has(key)) continue;
       seen.add(key);
       const [mappingResult] = await pool.query(
@@ -88,11 +89,29 @@ async function repairMissingItemSpecificationValues(pool, { itemId = '' } = {}) 
         [itemNameId, specificationId]
       );
       mappingsCreated += Number(mappingResult?.affectedRows ?? 0);
+      const [existingRows] = await pool.query(
+        `SELECT id
+         FROM specification_values
+         WHERE specification_id = ?
+           AND COALESCE(NULLIF(TRIM(item_name_id), ''), '') = COALESCE(NULLIF(TRIM(?), ''), '')
+           AND LOWER(TRIM(value)) = ?
+         LIMIT 1`,
+        [specificationId, itemNameId, normalizedValue]
+      );
+      if (Array.isArray(existingRows) && existingRows.length > 0) continue;
       const [valueResult] = await pool.query(
-        `INSERT IGNORE INTO specification_values
+        `INSERT INTO specification_values
            (id, specification_id, item_name_id, value, is_active, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 1, 'system-item-repair', NOW(), NOW())`,
-        [crypto.randomUUID(), specificationId, itemNameId, value]
+         SELECT ?, ?, ?, ?, 1, 'system-item-repair', NOW(), NOW()
+         FROM DUAL
+         WHERE NOT EXISTS (
+           SELECT 1
+           FROM specification_values
+           WHERE specification_id = ?
+             AND COALESCE(NULLIF(TRIM(item_name_id), ''), '') = COALESCE(NULLIF(TRIM(?), ''), '')
+             AND LOWER(TRIM(value)) = ?
+         )`,
+        [crypto.randomUUID(), specificationId, itemNameId, value, specificationId, itemNameId, normalizedValue]
       );
       specificationValuesCreated += Number(valueResult?.affectedRows ?? 0);
     }
@@ -571,29 +590,61 @@ function getMysqlPool() {
 	          );
 	        }
 
-	        const [uniqRows] = await pool.query(
-	          `
-	          SELECT DISTINCT INDEX_NAME AS indexName
-	          FROM information_schema.statistics
-	          WHERE table_schema = DATABASE()
-	            AND table_name = 'specification_values'
-	            AND non_unique = 0
-	            AND INDEX_NAME <> 'PRIMARY'
-	          `
-	        );
-	        for (const r of uniqRows || []) {
-	          const idx = String(r.indexName ?? '').trim();
-	          if (!idx) continue;
-	          try {
-	            await pool.query(`ALTER TABLE specification_values DROP INDEX \`${idx}\``);
-	          } catch {}
-	        }
-	        await pool.query(
-	          'ALTER TABLE specification_values ADD UNIQUE INDEX uq_spec_values_scope_hash (specification_id, item_name_scope, value_norm_hash)'
-	        );
-	      } catch (e) {
-	        console.error('Unable to migrate specification_values unique index:', e);
-	      }
+        const [existingTargetIndexRows] = await pool.query(
+          `
+          SELECT 1
+          FROM information_schema.statistics
+          WHERE table_schema = DATABASE()
+            AND table_name = 'specification_values'
+            AND index_name = 'uq_spec_values_scope_hash'
+          LIMIT 1
+          `
+        );
+        const targetIndexExists = Array.isArray(existingTargetIndexRows) && existingTargetIndexRows.length > 0;
+        if (!targetIndexExists) {
+          const [duplicateRows] = await pool.query(
+            `
+            SELECT COUNT(*) AS duplicateGroups
+            FROM (
+              SELECT 1
+              FROM specification_values
+              GROUP BY specification_id, COALESCE(NULLIF(TRIM(item_name_id), ''), ''), LOWER(TRIM(value))
+              HAVING COUNT(*) > 1
+            ) d
+            `
+          );
+          const duplicateGroups = Number(duplicateRows?.[0]?.duplicateGroups ?? 0);
+          if (duplicateGroups > 0) {
+            console.warn(
+              `specification_values unique index not created because ${duplicateGroups} duplicate groups still exist`
+            );
+          } else {
+            const [uniqRows] = await pool.query(
+              `
+              SELECT DISTINCT INDEX_NAME AS indexName
+              FROM information_schema.statistics
+              WHERE table_schema = DATABASE()
+                AND table_name = 'specification_values'
+                AND non_unique = 0
+                AND INDEX_NAME <> 'PRIMARY'
+              `
+            );
+            for (const r of uniqRows || []) {
+              const idx = String(r.indexName ?? '').trim();
+              if (!idx) continue;
+              if (idx === 'uq_spec_values_scope_hash') continue;
+              try {
+                await pool.query(`ALTER TABLE specification_values DROP INDEX \`${idx}\``);
+              } catch {}
+            }
+            await pool.query(
+              'ALTER TABLE specification_values ADD UNIQUE INDEX uq_spec_values_scope_hash (specification_id, item_name_scope, value_norm_hash)'
+            );
+          }
+        }
+      } catch (e) {
+        console.error('Unable to migrate specification_values unique index:', e);
+      }
 
       // Mapping: which specifications apply to an Item Name.
       await pool.query(`
