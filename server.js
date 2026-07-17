@@ -542,9 +542,35 @@ function getMysqlPool() {
 
 	      // Spec values are now scoped by Item Name + Specification (item_name_id may be NULL for legacy/global values).
 	      await ensureColumn('specification_values', 'item_name_id', 'VARCHAR(255) NULL');
-	      // Migrate old uniqueness (specification_id + value) to scoped uniqueness
-	      // (specification_id + item_name_id + value). This allows same value for different item names.
+	      // Add helper generated columns and a durable uniqueness guard.
+	      // We cannot safely rely on a raw TEXT unique index for `value`, so we
+	      // normalize the scope into generated columns and index the hash.
 	      try {
+	        const [helperRows] = await pool.query(
+	          `
+	          SELECT COLUMN_NAME AS columnName
+	          FROM information_schema.COLUMNS
+	          WHERE table_schema = DATABASE()
+	            AND table_name = 'specification_values'
+	            AND COLUMN_NAME IN ('item_name_scope', 'value_norm_hash')
+	          `
+	        );
+	        const helperCols = new Set((helperRows || []).map((r) => String(r.columnName ?? '').trim()));
+	        if (!helperCols.has('item_name_scope')) {
+	          await pool.query(
+	            `ALTER TABLE specification_values
+	               ADD COLUMN item_name_scope VARCHAR(255)
+	               GENERATED ALWAYS AS (COALESCE(NULLIF(TRIM(item_name_id), ''), '')) STORED`
+	          );
+	        }
+	        if (!helperCols.has('value_norm_hash')) {
+	          await pool.query(
+	            `ALTER TABLE specification_values
+	               ADD COLUMN value_norm_hash CHAR(64)
+	               GENERATED ALWAYS AS (SHA2(LOWER(TRIM(value)), 256)) STORED`
+	          );
+	        }
+
 	        const [uniqRows] = await pool.query(
 	          `
 	          SELECT DISTINCT INDEX_NAME AS indexName
@@ -563,7 +589,7 @@ function getMysqlPool() {
 	          } catch {}
 	        }
 	        await pool.query(
-	          'ALTER TABLE specification_values ADD UNIQUE INDEX uq_spec_values_scope (specification_id, item_name_id, value)'
+	          'ALTER TABLE specification_values ADD UNIQUE INDEX uq_spec_values_scope_hash (specification_id, item_name_scope, value_norm_hash)'
 	        );
 	      } catch (e) {
 	        console.error('Unable to migrate specification_values unique index:', e);
