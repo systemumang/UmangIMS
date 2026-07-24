@@ -18,8 +18,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   };
   const todayIso = toLocalIso(new Date());
   const [q, setQ] = useState('');
-  const [fromDate, setFromDate] = useState(todayIso);
-  const [toDate, setToDate] = useState(todayIso);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [sortBy, setSortBy] = useState<
