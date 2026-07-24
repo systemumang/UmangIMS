@@ -12,9 +12,14 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [editError, setEditError] = useState('');
+  const toLocalIso = (value: Date) => {
+    const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 10);
+  };
+  const todayIso = toLocalIso(new Date());
   const [q, setQ] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(todayIso);
+  const [toDate, setToDate] = useState(todayIso);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [sortBy, setSortBy] = useState<
@@ -137,16 +142,16 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const getItemsDisplay = (row: StockTransaction) =>
     row.items.map((it) => `${getItemNameOnly(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join(', ') || '-';
 
-  const applyLastFiveDays = () => {
-    const end = new Date();
-    const start = new Date(end);
-    start.setDate(end.getDate() - 4);
-    const toLocalIso = (value: Date) => {
-      const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
-      return local.toISOString().slice(0, 10);
-    };
-    setFromDate(toLocalIso(start));
-    setToDate(toLocalIso(end));
+  const lastFiveDates = Array.from({ length: 5 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - index);
+    const iso = toLocalIso(date);
+    return { iso, label: formatDate(iso) };
+  });
+
+  const filterByDate = (date: string) => {
+    setFromDate(date);
+    setToDate(date);
   };
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this issue?')) return;
@@ -251,9 +256,24 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
 		        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
 		          <div className="font-headline font-bold text-sm text-on-surface">Issue Master</div>
-		          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
-		            Add
-		          </button>
+              <div className="flex items-center gap-1.5">
+                {lastFiveDates.map((date) => {
+                  const active = fromDate === date.iso && toDate === date.iso;
+                  return (
+                    <button
+                      key={date.iso}
+                      type="button"
+                      onClick={() => filterByDate(date.iso)}
+                      className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${active ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-high'}`}
+                    >
+                      {date.label}
+                    </button>
+                  );
+                })}
+                <button type="button" className="btn-primary btn-sm ml-2" onClick={() => onAdd?.()}>
+                  Add
+                </button>
+              </div>
 		        </div>
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-end gap-2">
           <label className="space-y-1 min-w-48">
@@ -272,7 +292,6 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
             <input type="date" className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </label>
-          <button type="button" className="btn-primary h-10" onClick={applyLastFiveDays}>Last 5 Days</button>
           <div className="relative w-64 ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
             <input type="text" placeholder="Search issues..." value={q} onChange={(e) => setQ(e.target.value)} className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm" />
