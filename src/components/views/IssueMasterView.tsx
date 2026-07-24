@@ -124,8 +124,18 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const getIssueTypeDisplay = (row: StockTransaction) =>
     row.issueType === 'Project' ? getProjectDisplay(row.projectId) : (row.issueType ?? 'Stock');
 
+  const getItemNameOnly = (itemId?: string, itemValue?: string) => {
+    const id = String(itemId ?? '').trim();
+    const raw = String(itemValue ?? '').trim();
+    const masterItem =
+      items.find((item) => item.id === id) ??
+      items.find((item) => String(item.itemCode ?? '').trim() === raw) ??
+      items.find((item) => String(item.itemName ?? '').trim().toLowerCase() === raw.toLowerCase());
+    return String(masterItem?.itemName ?? raw).trim() || '-';
+  };
+
   const getItemsDisplay = (row: StockTransaction) =>
-    row.items.map((it) => `${getItemLabel(it.itemId || it.item)} - ${Number(it.quantity) || 0}`).join(', ') || '-';
+    row.items.map((it) => `${getItemNameOnly(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join(', ') || '-';
 
   const applyLastFiveDays = () => {
     const end = new Date();
