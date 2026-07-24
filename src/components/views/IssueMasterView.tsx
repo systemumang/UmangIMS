@@ -129,18 +129,28 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const getIssueTypeDisplay = (row: StockTransaction) =>
     row.issueType === 'Project' ? getProjectDisplay(row.projectId) : (row.issueType ?? 'Stock');
 
-  const getItemNameOnly = (itemId?: string, itemValue?: string) => {
+  const getReadableItemLabel = (itemId?: string, itemValue?: string) => {
     const id = String(itemId ?? '').trim();
     const raw = String(itemValue ?? '').trim();
     const masterItem =
       items.find((item) => item.id === id) ??
       items.find((item) => String(item.itemCode ?? '').trim() === raw) ??
       items.find((item) => String(item.itemName ?? '').trim().toLowerCase() === raw.toLowerCase());
-    return String(masterItem?.itemName ?? raw).trim() || '-';
+    if (masterItem) {
+      let specValues: string[] = [];
+      try {
+        const parsed = JSON.parse(String(masterItem.specificationsJson ?? '')) as Record<string, unknown>;
+        specValues = Object.values(parsed ?? {}).map((value) => String(value ?? '').trim()).filter(Boolean);
+      } catch {
+        specValues = [];
+      }
+      return [String(masterItem.itemName ?? '').trim(), ...specValues, String(masterItem.description ?? '').trim()].filter(Boolean).join(' - ') || masterItem.itemCode;
+    }
+    return raw.split(' - ').map((part) => part.replace(/^[0-9a-f-]{36}:\s*/i, '').trim()).filter(Boolean).join(' - ') || '-';
   };
 
   const getItemsDisplay = (row: StockTransaction) =>
-    row.items.map((it) => `${getItemNameOnly(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join(', ') || '-';
+    row.items.map((it) => `${getReadableItemLabel(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join('\n') || '-';
 
   const lastFiveDates = Array.from({ length: 5 }, (_, index) => {
     const date = new Date();
@@ -303,7 +313,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
               <tr>
                 <th className="p-3 border-b border-r border-black">SL No.</th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('date')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issue Date</span><ArrowUpDown size={12} /></button></th>
-                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('issueType')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issue Type / Project No.</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black w-72 max-w-72"><button type="button" onClick={() => onSort('issueType')} className="w-full px-3 py-3 flex items-center justify-between gap-2 whitespace-normal"><span>Issue Type / Project No.</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('issuedTo')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issued To</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('firm')} className="w-full px-3 py-3 flex items-center justify-between"><span>Firm</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('department')} className="w-full px-3 py-3 flex items-center justify-between"><span>Department</span><ArrowUpDown size={12} /></button></th>
@@ -330,11 +340,11 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 		                >
                   <td className="p-3 border-r border-black text-on-surface font-medium">{index + 1}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{getIssueTypeDisplay(row)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant w-72 max-w-72 whitespace-normal break-words">{getIssueTypeDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.issuedTo ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department || '-'}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant whitespace-normal min-w-64">{getItemsDisplay(row)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant whitespace-pre-line min-w-64 align-top leading-5">{getItemsDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
 	                  <td className="p-3 text-right">
