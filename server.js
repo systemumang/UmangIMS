@@ -14099,7 +14099,7 @@ app.put('/api/stock-transactions/issues/:id', async (req, res) => {
       [
         String(data.firmId ?? '').trim(),
         storeId,
-        issueType === 'Internal Use' ? department : null,
+        department || null,
         issueType === 'Project' ? projectId : null,
         String(data.person ?? '').trim(),
         data.date,
@@ -14108,7 +14108,7 @@ app.put('/api/stock-transactions/issues/:id', async (req, res) => {
         id,
       ]
     );
-    res.json({ issue: { ...data, id, storeId, department: issueType === 'Internal Use' ? department : '', projectId: issueType === 'Project' ? projectId : undefined } });
+    res.json({ issue: { ...data, id, storeId, department, projectId: issueType === 'Project' ? projectId : undefined } });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

@@ -229,7 +229,6 @@ export default function ItemIssueView({
 
 			  useEffect(() => {
 			    if (issueType !== 'Project') setProjectId('');
-			    if (issueType !== 'Internal Use') setDepartment('');
 			  }, [issueType]);
 
 			  useEffect(() => {
@@ -711,7 +710,6 @@ export default function ItemIssueView({
 		              />
 		            </label>
 		          ) : null}
-			          {issueType === 'Internal Use' ? (
 			            <label className="space-y-1 md:col-span-2">
 			              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
 			              <SearchableSelect
@@ -722,7 +720,6 @@ export default function ItemIssueView({
 			                placeholder={loadingDepartments ? 'Loading departments...' : 'Select department...'}
 			              />
 			            </label>
-			          ) : null}
 		        </div>
 		      </div>
 
@@ -914,7 +911,7 @@ export default function ItemIssueView({
 						                    storeId: storeId,
 						                    store,
 						                    projectId: issueType === 'Project' ? projectId : undefined,
-				                    department: issueType === 'Internal Use' ? department : '',
+				                    department,
 						                    person: requestedBy,
 						                    date: requiredDate,
 						                    issueType,

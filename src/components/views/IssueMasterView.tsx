@@ -12,11 +12,18 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [editError, setEditError] = useState('');
+  const toLocalIso = (value: Date) => {
+    const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 10);
+  };
+  const todayIso = toLocalIso(new Date());
   const [q, setQ] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [projectFilter, setProjectFilter] = useState('');
   const [sortBy, setSortBy] = useState<
-    'transactionNo' | 'date' | 'issueType' | 'issuedTo' | 'firm' | 'store' | 'person' | 'total'
+    'date' | 'issueType' | 'issuedTo' | 'firm' | 'department' | 'items' | 'total'
   >('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [viewItem, setViewItem] = useState<StockTransaction | null>(null);
@@ -113,6 +120,49 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
     return raw;
   };
 
+  const getProjectDisplay = (projectId?: string | null) => {
+    const raw = String(projectId ?? '').trim();
+    if (!raw) return '-';
+    return projects.find((p) => p.id === raw)?.name || raw;
+  };
+
+  const getIssueTypeDisplay = (row: StockTransaction) =>
+    row.issueType === 'Project' ? getProjectDisplay(row.projectId) : (row.issueType ?? 'Stock');
+
+  const getReadableItemLabel = (itemId?: string, itemValue?: string) => {
+    const id = String(itemId ?? '').trim();
+    const raw = String(itemValue ?? '').trim();
+    const masterItem =
+      items.find((item) => item.id === id) ??
+      items.find((item) => String(item.itemCode ?? '').trim() === raw) ??
+      items.find((item) => String(item.itemName ?? '').trim().toLowerCase() === raw.toLowerCase());
+    if (masterItem) {
+      let specValues: string[] = [];
+      try {
+        const parsed = JSON.parse(String(masterItem.specificationsJson ?? '')) as Record<string, unknown>;
+        specValues = Object.values(parsed ?? {}).map((value) => String(value ?? '').trim()).filter(Boolean);
+      } catch {
+        specValues = [];
+      }
+      return [String(masterItem.itemName ?? '').trim(), ...specValues, String(masterItem.description ?? '').trim()].filter(Boolean).join(' - ') || masterItem.itemCode;
+    }
+    return raw.split(' - ').map((part) => part.replace(/^[0-9a-f-]{36}:\s*/i, '').trim()).filter(Boolean).join(' - ') || '-';
+  };
+
+  const getItemsDisplay = (row: StockTransaction) =>
+    row.items.map((it) => `${getReadableItemLabel(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join('\n') || '-';
+
+  const lastFiveDates = Array.from({ length: 5 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - index);
+    const iso = toLocalIso(date);
+    return { iso, label: formatDate(iso) };
+  });
+
+  const filterByDate = (date: string) => {
+    setFromDate(date);
+    setToDate(date);
+  };
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this issue?')) return;
     await deleteIssue(id);
@@ -136,7 +186,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
         firmId: editItem.firmId,
         storeId: editItem.storeId,
         store: editItem.store,
-        department: editItem.issueType === 'Internal Use' ? editItem.department : '',
+        department: editItem.department,
         projectId: editItem.issueType === 'Project' ? editItem.projectId : undefined,
         person: editItem.person,
         date: editItem.date,
@@ -159,6 +209,8 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
       if ((fromDate || toDate) && !rowDate) return false;
       if (fromDate && rowDate < fromDate) return false;
       if (toDate && rowDate > toDate) return false;
+      if (departmentFilter && String(i.department ?? '') !== departmentFilter) return false;
+      if (projectFilter && String(i.projectId ?? '') !== projectFilter) return false;
 
       return (
         i.transactionNo.toLowerCase().includes(query) ||
@@ -168,7 +220,10 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
         getStoreDisplay(i.store).toLowerCase().includes(query) ||
         i.person.toLowerCase().includes(query) ||
         (i.issueType ?? '').toLowerCase().includes(query) ||
-        (i.issuedTo ?? '').toLowerCase().includes(query)
+        (i.issuedTo ?? '').toLowerCase().includes(query) ||
+        (i.department ?? '').toLowerCase().includes(query) ||
+        getProjectDisplay(i.projectId).toLowerCase().includes(query) ||
+        getItemsDisplay(i).toLowerCase().includes(query)
       );
     });
 
@@ -187,20 +242,18 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	    const totalA = a.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
 	    const totalB = b.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
 	    switch (sortBy) {
-	      case 'transactionNo':
-	        return dir * strCmp(a.transactionNo, b.transactionNo);
 	      case 'date':
 	        return dir * strCmp(String(a.date ?? ''), String(b.date ?? ''));
 	      case 'issueType':
-	        return dir * strCmp(String(a.issueType ?? ''), String(b.issueType ?? ''));
+	        return dir * strCmp(getIssueTypeDisplay(a), getIssueTypeDisplay(b));
 	      case 'issuedTo':
 	        return dir * strCmp(String(a.issuedTo ?? ''), String(b.issuedTo ?? ''));
 	      case 'firm':
 	        return dir * strCmp(getFirmDisplay(a.firmId), getFirmDisplay(b.firmId));
-	      case 'store':
-	        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
-	      case 'person':
-	        return dir * strCmp(String(a.person ?? ''), String(b.person ?? ''));
+      case 'department':
+        return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
+      case 'items':
+        return dir * strCmp(getItemsDisplay(a), getItemsDisplay(b));
 	      case 'total':
 	        return dir * (totalA - totalB);
 	      default:
@@ -213,120 +266,87 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
 		        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
 		          <div className="font-headline font-bold text-sm text-on-surface">Issue Master</div>
-		          <button type="button" className="btn-primary btn-sm" onClick={() => onAdd?.()}>
-		            Add
-		          </button>
-		        </div>
-		        <div className="px-4 pb-4 border-b border-outline-variant bg-surface-container-low flex items-end justify-end">
-		          <div className="flex items-end gap-2">
-              <div className="flex items-end gap-2">
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
-                  <input
-                    type="date"
-                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                  />
-                </label>
-                <label className="space-y-1">
-                  <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
-                  <input
-                    type="date"
-                    className="w-40 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                  />
-                </label>
+              <div className="flex items-center gap-1.5">
+                {lastFiveDates.map((date) => {
+                  const active = fromDate === date.iso && toDate === date.iso;
+                  return (
+                    <button
+                      key={date.iso}
+                      type="button"
+                      onClick={() => filterByDate(date.iso)}
+                      className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${active ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-high'}`}
+                    >
+                      {date.label}
+                    </button>
+                  );
+                })}
+                <button type="button" className="btn-primary btn-sm ml-2" onClick={() => onAdd?.()}>
+                  Add
+                </button>
               </div>
-	            <div className="relative w-64">
-	              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
-	              <input
-	                type="text"
-	                placeholder="Search issues..."
-	                value={q}
-	                onChange={(e) => setQ(e.target.value)}
-	                className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15"
-	              />
-	            </div>
-	          </div>
-	        </div>
-		        <div className="overflow-x-auto">
+		        </div>
+        <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-end gap-2">
+          <label className="space-y-1 min-w-48">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Department</div>
+            <SearchableSelect value={departmentFilter} options={departments.map((d) => ({ value: d.name, label: d.name }))} onChange={setDepartmentFilter} placeholder="All departments" allowClear />
+          </label>
+          <label className="space-y-1 min-w-48">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project No.</div>
+            <SearchableSelect value={projectFilter} options={projects.map((p) => ({ value: p.id, label: p.name }))} onChange={setProjectFilter} placeholder="All projects" allowClear />
+          </label>
+          <label className="space-y-1">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
+            <input type="date" className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </label>
+          <label className="space-y-1">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
+            <input type="date" className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </label>
+          <div className="relative w-64 ml-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
+            <input type="text" placeholder="Search issues..." value={q} onChange={(e) => setQ(e.target.value)} className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div className="overflow-x-auto">
 	          <table className="w-full text-left border-collapse text-sm">
 	            <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-	              <tr>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('transactionNo')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Issue No</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('date')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Issue Date</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('issueType')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Issue Type</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('issuedTo')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Issued To</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('firm')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Firm</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('store')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Store Name</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('person')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Issued By</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <div className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Material Req No</span>
-	                  </div>
-	                </th>
-	                <th className="p-0 border-b border-r border-black text-right">
-	                  <button type="button" onClick={() => onSort('total')} className="w-full px-3 py-3 flex items-center justify-end gap-1">
-	                    <span>Total Items</span><ArrowUpDown size={12} />
-	                  </button>
-	                </th>
-	                <th className="p-3 border-b border-outline-variant text-right">Action</th>
-	              </tr>
-	            </thead>
+              <tr>
+                <th className="p-3 border-b border-r border-black">SL No.</th>
+                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('date')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issue Date</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black w-72 max-w-72"><button type="button" onClick={() => onSort('issueType')} className="w-full px-3 py-3 flex items-center justify-between gap-2 whitespace-normal"><span>Issue Type / Project No.</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('issuedTo')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issued To</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('firm')} className="w-full px-3 py-3 flex items-center justify-between"><span>Firm</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('department')} className="w-full px-3 py-3 flex items-center justify-between"><span>Department</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('items')} className="w-full px-3 py-3 flex items-center justify-between"><span>Item Details</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-3 border-b border-r border-black">Material Req No</th>
+                <th className="p-0 border-b border-r border-black text-right"><button type="button" onClick={() => onSort('total')} className="w-full px-3 py-3 flex items-center justify-end gap-1"><span>Total Items</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-3 border-b border-outline-variant text-right">Action</th>
+              </tr>
+            </thead>
 	            <tbody className="divide-y divide-outline-variant">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-4 text-center text-on-surface-variant text-sm">
+                  <td colSpan={10} className="p-4 text-center text-on-surface-variant text-sm">
                     No issues found
                   </td>
                 </tr>
               ) : null}
-		              {sorted.map(row => (
+		              {sorted.map((row, index) => (
 		                <tr
 		                  key={row.id}
 		                  className="hover:bg-surface-container-low/50 transition-colors cursor-pointer"
 		                  onClick={() => setViewItem(row)}
 		                  onDoubleClick={() => setEditItem(cloneTx(row))}
 		                >
-	                  <td className="p-3 border-r border-black text-on-surface font-medium">{row.transactionNo}</td>
-	                  <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
-	                  <td className="p-3 border-r border-black text-on-surface-variant">{row.issueType ?? 'Stock'}</td>
+                  <td className="p-3 border-r border-black text-on-surface font-medium">{index + 1}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant w-72 max-w-72 whitespace-normal break-words">{getIssueTypeDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.issuedTo ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{row.department || '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant whitespace-pre-line min-w-64 align-top leading-5">{getItemsDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
-	                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
 	                  <td className="p-3 text-right">
 	                    <div className="flex items-center justify-end gap-3">
 		                      <button
@@ -363,17 +383,17 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Issued By</span> {viewItem.person}</div>
-                {viewItem.issueType === 'Internal Use' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department || '-'}</div> : null}
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department || '-'}</div>
                 {viewItem.issueType === 'Project' ? <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Project</span> {projects.find((p) => p.id === viewItem.projectId)?.name || viewItem.projectId || '-'}</div> : null}
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
 	                <table className="w-full text-left border-collapse text-sm">
-	                  <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-	                    <tr>
-	                      <th className="p-3 border-b border-outline-variant">Item</th>
-	                      <th className="p-3 border-b border-outline-variant text-right">Qty</th>
-	                    </tr>
-	                  </thead>
+                  <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                    <tr>
+                      <th className="p-3 border-b border-outline-variant">Item</th>
+                      <th className="p-3 border-b border-outline-variant text-right">Qty</th>
+                    </tr>
+                  </thead>
 	                  <tbody className="divide-y divide-outline-variant">
 	                    {viewItem.items.map((it, idx) => (
 	                      <tr key={idx} className="hover:bg-surface-container-low/50">
@@ -426,7 +446,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issue Type</div>
-                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }, { value: 'Internal Use', label: 'Internal Use' }]} onChange={(value) => { setEditError(''); setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' || value === 'Internal Use' ? value : 'Sales', projectId: value === 'Project' ? p.projectId : undefined, department: value === 'Internal Use' ? p.department : '' }) : p); }} placeholder="Select issue type..." />
+                  <SearchableSelect className="w-full" value={editItem.issueType ?? 'Sales'} options={[{ value: 'Sales', label: 'Sales' }, { value: 'Project', label: 'Project' }, { value: 'Internal Use', label: 'Internal Use' }]} onChange={(value) => { setEditError(''); setEditItem((p) => p ? ({ ...p, issueType: value === 'Project' || value === 'Internal Use' ? value : 'Sales', projectId: value === 'Project' ? p.projectId : undefined, department: p.department }) : p); }} placeholder="Select issue type..." />
                 </label>
                 <label className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued To</div>
@@ -438,12 +458,10 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                     <SearchableSelect value={editItem.projectId ?? ''} options={projects.filter((p) => !editItem.firmId || p.firmId === editItem.firmId).map((p) => ({ value: p.id, label: p.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, projectId: value }) : p)} placeholder="Select project..." />
                   </label>
                 ) : null}
-                {editItem.issueType === 'Internal Use' ? (
-                  <label className="space-y-1">
+                <label className="space-y-1">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Department</div>
                     <SearchableSelect value={editItem.department ?? ''} options={departments.map((d) => ({ value: d.name, label: d.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, department: value }) : p)} placeholder="Select department..." />
                   </label>
-                ) : null}
                 <label className="space-y-1 md:col-span-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Issued By</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.person ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, person: e.target.value }) : p)} />
@@ -452,12 +470,12 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
 
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
 	                <table className="w-full text-left border-collapse text-sm">
-	                  <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-	                    <tr>
-	                      <th className="p-3 border-b border-outline-variant">Item</th>
-	                      <th className="p-3 border-b border-outline-variant text-right">Qty</th>
-	                    </tr>
-	                  </thead>
+                  <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                    <tr>
+                      <th className="p-3 border-b border-outline-variant">Item</th>
+                      <th className="p-3 border-b border-outline-variant text-right">Qty</th>
+                    </tr>
+                  </thead>
 	                  <tbody className="divide-y divide-outline-variant">
 	                    {(editItem.items ?? []).map((it, idx) => (
 	                      <tr key={idx}>
