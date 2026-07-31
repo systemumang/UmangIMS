@@ -22,6 +22,10 @@ const distCandidates = [
   path.resolve(__dirname, '..', 'dist'),
   path.resolve(process.cwd(), 'dist'),
   path.resolve(process.cwd(), '..', 'dist'),
+  // Hostinger's managed web-app runtime can publish declared output under
+  // the domain's public_html directory instead of the nodejs directory.
+  path.resolve(__dirname, '..', '..', '..', '..', 'public_html', 'dist'),
+  path.resolve(__dirname, '..', '..', '..', '..', 'public_html'),
 ];
 const distDir = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0];
 const uploadsDir = path.join(__dirname, 'uploads');
