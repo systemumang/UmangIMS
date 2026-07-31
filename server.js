@@ -11,6 +11,15 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Temporary production diagnostic: confirms whether the host forwards the
+// browser's root request to this Express process. Remove after investigation.
+app.use((req, _res, next) => {
+  if (req.method === 'GET' && req.path === '/') {
+    console.log('Received GET /');
+  }
+  next();
+});
+
 // Hostinger (and many Node hosts) inject PORT.
 const port = Number(process.env.PORT || 3000);
 
