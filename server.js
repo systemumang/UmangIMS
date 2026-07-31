@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import mysql from 'mysql2/promise';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
@@ -11,19 +12,18 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Temporary production diagnostic: confirms whether the host forwards the
-// browser's root request to this Express process. Remove after investigation.
-app.use((req, _res, next) => {
-  if (req.method === 'GET' && req.path === '/') {
-    console.log('Received GET /');
-  }
-  next();
-});
-
 // Hostinger (and many Node hosts) inject PORT.
 const port = Number(process.env.PORT || 3000);
 
-const distDir = path.join(__dirname, 'dist');
+// Hostinger runs server.js from a `nodejs` subdirectory while preserving the
+// Vite build output one directory above it. Locally, dist is beside server.js.
+const distCandidates = [
+  path.join(__dirname, 'dist'),
+  path.resolve(__dirname, '..', 'dist'),
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(process.cwd(), '..', 'dist'),
+];
+const distDir = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0];
 const uploadsDir = path.join(__dirname, 'uploads');
 
 // Uploads and large payloads (PDF base64) can exceed 2mb.
