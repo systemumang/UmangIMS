@@ -16176,12 +16176,18 @@ app.use((_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  if (!existsSync(path.join(distDir, 'index.html'))) {
+  const indexPath = path.join(distDir, 'index.html');
+  if (!existsSync(indexPath)) {
     logMissingFrontendIndex();
     res.status(500).send('Frontend build output is missing. Check the application runtime log.');
     return;
   }
-  res.sendFile(path.join(distDir, 'index.html'));
+  console.error(`Attempting to serve frontend index: ${indexPath}`);
+  res.sendFile(indexPath, (error) => {
+    if (!error) return;
+    console.error(`Unable to serve frontend index ${indexPath}: ${error.code ?? 'unknown'} ${error.message}`);
+    if (!res.headersSent) res.status(error.statusCode ?? 500).send('Unable to serve frontend build output. Check the application runtime log.');
+  });
 });
 
 app.listen(port, () => {
