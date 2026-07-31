@@ -30,6 +30,14 @@ const distCandidates = [
 const distDir = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0];
 const uploadsDir = path.join(__dirname, 'uploads');
 
+function logMissingFrontendIndex() {
+  console.error(
+    `Frontend index.html not found. Checked: ${distCandidates
+      .map((candidate) => `${candidate}=${existsSync(path.join(candidate, 'index.html'))}`)
+      .join(', ')}`
+  );
+}
+
 // Uploads and large payloads (PDF base64) can exceed 2mb.
 app.use(express.json({ limit: '25mb' }));
 
@@ -16168,6 +16176,11 @@ app.use((_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  if (!existsSync(path.join(distDir, 'index.html'))) {
+    logMissingFrontendIndex();
+    res.status(500).send('Frontend build output is missing. Check the application runtime log.');
+    return;
+  }
   res.sendFile(path.join(distDir, 'index.html'));
 });
 
