@@ -30,14 +30,6 @@ const distCandidates = [
 const distDir = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0];
 const uploadsDir = path.join(__dirname, 'uploads');
 
-function logMissingFrontendIndex() {
-  console.error(
-    `Frontend index.html not found. Checked: ${distCandidates
-      .map((candidate) => `${candidate}=${existsSync(path.join(candidate, 'index.html'))}`)
-      .join(', ')}`
-  );
-}
-
 // Uploads and large payloads (PDF base64) can exceed 2mb.
 app.use(express.json({ limit: '25mb' }));
 
@@ -16164,7 +16156,7 @@ function setStaticCacheHeaders(res, filePath) {
   res.setHeader('Cache-Control', 'no-cache');
 }
 
-app.use(express.static(distDir, { index: false, setHeaders: setStaticCacheHeaders }));
+app.use(express.static(distDir, { dotfiles: 'allow', index: false, setHeaders: setStaticCacheHeaders }));
 
 // Ensure missing API routes don't fall back to SPA HTML (which breaks JSON parsing in the client).
 app.use('/api', (_req, res) => {
@@ -16177,13 +16169,7 @@ app.use((_req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   const indexPath = path.join(distDir, 'index.html');
-  if (!existsSync(indexPath)) {
-    logMissingFrontendIndex();
-    res.status(500).send('Frontend build output is missing. Check the application runtime log.');
-    return;
-  }
-  console.error(`Attempting to serve frontend index: ${indexPath}`);
-  res.sendFile(indexPath, (error) => {
+  res.sendFile(indexPath, { dotfiles: 'allow' }, (error) => {
     if (!error) return;
     console.error(`Unable to serve frontend index ${indexPath}: ${error.code ?? 'unknown'} ${error.message}`);
     if (!res.headersSent) res.status(error.statusCode ?? 500).send('Unable to serve frontend build output. Check the application runtime log.');
