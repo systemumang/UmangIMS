@@ -98,6 +98,7 @@ export type User = {
   mobile?: string | null;
   poApprovalAmount?: number | null;
   hasPassword: boolean;
+  passwordPlain?: string | null;
 };
 
 export type GstRate = { id: string; rate: number };
@@ -247,11 +248,15 @@ export async function fetchStores(signal?: AbortSignal): Promise<Store[]> {
 }
 
 export async function fetchUsers(
-  arg?: AbortSignal | { signal?: AbortSignal; includeInactive?: boolean }
+  arg?: AbortSignal | { signal?: AbortSignal; includeInactive?: boolean; includePasswordPlain?: boolean }
 ): Promise<User[]> {
   const signal = (arg as any)?.aborted !== undefined ? (arg as AbortSignal) : (arg as any)?.signal;
   const includeInactive = (arg as any)?.includeInactive === true;
-  const url = includeInactive ? '/api/masters/users?includeInactive=1' : '/api/masters/users';
+  const includePasswordPlain = (arg as any)?.includePasswordPlain === true;
+  const qs = new URLSearchParams();
+  if (includeInactive) qs.set('includeInactive', '1');
+  if (includePasswordPlain) qs.set('includePasswordPlain', '1');
+  const url = `/api/masters/users${qs.toString() ? `?${qs.toString()}` : ''}`;
   const res = await fetch(url, { signal });
   const data = await requireOk<{ users?: User[] }>(res, 'Failed to load users');
   const rows = Array.isArray(data.users) ? data.users : [];

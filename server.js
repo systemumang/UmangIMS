@@ -11134,6 +11134,11 @@ app.get('/api/masters/users', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const includeInactive = String(req.query?.includeInactive ?? '').trim().toLowerCase() === '1';
+    const includePasswordPlain = String(req.query?.includePasswordPlain ?? '').trim().toLowerCase() === '1';
+    const [passwordPlainCols] = await pool.query('SHOW COLUMNS FROM users LIKE ?', ['password_plain']);
+    if (!Array.isArray(passwordPlainCols) || passwordPlainCols.length === 0) {
+      await pool.query('ALTER TABLE users ADD COLUMN password_plain TEXT NULL');
+    }
     const [rows] = await pool.query(
       `
       SELECT
@@ -11148,6 +11153,7 @@ app.get('/api/masters/users', async (req, res) => {
         phone AS mobile,
         po_approval_amount AS poApprovalAmount,
         CASE WHEN password_hash IS NULL OR password_hash='' THEN 0 ELSE 1 END AS hasPassword
+        ${includePasswordPlain ? ', password_plain AS passwordPlain' : ''}
       FROM users
       WHERE is_deleted=0
       ${includeInactive ? '' : 'AND is_active=1'}
@@ -11172,6 +11178,7 @@ app.get('/api/masters/users', async (req, res) => {
         menuAccess,
         isActive: Boolean(r?.isActive),
         hasPassword: Boolean(r?.hasPassword),
+        passwordPlain: includePasswordPlain && r?.passwordPlain != null ? String(r.passwordPlain) : undefined,
       };
     });
     res.json({ users });
@@ -11202,8 +11209,8 @@ app.post('/api/masters/users', async (req, res) => {
     const id = crypto.randomUUID();
     const passwordHash = sha256(password);
     await pool.query(
-      'INSERT INTO users (id, name, role, login_id, menu_access, phone, email, is_active, po_approval_amount, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
-      [id, name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash]
+      'INSERT INTO users (id, name, role, login_id, menu_access, phone, email, is_active, po_approval_amount, created_at, password_hash, password_plain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
+      [id, name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash, password]
     );
     res.status(201).json({
       user: {
@@ -11253,8 +11260,8 @@ app.put('/api/masters/users/:id', async (req, res) => {
     if (password) {
       const passwordHash = sha256(password);
       await pool.query(
-        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, po_approval_amount=?, password_hash=? WHERE id=?',
-        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash, id]
+        'UPDATE users SET name=?, role=?, login_id=?, menu_access=?, phone=?, email=?, is_active=?, po_approval_amount=?, password_hash=?, password_plain=? WHERE id=?',
+        [name, role, loginId, JSON.stringify(menuAccess), mobile, email || null, isActive, Number.isFinite(poApprovalAmount) ? poApprovalAmount : null, passwordHash, password, id]
       );
     } else {
       await pool.query(
@@ -16183,4 +16190,3 @@ app.listen(port, () => {
   const repairTimer = setInterval(() => void runScheduledSpecValueRepair(), SPEC_VALUE_REPAIR_INTERVAL_MS);
   repairTimer.unref?.();
 });
-

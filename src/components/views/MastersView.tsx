@@ -97,6 +97,7 @@ import {
 
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
+import { type AuthUser } from '@/src/lib/auth';
 
 function normalizeTenDigitPhoneInput(value: string) {
   return value.replace(/\D/g, '').slice(0, 10);
@@ -167,9 +168,11 @@ function MultiSelectFilter({
 export default function MastersView({
   tab: externalTab,
   onTabChange,
+  currentUser,
 }: {
   tab?: MastersTab;
   onTabChange?: (tab: MastersTab) => void;
+  currentUser?: AuthUser | null;
 }) {
 		  const [tab, setTab] = useState<MastersTab>(externalTab ?? 'firms');
 		  const [addOpen, setAddOpen] = useState(false);
@@ -178,6 +181,7 @@ export default function MastersView({
       const [deleteUsageDetails, setDeleteUsageDetails] = useState<DeleteUsageDetail[]>([]);
 		  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 		  const [busy, setBusy] = useState(false);
+        const isAdminUser = normalizeKey(currentUser?.role ?? '') === 'admin';
       const [templateBusy, setTemplateBusy] = useState(false);
       const [templateError, setTemplateError] = useState<string | null>(null);
       const [templateInfo, setTemplateInfo] = useState<string | null>(null);
@@ -1349,7 +1353,7 @@ export default function MastersView({
 									      fetchCities(signal),
 									      fetchProjects(signal),
 									      fetchStores(signal),
-									      fetchUsers({ signal, includeInactive: tab === 'users' }),
+									      fetchUsers({ signal, includeInactive: tab === 'users', includePasswordPlain: isAdminUser }),
 								      fetchSuppliers(signal),
 								      fetchCustomers(signal),
 							      fetchTransporters(signal),
@@ -1456,7 +1460,7 @@ export default function MastersView({
 	          if (t === 'departments') return fetchDepartments().then(setDepartments);
 	          if (t === 'states') return fetchStates().then(setStates);
 	          if (t === 'cities') return fetchCities().then(setCities);
-		          if (t === 'users') return fetchUsers({ includeInactive: true }).then(setUsers);
+		          if (t === 'users') return fetchUsers({ includeInactive: true, includePasswordPlain: isAdminUser }).then(setUsers);
 	          if (t === 'suppliers') return fetchSuppliers().then(setSuppliers);
 	          if (t === 'customers') return fetchCustomers().then(setCustomers);
 	          if (t === 'transporters') return fetchTransporters().then(setTransporters);
@@ -5285,7 +5289,9 @@ export default function MastersView({
 				                      {(u as any).isActive === false ? 'Inactive' : 'Active'}
 				                    </td>
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.email ?? ''}</td>
-				                    <td className="px-3 py-2 text-on-surface border border-blue-600">{u.hasPassword ? '********' : ''}</td>
+				                    <td className="px-3 py-2 text-on-surface border border-blue-600 break-all">
+				                      {isAdminUser ? String((u as any).passwordPlain ?? '') : u.hasPassword ? '********' : ''}
+				                    </td>
 				                    <td className="px-3 py-2 text-on-surface-variant border border-blue-600">{u.mobile ?? ''}</td>
 						                    <td className="px-3 py-2 border border-blue-600 whitespace-nowrap">
 							                      <div className="flex items-center gap-2">
@@ -6253,5 +6259,3 @@ export default function MastersView({
     </div>
   );
 }
-
-

@@ -566,7 +566,7 @@ CREATE TABLE users (
   email VARCHAR(255) UNIQUE,
   is_active INT NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-, password_hash TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+, password_hash TEXT, password_plain TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_audit_module ON audit_logs(module);
 CREATE INDEX idx_audit_performed_by ON audit_logs(performed_by);

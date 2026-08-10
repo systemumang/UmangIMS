@@ -940,7 +940,7 @@ export default function App() {
 		          ) : null}
 				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab} currentUser={currentUser} /> : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
-		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} /> : null}
+		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} currentUser={currentUser} /> : null}
 
 		          {view === 'materialRequest' ? <RequestMaterialView /> : null}
 	          {view === 'materialPendingIssue' ? (
@@ -1017,3 +1017,4 @@ export default function App() {
     </div>
   );
 }
+
