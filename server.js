@@ -1242,6 +1242,11 @@ app.post('/api/auth/login', async (req, res) => {
 
     const stored = String(row?.passwordHash ?? '').trim();
     if (!stored || stored !== passwordHash) return res.status(401).json({ error: 'Invalid Login ID or Password.' });
+    const [passwordPlainCols] = await pool.query('SHOW COLUMNS FROM users LIKE ?', ['password_plain']);
+    if (!Array.isArray(passwordPlainCols) || passwordPlainCols.length === 0) {
+      await pool.query('ALTER TABLE users ADD COLUMN password_plain TEXT NULL');
+    }
+    await pool.query('UPDATE users SET password_plain=? WHERE id=?', [password, row.id]);
 
     let menuAccess = [];
     try {
@@ -2312,9 +2317,11 @@ function readQueueFilters(req) {
   const department = req.query?.department != null ? String(req.query.department).trim() : '';
   const projectId = req.query?.projectId != null ? String(req.query.projectId).trim() : '';
   const supplierId = req.query?.supplierId != null ? String(req.query.supplierId).trim() : '';
+  const poTypeRaw = req.query?.poType != null ? String(req.query.poType).trim() : '';
+  const poType = poTypeRaw.toLowerCase() === 'services' ? 'Services' : poTypeRaw.toLowerCase() === 'goods' ? 'Goods' : '';
   const from = req.query?.from != null ? String(req.query.from).trim() : '';
   const to = req.query?.to != null ? String(req.query.to).trim() : '';
-  return { q, firmId, storeId, department, projectId, supplierId, from, to };
+  return { q, firmId, storeId, department, projectId, supplierId, poType, from, to };
 }
 
 app.get('/api/queues/approve-pr', async (req, res) => {
@@ -2898,6 +2905,10 @@ app.get('/api/queues/create-grn', async (req, res) => {
     if (f.supplierId) {
       where.push('po.supplier_id = ?');
       params.push(f.supplierId);
+    }
+    if (f.poType) {
+      where.push('po.po_type = ?');
+      params.push(f.poType);
     }
     if (f.from) {
       where.push('DATE(po.created_at) >= ?');

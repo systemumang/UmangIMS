@@ -17,7 +17,17 @@ function todayIsoDate() {
 
 type PendingItem = { poItemId?: string; itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
 
-export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+export default function CreateGrnQueueView({
+  onViewPr,
+  poType = 'Goods',
+  viewLabel = 'Create GRN',
+  receiptLabel = 'GRN',
+}: {
+  onViewPr: (prId: string) => void;
+  poType?: 'Goods' | 'Services';
+  viewLabel?: string;
+  receiptLabel?: string;
+}) {
   function normalizeAreaUnitName(unitName: string) {
     const u = String(unitName ?? '').trim().toLowerCase();
     if (!u) return null;
@@ -78,7 +88,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
-  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
+  const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '', poType });
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [rows, setRows] = useState<CreateGrnQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +113,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     const ac = new AbortController();
     setLoading(true);
     setError(null);
-    fetchQueueCreateGrn(filters, ac.signal)
+    fetchQueueCreateGrn({ ...filters, poType }, ac.signal)
       .then(setRows)
       .catch((e) => {
         if (ac.signal.aborted) return;
@@ -111,12 +121,12 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
       })
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, [filters]);
+  }, [filters, poType]);
 
   useEffect(() => {
     setPage(1);
     setSelectedRowId(null);
-  }, [filters]);
+  }, [filters, poType]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -271,17 +281,17 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
     <div className="space-y-6">
       {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
       <div className="hidden">
-        <div className="text-sm text-on-surface-variant">Create GRN</div>
-        <ExportCsvButton id="pending-export-btn" filename={`queue-create-grn-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+        <div className="text-sm text-on-surface-variant">{viewLabel}</div>
+        <ExportCsvButton id="pending-export-btn" filename={`queue-${receiptLabel.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
       </div>
       <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
       {loading ? (
-        <LoadingCard label="Loading POs pending GRN..." />
+        <LoadingCard label={`Loading POs pending ${receiptLabel}...`} />
       ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Create GRN" subtitle={`${rows.length} pending`} hideHeader>
+        <QueueCard title={viewLabel} subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
 	            <table className="w-full min-w-[1260px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>
@@ -301,7 +311,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty</th>
-	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">GRN Qty</th>
+	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">{receiptLabel} Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
                 </tr>
@@ -343,7 +353,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                               setModalOpen(true);
                             }}
                           >
-                            Create GRN
+                            {viewLabel}
                           </button>
                         </div>
                       </td>
@@ -364,7 +374,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                                       <th className="px-3 py-2 border border-outline-variant w-[120px]">Breadth</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[80px]">PCs</th>
                                       <th className="px-3 py-2 border border-outline-variant w-[100px]">Priority</th>
-	                                    <th className="px-3 py-2 border border-outline-variant w-[120px]">Pending GRN Qty</th>
+	                                    <th className="px-3 py-2 border border-outline-variant w-[120px]">{`Pending ${receiptLabel} Qty`}</th>
 	                                  </tr>
 	                                </thead>
 	                                <tbody>
@@ -449,7 +459,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
 
       <Modal
         open={modalOpen}
-        title="Pending PO for GRN (1)"
+        title={`Pending PO for ${receiptLabel} (1)`}
         onClose={() => (saving ? null : closeModal())}
         fullScreen
         contentClassName="p-3"
@@ -603,13 +613,13 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                     ...(('length' in x || 'breadth' in x || 'pcs' in x) ? { length: (x as any).length, breadth: (x as any).breadth, pcs: (x as any).pcs, inputUnit: (x as any).inputUnit } : {}),
                   })),
                 })
-                  .then(() => fetchQueueCreateGrn(filters).then(setRows))
+                  .then(() => fetchQueueCreateGrn({ ...filters, poType }).then(setRows))
                   .then(() => closeModal())
                   .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
                   .finally(() => setSaving(false));
               }}
             >
-              {saving ? 'Creating...' : 'Create GRN'}
+              {saving ? 'Creating...' : viewLabel}
             </button>
           </>
         }
@@ -649,14 +659,14 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">Breadth</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-center">PCs</th>
                   <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">PO Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">Pending GRN Qty</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Unit</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN L</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN B</th>
-	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN PCs</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black text-right">{`Pending ${receiptLabel} Qty`}</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">{receiptLabel} Unit</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">{receiptLabel} L</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">{receiptLabel} B</th>
+	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">{receiptLabel} PCs</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Weight</th>
 	                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">Round Off</th>
-                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">GRN Total Qty</th>
+                  <th className="px-2 py-2 text-[11px] font-bold text-white uppercase tracking-widest border border-black bg-orange-500 text-center">{receiptLabel} Total Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -724,7 +734,7 @@ export default function CreateGrnQueueView({ onViewPr }: { onViewPr: (prId: stri
                             {formatMax2(pendingQty)}
                           </td>
                         
-                        {/* GRN INPUT COLUMNS */}
+                        {/* Receipt input columns */}
                         <td className="px-1 py-2 border border-black align-top">
                           {isAreaUnit ? (
                             <select

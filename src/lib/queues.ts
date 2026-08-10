@@ -4,6 +4,7 @@ export type QueueFilters = {
   department?: string;
   projectId?: string;
   supplierId?: string;
+  poType?: 'Goods' | 'Services' | string;
   from?: string; // YYYY-MM-DD
   to?: string; // YYYY-MM-DD
 };
@@ -48,6 +49,7 @@ function buildQueueQuery(filters?: QueueFilters): string {
   if (f.department) params.set('department', String(f.department));
   if (f.projectId) params.set('projectId', String(f.projectId));
   if (f.supplierId) params.set('supplierId', String(f.supplierId));
+  if (f.poType) params.set('poType', String(f.poType));
   if (f.from) params.set('from', String(f.from));
   if (f.to) params.set('to', String(f.to));
   const s = params.toString();

@@ -251,7 +251,8 @@ export default function App() {
         fetchOperationsPos({ status: 'Draft' }, ac.signal).then((r) => ['queueDraftPo', r.length] as const),
 	      fetchQueueCheckPo(undefined, ac.signal).then((r) => ['queueCheckPo', r.length] as const),
       fetchQueueSendPo(undefined, ac.signal).then((r) => ['queueSendPo', r.length] as const),
-      fetchQueueCreateGrn(undefined, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
+      fetchQueueCreateGrn({ poType: 'Goods' }, ac.signal).then((r) => ['queueCreateGrn', r.length] as const),
+	      fetchQueueCreateGrn({ poType: 'Services' }, ac.signal).then((r) => ['queueCreateSrn', r.length] as const),
 		      fetchQueueQc(undefined, ac.signal).then((r) => ['queueCheckQuality', r.length] as const),
 		      fetchQueueEnterInvoice(undefined, ac.signal).then((r) => ['queueEnterInvoice', r.length] as const),
           fetchQueueEnterCreditVoucher(undefined, ac.signal).then((r) => ['queueEnterCreditVoucher', r.length] as const),
@@ -403,6 +404,7 @@ export default function App() {
 		        queueCheckPo: 'Check PO',
 	        queueSendPo: 'Send PO',
 	        queueCreateGrn: 'Create GRN',
+		        queueCreateSrn: 'Create SRN',
 		        queueCheckQuality: 'Check Quality',
 			        queueEnterInvoice: 'Enter Invoice',
               queueEnterCreditVoucher: 'Enter Credit Voucher',
@@ -989,7 +991,8 @@ export default function App() {
               {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" currentUser={currentUser} /> : null}
 		          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueSendPo' ? <SendPoQueueView onViewPr={openPrDetail} /> : null}
-	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} /> : null}
+	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} poType="Goods" /> : null}
+		          {view === 'queueCreateSrn' ? <CreateGrnQueueView onViewPr={openPrDetail} poType="Services" viewLabel="Create SRN" receiptLabel="SRN" /> : null}
 				          {view === 'queueCheckQuality' ? <QcQueueView onViewPr={openPrDetail} /> : null}
 				          {view === 'queueEnterInvoice' ? <EnterInvoiceQueueView onViewPr={openPrDetail} /> : null}
                   {view === 'queueEnterCreditVoucher' ? <EnterCreditVoucherQueueView onViewPr={openPrDetail} /> : null}

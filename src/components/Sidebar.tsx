@@ -55,6 +55,7 @@ export type PendingQueueKey =
   | 'queueCheckPo'
   | 'queueSendPo'
   | 'queueCreateGrn'
+  | 'queueCreateSrn'
   | 'queueCheckQuality'
   | 'queueEnterInvoice'
   | 'queueEnterCreditVoucher'
@@ -73,6 +74,7 @@ export const pendingQueueItems: Array<{ key: PendingQueueKey; label: string }> =
   { key: 'queueCheckPo', label: 'Check PO' },
   { key: 'queueSendPo', label: 'Send PO' },
   { key: 'queueCreateGrn', label: 'Create GRN' },
+  { key: 'queueCreateSrn', label: 'Create SRN' },
   { key: 'queueCheckQuality', label: 'Check Quality' },
   { key: 'queueEnterInvoice', label: 'Enter Invoice' },
   { key: 'queueEnterCreditVoucher', label: 'Enter Credit Voucher' },
@@ -342,6 +344,7 @@ export default function Sidebar({
 			                  const direct = isAllowed(`pending:${q.key}`);
 			                  if (direct) return true;
 			                  if (q.key === 'queueApproveInvoice') return isAllowed('pending:queueEnterInvoice');
+		                  if (q.key === 'queueCreateSrn') return isAllowed('pending:queueCreateGrn');
 			                  if (q.key === 'queueTallyEntry') return isAllowed('pending:queuePayment');
 			                  return false;
 			                })
