@@ -9984,6 +9984,7 @@ app.get('/api/pos/:id/pending-invoice-items', async (req, res) => {
     );
 
     const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+      poItemId: String(r.poItemId ?? ''),
       itemId: String(r.itemId ?? ''),
       item: String(r.item ?? ''),
       unit: r.unit != null ? String(r.unit) : null,

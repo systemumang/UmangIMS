@@ -961,9 +961,9 @@ export async function deletePo(poId: string, input?: { deletedBy?: string; cance
   return requireOk<{ ok: boolean }>(res, 'Failed to delete PO');
 }
 
-export async function fetchPendingInvoiceItems(poId: string, signal?: AbortSignal): Promise<Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }>> {
+export async function fetchPendingInvoiceItems(poId: string, signal?: AbortSignal): Promise<Array<{ poItemId?: string; itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }>> {
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/pending-invoice-items`, { signal });
-  const data = await requireOk<{ items?: Array<{ itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }> }>(res, 'Failed to load pending invoice items');
+  const data = await requireOk<{ items?: Array<{ poItemId?: string; itemId: string; item: string; unit?: string; pendingQty: number; rate: number; dimLength?: number; dimBreadth?: number; dimPcs?: number; dimUnit?: string }> }>(res, 'Failed to load pending invoice items');
   return Array.isArray(data.items) ? data.items : [];
 }
 

@@ -20,8 +20,8 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
-type Line = { itemId: string; item: string; unit?: string | null; pendingQty: number; quantity: string; rate: string };
+type PendingItem = { poItemId?: string; itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
+type Line = { lineKey: string; poItemId?: string; itemId: string; item: string; unit?: string | null; pendingQty: number; quantity: string; rate: string };
 
 export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
@@ -86,6 +86,8 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
     Promise.all([fetchPendingInvoiceItems(active.poId, ac.signal), fetchWorkflow(active.prId, ac.signal, active.poId)])
       .then(([items]) => {
         const next: Line[] = (items as PendingItem[]).map((it) => ({
+          lineKey: String(it.poItemId || it.itemId),
+          poItemId: it.poItemId,
           itemId: it.itemId,
           item: it.item,
           unit: it.unit,
@@ -124,7 +126,6 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
       .map((l) => ({ ...l, q: Number(l.quantity), r: Number(l.rate) }))
       .filter((l) => l.itemId && Number.isFinite(l.q) && l.q > 0 && Number.isFinite(l.r) && l.r >= 0);
     if (!validLines.length) return false;
-    if (validLines.some((l) => l.q > l.pendingQty + 1e-9)) return false;
     return true;
   }, [active, lines, voucherDate]);
 
@@ -264,14 +265,14 @@ export default function EnterCreditVoucherQueueView({ onViewPr }: { onViewPr: (p
               </thead>
               <tbody>
                 {lines
-                  .filter((ln) => !selectedLineId || ln.itemId === selectedLineId)
+                  .filter((ln) => !selectedLineId || ln.lineKey === selectedLineId)
                   .map((ln) => {
-                    const idx = lines.findIndex((x) => x.itemId === ln.itemId);
+                    const idx = lines.findIndex((x) => x.lineKey === ln.lineKey);
                     return (
                       <tr
-                        key={ln.itemId}
-                        className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedLineId === ln.itemId && 'bg-primary/10')}
-                        onClick={() => setSelectedLineId(selectedLineId === ln.itemId ? null : ln.itemId)}
+                        key={ln.lineKey}
+                        className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedLineId === ln.lineKey && 'bg-primary/10')}
+                        onClick={() => setSelectedLineId(selectedLineId === ln.lineKey ? null : ln.lineKey)}
                       >
                         <td className="px-3 py-2 border border-outline-variant">{ln.item}</td>
                         <td className="px-3 py-2 border border-outline-variant text-center text-on-surface-variant text-[10px] font-bold uppercase">{ln.unit || '-'}</td>

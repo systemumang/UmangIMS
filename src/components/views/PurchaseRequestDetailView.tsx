@@ -522,7 +522,7 @@ export default function PurchaseRequestDetailView({
 			const [invoiceCourierCopy, setInvoiceCourierCopy] = useState('');
 			const [invoiceCourierCopyFileName, setInvoiceCourierCopyFileName] = useState('');
 		const [invoiceFormError, setInvoiceFormError] = useState<string | null>(null);
-			const [pendingInvoiceItems, setPendingInvoiceItems] = useState<Array<{ itemId: string; item: string; pendingQty: number; rate: number }>>([]);
+			const [pendingInvoiceItems, setPendingInvoiceItems] = useState<Array<{ poItemId?: string; itemId: string; item: string; pendingQty: number; rate: number }>>([]);
 			const [loadingPendingItems, setLoadingPendingItems] = useState(false);
 			const [invoiceQty, setInvoiceQty] = useState<NumMap>({});
 					const [invoiceRates, setInvoiceRates] = useState<NumMap>({});
@@ -537,10 +537,11 @@ export default function PurchaseRequestDetailView({
 						    posList.find((p) => p.po.id === selectedPoId)?.items ??
 						    (workflow?.po?.po?.id === selectedPoId ? (workflow?.po?.items ?? []) : []);
 						  for (const it of pendingInvoiceItems) {
-						    const qty = Number(invoiceQty[it.itemId] ?? it.pendingQty);
-						    const rate = Number(invoiceRates[it.itemId] ?? it.rate);
-						    const poTaxPct = Number((selectedPoItems.find((x) => x.itemId === it.itemId) as any)?.taxPercent ?? 0);
-						    const gstPct = Number(invoiceGstPct[it.itemId] ?? poTaxPct ?? 0);
+    const rowKey = String(it.poItemId || it.itemId);
+    const qty = Number(invoiceQty[rowKey] ?? it.pendingQty);
+    const rate = Number(invoiceRates[rowKey] ?? it.rate);
+    const poTaxPct = Number((selectedPoItems.find((x) => String((x as any).id || '') === String(it.poItemId || '') || x.itemId === it.itemId) as any)?.taxPercent ?? 0);
+    const gstPct = Number(invoiceGstPct[rowKey] ?? poTaxPct ?? 0);
 						    if (!Number.isFinite(qty) || qty < 0) continue;
 						    if (!Number.isFinite(rate) || rate < 0) continue;
 						    const safeGstPct = Number.isFinite(gstPct) && gstPct >= 0 ? gstPct : 0;
@@ -642,12 +643,13 @@ export default function PurchaseRequestDetailView({
 		        const rateMap: NumMap = {};
 		        const gstMap: NumMap = {};
 		        pending.forEach((it) => {
-		          qtyMap[it.itemId] = String(it.pendingQty);
-		          rateMap[it.itemId] = String(it.rate);
-		          const poLine = selectedPo?.items?.find((x) => x.itemId === it.itemId);
-		          const gstPct = Number((poLine as any)?.taxPercent ?? 0);
-		          gstMap[it.itemId] = Number.isFinite(gstPct) && gstPct >= 0 ? String(gstPct) : '0';
-		        });
+          const rowKey = String(it.poItemId || it.itemId);
+          qtyMap[rowKey] = String(it.pendingQty);
+          rateMap[rowKey] = String(it.rate);
+          const poLine = selectedPo?.items?.find((x) => String((x as any).id || '') === String(it.poItemId || '') || x.itemId === it.itemId);
+          const gstPct = Number((poLine as any)?.taxPercent ?? 0);
+          gstMap[rowKey] = Number.isFinite(gstPct) && gstPct >= 0 ? String(gstPct) : '0';
+        });
 		        setInvoiceQty(qtyMap);
 		        setInvoiceRates(rateMap);
 		        setInvoiceGstPct(gstMap);
@@ -5997,10 +5999,11 @@ export default function PurchaseRequestDetailView({
 	                          </tr>
 				                        ) : pendingInvoiceItems.length ? (
 					                          pendingInvoiceItems.map((it) => {
-					                            const poLine = selectedPo?.items?.find((x) => x.itemId === it.itemId);
+                            const rowKey = String(it.poItemId || it.itemId);
+                            const poLine = selectedPo?.items?.find((x) => x.itemId === it.itemId);
 						                            const gstPct = Number((poLine as any)?.taxPercent ?? 0);
 						                            const gstValue =
-						                              invoiceGstPct[it.itemId] ??
+						                              invoiceGstPct[rowKey] ??
 						                              (Number.isFinite(gstPct) && gstPct !== 0 ? String(gstPct) : '');
 					                            const prRow = prItems.find((r) => r.itemId === it.itemId);
 					                            const specInline = (prRow?.specification || '')
@@ -6010,7 +6013,7 @@ export default function PurchaseRequestDetailView({
 			                              .join(' - ');
 			                            const label = [prRow?.item || it.item, specInline || null].filter(Boolean).join(' - ');
 			                            return (
-			                            <tr key={it.itemId}>
+				                            <tr key={rowKey}>
 			                              <td className="px-4 py-3 text-sm text-on-surface border border-outline-variant whitespace-normal break-words">
 			                                {renderInlineWithBoldSpecNames(label)}
 			                              </td>
@@ -6021,10 +6024,10 @@ export default function PurchaseRequestDetailView({
 				                              <td className="px-4 py-3 border border-outline-variant">
 				                                <input
 				                                  className={tableInputClass}
-				                                  value={invoiceRates[it.itemId] ?? String(it.rate)}
+				                                  value={invoiceRates[rowKey] ?? String(it.rate)}
 			                                  onChange={(e) => {
 			                                    setInvoiceFormError(null);
-			                                    setInvoiceRates((prev) => ({ ...prev, [it.itemId]: e.target.value }));
+			                                    setInvoiceRates((prev) => ({ ...prev, [rowKey]: e.target.value }));
 			                                  }}
 			                                  type="number"
 			                                  min={0}
@@ -6040,13 +6043,13 @@ export default function PurchaseRequestDetailView({
 						                                    setInvoiceFormError(null);
 						                                    setInvoiceGstPct((prev) => ({
 						                                      ...prev,
-						                                      [it.itemId]: sanitizePercentInput(e.target.value),
+						                                      [rowKey]: sanitizePercentInput(e.target.value),
 						                                    }));
 						                                  }}
 						                                  onBlur={() =>
 						                                    setInvoiceGstPct((prev) => ({
 						                                      ...prev,
-						                                      [it.itemId]: clampPercentString(prev[it.itemId] ?? ''),
+						                                      [rowKey]: clampPercentString(prev[rowKey] ?? ''),
 						                                    }))
 						                                  }
 						                                  type="text"
@@ -6056,14 +6059,13 @@ export default function PurchaseRequestDetailView({
 					                              <td className="px-4 py-3 border border-outline-variant">
 					                                <input
 					                                  className={tableInputClass}
-					                                  value={invoiceQty[it.itemId] ?? String(it.pendingQty)}
+					                                  value={invoiceQty[rowKey] ?? String(it.pendingQty)}
 			                                  onChange={(e) => {
 			                                    setInvoiceFormError(null);
-			                                    setInvoiceQty((prev) => ({ ...prev, [it.itemId]: e.target.value }));
+			                                    setInvoiceQty((prev) => ({ ...prev, [rowKey]: e.target.value }));
 			                                  }}
 			                                  type="number"
 			                                  min={0}
-			                                  max={it.pendingQty}
 			                                  inputMode="numeric"
 			                                  step="1"
 			                                />
@@ -6125,10 +6127,11 @@ export default function PurchaseRequestDetailView({
 				                        posList.find((p) => p.po.id === selectedPoId)?.items ??
 				                        (workflow?.po?.po?.id === selectedPoId ? (workflow?.po?.items ?? []) : []);
 				                      const items = pendingInvoiceItems.map((it) => {
-				                        const quantity = Number(invoiceQty[it.itemId] ?? it.pendingQty);
-				                        const rate = Number(invoiceRates[it.itemId] ?? it.rate);
-				                        const poTaxPct = Number((selectedPoItems.find((x) => x.itemId === it.itemId) as any)?.taxPercent ?? 0);
-				                        const rawTax = invoiceGstPct[it.itemId] ?? (Number.isFinite(poTaxPct) && poTaxPct !== 0 ? String(poTaxPct) : '');
+                        const rowKey = String(it.poItemId || it.itemId);
+                        const quantity = Number(invoiceQty[rowKey] ?? it.pendingQty);
+                        const rate = Number(invoiceRates[rowKey] ?? it.rate);
+                        const poTaxPct = Number((selectedPoItems.find((x) => String((x as any).id || '') === String(it.poItemId || '') || x.itemId === it.itemId) as any)?.taxPercent ?? 0);
+                        const rawTax = invoiceGstPct[rowKey] ?? (Number.isFinite(poTaxPct) && poTaxPct !== 0 ? String(poTaxPct) : '');
 				                        const taxPercent = rawTax.trim() ? Number(clampPercentString(rawTax)) : 0;
 				                        return { itemId: it.itemId, item: it.item, quantity, rate, taxPercent, pendingQty: it.pendingQty };
 				                      });
@@ -6137,7 +6140,6 @@ export default function PurchaseRequestDetailView({
 				                          (x) =>
 				                            !Number.isFinite(x.quantity) ||
 				                            x.quantity <= 0 ||
-				                            x.quantity > x.pendingQty ||
 				                            !Number.isFinite(x.rate) ||
 				                            x.rate < 0 ||
 				                            !Number.isFinite(x.taxPercent) ||
@@ -6145,7 +6147,7 @@ export default function PurchaseRequestDetailView({
 				                            x.taxPercent > 100
 				                        )
 				                      ) {
-				                        setInvoiceFormError('Enter valid invoice qty/rate (qty must be <= pending qty).');
+				                        setInvoiceFormError('Enter valid invoice qty/rate.');
 				                        return;
 				                      }
 				                      const createItems = items.map(({ pendingQty: _pendingQty, ...rest }) => rest);
@@ -7412,7 +7414,6 @@ export default function PurchaseRequestDetailView({
 				                                          onChange={(e) => setGrnQty((prev) => ({ ...prev, [it.itemId]: e.target.value }))}
 				                                          type="number"
 				                                          min={0}
-				                                          max={it.pendingQty}
 				                                          inputMode="numeric"
 				                                          step="1"
 				                                        />

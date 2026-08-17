@@ -19,8 +19,10 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type PendingItem = { itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
+type PendingItem = { poItemId?: string; itemId: string; item: string; unit?: string | null; pendingQty: number; rate: number };
 type InvoiceLine = {
+  lineKey: string;
+  poItemId?: string;
   itemId: string;
   item: string;
   specificationsJson?: string;
@@ -213,15 +215,21 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 	    Promise.all([fetchPendingInvoiceItems(active.poId, ac.signal), fetchWorkflow(active.prId, ac.signal, active.poId)])
 	      .then(([pendingItems, wf]) => {
 	        if (ac.signal.aborted) return;
-	        const pendingByItemId = new Map<string, PendingItem>();
-	        for (const it of pendingItems ?? []) pendingByItemId.set(String(it.itemId), it as PendingItem);
+	        const pendingByPoItemId = new Map<string, PendingItem>();
+        const pendingByItemId = new Map<string, PendingItem>();
+        for (const it of pendingItems ?? []) {
+          const pending = it as PendingItem;
+          if (pending.poItemId) pendingByPoItemId.set(String(pending.poItemId), pending);
+          pendingByItemId.set(String(pending.itemId), pending);
+        }
 
         const poItems = wf.po?.items ?? [];
         const nextLines = poItems
           .map((poi) => {
             const itemId = String((poi as any).itemId ?? '');
+            const poItemId = String((poi as any).id ?? '').trim();
             if (!itemId) return null;
-            const pending = pendingByItemId.get(itemId);
+            const pending = (poItemId ? pendingByPoItemId.get(poItemId) : undefined) ?? pendingByItemId.get(itemId);
             const pendingQty = Number(pending?.pendingQty ?? 0);
             if (!Number.isFinite(pendingQty) || pendingQty <= 0) return null;
             const unit = (poi as any).unit != null ? String((poi as any).unit) : null;
@@ -344,10 +352,6 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
           errors.items = 'Enter valid Length, Breadth and PCs for area-unit invoice items.';
           break;
         }
-      }
-      if (it.quantity > it.pendingQty + 1e-9) {
-        errors.items = 'Invoice qty cannot exceed pending qty.';
-        break;
       }
       if (!Number.isFinite(it.rate) || it.rate < 0) {
         errors.items = 'Invalid invoice rate.';
@@ -496,12 +500,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                 <tbody>
                                   {expandedItems.length ? (
                                     expandedItems
-                                      .filter((it) => !selectedItemId || it.itemId === selectedItemId)
+                                      .filter((it) => !selectedItemId || String(it.poItemId || it.itemId) === selectedItemId)
                                       .map((it) => (
                                         <tr
-                                          key={it.itemId}
-                                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === it.itemId && 'bg-primary/10')}
-                                          onClick={() => setSelectedItemId(selectedItemId === it.itemId ? null : it.itemId)}
+                                          key={String(it.poItemId || it.itemId)}
+                                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === String(it.poItemId || it.itemId) && 'bg-primary/10')}
+                                          onClick={() => setSelectedItemId(selectedItemId === String(it.poItemId || it.itemId) ? null : String(it.poItemId || it.itemId))}
                                         >
                                           <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{it.item}</td>
                                           <td className="px-3 py-2 border border-outline-variant tabular-nums">
@@ -891,7 +895,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
               </thead>
               <tbody>
                 {(() => {
-                  const filteredLines = lines.filter((ln) => !selectedItemId || ln.itemId === selectedItemId);
+                  const filteredLines = lines.filter((ln) => !selectedItemId || ln.lineKey === selectedItemId);
                   if (!filteredLines.length) {
                     return (
                       <tr>
@@ -910,9 +914,9 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
                       return (
                         <tr
-                          key={ln.itemId}
-                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === ln.itemId && 'bg-primary/10')}
-                          onClick={() => setSelectedItemId(selectedItemId === ln.itemId ? null : ln.itemId)}
+                          key={ln.lineKey}
+                          className={cn('cursor-pointer hover:bg-surface-container-low transition-colors', selectedItemId === ln.lineKey && 'bg-primary/10')}
+                          onClick={() => setSelectedItemId(selectedItemId === ln.lineKey ? null : ln.lineKey)}
                         >
                           {idx === 0 ? (
                             <>
