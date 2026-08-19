@@ -63,7 +63,14 @@ export default function ProjectwiseUtilizationView() {
       const parts = [String(masterItem.itemName ?? '').trim(), specText, String(masterItem.description ?? '').trim()].filter(Boolean);
       return parts.join(' - ') || masterItem.itemCode;
     }
-    return raw || '-';
+    // Raw fallback values may embed "guid: value" spec pairs; strip the guid keys.
+    return (
+      raw
+        .split(' - ')
+        .map((part) => part.replace(/^[0-9a-f-]{36}:\s*/i, '').trim())
+        .filter(Boolean)
+        .join(' - ') || '-'
+    );
   };
 
   const getProjectName = (projectId?: string | null) => {
