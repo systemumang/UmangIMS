@@ -279,6 +279,27 @@ export default function Sidebar({
 			    return false;
 			  };
 
+
+          const hasLegacyFullMenuAccess = () => {
+            if (!hasAny) return true;
+            return ['dashboard', 'masters', 'pendingTasks', 'stockMaster', 'material', 'operations', 'quotation', 'reports', 'settings'].every((k) => allowed.has(k));
+          };
+
+          const isCourierTrackingAllowed = () => {
+            if (!hasAny) return true;
+            if (allowed.has('courierTracking')) return true;
+            if (hasPrefix('courier:')) return true;
+            if (hasLegacyFullMenuAccess()) return true;
+            return false;
+          };
+
+          const isCourierViewAllowed = (k: 'couriers' | 'pendingReceipt') => {
+            if (!hasAny) return true;
+            if (allowed.has(`courier:${k}`)) return true;
+            if (allowed.has('courierTracking')) return true;
+            if (hasLegacyFullMenuAccess()) return true;
+            return false;
+          };
 			  const isReportsAllowed = () => {
 			    if (!hasAny) return true;
 			    if (allowed.has('reports')) return true;
@@ -537,6 +558,39 @@ export default function Sidebar({
 	            </>
 	          ) : null}
 
+
+
+          {isCourierTrackingAllowed() ? (
+            <>
+              <motion.button
+                whileHover={{ x: 4 }}
+                type="button"
+                onClick={() => onNavigate('courierTracking')}
+                className={cn(sectionRowClass, courierTrackingExpanded || activeCourierView ? activeRowClass : '')}
+              >
+                <MapPinned className="mr-3 text-white" size={18} />
+                <span className="flex-1">Courier Tracking</span>
+                <ChevronDown size={16} className={cn('ml-2 transition-transform text-white', courierTrackingExpanded ? 'rotate-180' : 'rotate-0')} />
+              </motion.button>
+              {courierTrackingExpanded && onNavigateCourierView ? (
+                <div className="ml-7 mr-1 space-y-1">
+                  {courierMenuItems.filter((it) => isCourierViewAllowed(it.key)).map((it) => (
+                    <button
+                      key={it.key}
+                      type="button"
+                      onClick={() => onNavigateCourierView(it.key)}
+                      className={cn(subRowClass, activeCourierView === it.key ? subActiveClass : subInactiveClass)}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {it.key === 'couriers' ? <Truck size={14} /> : <ClipboardList size={14} />}
+                        {it.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
 
 	          {isReportsAllowed() ? (
 	            <>
