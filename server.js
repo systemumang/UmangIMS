@@ -16320,7 +16320,7 @@ app.post('/api/couriers', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const courierDate = String(req.body?.date ?? '').slice(0, 10);
     const courierNo = String(req.body?.courierNo ?? '').trim();
-    const courierCompany = String(req.body?.courierCompany ?? '').trim() || null;
+    const courierCompany = String(req.body?.courierCompany ?? '').trim();
     const supplierId = String(req.body?.supplierId ?? '').trim();
     const projectId = String(req.body?.projectId ?? '').trim() || null;
     const poId = String(req.body?.poId ?? '').trim() || null;
@@ -16329,6 +16329,7 @@ app.post('/api/couriers', async (req, res) => {
     const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
     if (!courierDate) return res.status(400).json({ error: 'Date is required' });
     if (!courierNo) return res.status(400).json({ error: 'Courier No. is required' });
+    if (!courierCompany) return res.status(400).json({ error: 'Courier Company is required' });
     if (!supplierId) return res.status(400).json({ error: 'Supplier is required' });
     if (!expectedDate) return res.status(400).json({ error: 'Expected Date is required' });
     const id = crypto.randomUUID();

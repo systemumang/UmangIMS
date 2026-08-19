@@ -167,6 +167,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     setFormError(null);
     if (!date) return setFormError('Date is required.');
     if (!courierNo.trim()) return setFormError('Courier No. is required.');
+    if (!courierCompany.trim()) return setFormError('Courier Company is required.');
     if (!supplierId) return setFormError('Supplier is required.');
     if (!expectedDate) return setFormError('Expected Date is required.');
     setSaving(true);
@@ -174,7 +175,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       await createCourier({
         date,
         courierNo: courierNo.trim(),
-        courierCompany: courierCompany.trim() || undefined,
+        courierCompany: courierCompany.trim(),
         supplierId,
         projectId: projectId || undefined,
         poId: poId || undefined,
@@ -305,7 +306,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label className="space-y-1"><div className={labelClass}>Date *</div><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
             <label className="space-y-1"><div className={labelClass}>Courier No. *</div><input className={inputClass} value={courierNo} onChange={(e) => setCourierNo(e.target.value)} /></label>
-            <label className="space-y-1"><div className={labelClass}>Courier Company</div><input className={inputClass} value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Courier Company *</div><input className={inputClass} value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} /></label>
             <div className="space-y-1"><div className={labelClass}>Supplier *</div><SearchableSelect value={supplierId} options={supplierOptions} onChange={setSupplierId} placeholder="Select supplier..." controlClassName={inputClass} /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>PO No.</div><SearchableSelect value={poId} options={poOptions} onChange={autoFillFromPo} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>Project No</div><SearchableSelect value={projectId} options={projectOptions} onChange={setProjectId} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
