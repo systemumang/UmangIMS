@@ -141,7 +141,8 @@ export default function StockSummaryView() {
 
   const totalIssueQty = issueLines.reduce((sum, row) => sum + row.qty, 0);
   const totalReturnQty = returnLines.reduce((sum, row) => sum + row.qty, 0);
-  const headerClass = 'px-3 py-2 border border-outline-variant bg-white !text-black text-[10px] font-bold uppercase tracking-wider';
+  const headerClass = 'px-3 py-2 border border-outline-variant bg-white text-[10px] font-bold uppercase tracking-wider';
+  const headerStyle = { color: '#000000', opacity: 1 } as const;
   const cellClass = 'px-3 py-2 border border-outline-variant text-on-surface-variant align-top';
 
   const buildExportHtml = () => `
@@ -251,12 +252,12 @@ export default function StockSummaryView() {
                 <table className="w-full min-w-[980px] text-sm border-2 border-outline-variant border-collapse">
                   <thead>
                     <tr>
-                      <th className={headerClass}>Issue Date</th>
-                      <th className={headerClass}>Firm</th>
-                      <th className={headerClass}>Issue To</th>
-                      <th className={headerClass}>Department</th>
-                      <th className={headerClass}>Item</th>
-                      <th className={`${headerClass} text-right`}>Qty</th>
+                      <th className={headerClass} style={headerStyle}>Issue Date</th>
+                      <th className={headerClass} style={headerStyle}>Firm</th>
+                      <th className={headerClass} style={headerStyle}>Issue To</th>
+                      <th className={headerClass} style={headerStyle}>Department</th>
+                      <th className={headerClass} style={headerStyle}>Item</th>
+                      <th className={`${headerClass} text-right`} style={headerStyle}>Qty</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -283,14 +284,14 @@ export default function StockSummaryView() {
                 <table className="w-full min-w-[1120px] text-sm border-2 border-outline-variant border-collapse">
                   <thead>
                     <tr>
-                      <th className={headerClass}>Date</th>
-                      <th className={headerClass}>Firm</th>
-                      <th className={headerClass}>Department</th>
-                      <th className={headerClass}>Store Name</th>
-                      <th className={headerClass}>Received By</th>
-                      <th className={headerClass}>Item</th>
-                      <th className={`${headerClass} text-right`}>Qty</th>
-                      <th className={headerClass}>Remarks</th>
+                      <th className={headerClass} style={headerStyle}>Date</th>
+                      <th className={headerClass} style={headerStyle}>Firm</th>
+                      <th className={headerClass} style={headerStyle}>Department</th>
+                      <th className={headerClass} style={headerStyle}>Store Name</th>
+                      <th className={headerClass} style={headerStyle}>Received By</th>
+                      <th className={headerClass} style={headerStyle}>Item</th>
+                      <th className={`${headerClass} text-right`} style={headerStyle}>Qty</th>
+                      <th className={headerClass} style={headerStyle}>Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
