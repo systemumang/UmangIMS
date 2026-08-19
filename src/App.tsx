@@ -386,8 +386,8 @@ export default function App() {
 		    if (view === 'returnMaster') return { title: 'Return Master', showSearch: false };
 		    if (view === 'damageMaster') return { title: 'Damage Master', showSearch: false };
 		    if (view === 'transferMaster') return { title: 'Transfer Master', showSearch: false };
-		    if (view === 'projectUtilization') return { title: 'Projectwise Utilization', showSearch: false };
-		    if (view === 'stockSummary') return { title: 'Summary', showSearch: false };
+		    if (view === 'projectUtilization') return { title: 'Projectwise Consumption', showSearch: false };
+		    if (view === 'stockSummary') return { title: 'Projectwise Material Consumption Summary', showSearch: false };
 		    if (view === 'masters') {
 	      const tabLabel = MASTERS_TABS.find((t) => t.key === mastersTab)?.label ?? 'Masters';
 	      return { title: tabLabel, showSearch: false };

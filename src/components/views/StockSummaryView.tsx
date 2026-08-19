@@ -161,8 +161,7 @@ export default function StockSummaryView() {
         </style>
       </head>
       <body>
-        <h1>Summary - ${escapeHtml(selectedProjectName)}</h1>
-        <p>Issue Qty: ${totalIssueQty} | Return Qty: ${totalReturnQty}</p>
+        <h1>Projectwise Material Consumption Summary - ${escapeHtml(selectedProjectName)}</h1>
         <h2>Issue</h2>
         <table>
           <thead><tr><th>Issue Date</th><th>Firm</th><th>Issue To</th><th>Department</th><th>Item</th><th class="num">Qty</th></tr></thead>
@@ -207,15 +206,16 @@ export default function StockSummaryView() {
     <div className="space-y-4">
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
-          <div className="font-headline font-bold text-sm text-on-surface">Summary</div>
+          <div className="font-headline font-bold text-sm text-on-surface">Projectwise Material Consumption Summary</div>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-[460px] max-w-[calc(100vw-220px)]">
+            <div className="w-[620px] max-w-[calc(100vw-180px)]">
               <SearchableSelect
                 value={selectedProjectId}
                 options={projectOptions}
                 onChange={setSelectedProjectId}
                 placeholder="Select Project..."
                 allowClear
+                controlClassName="w-full min-h-[46px] bg-surface-container-lowest border border-outline-variant rounded-lg pl-3 pr-14 py-2 text-base text-left text-on-surface-variant outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15 whitespace-normal break-words leading-snug"
               />
             </div>
             <button type="button" className="btn btn-sm h-[38px] px-3 disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleDownloadExcel} disabled={!selectedProjectId} title="Download Excel">
@@ -235,17 +235,6 @@ export default function StockSummaryView() {
           </div>
         ) : (
           <div className="p-4 space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issue Qty</div>
-                <div className="text-lg font-semibold text-on-surface">{totalIssueQty}</div>
-              </div>
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Return Qty</div>
-                <div className="text-lg font-semibold text-on-surface">{totalReturnQty}</div>
-              </div>
-            </div>
-
             <section className="space-y-2">
               <div className="text-sm font-bold text-on-surface">Issue</div>
               <div className="overflow-x-auto">

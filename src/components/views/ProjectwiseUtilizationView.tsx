@@ -156,7 +156,6 @@ export default function ProjectwiseUtilizationView() {
         <head><meta charset="utf-8" /></head>
         <body>
           <h3>${escapeHtml(selectedRow.projectName)}</h3>
-          <p>Total Issue: ${selectedRow.totalIssue} | Total Return: ${selectedRow.totalReturn} | Utilization: ${selectedRow.utilization}</p>
           <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;">
             <thead>
               <tr style="background:#1d4ed8;color:#fff;text-transform:uppercase;font-size:11px;">
@@ -187,7 +186,7 @@ export default function ProjectwiseUtilizationView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${selectedRow.projectName.replace(/[^a-z0-9]+/gi, '_')}_utilization.xls`;
+    a.download = `${selectedRow.projectName.replace(/[^a-z0-9]+/gi, '_')}_consumption.xls`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -201,7 +200,7 @@ export default function ProjectwiseUtilizationView() {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>${escapeHtml(selectedRow.projectName)} Utilization</title>
+          <title>${escapeHtml(selectedRow.projectName)} Consumption</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 16px; }
             h1 { font-size: 16px; margin: 0 0 8px; }
@@ -214,7 +213,6 @@ export default function ProjectwiseUtilizationView() {
         </head>
         <body>
           <h1>${escapeHtml(selectedRow.projectName)}</h1>
-          <p>Total Issue: ${selectedRow.totalIssue} | Total Return: ${selectedRow.totalReturn} | Utilization: ${selectedRow.utilization}</p>
           <table>
             <thead>
               <tr>
@@ -253,7 +251,7 @@ export default function ProjectwiseUtilizationView() {
     <div className="space-y-4">
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
-          <div className="font-headline font-bold text-sm text-on-surface">Projectwise Utilization</div>
+          <div className="font-headline font-bold text-sm text-on-surface">Projectwise Consumption</div>
           <div className="flex items-center gap-2">
             <div className="w-[460px] max-w-[calc(100vw-220px)]">
               <SearchableSelect
@@ -293,21 +291,6 @@ export default function ProjectwiseUtilizationView() {
           </div>
         ) : (
           <div className="p-4 space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Total Issue</div>
-                <div className="text-lg font-semibold text-on-surface">{selectedRow.totalIssue}</div>
-              </div>
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Total Return</div>
-                <div className="text-lg font-semibold text-on-surface">{selectedRow.totalReturn}</div>
-              </div>
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Utilization</div>
-                <div className="text-lg font-semibold text-on-surface">{selectedRow.utilization}</div>
-              </div>
-            </div>
-
             <table className="project-utilization-items-table w-full text-sm border-2 border-outline-variant rounded-lg overflow-hidden border-collapse outline outline-1 outline-outline-variant">
               <thead>
                 <tr className="text-left text-[10px] font-bold uppercase tracking-wider">

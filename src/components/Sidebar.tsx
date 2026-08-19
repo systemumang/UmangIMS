@@ -94,8 +94,8 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'returnMaster', label: 'Return Master' },
   { key: 'damageMaster', label: 'Damage Master' },
   { key: 'transferMaster', label: 'Transfer Master' },
-  { key: 'projectUtilization', label: 'Projectwise Utilization' },
-  { key: 'stockSummary', label: 'Summary' },
+  { key: 'projectUtilization', label: 'Projectwise Consumption' },
+  { key: 'stockSummary', label: 'Projectwise Material Consumption Summary' },
 ];
 
 export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
