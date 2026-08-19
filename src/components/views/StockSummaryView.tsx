@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { listIssues, listReturns, type StockTransaction } from '@/src/lib/stockMaster';
-import { fetchFirms, fetchProjects, fetchStores, type Firm, type Project, type Store } from '@/src/lib/masters';
+import { fetchFirms, fetchItems, fetchProjects, fetchStores, type Firm, type Item, type Project, type Store } from '@/src/lib/masters';
 
 type SummaryLine = {
   id: string;
@@ -13,6 +13,7 @@ type SummaryLine = {
   storeName?: string;
   receivedBy?: string;
   item: string;
+  unit: string;
   qty: number;
   remarks: string;
 };
@@ -46,6 +47,7 @@ export default function StockSummaryView() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -58,14 +60,16 @@ export default function StockSummaryView() {
       fetchFirms().catch(() => []),
       fetchProjects().catch(() => []),
       fetchStores().catch(() => []),
+      fetchItems().catch(() => []),
     ])
-      .then(([issueRows, returnRows, firmRows, projectRows, storeRows]) => {
+      .then(([issueRows, returnRows, firmRows, projectRows, storeRows, itemRows]) => {
         if (!active) return;
         setIssues(issueRows);
         setReturns(returnRows);
         setFirms(firmRows);
         setProjects(projectRows);
         setStores(storeRows);
+        setItems(itemRows);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -77,6 +81,16 @@ export default function StockSummaryView() {
 
   const firmNameById = useMemo(() => new Map(firms.map((f) => [f.id, f.name])), [firms]);
   const storeNameById = useMemo(() => new Map(stores.map((s) => [s.id, s.name])), [stores]);
+
+  const getItemUnit = (itemId?: string, itemValue?: string) => {
+    const id = String(itemId ?? '').trim();
+    const raw = String(itemValue ?? '').trim();
+    const masterItem =
+      items.find((it) => it.id === id) ??
+      items.find((it) => String(it.itemCode ?? '').trim() === raw) ??
+      items.find((it) => String(it.itemName ?? '').trim().toLowerCase() === raw.toLowerCase());
+    return String(masterItem?.unit ?? '').trim() || '-';
+  };
 
   const projectIdsWithRows = useMemo(() => {
     const ids = new Set<string>();
@@ -117,12 +131,13 @@ export default function StockSummaryView() {
                 issueTo: tx.issuedTo || selectedProjectName || '-',
                 department: tx.department || '-',
                 item: it.item || '-',
+                unit: getItemUnit(it.itemId, it.item),
                 qty: Number(it.quantity) || 0,
                 remarks: it.remark || '',
               }))
             )
             .sort((a, b) => b.date.localeCompare(a.date) || a.firm.localeCompare(b.firm)),
-    [issues, firmNameById, selectedProjectId, selectedProjectName]
+    [issues, firmNameById, selectedProjectId, selectedProjectName, items]
   );
 
   const returnLines = useMemo<SummaryLine[]>(
@@ -140,12 +155,13 @@ export default function StockSummaryView() {
                 storeName: tx.store || (tx.storeId ? storeNameById.get(tx.storeId) : '') || '-',
                 receivedBy: tx.person || tx.approvedBy || '-',
                 item: it.item || '-',
+                unit: getItemUnit(it.itemId, it.item),
                 qty: Number(it.quantity) || 0,
                 remarks: it.remark || '',
               }))
             )
             .sort((a, b) => b.date.localeCompare(a.date) || a.firm.localeCompare(b.firm)),
-    [returns, firmNameById, storeNameById, selectedProjectId]
+    [returns, firmNameById, storeNameById, selectedProjectId, items]
   );
 
   const totalIssueQty = issueLines.reduce((sum, row) => sum + row.qty, 0);
@@ -172,6 +188,7 @@ export default function StockSummaryView() {
         { value: 'Issue To' },
         { value: 'Department' },
         { value: 'Item' },
+        { value: 'Unit' },
         { value: 'Qty' },
       ]),
       ...(issueLines.length
@@ -182,6 +199,7 @@ export default function StockSummaryView() {
               { value: r.issueTo ?? '' },
               { value: r.department },
               { value: r.item },
+              { value: r.unit },
               { value: r.qty, type: 'Number' },
             ])
           )
@@ -196,6 +214,7 @@ export default function StockSummaryView() {
         { value: 'Store Name' },
         { value: 'Received By' },
         { value: 'Item' },
+        { value: 'Unit' },
         { value: 'Qty' },
         { value: 'Remarks' },
       ]),
@@ -208,6 +227,7 @@ export default function StockSummaryView() {
               { value: r.storeName ?? '' },
               { value: r.receivedBy ?? '' },
               { value: r.item },
+              { value: r.unit },
               { value: r.qty, type: 'Number' },
               { value: r.remarks || '-' },
             ])
@@ -249,16 +269,16 @@ export default function StockSummaryView() {
         <h1>Projectwise Material Consumption Summary - ${escapeHtml(selectedProjectName)}</h1>
         <h2>Issue</h2>
         <table>
-          <thead><tr><th>Issue Date</th><th>Firm</th><th>Issue To</th><th>Department</th><th>Item</th><th class="num">Qty</th></tr></thead>
+          <thead><tr><th>Issue Date</th><th>Firm</th><th>Issue To</th><th>Department</th><th>Item</th><th>Unit</th><th class="num">Qty</th></tr></thead>
           <tbody>
-            ${issueLines.length ? issueLines.map((r) => `<tr><td>${formatDate(r.date)}</td><td>${escapeHtml(r.firm)}</td><td>${escapeHtml(r.issueTo)}</td><td>${escapeHtml(r.department)}</td><td>${escapeHtml(r.item)}</td><td class="num">${r.qty}</td></tr>`).join('') : '<tr><td colspan="6">No issue rows found.</td></tr>'}
+            ${issueLines.length ? issueLines.map((r) => `<tr><td>${formatDate(r.date)}</td><td>${escapeHtml(r.firm)}</td><td>${escapeHtml(r.issueTo)}</td><td>${escapeHtml(r.department)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.unit)}</td><td class="num">${r.qty}</td></tr>`).join('') : '<tr><td colspan="7">No issue rows found.</td></tr>'}
           </tbody>
         </table>
         <h2>Return</h2>
         <table>
-          <thead><tr><th>Date</th><th>Firm</th><th>Department</th><th>Store Name</th><th>Received By</th><th>Item</th><th class="num">Qty</th><th>Remarks</th></tr></thead>
+          <thead><tr><th>Date</th><th>Firm</th><th>Department</th><th>Store Name</th><th>Received By</th><th>Item</th><th>Unit</th><th class="num">Qty</th><th>Remarks</th></tr></thead>
           <tbody>
-            ${returnLines.length ? returnLines.map((r) => `<tr><td>${formatDate(r.date)}</td><td>${escapeHtml(r.firm)}</td><td>${escapeHtml(r.department)}</td><td>${escapeHtml(r.storeName)}</td><td>${escapeHtml(r.receivedBy)}</td><td>${escapeHtml(r.item)}</td><td class="num">${r.qty}</td><td>${escapeHtml(r.remarks || '-')}</td></tr>`).join('') : '<tr><td colspan="8">No return rows found.</td></tr>'}
+            ${returnLines.length ? returnLines.map((r) => `<tr><td>${formatDate(r.date)}</td><td>${escapeHtml(r.firm)}</td><td>${escapeHtml(r.department)}</td><td>${escapeHtml(r.storeName)}</td><td>${escapeHtml(r.receivedBy)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.unit)}</td><td class="num">${r.qty}</td><td>${escapeHtml(r.remarks || '-')}</td></tr>`).join('') : '<tr><td colspan="9">No return rows found.</td></tr>'}
           </tbody>
         </table>
       </body>
@@ -331,12 +351,13 @@ export default function StockSummaryView() {
                       <th className={headerClass} style={headerStyle}>Issue To</th>
                       <th className={headerClass} style={headerStyle}>Department</th>
                       <th className={headerClass} style={headerStyle}>Item</th>
+                      <th className={headerClass} style={headerStyle}>Unit</th>
                       <th className={`${headerClass} text-right`} style={headerStyle}>Qty</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading || issueLines.length === 0 ? (
-                      <tr><td colSpan={6} className={`${cellClass} text-center`}>{loading ? 'Loading...' : 'No issue rows found.'}</td></tr>
+                      <tr><td colSpan={7} className={`${cellClass} text-center`}>{loading ? 'Loading...' : 'No issue rows found.'}</td></tr>
                     ) : issueLines.map((row) => (
                       <tr key={row.id}>
                         <td className={cellClass}>{formatDate(row.date)}</td>
@@ -344,6 +365,7 @@ export default function StockSummaryView() {
                         <td className={cellClass}>{row.issueTo}</td>
                         <td className={cellClass}>{row.department}</td>
                         <td className={cellClass}>{row.item}</td>
+                        <td className={cellClass}>{row.unit}</td>
                         <td className={`${cellClass} text-right font-semibold`}>{row.qty}</td>
                       </tr>
                     ))}
@@ -364,13 +386,14 @@ export default function StockSummaryView() {
                       <th className={headerClass} style={headerStyle}>Store Name</th>
                       <th className={headerClass} style={headerStyle}>Received By</th>
                       <th className={headerClass} style={headerStyle}>Item</th>
+                      <th className={headerClass} style={headerStyle}>Unit</th>
                       <th className={`${headerClass} text-right`} style={headerStyle}>Qty</th>
                       <th className={headerClass} style={headerStyle}>Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading || returnLines.length === 0 ? (
-                      <tr><td colSpan={8} className={`${cellClass} text-center`}>{loading ? 'Loading...' : 'No return rows found.'}</td></tr>
+                      <tr><td colSpan={9} className={`${cellClass} text-center`}>{loading ? 'Loading...' : 'No return rows found.'}</td></tr>
                     ) : returnLines.map((row) => (
                       <tr key={row.id}>
                         <td className={cellClass}>{formatDate(row.date)}</td>
@@ -379,6 +402,7 @@ export default function StockSummaryView() {
                         <td className={cellClass}>{row.storeName}</td>
                         <td className={cellClass}>{row.receivedBy}</td>
                         <td className={cellClass}>{row.item}</td>
+                        <td className={cellClass}>{row.unit}</td>
                         <td className={`${cellClass} text-right font-semibold`}>{row.qty}</td>
                         <td className={cellClass}>{row.remarks || '-'}</td>
                       </tr>

@@ -7,6 +7,7 @@ import { fetchItems, fetchProjects, type Item, type Project } from '@/src/lib/ma
 type ItemUtilization = {
   itemKey: string;
   label: string;
+  unit: string;
   issueQty: number;
   returnQty: number;
   balanceQty: number;
@@ -73,6 +74,16 @@ export default function ProjectwiseUtilizationView() {
     );
   };
 
+  const getItemUnit = (itemId?: string, itemValue?: string) => {
+    const id = String(itemId ?? '').trim();
+    const raw = String(itemValue ?? '').trim();
+    const masterItem =
+      items.find((it) => it.id === id) ??
+      items.find((it) => String(it.itemCode ?? '').trim() === raw) ??
+      items.find((it) => String(it.itemName ?? '').trim().toLowerCase() === raw.toLowerCase());
+    return String(masterItem?.unit ?? '').trim() || '-';
+  };
+
   const getProjectName = (projectId?: string | null) => {
     const raw = String(projectId ?? '').trim();
     if (!raw) return '';
@@ -109,7 +120,7 @@ export default function ProjectwiseUtilizationView() {
           totalIssue += qty;
           const key = String(it.itemId ?? '').trim() || it.item;
           if (!itemMap.has(key)) {
-            itemMap.set(key, { itemKey: key, label: getItemLabel(it.itemId, it.item), issueQty: 0, returnQty: 0, balanceQty: 0 });
+            itemMap.set(key, { itemKey: key, label: getItemLabel(it.itemId, it.item), unit: getItemUnit(it.itemId, it.item), issueQty: 0, returnQty: 0, balanceQty: 0 });
           }
           itemMap.get(key)!.issueQty += qty;
         }
@@ -120,7 +131,7 @@ export default function ProjectwiseUtilizationView() {
           totalReturn += qty;
           const key = String(it.itemId ?? '').trim() || it.item;
           if (!itemMap.has(key)) {
-            itemMap.set(key, { itemKey: key, label: getItemLabel(it.itemId, it.item), issueQty: 0, returnQty: 0, balanceQty: 0 });
+            itemMap.set(key, { itemKey: key, label: getItemLabel(it.itemId, it.item), unit: getItemUnit(it.itemId, it.item), issueQty: 0, returnQty: 0, balanceQty: 0 });
           }
           itemMap.get(key)!.returnQty += qty;
         }
@@ -160,6 +171,7 @@ export default function ProjectwiseUtilizationView() {
             <thead>
               <tr style="background:#1d4ed8;color:#fff;text-transform:uppercase;font-size:11px;">
                 <th style="text-align:left;">Items</th>
+                <th style="text-align:left;">Unit</th>
                 <th style="text-align:right;">Issue</th>
                 <th style="text-align:right;">Return</th>
                 <th style="text-align:right;">Consumed</th>
@@ -171,6 +183,7 @@ export default function ProjectwiseUtilizationView() {
                   (it) => `
                 <tr>
                   <td>${escapeHtml(it.label)}</td>
+                  <td>${escapeHtml(it.unit)}</td>
                   <td style="text-align:right;">${it.issueQty}</td>
                   <td style="text-align:right;">${it.returnQty}</td>
                   <td style="text-align:right;">${it.balanceQty}</td>
@@ -217,6 +230,7 @@ export default function ProjectwiseUtilizationView() {
             <thead>
               <tr>
                 <th>Items</th>
+                <th>Unit</th>
                 <th class="num">Issue</th>
                 <th class="num">Return</th>
                 <th class="num">Consumed</th>
@@ -228,6 +242,7 @@ export default function ProjectwiseUtilizationView() {
                   (it) => `
                 <tr>
                   <td>${escapeHtml(it.label)}</td>
+                  <td>${escapeHtml(it.unit)}</td>
                   <td class="num">${it.issueQty}</td>
                   <td class="num">${it.returnQty}</td>
                   <td class="num">${it.balanceQty}</td>
@@ -296,6 +311,7 @@ export default function ProjectwiseUtilizationView() {
               <thead>
                 <tr className="text-left text-[10px] font-bold uppercase tracking-wider">
                   <th className="px-3 py-2 border border-outline-variant bg-white !text-black !opacity-100">Items</th>
+                  <th className="px-3 py-2 border border-outline-variant bg-white !text-black !opacity-100">Unit</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Issue</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Return</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Consumed</th>
@@ -304,7 +320,7 @@ export default function ProjectwiseUtilizationView() {
               <tbody>
                 {selectedRow.items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-center text-on-surface-variant border border-outline-variant">
+                    <td colSpan={5} className="px-3 py-4 text-center text-on-surface-variant border border-outline-variant">
                       No items found.
                     </td>
                   </tr>
@@ -312,6 +328,7 @@ export default function ProjectwiseUtilizationView() {
                   selectedRow.items.map((it) => (
                     <tr key={it.itemKey}>
                       <td className="px-3 py-2 border border-outline-variant bg-blue-50/40">{it.label}</td>
+                      <td className="px-3 py-2 border border-outline-variant bg-slate-50/60">{it.unit}</td>
                       <td className="px-3 py-2 text-right border border-outline-variant bg-amber-50/40">{it.issueQty}</td>
                       <td className="px-3 py-2 text-right border border-outline-variant bg-emerald-50/40">{it.returnQty}</td>
                       <td className="px-3 py-2 text-right font-semibold border border-outline-variant bg-rose-50/40">{it.balanceQty}</td>
