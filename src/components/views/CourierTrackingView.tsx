@@ -93,7 +93,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
 
   const inputClass = 'w-full h-10 rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary';
   const labelClass = 'text-[10px] font-bold uppercase tracking-wider text-on-surface-variant';
-  const thClass = 'px-3 py-2 border border-outline-variant bg-black text-white text-[10px] font-bold uppercase tracking-wider whitespace-nowrap';
+  const thClass = 'px-3 py-2 border border-outline-variant bg-black text-white text-[10px] font-bold uppercase tracking-wider whitespace-normal leading-tight';
   const tdClass = 'px-3 py-2 border border-outline-variant text-sm align-top';
 
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ value: s.id, label: s.name })), [suppliers]);
@@ -248,21 +248,21 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         {error ? <div className="m-4 text-sm text-error bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div> : null}
 
         <div className="p-4 overflow-x-auto">
-          <table className="w-full min-w-[1500px] border-2 border-outline-variant border-collapse table-fixed">
+          <table className="w-full min-w-[1780px] border-2 border-outline-variant border-collapse table-fixed">
             <thead>
               <tr>
-                <th className={thClass}>Date</th>
-                <th className={thClass}>Courier No.</th>
-                <th className={thClass}>Courier Company</th>
-                <th className={thClass}>Supplier</th>
-                <th className={`${thClass} w-[280px]`}>Project No</th>
-                <th className={thClass}>PO No.</th>
-                <th className={thClass}>Courier Copy</th>
-                <th className={thClass}>Expected Date</th>
-                <th className={thClass}>Status</th>
-                <th className={thClass}>Last Update Date</th>
-                <th className={thClass}>Last Update By</th>
-                <th className={thClass}>Last Update Remarks</th>
+                <th className={`${thClass} w-[110px]`}>Date</th>
+                <th className={`${thClass} w-[120px]`}>Courier No.</th>
+                <th className={`${thClass} w-[150px]`}>Courier Company</th>
+                <th className={`${thClass} w-[180px]`}>Supplier</th>
+                <th className={`${thClass} w-[360px]`}>Project No</th>
+                <th className={`${thClass} w-[140px]`}>PO No.</th>
+                <th className={`${thClass} w-[120px]`}>Courier Copy</th>
+                <th className={`${thClass} w-[120px]`}>Expected Date</th>
+                <th className={`${thClass} w-[120px]`}>Status</th>
+                <th className={`${thClass} w-[130px]`}>Last Update Date</th>
+                <th className={`${thClass} w-[130px]`}>Last Update By</th>
+                <th className={`${thClass} w-[180px]`}>Last Update Remarks</th>
                 <th className={`${thClass} w-[96px]`}>Action</th>
               </tr>
             </thead>
@@ -277,7 +277,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={`${tdClass} font-semibold`}>{row.courierNo}</td>
                   <td className={tdClass}>{row.courierCompany || '-'}</td>
                   <td className={tdClass}>{row.supplierName || row.supplierId || '-'}</td>
-                  <td className={`${tdClass} w-[280px] whitespace-normal break-words`}>{row.projectName || row.projectId || '-'}</td>
+                  <td className={`${tdClass} w-[360px] whitespace-normal break-words`}>{row.projectName || row.projectId || '-'}</td>
                   <td className={tdClass}>{row.poNumber || row.poId || '-'}</td>
                   <td className={tdClass}>{row.courierCopyUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(row.courierCopyUrl))}>View</button> : '-'}</td>
                   <td className={tdClass}>{formatDate(row.expectedDate)}</td>

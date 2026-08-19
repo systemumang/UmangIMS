@@ -68,11 +68,17 @@
 			    @apply font-bold;
 	        border-color: #1f2937 !important;
 	        border-bottom: 2px solid #111827 !important;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
 			  }
 
 			  table td {
 			    @apply font-semibold;
 	        border-color: #374151 !important;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
 			  }
 
 		  /* Projectwise Utilization item breakdown table: white header bg with black text. */
