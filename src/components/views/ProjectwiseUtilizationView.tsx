@@ -205,10 +205,10 @@ export default function ProjectwiseUtilizationView() {
                             <table className="w-full text-sm border-2 border-outline-variant rounded-lg overflow-hidden border-collapse outline outline-1 outline-outline-variant">
                               <thead>
                                 <tr className="text-left text-[10px] font-bold uppercase tracking-wider">
-                                  <th className="px-3 py-2 border border-outline-variant bg-blue-50 text-slate-700">Items</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-amber-50 text-slate-700">Issue</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-emerald-50 text-slate-700">Return</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-rose-50 text-slate-700">Balance</th>
+                                  <th className="px-3 py-2 border border-outline-variant bg-blue-50 !text-slate-700 !opacity-100">Items</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-amber-50 !text-slate-700 !opacity-100">Issue</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-emerald-50 !text-slate-700 !opacity-100">Return</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-rose-50 !text-slate-700 !opacity-100">Balance</th>
                                 </tr>
                               </thead>
                               <tbody>
