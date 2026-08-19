@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Eye, FileText, Pencil, Plus, RefreshCw, Upload } from 'lucide-react';
+import { Eye, FileText, Pencil, Plus, Upload } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { fetchProjects, fetchSuppliers, type Project, type Supplier } from '@/src/lib/masters';
 import { fetchOperationsPos, type OperationsPoListRow } from '@/src/lib/operations';
@@ -215,9 +215,6 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <div className="text-xs text-on-surface-variant">Courier Tracking</div>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="btn btn-sm" onClick={loadRows} disabled={loading} title="Refresh">
-              <RefreshCw size={15} className="mr-1" /> Refresh
-            </button>
             {mode === 'all' ? (
               <button type="button" className="btn-primary btn-sm" onClick={() => { resetAddForm(); setAddOpen(true); }}>
                 <Plus size={15} className="mr-1" /> Add Courier
