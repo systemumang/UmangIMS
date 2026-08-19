@@ -27,6 +27,9 @@ export type CourierUpdateRow = {
   updatedBy: string;
   status: CourierStatus;
   remarks?: string;
+  updatePhotoUrl?: string;
+  receivedBy?: string;
+  receivedDate?: string;
   createdAt?: string;
 };
 
@@ -85,7 +88,7 @@ export async function fetchCourierUpdates(courierId: string, signal?: AbortSigna
 
 export async function addCourierUpdate(
   courierId: string,
-  input: { updateDate: string; updatedBy: string; status: CourierStatus; remarks?: string }
+  input: { updateDate: string; updatedBy: string; status: CourierStatus; remarks?: string; updatePhotoUrl?: string; receivedBy?: string; receivedDate?: string }
 ): Promise<CourierRow> {
   const res = await fetch(`/api/couriers/${encodeURIComponent(courierId)}/updates`, {
     method: 'POST',

@@ -85,6 +85,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const [updatedBy, setUpdatedBy] = useState(currentUserName || '');
   const [updateStatus, setUpdateStatus] = useState<CourierStatus>('In Progress');
   const [remarks, setRemarks] = useState('');
+  const [updatePhotoUrl, setUpdatePhotoUrl] = useState('');
+  const [updatePhotoName, setUpdatePhotoName] = useState('');
+  const [receivedBy, setReceivedBy] = useState('');
+  const [receivedDate, setReceivedDate] = useState(todayIso());
 
   const inputClass = 'w-full h-10 rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary';
   const labelClass = 'text-[10px] font-bold uppercase tracking-wider text-on-surface-variant';
@@ -140,6 +144,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     setUpdatedBy(currentUserName || row.lastUpdateBy || '');
     setUpdateStatus(row.status || 'In Progress');
     setRemarks('');
+    setUpdatePhotoUrl('');
+    setUpdatePhotoName('');
+    setReceivedBy('');
+    setReceivedDate(todayIso());
     setFormError(null);
   };
 
@@ -186,9 +194,20 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     setFormError(null);
     if (!updateDate) return setFormError('Update Date is required.');
     if (!updatedBy.trim()) return setFormError('Update By is required.');
+    if (updateStatus === 'In Progress' && !remarks.trim()) return setFormError('Remarks are required for In Progress status.');
+    if (updateStatus === 'Received' && !receivedBy.trim()) return setFormError('Received By is required for Received status.');
+    if (updateStatus === 'Received' && !receivedDate) return setFormError('Received Date is required for Received status.');
     setSaving(true);
     try {
-      await addCourierUpdate(updateFor.id, { updateDate, updatedBy: updatedBy.trim(), status: updateStatus, remarks: remarks.trim() });
+      await addCourierUpdate(updateFor.id, {
+        updateDate,
+        updatedBy: updatedBy.trim(),
+        status: updateStatus,
+        remarks: remarks.trim(),
+        updatePhotoUrl: updatePhotoUrl || undefined,
+        receivedBy: updateStatus === 'Received' ? receivedBy.trim() : undefined,
+        receivedDate: updateStatus === 'Received' ? receivedDate : undefined,
+      });
       setUpdateFor(null);
       loadRows();
     } catch (e) {
@@ -324,7 +343,43 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <label className="space-y-1"><div className={labelClass}>Update Date</div><input className={inputClass} type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} /></label>
             <label className="space-y-1"><div className={labelClass}>Update By</div><input className={inputClass} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)} /></label>
             <label className="space-y-1"><div className={labelClass}>Status</div><select className={inputClass} value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value as CourierStatus)}>{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
-            <label className="space-y-1 md:col-span-2"><div className={labelClass}>Remarks</div><textarea className="w-full min-h-[110px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary" value={remarks} onChange={(e) => setRemarks(e.target.value)} /></label>
+            {updateStatus === 'Received' ? (
+              <>
+                <label className="space-y-1"><div className={labelClass}>Received By</div><input className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} /></label>
+                <label className="space-y-1"><div className={labelClass}>Received Date</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
+              </>
+            ) : null}
+            <div className="space-y-1 md:col-span-2">
+              <div className={labelClass}>Update Photo</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="btn btn-sm cursor-pointer select-none">
+                  <Upload size={14} className="mr-1" /> Upload
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setSaving(true);
+                      setFormError(null);
+                      try {
+                        const { url } = await uploadFileToServer(file);
+                        setUpdatePhotoUrl(url);
+                        setUpdatePhotoName(file.name);
+                      } catch (err) {
+                        setFormError(err instanceof Error ? err.message : String(err));
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  />
+                </label>
+                <span className="text-sm text-on-surface-variant">{updatePhotoName || (updatePhotoUrl ? 'Uploaded' : 'No file chosen')}</span>
+                {updatePhotoUrl ? <button type="button" className="btn btn-sm" onClick={() => openDocument(fileHref(updatePhotoUrl))}><FileText size={14} className="mr-1" /> View</button> : null}
+              </div>
+            </div>
+            <label className="space-y-1 md:col-span-2"><div className={labelClass}>Remarks{updateStatus === 'In Progress' ? ' *' : ''}</div><textarea className="w-full min-h-[110px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary" value={remarks} onChange={(e) => setRemarks(e.target.value)} /></label>
           </div>
           {formError ? <div className="mt-4 text-sm text-error bg-red-50 border border-red-200 rounded-md px-3 py-2">{formError}</div> : null}
           <div className="mt-5 flex justify-end gap-2"><button type="button" className="btn" onClick={() => setUpdateFor(null)}>Cancel</button><button type="button" className="btn-primary" onClick={submitUpdate} disabled={saving}>{saving ? 'Saving...' : 'Save Update'}</button></div>
@@ -339,10 +394,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <div><span className="font-semibold">Expected:</span> {formatDate(detailsFor.expectedDate)}</div>
           </div>
           <table className="w-full min-w-[720px] border-2 border-outline-variant border-collapse">
-            <thead><tr><th className={thClass}>Update Date</th><th className={thClass}>Update By</th><th className={thClass}>Status</th><th className={thClass}>Remarks</th></tr></thead>
+            <thead><tr><th className={thClass}>Update Date</th><th className={thClass}>Update By</th><th className={thClass}>Status</th><th className={thClass}>Received By</th><th className={thClass}>Received Date</th><th className={thClass}>Update Photo</th><th className={thClass}>Remarks</th></tr></thead>
             <tbody>
-              {updatesLoading ? <tr><td className={`${tdClass} text-center`} colSpan={4}>Loading...</td></tr> : updates.length === 0 ? <tr><td className={`${tdClass} text-center`} colSpan={4}>No updates found.</td></tr> : updates.map((u) => (
-                <tr key={u.id}><td className={tdClass}>{formatDate(u.updateDate)}</td><td className={tdClass}>{u.updatedBy}</td><td className={tdClass}>{u.status}</td><td className={`${tdClass} whitespace-pre-wrap`}>{u.remarks || '-'}</td></tr>
+              {updatesLoading ? <tr><td className={`${tdClass} text-center`} colSpan={7}>Loading...</td></tr> : updates.length === 0 ? <tr><td className={`${tdClass} text-center`} colSpan={7}>No updates found.</td></tr> : updates.map((u) => (
+                <tr key={u.id}><td className={tdClass}>{formatDate(u.updateDate)}</td><td className={tdClass}>{u.updatedBy}</td><td className={tdClass}>{u.status}</td><td className={tdClass}>{u.receivedBy || '-'}</td><td className={tdClass}>{formatDate(u.receivedDate)}</td><td className={tdClass}>{u.updatePhotoUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(u.updatePhotoUrl))}>View</button> : '-'}</td><td className={`${tdClass} whitespace-pre-wrap`}>{u.remarks || '-'}</td></tr>
               ))}
             </tbody>
           </table>
