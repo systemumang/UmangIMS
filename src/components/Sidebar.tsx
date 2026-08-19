@@ -124,6 +124,7 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'material', label: 'Material' },
   { key: 'operations', label: 'Purchase Masters' },
   { key: 'quotation', label: 'Quotation' },
+  { key: 'courierTracking', label: 'Courier Tracking' },
   { key: 'settings', label: 'Settings' },
 ];
 
