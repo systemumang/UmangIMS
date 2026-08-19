@@ -31,6 +31,15 @@ function escapeHtml(value: unknown) {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function escapeXml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 export default function StockSummaryView() {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [returns, setReturns] = useState<StockTransaction[]>([]);
@@ -145,6 +154,82 @@ export default function StockSummaryView() {
   const headerStyle = { color: '#ffffff', opacity: 1 } as const;
   const cellClass = 'px-3 py-2 border border-outline-variant text-on-surface-variant align-top';
 
+  const buildExcelWorkbookXml = () => {
+    const cell = (value: unknown, type: 'String' | 'Number' = 'String') =>
+      `<Cell><Data ss:Type="${type}">${escapeXml(value)}</Data></Cell>`;
+    const row = (values: Array<{ value: unknown; type?: 'String' | 'Number' }>) =>
+      `<Row>${values.map((v) => cell(v.value, v.type ?? 'String')).join('')}</Row>`;
+    const worksheet = (name: string, rows: string[]) => `
+      <Worksheet ss:Name="${escapeXml(name)}">
+        <Table>${rows.join('')}</Table>
+      </Worksheet>
+    `;
+
+    const issueRows = [
+      row([
+        { value: 'Issue Date' },
+        { value: 'Firm' },
+        { value: 'Issue To' },
+        { value: 'Department' },
+        { value: 'Item' },
+        { value: 'Qty' },
+      ]),
+      ...(issueLines.length
+        ? issueLines.map((r) =>
+            row([
+              { value: formatDate(r.date) },
+              { value: r.firm },
+              { value: r.issueTo ?? '' },
+              { value: r.department },
+              { value: r.item },
+              { value: r.qty, type: 'Number' },
+            ])
+          )
+        : [row([{ value: 'No issue rows found.' }])]),
+    ];
+
+    const returnRows = [
+      row([
+        { value: 'Date' },
+        { value: 'Firm' },
+        { value: 'Department' },
+        { value: 'Store Name' },
+        { value: 'Received By' },
+        { value: 'Item' },
+        { value: 'Qty' },
+        { value: 'Remarks' },
+      ]),
+      ...(returnLines.length
+        ? returnLines.map((r) =>
+            row([
+              { value: formatDate(r.date) },
+              { value: r.firm },
+              { value: r.department },
+              { value: r.storeName ?? '' },
+              { value: r.receivedBy ?? '' },
+              { value: r.item },
+              { value: r.qty, type: 'Number' },
+              { value: r.remarks || '-' },
+            ])
+          )
+        : [row([{ value: 'No return rows found.' }])]),
+    ];
+
+    return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+  </Styles>
+  ${worksheet('Issue', issueRows)}
+  ${worksheet('Return', returnRows)}
+</Workbook>`;
+  };
+
   const buildExportHtml = () => `
     <html>
       <head>
@@ -182,7 +267,7 @@ export default function StockSummaryView() {
 
   const handleDownloadExcel = () => {
     if (!selectedProjectId) return;
-    const blob = new Blob([buildExportHtml()], { type: 'application/vnd.ms-excel' });
+    const blob = new Blob([buildExcelWorkbookXml()], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
