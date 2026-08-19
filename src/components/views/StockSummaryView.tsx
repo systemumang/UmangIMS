@@ -141,8 +141,8 @@ export default function StockSummaryView() {
 
   const totalIssueQty = issueLines.reduce((sum, row) => sum + row.qty, 0);
   const totalReturnQty = returnLines.reduce((sum, row) => sum + row.qty, 0);
-  const headerClass = 'px-3 py-2 border border-outline-variant bg-white text-[10px] font-bold uppercase tracking-wider';
-  const headerStyle = { color: '#000000', opacity: 1 } as const;
+  const headerClass = 'px-3 py-2 border border-outline-variant bg-black text-[10px] font-bold uppercase tracking-wider';
+  const headerStyle = { color: '#ffffff', opacity: 1 } as const;
   const cellClass = 'px-3 py-2 border border-outline-variant text-on-surface-variant align-top';
 
   const buildExportHtml = () => `
