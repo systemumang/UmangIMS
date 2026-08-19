@@ -277,7 +277,9 @@ export default function Sidebar({
 			    return false;
 			  };
 
-	  const borderClass = 'border-2 border-[#1f2937]';
+	  const stockViewsWithoutCounts = new Set<NavView>(['inventory', 'projectUtilization', 'stockSummary']);
+
+  const borderClass = 'border-2 border-[#1f2937]';
 	  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;
 	  const sectionRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
 	  const viewRowClass = cn(baseRowClass, 'bg-[#3b82f6] text-white hover:bg-[#60a5fa] border-[#1f2937]');
@@ -412,9 +414,11 @@ export default function Sidebar({
                       )}
                         {it.label}
                       </span>
-                      <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
-                        {Number(stockCounts?.[it.key as StockCountKey] ?? 0)}
-                      </span>
+                      {!stockViewsWithoutCounts.has(it.key) ? (
+                        <span className="inline-flex min-w-[20px] h-5 px-1.5 items-center justify-center rounded bg-primary/15 text-on-surface text-[11px] font-bold">
+                          {Number(stockCounts?.[it.key as StockCountKey] ?? 0)}
+                        </span>
+                      ) : null}
                     </span>
                   </button>
 	                ))}

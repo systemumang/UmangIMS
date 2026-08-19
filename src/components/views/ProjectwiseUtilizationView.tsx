@@ -162,7 +162,7 @@ export default function ProjectwiseUtilizationView() {
                 <th style="text-align:left;">Items</th>
                 <th style="text-align:right;">Issue</th>
                 <th style="text-align:right;">Return</th>
-                <th style="text-align:right;">Consume</th>
+                <th style="text-align:right;">Consumed</th>
               </tr>
             </thead>
             <tbody>
@@ -219,7 +219,7 @@ export default function ProjectwiseUtilizationView() {
                 <th>Items</th>
                 <th class="num">Issue</th>
                 <th class="num">Return</th>
-                <th class="num">Consume</th>
+                <th class="num">Consumed</th>
               </tr>
             </thead>
             <tbody>
@@ -253,13 +253,14 @@ export default function ProjectwiseUtilizationView() {
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
           <div className="font-headline font-bold text-sm text-on-surface">Projectwise Consumption</div>
           <div className="flex items-center gap-2">
-            <div className="w-[460px] max-w-[calc(100vw-220px)]">
+            <div className="w-[620px] max-w-[calc(100vw-180px)]">
               <SearchableSelect
                 value={selectedProjectId}
                 options={projectOptions}
                 onChange={setSelectedProjectId}
                 placeholder="Select Project..."
                 allowClear
+                controlClassName="w-full min-h-[46px] bg-surface-container-lowest border border-outline-variant rounded-lg pl-3 pr-14 py-2 text-base text-left text-on-surface-variant outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15 whitespace-normal break-words leading-snug"
               />
             </div>
             <button
@@ -297,7 +298,7 @@ export default function ProjectwiseUtilizationView() {
                   <th className="px-3 py-2 border border-outline-variant bg-white !text-black !opacity-100">Items</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Issue</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Return</th>
-                  <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Consume</th>
+                  <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Consumed</th>
                 </tr>
               </thead>
               <tbody>
