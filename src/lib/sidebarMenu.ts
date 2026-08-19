@@ -5,6 +5,7 @@ import {
   purchaseMastersMenuItems,
   quotationMenuItems,
   reportsMenuItems,
+  courierMenuItems,
   settingsMenuItems,
   stockMenuItems,
   topLevelMenuItems,
@@ -46,6 +47,9 @@ export function getSidebarPermissionItems(): SidebarPermissionItem[] {
 
   // Quotation submenu
   for (const q of quotationMenuItems) push(`quotation:${q.key}`, q.label);
+
+  // Courier Tracking submenu
+  for (const c of courierMenuItems) push(`courier:${c.key}`, c.label);
 
   // Reports submenu
   for (const r of reportsMenuItems) push(`reports:${r.key}`, r.label);

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Package,
   BarChart3,
+  MapPinned,
   Receipt,
   ShoppingCart,
   Truck,
@@ -49,7 +50,10 @@ export type NavView =
   | 'damageMaster'
   | 'transferMaster'
   | 'projectUtilization'
-  | 'stockSummary';
+  | 'stockSummary'
+  | 'courierTracking'
+  | 'couriers'
+  | 'pendingReceipt';
 export type PendingQueueKey =
   | 'queueApprovePr'
   | 'queueCreatePo'
@@ -128,6 +132,11 @@ export const quotationMenuItems: Array<{ key: 'pendingSupplierRate' | 'quotation
   { key: 'quotationMaster', label: 'Quotation Master' },
 ];
 
+export const courierMenuItems: Array<{ key: 'couriers' | 'pendingReceipt'; label: string }> = [
+  { key: 'couriers', label: 'Couriers' },
+  { key: 'pendingReceipt', label: 'Pending Receipt' },
+];
+
 export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder'; label: string }> = [
   { key: 'reportExpenses', label: 'Expenses' },
   { key: 'reportPendingOrder', label: 'Pending for Order' },
@@ -160,8 +169,10 @@ export default function Sidebar({
   purchaseMastersExpanded,
   quotationExpanded,
   reportsExpanded,
+  courierTrackingExpanded,
   activeQuotationView,
   activeReportView,
+  activeCourierView,
   activeOperationsTab,
   purchaseMastersCounts,
   stockCounts,
@@ -174,6 +185,7 @@ export default function Sidebar({
   onNavigateSettingsView,
   onNavigatePurchaseMasters,
   onNavigateReportView,
+  onNavigateCourierView,
   onNewPurchaseRequest,
   onDirectPo,
   currentUserName,
@@ -193,12 +205,14 @@ export default function Sidebar({
       settingsExpanded?: boolean;
       purchaseMastersExpanded?: boolean;
       reportsExpanded?: boolean;
+      courierTrackingExpanded?: boolean;
       activeOperationsTab?: PurchaseMastersTab;
   purchaseMastersCounts?: Partial<Record<PurchaseMastersTab, number>>;
   stockCounts?: Partial<Record<StockCountKey, number>>;
   quotationExpanded?: boolean;
   activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
   activeReportView?: 'reportExpenses' | 'reportPendingOrder';
+  activeCourierView?: 'couriers' | 'pendingReceipt';
   isNewPurchaseRequestActive?: boolean;
   onNavigate: (view: NavView) => void;
 	  onNavigatePendingQueue?: (key: PendingQueueKey) => void;
@@ -208,6 +222,7 @@ export default function Sidebar({
   onNavigateSettingsView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
   onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder') => void;
+  onNavigateCourierView?: (view: 'couriers' | 'pendingReceipt') => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
   currentUserName?: string;

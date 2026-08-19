@@ -94,6 +94,7 @@ const PendingSupplierRateView = lazy(() => import('./components/views/PendingSup
 const QuotationMasterView = lazy(() => import('./components/views/QuotationMasterView'));
 const ExpensesReportView = lazy(() => import('./components/views/ExpensesReportView'));
 const PendingOrderReportView = lazy(() => import('./components/views/PendingOrderReportView'));
+const CourierTrackingView = lazy(() => import('./components/views/CourierTrackingView'));
 
 function isStaleChunkError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
@@ -174,6 +175,7 @@ export default function App() {
 	        const [purchaseMastersExpanded, setPurchaseMastersExpanded] = useState(false);
 	        const [quotationExpanded, setQuotationExpanded] = useState(false);
 	        const [reportsExpanded, setReportsExpanded] = useState(false);
+        const [courierTrackingExpanded, setCourierTrackingExpanded] = useState(false);
 	        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
@@ -568,8 +570,10 @@ export default function App() {
 				        purchaseMastersExpanded={purchaseMastersExpanded}
 				        quotationExpanded={quotationExpanded}
 			        reportsExpanded={reportsExpanded}
+                courierTrackingExpanded={courierTrackingExpanded}
 				        activeQuotationView={view === 'pendingSupplierRate' || view === 'quotationMaster' ? view : undefined}
 			        activeReportView={view === 'reportExpenses' || view === 'reportPendingOrder' ? view : undefined}
+                activeCourierView={view === 'couriers' || view === 'pendingReceipt' ? view : undefined}
 				        activeOperationsTab={operationsTab}
 				        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
 				        currentUserName={currentUser?.name || currentUser?.loginId || ''}
@@ -591,6 +595,7 @@ export default function App() {
 				        setPurchaseMastersExpanded(false);
 				        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				            setMastersExpanded((prev) => !prev);
 				            return;
 				          }
@@ -604,6 +609,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				        setPendingExpanded((prev) => !prev);
 				        return;
 				        }
@@ -617,6 +623,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				        setStockMasterExpanded((prev) => !prev);
 				        return;
 				        }
@@ -630,6 +637,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 					        setMaterialExpanded((prev) => !prev);
 					        return;
 					        }
@@ -643,6 +651,7 @@ export default function App() {
 	                setPurchaseMastersExpanded(false);
 	                setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 	                setSettingsExpanded((prev) => !prev);
 	                return;
 	                }
@@ -656,6 +665,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 	                setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 					        setPurchaseMastersExpanded((prev) => !prev);
 				        return;
 				        }
@@ -671,6 +681,20 @@ export default function App() {
 				        setQuotationExpanded((prev) => !prev);
 				        return;
 				        }
+
+                    if (next === 'courierTracking') {
+                    setSelectedRequestId(null);
+                    setMastersExpanded(false);
+                    setPendingExpanded(false);
+                    setStockMasterExpanded(false);
+                    setMaterialExpanded(false);
+                    setSettingsExpanded(false);
+                    setPurchaseMastersExpanded(false);
+                    setQuotationExpanded(false);
+                    setReportsExpanded(false);
+                    setCourierTrackingExpanded((prev) => !prev);
+                    return;
+                    }
 
 				        if (next === 'reports') {
 				        setSelectedRequestId(null);
@@ -694,6 +718,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(next === 'pendingSupplierRate' || next === 'quotationMaster');
 				        setReportsExpanded(next === 'reportExpenses' || next === 'reportPendingOrder');
+                    setCourierTrackingExpanded(next === 'couriers' || next === 'pendingReceipt');
 				        hideSidebarAfterViewChange();
 				        setView(next);
 				        }}
@@ -706,6 +731,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				        setPendingExpanded(true);
 				        hideSidebarAfterViewChange();
 				        setView(key);
@@ -721,6 +747,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				        hideSidebarAfterViewChange();
 				        setView('masters');
 				        }}
@@ -733,6 +760,7 @@ export default function App() {
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 				        setStockMasterExpanded(true);
 				        hideSidebarAfterViewChange();
 				        setView(next);
@@ -746,6 +774,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 					        setMaterialExpanded(true);
 					        hideSidebarAfterViewChange();
 					        setView(next);
@@ -759,6 +788,7 @@ export default function App() {
 	                setPurchaseMastersExpanded(false);
 	                setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 	                setSettingsExpanded(true);
 	                hideSidebarAfterViewChange();
 	                setView(next);
@@ -772,6 +802,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 	                setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 					        setPurchaseMastersExpanded(true);
 				        setOperationsTab(tab);
 				        hideSidebarAfterViewChange();
@@ -791,6 +822,21 @@ export default function App() {
 				        setView(next);
 				        }}
 
+                onNavigateCourierView={(next) => {
+                setSelectedRequestId(null);
+                setMastersExpanded(false);
+                setPendingExpanded(false);
+                setStockMasterExpanded(false);
+                setMaterialExpanded(false);
+                setSettingsExpanded(false);
+                setPurchaseMastersExpanded(false);
+                setQuotationExpanded(false);
+                setReportsExpanded(false);
+                setCourierTrackingExpanded(true);
+                hideSidebarAfterViewChange();
+                setView(next);
+                }}
+
 		        onNewPurchaseRequest={() => {
 		          setSelectedRequestId(null);
               hideSidebarAfterViewChange();
@@ -803,6 +849,7 @@ export default function App() {
 		          setPendingExpanded(false);
 	            setQuotationExpanded(false);
 		        setReportsExpanded(false);
+                    setCourierTrackingExpanded(false);
 	            hideSidebarAfterViewChange();
 		          setView('directPo');
 		        }}
@@ -963,6 +1010,8 @@ export default function App() {
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
 	            {view === 'reportExpenses' ? <ExpensesReportView /> : null}
 	            {view === 'reportPendingOrder' ? <PendingOrderReportView /> : null}
+                {view === 'couriers' ? <CourierTrackingView mode="all" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
+                {view === 'pendingReceipt' ? <CourierTrackingView mode="pending" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
 	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}
 	              {view === 'gst' ? <GstView /> : null}
 	              {view === 'docSequences' ? <DocSequencesSettingsView /> : null}

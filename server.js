@@ -200,10 +200,10 @@ function getMysqlPool() {
             updated_at DATETIME
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
-        
+
         const itemsTable = t.endsWith('s') ? t.slice(0, -1) + '_items' : t + '_items';
         const kind = t.includes('issue') ? 'issue' : t.includes('return') ? 'return' : t.includes('damage') ? 'damage' : 'transfer';
-        
+
         await pool.query(`
           CREATE TABLE IF NOT EXISTS ${itemsTable} (
             id VARCHAR(255) PRIMARY KEY,
@@ -299,7 +299,44 @@ function getMysqlPool() {
 	          if (!msg.toLowerCase().includes('duplicate')) throw e;
 	        }
 	      };
-	      const dropUniqueIndexesForExactColumns = async (table, columnSets) => {
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS couriers (
+          id VARCHAR(255) PRIMARY KEY,
+          courier_date DATE NOT NULL,
+          courier_no VARCHAR(255) NOT NULL,
+          supplier_id VARCHAR(255) NOT NULL,
+          project_id VARCHAR(255) NULL,
+          po_id VARCHAR(255) NULL,
+          courier_copy_url LONGTEXT NULL,
+          expected_date DATE NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'In Progress',
+          last_update_date DATE NULL,
+          last_update_by VARCHAR(255) NULL,
+          last_update_remarks TEXT NULL,
+          created_by VARCHAR(255) NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          KEY idx_couriers_status (status),
+          KEY idx_couriers_supplier_id (supplier_id),
+          KEY idx_couriers_project_id (project_id),
+          KEY idx_couriers_po_id (po_id)
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS courier_updates (
+          id VARCHAR(255) PRIMARY KEY,
+          courier_id VARCHAR(255) NOT NULL,
+          update_date DATE NOT NULL,
+          updated_by VARCHAR(255) NOT NULL,
+          status VARCHAR(32) NOT NULL,
+          remarks TEXT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          KEY idx_courier_updates_courier_id (courier_id),
+          KEY idx_courier_updates_update_date (update_date)
+        )
+      `);
+      const dropUniqueIndexesForExactColumns = async (table, columnSets) => {
 	        const [rows] = await pool.query(`SHOW INDEX FROM ${table}`);
 	        const byName = new Map();
 	        for (const r of Array.isArray(rows) ? rows : []) {
@@ -7068,7 +7105,7 @@ app.post('/api/material-requests', async (req, res) => {
     const requestNo = await allocateDocNumber(pool, firmId, 'MR', new Date());
 
     await pool.query(
-	      `INSERT INTO material_requests 
+	      `INSERT INTO material_requests
 	        (id, request_no, date, firm_id, store_id, department, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, remarks, created_by)
 	       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	      [requestId, requestNo, date, firmId, storeId, department, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, remarks, 'system']
@@ -7099,7 +7136,7 @@ app.get('/api/material-requests', async (_req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
 	    const [rows] = await pool.query(`
-	      SELECT 
+	      SELECT
 	        mr.*,
 	        f.name AS firmName,
 	        st.name AS storeName,
@@ -7128,7 +7165,7 @@ app.get('/api/material-requests/pending', async (_req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
 
 	    const [rows] = await pool.query(`
-	      SELECT 
+	      SELECT
 	        mr.*,
 	        f.name AS firmName,
 	        st.name AS storeName,
@@ -7146,7 +7183,7 @@ app.get('/api/material-requests/pending', async (_req, res) => {
       WHERE mr.status = 'Pending'
       ORDER BY mr.created_at DESC
     `);
-    
+
     const requests = [];
     for (const row of rows) {
       const [items] = await pool.query(`
@@ -7160,7 +7197,7 @@ app.get('/api/material-requests/pending', async (_req, res) => {
       `, [row.id]);
       requests.push({ ...row, items });
     }
-    
+
     res.json({ requests });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -11328,10 +11365,10 @@ app.get('/api/settings/doc-sequences', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    
+
     await ensureDocSequencesTable(pool);
     const [rows] = await pool.query(`
-      SELECT 
+      SELECT
         ds.firm_id,
         f.name AS firmName,
         ds.kind,
@@ -11341,7 +11378,7 @@ app.get('/api/settings/doc-sequences', async (req, res) => {
       LEFT JOIN firms f ON f.id = ds.firm_id
       ORDER BY f.name, ds.kind, ds.fy DESC
     `);
-    
+
     res.json({ sequences: rows });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -11410,8 +11447,8 @@ app.put('/api/settings/doc-sequences', async (req, res) => {
 
     const [result] = await pool.query(
       `
-      UPDATE doc_sequences 
-      SET fy = ?, next_no = ? 
+      UPDATE doc_sequences
+      SET fy = ?, next_no = ?
       WHERE firm_id = ? AND kind = ? AND fy = ?
       `,
       [newFy, nextNo, firmId, kind, oldFy]
@@ -13840,7 +13877,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
           LEFT JOIN stores s ON s.id = t.store_id
           ORDER BY t.created_at DESC
         `;
-    
+
     const [rows] = await pool.query(query);
 
     const [specRows] = await pool.query('SELECT id, name FROM specifications');
@@ -14067,11 +14104,11 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
          VALUES (?, ?, ?, ?, ?, ?, NOW())`,
         [crypto.randomUUID(), id, resolvedItemId, item.quantity, item.specification, item.remark]
       );
-      
+
       if (materialRequestId) {
         await pool.query(
-          `UPDATE material_request_items 
-           SET issued_quantity = issued_quantity + ? 
+          `UPDATE material_request_items
+           SET issued_quantity = issued_quantity + ?
            WHERE request_id = ? AND item_id = ?`,
           [item.quantity, materialRequestId, resolvedItemId]
         );
@@ -14080,8 +14117,8 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
 
     if (materialRequestId) {
       const [remaining] = await pool.query(
-        `SELECT SUM(quantity - issued_quantity) as rem 
-         FROM material_request_items 
+        `SELECT SUM(quantity - issued_quantity) as rem
+         FROM material_request_items
          WHERE request_id = ?`,
         [materialRequestId]
       );
@@ -15112,7 +15149,7 @@ async function peekCreditVoucherNumber(pool, firmId, date = new Date()) {
   const fyRaw = fiscalYearLabel(date);
   const fId = String(firmId || 'DEFAULT').trim();
   await ensureDocSequencesTable(pool);
-  
+
   // Fetch firm sort_name
   let sortName = 'GEN';
   if (fId !== 'DEFAULT') {
@@ -16178,6 +16215,188 @@ function setStaticCacheHeaders(res, filePath) {
 app.use(express.static(distDir, { dotfiles: 'allow', index: false, setHeaders: setStaticCacheHeaders }));
 
 // Ensure missing API routes don't fall back to SPA HTML (which breaks JSON parsing in the client).
+
+// --- Courier Tracking ---
+const COURIER_STATUSES = new Set(['In Progress', 'Received', 'Cancel']);
+function normalizeCourierStatus(value, fallback = 'In Progress') {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (raw === 'received') return 'Received';
+  if (raw === 'cancel' || raw === 'cancelled' || raw === 'canceled') return 'Cancel';
+  if (raw === 'in progress' || raw === 'progress' || raw === '') return fallback;
+  return fallback;
+}
+function courierDateIso(value) {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+}
+function mapCourierRow(r) {
+  return {
+    id: String(r.id ?? ''),
+    date: courierDateIso(r.date),
+    courierNo: String(r.courierNo ?? ''),
+    supplierId: r.supplierId != null ? String(r.supplierId) : '',
+    supplierName: r.supplierName != null ? String(r.supplierName) : '',
+    projectId: r.projectId != null ? String(r.projectId) : '',
+    projectName: r.projectName != null ? String(r.projectName) : '',
+    poId: r.poId != null ? String(r.poId) : '',
+    poNumber: r.poNumber != null ? String(r.poNumber) : '',
+    courierCopyUrl: r.courierCopyUrl != null ? String(r.courierCopyUrl) : '',
+    expectedDate: courierDateIso(r.expectedDate),
+    status: normalizeCourierStatus(r.status),
+    lastUpdateDate: courierDateIso(r.lastUpdateDate),
+    lastUpdateBy: r.lastUpdateBy != null ? String(r.lastUpdateBy) : '',
+    lastUpdateRemarks: r.lastUpdateRemarks != null ? String(r.lastUpdateRemarks) : '',
+    createdAt: r.createdAt ? String(r.createdAt) : '',
+    updatedAt: r.updatedAt ? String(r.updatedAt) : '',
+  };
+}
+async function selectCourierRows(pool, whereSql = '', params = []) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      c.id,
+      c.courier_date AS date,
+      c.courier_no AS courierNo,
+      c.supplier_id AS supplierId,
+      s.name AS supplierName,
+      c.project_id AS projectId,
+      p.name AS projectName,
+      c.po_id AS poId,
+      po.po_number AS poNumber,
+      c.courier_copy_url AS courierCopyUrl,
+      c.expected_date AS expectedDate,
+      c.status,
+      c.last_update_date AS lastUpdateDate,
+      c.last_update_by AS lastUpdateBy,
+      c.last_update_remarks AS lastUpdateRemarks,
+      c.created_at AS createdAt,
+      c.updated_at AS updatedAt
+    FROM couriers c
+    LEFT JOIN suppliers s ON s.id = c.supplier_id
+    LEFT JOIN projects p ON p.id = c.project_id
+    LEFT JOIN purchase_orders po ON po.id = c.po_id
+    ${whereSql}
+    ORDER BY c.courier_date DESC, c.created_at DESC
+    `,
+    params
+  );
+  return (Array.isArray(rows) ? rows : []).map(mapCourierRow);
+}
+
+app.get('/api/couriers', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    res.json({ couriers: await selectCourierRows(pool) });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/couriers/pending-receipt', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    res.json({ couriers: await selectCourierRows(pool, 'WHERE c.status = ?', ['In Progress']) });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/couriers', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const courierDate = String(req.body?.date ?? '').slice(0, 10);
+    const courierNo = String(req.body?.courierNo ?? '').trim();
+    const supplierId = String(req.body?.supplierId ?? '').trim();
+    const projectId = String(req.body?.projectId ?? '').trim() || null;
+    const poId = String(req.body?.poId ?? '').trim() || null;
+    const courierCopyUrl = req.body?.courierCopyUrl != null ? String(req.body.courierCopyUrl).trim() || null : null;
+    const expectedDate = String(req.body?.expectedDate ?? '').slice(0, 10);
+    const createdBy = req.body?.createdBy != null ? String(req.body.createdBy).trim() : null;
+    if (!courierDate) return res.status(400).json({ error: 'Date is required' });
+    if (!courierNo) return res.status(400).json({ error: 'Courier No. is required' });
+    if (!supplierId) return res.status(400).json({ error: 'Supplier is required' });
+    if (!expectedDate) return res.status(400).json({ error: 'Expected Date is required' });
+    const id = crypto.randomUUID();
+    await pool.query(
+      `
+      INSERT INTO couriers
+        (id, courier_date, courier_no, supplier_id, project_id, po_id, courier_copy_url, expected_date, status, last_update_date, last_update_by, last_update_remarks, created_by, created_at, updated_at)
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, 'In Progress', NULL, NULL, NULL, ?, NOW(), NOW())
+      `,
+      [id, courierDate, courierNo, supplierId, projectId, poId, courierCopyUrl, expectedDate, createdBy]
+    );
+    const rows = await selectCourierRows(pool, 'WHERE c.id = ?', [id]);
+    res.status(201).json({ courier: rows[0] ?? null });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/couriers/:id/updates', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const courierId = String(req.params.id ?? '').trim();
+    if (!courierId) return res.status(400).json({ error: 'id is required' });
+    const [rows] = await pool.query(
+      `
+      SELECT id, courier_id AS courierId, update_date AS updateDate, updated_by AS updatedBy, status, remarks, created_at AS createdAt
+      FROM courier_updates
+      WHERE courier_id = ?
+      ORDER BY update_date DESC, created_at DESC
+      `,
+      [courierId]
+    );
+    res.json({ updates: (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      courierId: String(r.courierId ?? ''),
+      updateDate: courierDateIso(r.updateDate),
+      updatedBy: r.updatedBy != null ? String(r.updatedBy) : '',
+      status: normalizeCourierStatus(r.status),
+      remarks: r.remarks != null ? String(r.remarks) : '',
+      createdAt: r.createdAt ? String(r.createdAt) : '',
+    })) });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/couriers/:id/updates', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const courierId = String(req.params.id ?? '').trim();
+    const updateDate = String(req.body?.updateDate ?? '').slice(0, 10);
+    const updatedBy = String(req.body?.updatedBy ?? '').trim();
+    const status = normalizeCourierStatus(req.body?.status);
+    const remarks = req.body?.remarks != null ? String(req.body.remarks).trim() : '';
+    if (!courierId) return res.status(400).json({ error: 'id is required' });
+    if (!updateDate) return res.status(400).json({ error: 'Update Date is required' });
+    if (!updatedBy) return res.status(400).json({ error: 'Update By is required' });
+    if (!COURIER_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid status' });
+    const [existingRows] = await pool.query('SELECT id FROM couriers WHERE id = ? LIMIT 1', [courierId]);
+    if (!Array.isArray(existingRows) || !existingRows.length) return res.status(404).json({ error: 'Courier not found' });
+    const id = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO courier_updates (id, courier_id, update_date, updated_by, status, remarks, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [id, courierId, updateDate, updatedBy, status, remarks || null]
+    );
+    await pool.query(
+      `UPDATE couriers SET status=?, last_update_date=?, last_update_by=?, last_update_remarks=?, updated_at=NOW() WHERE id=?`,
+      [status, updateDate, updatedBy, remarks || null, courierId]
+    );
+    const rows = await selectCourierRows(pool, 'WHERE c.id = ?', [courierId]);
+    res.status(201).json({ courier: rows[0] ?? null });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
