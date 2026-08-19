@@ -248,14 +248,14 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         {error ? <div className="m-4 text-sm text-error bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div> : null}
 
         <div className="p-4 overflow-x-auto">
-          <table className="w-full min-w-[1320px] border-2 border-outline-variant border-collapse">
+          <table className="w-full min-w-[1500px] border-2 border-outline-variant border-collapse table-fixed">
             <thead>
               <tr>
                 <th className={thClass}>Date</th>
                 <th className={thClass}>Courier No.</th>
                 <th className={thClass}>Courier Company</th>
                 <th className={thClass}>Supplier</th>
-                <th className={thClass}>Project No</th>
+                <th className={`${thClass} w-[280px]`}>Project No</th>
                 <th className={thClass}>PO No.</th>
                 <th className={thClass}>Courier Copy</th>
                 <th className={thClass}>Expected Date</th>
@@ -263,7 +263,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                 <th className={thClass}>Last Update Date</th>
                 <th className={thClass}>Last Update By</th>
                 <th className={thClass}>Last Update Remarks</th>
-                <th className={thClass}>Action</th>
+                <th className={`${thClass} w-[96px]`}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -277,7 +277,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={`${tdClass} font-semibold`}>{row.courierNo}</td>
                   <td className={tdClass}>{row.courierCompany || '-'}</td>
                   <td className={tdClass}>{row.supplierName || row.supplierId || '-'}</td>
-                  <td className={tdClass}>{row.projectName || row.projectId || '-'}</td>
+                  <td className={`${tdClass} w-[280px] whitespace-normal break-words`}>{row.projectName || row.projectId || '-'}</td>
                   <td className={tdClass}>{row.poNumber || row.poId || '-'}</td>
                   <td className={tdClass}>{row.courierCopyUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(row.courierCopyUrl))}>View</button> : '-'}</td>
                   <td className={tdClass}>{formatDate(row.expectedDate)}</td>
@@ -285,10 +285,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={tdClass}>{formatDate(row.lastUpdateDate)}</td>
                   <td className={tdClass}>{row.lastUpdateBy || '-'}</td>
                   <td className={`${tdClass} max-w-[240px] whitespace-pre-wrap`}>{row.lastUpdateRemarks || '-'}</td>
-                  <td className={tdClass}>
-                    <div className="flex items-center gap-2">
-                      <button type="button" className="btn btn-sm" onClick={() => openDetails(row)} title="Details"><Eye size={14} className="mr-1" /> Details</button>
-                      <button type="button" className="btn-primary btn-sm" onClick={() => openUpdate(row)} title="Update"><Pencil size={14} className="mr-1" /> Update</button>
+                  <td className={`${tdClass} w-[96px]`}>
+                    <div className="flex items-center justify-center gap-2">
+                      <button type="button" className="btn btn-sm !px-2 w-8 h-8" onClick={() => openDetails(row)} title="Details" aria-label="Details"><Eye size={14} /></button>
+                      <button type="button" className="btn-primary btn-sm !px-2 w-8 h-8" onClick={() => openUpdate(row)} title="Update" aria-label="Update"><Pencil size={14} /></button>
                     </div>
                   </td>
                 </tr>
