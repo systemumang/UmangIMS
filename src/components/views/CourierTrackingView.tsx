@@ -72,6 +72,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
 
   const [date, setDate] = useState(todayIso());
   const [courierNo, setCourierNo] = useState('');
+  const [courierCompany, setCourierCompany] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [poId, setPoId] = useState('');
@@ -129,6 +130,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const resetAddForm = () => {
     setDate(todayIso());
     setCourierNo('');
+    setCourierCompany('');
     setSupplierId('');
     setProjectId('');
     setPoId('');
@@ -172,6 +174,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       await createCourier({
         date,
         courierNo: courierNo.trim(),
+        courierCompany: courierCompany.trim() || undefined,
         supplierId,
         projectId: projectId || undefined,
         poId: poId || undefined,
@@ -250,6 +253,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
               <tr>
                 <th className={thClass}>Date</th>
                 <th className={thClass}>Courier No.</th>
+                <th className={thClass}>Courier Company</th>
                 <th className={thClass}>Supplier</th>
                 <th className={thClass}>Project No</th>
                 <th className={thClass}>PO No.</th>
@@ -264,13 +268,14 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             </thead>
             <tbody>
               {loading ? (
-                <tr><td className={`${tdClass} text-center`} colSpan={12}>Loading...</td></tr>
+                <tr><td className={`${tdClass} text-center`} colSpan={13}>Loading...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td className={`${tdClass} text-center`} colSpan={12}>No courier rows found.</td></tr>
+                <tr><td className={`${tdClass} text-center`} colSpan={13}>No courier rows found.</td></tr>
               ) : rows.map((row) => (
                 <tr key={row.id}>
                   <td className={tdClass}>{formatDate(row.date)}</td>
                   <td className={`${tdClass} font-semibold`}>{row.courierNo}</td>
+                  <td className={tdClass}>{row.courierCompany || '-'}</td>
                   <td className={tdClass}>{row.supplierName || row.supplierId || '-'}</td>
                   <td className={tdClass}>{row.projectName || row.projectId || '-'}</td>
                   <td className={tdClass}>{row.poNumber || row.poId || '-'}</td>
@@ -298,6 +303,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label className="space-y-1"><div className={labelClass}>Date</div><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
             <label className="space-y-1"><div className={labelClass}>Courier No.</div><input className={inputClass} value={courierNo} onChange={(e) => setCourierNo(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Courier Company</div><input className={inputClass} value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} /></label>
             <div className="space-y-1"><div className={labelClass}>Supplier</div><SearchableSelect value={supplierId} options={supplierOptions} onChange={setSupplierId} placeholder="Select supplier..." controlClassName={inputClass} /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>PO No.</div><SearchableSelect value={poId} options={poOptions} onChange={autoFillFromPo} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>Project No</div><SearchableSelect value={projectId} options={projectOptions} onChange={setProjectId} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
@@ -390,6 +396,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         <Modal title={`Courier Details - ${detailsFor.courierNo}`} onClose={() => setDetailsFor(null)}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-4">
             <div><span className="font-semibold">Supplier:</span> {detailsFor.supplierName || '-'}</div>
+            <div><span className="font-semibold">Courier Company:</span> {detailsFor.courierCompany || '-'}</div>
             <div><span className="font-semibold">Status:</span> {detailsFor.status}</div>
             <div><span className="font-semibold">Expected:</span> {formatDate(detailsFor.expectedDate)}</div>
           </div>

@@ -305,6 +305,7 @@ function getMysqlPool() {
           id VARCHAR(255) PRIMARY KEY,
           courier_date DATE NOT NULL,
           courier_no VARCHAR(255) NOT NULL,
+          courier_company VARCHAR(255) NULL,
           supplier_id VARCHAR(255) NOT NULL,
           project_id VARCHAR(255) NULL,
           po_id VARCHAR(255) NULL,
@@ -323,6 +324,7 @@ function getMysqlPool() {
           KEY idx_couriers_po_id (po_id)
         )
       `);
+      await ensureColumn('couriers', 'courier_company', 'VARCHAR(255) NULL');
       await pool.query(`
         CREATE TABLE IF NOT EXISTS courier_updates (
           id VARCHAR(255) PRIMARY KEY,
@@ -16241,6 +16243,7 @@ function mapCourierRow(r) {
     id: String(r.id ?? ''),
     date: courierDateIso(r.date),
     courierNo: String(r.courierNo ?? ''),
+    courierCompany: r.courierCompany != null ? String(r.courierCompany) : '',
     supplierId: r.supplierId != null ? String(r.supplierId) : '',
     supplierName: r.supplierName != null ? String(r.supplierName) : '',
     projectId: r.projectId != null ? String(r.projectId) : '',
@@ -16264,6 +16267,7 @@ async function selectCourierRows(pool, whereSql = '', params = []) {
       c.id,
       c.courier_date AS date,
       c.courier_no AS courierNo,
+      c.courier_company AS courierCompany,
       c.supplier_id AS supplierId,
       s.name AS supplierName,
       c.project_id AS projectId,
@@ -16316,6 +16320,7 @@ app.post('/api/couriers', async (req, res) => {
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const courierDate = String(req.body?.date ?? '').slice(0, 10);
     const courierNo = String(req.body?.courierNo ?? '').trim();
+    const courierCompany = String(req.body?.courierCompany ?? '').trim() || null;
     const supplierId = String(req.body?.supplierId ?? '').trim();
     const projectId = String(req.body?.projectId ?? '').trim() || null;
     const poId = String(req.body?.poId ?? '').trim() || null;
@@ -16330,11 +16335,11 @@ app.post('/api/couriers', async (req, res) => {
     await pool.query(
       `
       INSERT INTO couriers
-        (id, courier_date, courier_no, supplier_id, project_id, po_id, courier_copy_url, expected_date, status, last_update_date, last_update_by, last_update_remarks, created_by, created_at, updated_at)
+        (id, courier_date, courier_no, courier_company, supplier_id, project_id, po_id, courier_copy_url, expected_date, status, last_update_date, last_update_by, last_update_remarks, created_by, created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, 'In Progress', NULL, NULL, NULL, ?, NOW(), NOW())
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Progress', NULL, NULL, NULL, ?, NOW(), NOW())
       `,
-      [id, courierDate, courierNo, supplierId, projectId, poId, courierCopyUrl, expectedDate, createdBy]
+      [id, courierDate, courierNo, courierCompany, supplierId, projectId, poId, courierCopyUrl, expectedDate, createdBy]
     );
     const rows = await selectCourierRows(pool, 'WHERE c.id = ?', [id]);
     res.status(201).json({ courier: rows[0] ?? null });

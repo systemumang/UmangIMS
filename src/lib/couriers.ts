@@ -4,6 +4,7 @@ export type CourierRow = {
   id: string;
   date: string;
   courierNo: string;
+  courierCompany?: string;
   supplierId: string;
   supplierName: string;
   projectId?: string;
@@ -63,6 +64,7 @@ export async function fetchPendingReceiptCouriers(signal?: AbortSignal): Promise
 export async function createCourier(input: {
   date: string;
   courierNo: string;
+  courierCompany?: string;
   supplierId: string;
   projectId?: string;
   poId?: string;
