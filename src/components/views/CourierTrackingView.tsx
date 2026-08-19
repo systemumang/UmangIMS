@@ -301,13 +301,13 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       {addOpen ? (
         <Modal title="Add Courier" onClose={() => setAddOpen(false)}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label className="space-y-1"><div className={labelClass}>Date</div><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-            <label className="space-y-1"><div className={labelClass}>Courier No.</div><input className={inputClass} value={courierNo} onChange={(e) => setCourierNo(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Date *</div><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Courier No. *</div><input className={inputClass} value={courierNo} onChange={(e) => setCourierNo(e.target.value)} /></label>
             <label className="space-y-1"><div className={labelClass}>Courier Company</div><input className={inputClass} value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} /></label>
-            <div className="space-y-1"><div className={labelClass}>Supplier</div><SearchableSelect value={supplierId} options={supplierOptions} onChange={setSupplierId} placeholder="Select supplier..." controlClassName={inputClass} /></div>
+            <div className="space-y-1"><div className={labelClass}>Supplier *</div><SearchableSelect value={supplierId} options={supplierOptions} onChange={setSupplierId} placeholder="Select supplier..." controlClassName={inputClass} /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>PO No.</div><SearchableSelect value={poId} options={poOptions} onChange={autoFillFromPo} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
             <div className="space-y-1 md:col-span-2"><div className={labelClass}>Project No</div><SearchableSelect value={projectId} options={projectOptions} onChange={setProjectId} placeholder="Optional" allowClear controlClassName="w-full min-h-[44px] rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-left outline-none focus:border-primary whitespace-normal break-words leading-snug" /></div>
-            <label className="space-y-1"><div className={labelClass}>Expected Date</div><input className={inputClass} type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Expected Date *</div><input className={inputClass} type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></label>
             <div className="space-y-1 md:col-span-3">
               <div className={labelClass}>Courier Copy</div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -346,13 +346,13 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       {updateFor ? (
         <Modal title={`Update Courier - ${updateFor.courierNo}`} onClose={() => setUpdateFor(null)}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="space-y-1"><div className={labelClass}>Update Date</div><input className={inputClass} type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} /></label>
-            <label className="space-y-1"><div className={labelClass}>Update By</div><input className={inputClass} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)} /></label>
-            <label className="space-y-1"><div className={labelClass}>Status</div><select className={inputClass} value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value as CourierStatus)}>{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+            <label className="space-y-1"><div className={labelClass}>Update Date *</div><input className={inputClass} type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Update By *</div><input className={inputClass} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Status *</div><select className={inputClass} value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value as CourierStatus)}>{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
             {updateStatus === 'Received' ? (
               <>
-                <label className="space-y-1"><div className={labelClass}>Received By</div><input className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} /></label>
-                <label className="space-y-1"><div className={labelClass}>Received Date</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
+                <label className="space-y-1"><div className={labelClass}>Received By *</div><input className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} /></label>
+                <label className="space-y-1"><div className={labelClass}>Received Date *</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
               </>
             ) : null}
             <div className="space-y-1 md:col-span-2">
