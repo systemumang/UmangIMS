@@ -377,6 +377,8 @@ export default function App() {
 				    if (view === 'quotationMaster') return { title: 'Quotation Master', showSearch: false };
 				    if (view === 'reportExpenses') return { title: 'Reports', subtitle: 'Expenses', showSearch: false };
 				    if (view === 'reportPendingOrder') return { title: 'Reports', subtitle: 'Pending for Order', showSearch: false };
+            if (view === 'couriers') return { title: 'Courier Tracking', subtitle: 'Couriers', showSearch: false };
+            if (view === 'pendingReceipt') return { title: 'Courier Tracking', subtitle: 'Pending Courier', showSearch: false };
 				    if (view === 'stockMaster') {
 			      if (stockMasterTab === 'itemIssue') return { title: 'Stock Master', subtitle: 'Item Issue', showSearch: false };
 			      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
