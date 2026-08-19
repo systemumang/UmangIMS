@@ -74,6 +74,16 @@
 			    @apply font-semibold;
 	        border-color: #374151 !important;
 			  }
+
+		  /* Projectwise Utilization item breakdown table: white header bg with black text. */
+		  .project-utilization-items-table thead tr {
+		    background-color: #ffffff !important;
+		  }
+
+		  .project-utilization-items-table thead th,
+		  .project-utilization-items-table thead td {
+		    color: #000000 !important;
+		  }
 		}
 
 @layer utilities {
