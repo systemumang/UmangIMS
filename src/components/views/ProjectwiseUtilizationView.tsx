@@ -41,11 +41,11 @@ export default function ProjectwiseUtilizationView() {
     try {
       const obj = JSON.parse(raw) as Record<string, unknown>;
       if (!obj || typeof obj !== 'object') return '';
-      const entries = Object.entries(obj)
-        .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()] as const)
-        .filter(([k, v]) => k && v);
-      if (entries.length === 0) return '';
-      return entries.map(([k, v]) => `${k}: ${v}`).join(' - ');
+      // Specification JSON keys are specification IDs, not names; only values are human-readable.
+      const values = Object.values(obj)
+        .map((v) => String(v ?? '').trim())
+        .filter(Boolean);
+      return values.join(' - ');
     } catch {
       return '';
     }
@@ -72,6 +72,7 @@ export default function ProjectwiseUtilizationView() {
         .join(' - ') || '-'
     );
   };
+
 
   const getProjectName = (projectId?: string | null) => {
     const raw = String(projectId ?? '').trim();
