@@ -202,13 +202,13 @@ export default function ProjectwiseUtilizationView() {
                       {isExpanded ? (
                         <tr className="border-t border-outline-variant bg-surface-container-low/40">
                           <td colSpan={5} className="px-4 py-3">
-                            <table className="w-full text-sm border border-outline-variant rounded-lg overflow-hidden border-collapse">
+                            <table className="w-full text-sm border-2 border-outline-variant rounded-lg overflow-hidden border-collapse outline outline-1 outline-outline-variant">
                               <thead>
-                                <tr className="text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                                  <th className="px-3 py-2 border border-outline-variant bg-blue-50">Items</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-amber-50">Issue</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-emerald-50">Return</th>
-                                  <th className="px-3 py-2 text-right border border-outline-variant bg-rose-50">Balance</th>
+                                <tr className="text-left text-[10px] font-bold uppercase tracking-wider">
+                                  <th className="px-3 py-2 border border-outline-variant bg-blue-50 text-slate-700">Items</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-amber-50 text-slate-700">Issue</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-emerald-50 text-slate-700">Return</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-rose-50 text-slate-700">Balance</th>
                                 </tr>
                               </thead>
                               <tbody>
