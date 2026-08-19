@@ -236,16 +236,18 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <div className="font-headline font-bold text-sm text-on-surface">{mode === 'pending' ? 'Pending Courier' : 'Couriers'}</div>
             <div className="text-xs text-on-surface-variant">Courier Tracking</div>
           </div>
-          <div className="flex items-center gap-2">
-            {mode === 'all' ? (
-              <button type="button" className="btn-primary btn-sm" onClick={() => { resetAddForm(); setAddOpen(true); }}>
-                <Plus size={15} className="mr-1" /> Add Courier
-              </button>
-            ) : null}
-          </div>
+          <div className="text-xs font-semibold text-on-surface-variant">{rows.length} rows</div>
         </div>
 
         {error ? <div className="m-4 text-sm text-error bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div> : null}
+
+        {mode === 'all' ? (
+          <div className="px-4 pt-4 flex items-center justify-start">
+            <button type="button" className="btn-primary min-h-10 px-5 text-sm" onClick={() => { resetAddForm(); setAddOpen(true); }}>
+              <Plus size={16} /> Add Courier
+            </button>
+          </div>
+        ) : null}
 
         <div className="p-4 overflow-x-auto">
           <table className="w-full min-w-[1780px] border-2 border-outline-variant border-collapse table-fixed">
