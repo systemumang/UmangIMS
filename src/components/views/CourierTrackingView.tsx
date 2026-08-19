@@ -288,7 +288,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={tdClass}>
                     <div className="flex items-center gap-2">
                       <button type="button" className="btn btn-sm" onClick={() => openDetails(row)} title="Details"><Eye size={14} className="mr-1" /> Details</button>
-                      {mode === 'pending' ? <button type="button" className="btn-primary btn-sm" onClick={() => openUpdate(row)} title="Update"><Pencil size={14} className="mr-1" /> Update</button> : null}
+                      <button type="button" className="btn-primary btn-sm" onClick={() => openUpdate(row)} title="Update"><Pencil size={14} className="mr-1" /> Update</button>
                     </div>
                   </td>
                 </tr>
