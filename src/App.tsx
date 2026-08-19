@@ -32,6 +32,7 @@ const IssueMasterView = lazy(() => import('./components/views/IssueMasterView'))
 const ReturnMasterView = lazy(() => import('./components/views/ReturnMasterView'));
 const DamageMasterView = lazy(() => import('./components/views/DamageMasterView'));
 const TransferMasterView = lazy(() => import('./components/views/TransferMasterView'));
+const ProjectwiseUtilizationView = lazy(() => import('./components/views/ProjectwiseUtilizationView'));
 const DirectPoView = lazy(() => import('./components/views/DirectPoView'));
 import { MASTERS_TABS, type MastersTab } from '@/src/lib/mastersTabs';
 import { cn } from '@/src/lib/utils';
@@ -141,6 +142,7 @@ export default function App() {
 		    | 'returnMaster'
 		    | 'damageMaster'
 		    | 'transferMaster'
+		    | 'projectUtilization'
         | 'settingsCatalogue';
 			  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
 			  const [view, setView] = useState<View>('dashboard');
@@ -383,6 +385,7 @@ export default function App() {
 		    if (view === 'returnMaster') return { title: 'Return Master', showSearch: false };
 		    if (view === 'damageMaster') return { title: 'Damage Master', showSearch: false };
 		    if (view === 'transferMaster') return { title: 'Transfer Master', showSearch: false };
+		    if (view === 'projectUtilization') return { title: 'Projectwise Utilization', showSearch: false };
 		    if (view === 'masters') {
 	      const tabLabel = MASTERS_TABS.find((t) => t.key === mastersTab)?.label ?? 'Masters';
 	      return { title: tabLabel, showSearch: false };
@@ -986,6 +989,7 @@ export default function App() {
               {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
               {view === 'damageMaster' ? <DamageMasterView onAdd={() => { setStockMasterTab('damage'); setView('stockMaster'); }} /> : null}
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
+              {view === 'projectUtilization' ? <ProjectwiseUtilizationView /> : null}
 		          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
               {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" currentUser={currentUser} /> : null}
