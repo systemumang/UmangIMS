@@ -202,29 +202,29 @@ export default function ProjectwiseUtilizationView() {
                       {isExpanded ? (
                         <tr className="border-t border-outline-variant bg-surface-container-low/40">
                           <td colSpan={5} className="px-4 py-3">
-                            <table className="w-full text-sm border border-outline-variant rounded-lg overflow-hidden">
+                            <table className="w-full text-sm border border-outline-variant rounded-lg overflow-hidden border-collapse">
                               <thead>
-                                <tr className="bg-surface-container-low text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                                  <th className="px-3 py-2">Items</th>
-                                  <th className="px-3 py-2 text-right">Issue</th>
-                                  <th className="px-3 py-2 text-right">Return</th>
-                                  <th className="px-3 py-2 text-right">Balance</th>
+                                <tr className="text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                                  <th className="px-3 py-2 border border-outline-variant bg-blue-50">Items</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-amber-50">Issue</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-emerald-50">Return</th>
+                                  <th className="px-3 py-2 text-right border border-outline-variant bg-rose-50">Balance</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {row.items.length === 0 ? (
                                   <tr>
-                                    <td colSpan={4} className="px-3 py-4 text-center text-on-surface-variant">
+                                    <td colSpan={4} className="px-3 py-4 text-center text-on-surface-variant border border-outline-variant">
                                       No items found.
                                     </td>
                                   </tr>
                                 ) : (
                                   row.items.map((it) => (
-                                    <tr key={it.itemKey} className="border-t border-outline-variant">
-                                      <td className="px-3 py-2">{it.label}</td>
-                                      <td className="px-3 py-2 text-right">{it.issueQty}</td>
-                                      <td className="px-3 py-2 text-right">{it.returnQty}</td>
-                                      <td className="px-3 py-2 text-right font-semibold">{it.balanceQty}</td>
+                                    <tr key={it.itemKey}>
+                                      <td className="px-3 py-2 border border-outline-variant bg-blue-50/40">{it.label}</td>
+                                      <td className="px-3 py-2 text-right border border-outline-variant bg-amber-50/40">{it.issueQty}</td>
+                                      <td className="px-3 py-2 text-right border border-outline-variant bg-emerald-50/40">{it.returnQty}</td>
+                                      <td className="px-3 py-2 text-right font-semibold border border-outline-variant bg-rose-50/40">{it.balanceQty}</td>
                                     </tr>
                                   ))
                                 )}
