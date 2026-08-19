@@ -16273,9 +16273,9 @@ async function selectCourierRows(pool, whereSql = '', params = []) {
       c.created_at AS createdAt,
       c.updated_at AS updatedAt
     FROM couriers c
-    LEFT JOIN suppliers s ON s.id = c.supplier_id
-    LEFT JOIN projects p ON p.id = c.project_id
-    LEFT JOIN purchase_orders po ON po.id = c.po_id
+    LEFT JOIN suppliers s ON CONVERT(s.id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.supplier_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    LEFT JOIN projects p ON CONVERT(p.id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.project_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    LEFT JOIN purchase_orders po ON CONVERT(po.id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.po_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
     ${whereSql}
     ORDER BY c.courier_date DESC, c.created_at DESC
     `,
@@ -16298,7 +16298,7 @@ app.get('/api/couriers/pending-receipt', async (_req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    res.json({ couriers: await selectCourierRows(pool, 'WHERE c.status = ?', ['In Progress']) });
+    res.json({ couriers: await selectCourierRows(pool, 'WHERE CONVERT(c.status USING utf8mb4) COLLATE utf8mb4_unicode_ci = ?', ['In Progress']) });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

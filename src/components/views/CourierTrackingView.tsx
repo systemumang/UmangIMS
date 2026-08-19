@@ -211,7 +211,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <div className="font-headline font-bold text-sm text-on-surface">{mode === 'pending' ? 'Pending Receipt' : 'Couriers'}</div>
+            <div className="font-headline font-bold text-sm text-on-surface">{mode === 'pending' ? 'Pending Courier' : 'Couriers'}</div>
             <div className="text-xs text-on-surface-variant">Courier Tracking</div>
           </div>
           <div className="flex items-center gap-2">

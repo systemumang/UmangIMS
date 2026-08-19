@@ -135,7 +135,7 @@ export const quotationMenuItems: Array<{ key: 'pendingSupplierRate' | 'quotation
 
 export const courierMenuItems: Array<{ key: 'couriers' | 'pendingReceipt'; label: string }> = [
   { key: 'couriers', label: 'Couriers' },
-  { key: 'pendingReceipt', label: 'Pending Receipt' },
+  { key: 'pendingReceipt', label: 'Pending Courier' },
 ];
 
 export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder'; label: string }> = [
