@@ -48,7 +48,8 @@ export type NavView =
   | 'returnMaster'
   | 'damageMaster'
   | 'transferMaster'
-  | 'projectUtilization';
+  | 'projectUtilization'
+  | 'stockSummary';
 export type PendingQueueKey =
   | 'queueApprovePr'
   | 'queueCreatePo'
@@ -94,6 +95,7 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'damageMaster', label: 'Damage Master' },
   { key: 'transferMaster', label: 'Transfer Master' },
   { key: 'projectUtilization', label: 'Projectwise Utilization' },
+  { key: 'stockSummary', label: 'Summary' },
 ];
 
 export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';

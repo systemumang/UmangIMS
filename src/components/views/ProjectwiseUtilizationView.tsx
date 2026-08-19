@@ -255,7 +255,7 @@ export default function ProjectwiseUtilizationView() {
         <div className="p-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
           <div className="font-headline font-bold text-sm text-on-surface">Projectwise Utilization</div>
           <div className="flex items-center gap-2">
-            <div className="w-72">
+            <div className="w-[460px] max-w-[calc(100vw-220px)]">
               <SearchableSelect
                 value={selectedProjectId}
                 options={projectOptions}
