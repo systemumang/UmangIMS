@@ -163,7 +163,7 @@ export default function ProjectwiseUtilizationView() {
                 <th style="text-align:left;">Items</th>
                 <th style="text-align:right;">Issue</th>
                 <th style="text-align:right;">Return</th>
-                <th style="text-align:right;">Balance</th>
+                <th style="text-align:right;">Consume</th>
               </tr>
             </thead>
             <tbody>
@@ -221,7 +221,7 @@ export default function ProjectwiseUtilizationView() {
                 <th>Items</th>
                 <th class="num">Issue</th>
                 <th class="num">Return</th>
-                <th class="num">Balance</th>
+                <th class="num">Consume</th>
               </tr>
             </thead>
             <tbody>
@@ -314,7 +314,7 @@ export default function ProjectwiseUtilizationView() {
                   <th className="px-3 py-2 border border-outline-variant bg-white !text-black !opacity-100">Items</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Issue</th>
                   <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Return</th>
-                  <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Balance</th>
+                  <th className="px-3 py-2 text-right border border-outline-variant bg-white !text-black !opacity-100">Consume</th>
                 </tr>
               </thead>
               <tbody>
