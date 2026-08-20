@@ -110,6 +110,13 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
     return raw;
   };
 
+  const getReturnTypeDisplay = (row: StockTransaction) => {
+    if (row.returnType === 'Project') {
+      return String(row.projectName ?? '').trim() || String(row.projectId ?? '').trim() || 'Project';
+    }
+    return row.returnType ?? 'Stock';
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this return?')) return;
     await deleteReturn(id);
@@ -153,7 +160,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
         getStoreDisplay(i.store).toLowerCase().includes(query) ||
         i.department.toLowerCase().includes(query) ||
         i.person.toLowerCase().includes(query) ||
-        (i.returnType ?? '').toLowerCase().includes(query) ||
+        getReturnTypeDisplay(i).toLowerCase().includes(query) ||
         (i.customerName ?? '').toLowerCase().includes(query)
       );
     });
@@ -178,7 +185,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	      case 'date':
 	        return dir * strCmp(String(a.date ?? ''), String(b.date ?? ''));
 	      case 'returnType':
-	        return dir * strCmp(String(a.returnType ?? ''), String(b.returnType ?? ''));
+	        return dir * strCmp(getReturnTypeDisplay(a), getReturnTypeDisplay(b));
 	      case 'customerName':
 	        return dir * strCmp(String(a.customerName ?? ''), String(b.customerName ?? ''));
 	      case 'firm':
@@ -308,7 +315,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 		                >
 	                  <td className="p-3 border-r border-black text-on-surface font-medium">{row.transactionNo}</td>
 	                  <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
-	                  <td className="p-3 border-r border-black text-on-surface-variant">{row.returnType ?? 'Stock'}</td>
+	                  <td className="p-3 border-r border-black text-on-surface-variant">{getReturnTypeDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.customerName ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
@@ -346,7 +353,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	            <div className="p-5 overflow-auto space-y-6 flex-1">
 	              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm bg-surface-container-low p-4 rounded-xl border border-outline-variant">
 	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Date</span> {formatDate(viewItem.date)}</div>
-	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Type</span> {viewItem.returnType ?? 'Stock'}</div>
+	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return Type</span> {getReturnTypeDisplay(viewItem)}</div>
 	                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Customer Name</span> {viewItem.customerName ?? '-'}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>

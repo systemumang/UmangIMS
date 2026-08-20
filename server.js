@@ -13880,9 +13880,11 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         : `
           SELECT t.*,
                  NULL AS material_request_no,
-                 s.name AS store_name
+                 s.name AS store_name,
+                 p.name AS project_name
           FROM ${table} t
           LEFT JOIN stores s ON s.id = t.store_id
+          LEFT JOIN projects p ON p.id = t.project_id
           ORDER BY t.created_at DESC
         `;
 
@@ -13946,6 +13948,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         toStore: row.to_store_name || row.to_store_id || row.to_store,
         toDepartment: row.to_department,
         projectId: row.project_id,
+        projectName: row.project_name,
         materialRequestId: row.material_request_id,
         materialRequestNo: row.material_request_no,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
