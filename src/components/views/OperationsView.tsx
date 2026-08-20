@@ -2719,10 +2719,10 @@ export default function OperationsView({
             </div>
 
 	          <div className="overflow-x-auto rounded-xl border border-outline-variant">
-              <div className="min-w-[1700px]">
+              <div className="min-w-[1920px]">
                 <div
                   className="grid gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant"
-                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
+                  style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 220px 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
                 >
                   <div className="px-2 py-2 border-r border-outline-variant">Item Name</div>
                   {(specColumnIds.length ? specColumnIds : ['__no_specs__']).map((specId) => (
@@ -2730,6 +2730,7 @@ export default function OperationsView({
                       {specId === '__no_specs__' ? 'Specifications' : specNameById?.[specId] ?? 'Specification'}
                     </div>
                   ))}
+                  <div className="px-2 py-2 border-r border-outline-variant">Description</div>
                   <div className="px-2 py-2 border-r border-outline-variant text-center">Unit</div>
                   <div className="px-2 py-2 border-r border-outline-variant text-center">Length</div>
                   <div className="px-2 py-2 border-r border-outline-variant text-center">Breadth</div>
@@ -2747,6 +2748,7 @@ export default function OperationsView({
 
                 {editPoLines.map((l, idx) => {
                   const specIds = l.itemNameId ? getItemNameSpecIdsFromRows(itemNames, l.itemNameId) : [];
+                  const itemDescription = String(items.find((item) => item.id === l.itemId)?.description ?? '').trim();
                   const areaUnit = normalizeAreaUnitName(l.unit ?? '');
                   const isAreaUnit = !!areaUnit;
                   const dimUnit = baseDimUnitForAreaUnit(areaUnit);
@@ -2757,7 +2759,7 @@ export default function OperationsView({
                     <div
                       key={`edit-line-${idx}`}
                       className={['grid gap-0 bg-surface-container-lowest', idx === 0 ? '' : 'border-t border-outline-variant'].join(' ')}
-                      style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
+                      style={{ gridTemplateColumns: `280px repeat(${specColumnIds.length || 1}, 220px) 220px 70px 100px 100px 70px 80px 120px 100px 100px ${getSupplierHasGst(editPoSupplierId) ? '90px 100px ' : ''}100px 200px 90px` }}
                     >
                       <div className="p-2 border-r border-outline-variant">
                         <SearchableSelect
@@ -2825,6 +2827,9 @@ export default function OperationsView({
                           </div>
                         );
                       })}
+                      <div className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant whitespace-pre-wrap break-words">
+                        {itemDescription || '-'}
+                      </div>
                       <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">{l.unit || '-'}</div>
                       <div className="p-2 border-r border-outline-variant">
                         {isAreaUnit ? (
