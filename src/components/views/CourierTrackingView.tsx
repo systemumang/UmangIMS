@@ -3,7 +3,7 @@ import { Check, Eye, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { fetchProjects, fetchSuppliers, fetchUsers, type Project, type Supplier, type User } from '@/src/lib/masters';
 import { fetchOperationsPos, type OperationsPoListRow } from '@/src/lib/operations';
-import { uploadFileToServer } from '@/src/lib/uploads';
+import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 import { openDocument } from '@/src/lib/utils';
 import {
   addCourierUpdate,
@@ -339,9 +339,9 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                       setSaving(true);
                       setFormError(null);
                       try {
-                        const { url } = await uploadFileToServer(file);
-                        setCourierCopyUrl(url);
-                        setCourierCopyName(file.name);
+                        const result = await uploadFileToServer(file);
+                        setCourierCopyUrl(result.url);
+                        setCourierCopyName(`${file.name} (${formatUploadSize(result)})`);
                       } catch (err) {
                         setFormError(err instanceof Error ? err.message : String(err));
                       } finally {
@@ -387,9 +387,9 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                       setSaving(true);
                       setFormError(null);
                       try {
-                        const { url } = await uploadFileToServer(file);
-                        setUpdatePhotoUrl(url);
-                        setUpdatePhotoName(file.name);
+                        const result = await uploadFileToServer(file);
+                        setUpdatePhotoUrl(result.url);
+                        setUpdatePhotoName(`${file.name} (${formatUploadSize(result)})`);
                       } catch (err) {
                         setFormError(err instanceof Error ? err.message : String(err));
                       } finally {

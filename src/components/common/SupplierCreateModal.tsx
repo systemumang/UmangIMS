@@ -12,6 +12,7 @@ import {
   type Supplier,
 } from '@/src/lib/masters';
 import { openDocument } from '@/src/lib/utils';
+import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 
 const inputClass =
   'w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none';
@@ -53,6 +54,7 @@ export default function SupplierCreateModal({
   const [isVendor, setIsVendor] = useState(false);
   const [msmeApplicable, setMsmeApplicable] = useState(false);
   const [msmeCertificateUrl, setMsmeCertificateUrl] = useState('');
+  const [msmeUploadInfo, setMsmeUploadInfo] = useState('');
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [busy, setBusy] = useState(false);
@@ -296,24 +298,31 @@ export default function SupplierCreateModal({
                       className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
                       accept=".pdf,image/png,image/jpeg"
                       disabled={busy}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
+                        e.target.value = '';
                         if (!file) return;
-                        const maxBytes = 5 * 1024 * 1024; // 5MB
-                        if (file.size > maxBytes) {
-                          setError('File is too large. Please upload under 5MB.');
-                          return;
+                        setBusy(true);
+                        setError(null);
+                        try {
+                          const result = await uploadFileToServer(file);
+                          setMsmeCertificateUrl(result.url);
+                          setMsmeUploadInfo(formatUploadSize(result));
+                        } catch (uploadError) {
+                          setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+                        } finally {
+                          setBusy(false);
                         }
-                        const reader = new FileReader();
-                        reader.onload = () => setMsmeCertificateUrl(String(reader.result ?? ''));
-                        reader.onerror = () => setError('Failed to read file.');
-                        reader.readAsDataURL(file);
                       }}
                     />
+                    {msmeUploadInfo ? <div className="text-xs text-on-surface-variant">Uploaded size: {msmeUploadInfo}</div> : null}
                     <input
                       className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
                       value={msmeCertificateUrl}
-                      onChange={(e) => setMsmeCertificateUrl(e.target.value)}
+                      onChange={(e) => {
+                        setMsmeCertificateUrl(e.target.value);
+                        setMsmeUploadInfo('');
+                      }}
                       placeholder="Paste certificate URL or data:..."
                     />
                     {msmeCertificateUrl && (
@@ -329,7 +338,10 @@ export default function SupplierCreateModal({
                         <button
                           type="button"
                           className="text-xs text-error hover:underline"
-                          onClick={() => setMsmeCertificateUrl('')}
+                          onClick={() => {
+                            setMsmeCertificateUrl('');
+                            setMsmeUploadInfo('');
+                          }}
                         >
                           Remove
                         </button>

@@ -1321,35 +1321,90 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/uploads', async (req, res) => {
+const MAX_UPLOAD_BYTES = Math.max(1024, Number(process.env.UPLOAD_MAX_BYTES || 15 * 1024 * 1024));
+const parseUploadBody = express.raw({ type: () => true, limit: process.env.UPLOAD_BODY_LIMIT || '20mb' });
+
+function detectUploadContentType(buf) {
+  if (buf.length >= 5 && buf.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length >= 6 && ['GIF87a', 'GIF89a'].includes(buf.subarray(0, 6).toString('ascii'))) return 'image/gif';
+  if (buf.length >= 12 && buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  const brand = buf.length >= 12 ? buf.subarray(4, 12).toString('ascii') : '';
+  if (/^ftyp(?:heic|heix|hevc|hevx|mif1|msf1)$/.test(brand)) return 'image/heic';
+  return '';
+}
+
+function extensionForUploadType(contentType) {
+  return {
+    'application/pdf': '.pdf',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/heic': '.heic',
+  }[contentType] || '';
+}
+
+app.post('/api/uploads', (req, res, next) => {
+  parseUploadBody(req, res, (error) => {
+    if (!error) return next();
+    const tooLarge = error?.type === 'entity.too.large';
+    return res.status(tooLarge ? 413 : 400).json({
+      error: tooLarge ? 'File is too large. Maximum upload size is 15 MB.' : 'Unable to read upload content.',
+    });
+  });
+}, async (req, res) => {
   try {
-    const fileName = String(req.body?.fileName ?? '').trim() || 'file';
-    const contentType = req.body?.contentType != null ? String(req.body.contentType).trim() : '';
-    const base64 = String(req.body?.base64 ?? '').trim();
-    if (!base64) return res.status(400).json({ error: 'base64 is required' });
+    const isBinary = Buffer.isBuffer(req.body);
+    const encodedName = isBinary ? String(req.get('x-file-name') ?? '').trim() : '';
+    const fileName = isBinary
+      ? (() => {
+          try {
+            return decodeURIComponent(encodedName) || 'file';
+          } catch {
+            return encodedName || 'file';
+          }
+        })()
+      : String(req.body?.fileName ?? '').trim() || 'file';
+    const base64 = isBinary ? '' : String(req.body?.base64 ?? '').trim();
+    if (!isBinary && !base64) return res.status(400).json({ error: 'Upload content is required.' });
 
-    const buf = Buffer.from(base64, 'base64');
-    if (!buf.length) return res.status(400).json({ error: 'Invalid base64 content' });
+    const buf = isBinary ? req.body : Buffer.from(base64, 'base64');
+    if (!buf.length) return res.status(400).json({ error: 'Invalid upload content.' });
+    if (buf.length > MAX_UPLOAD_BYTES) return res.status(413).json({ error: 'File is too large. Maximum upload size is 15 MB.' });
 
-    const ext = (() => {
-      const parsed = path.parse(fileName);
-      const raw = String(parsed.ext ?? '').toLowerCase();
-      if (raw && raw.length <= 10) return raw.replace(/[^.\w]/g, '');
-      if (contentType && contentType.includes('pdf')) return '.pdf';
-      if (contentType && contentType.includes('png')) return '.png';
-      if (contentType && contentType.includes('jpeg')) return '.jpg';
-      return '';
-    })();
+    const contentType = detectUploadContentType(buf);
+    const ext = extensionForUploadType(contentType);
+    if (!contentType || !ext) {
+      return res.status(415).json({ error: 'Unsupported file type. Upload a PDF, JPG, PNG, WEBP, GIF, or HEIC file.' });
+    }
 
-    const safeBase = String(path.parse(fileName).name || 'file')
-      .replace(/[^\w.-]+/g, '_')
-      .slice(0, 60);
-    const storedName = `${safeBase}_${crypto.randomUUID()}${ext}`;
+    const hash = crypto.createHash('sha256').update(buf).digest('hex');
+    const storedName = `${hash}${ext}`;
 
     await fs.mkdir(uploadsDir, { recursive: true });
-    await fs.writeFile(path.join(uploadsDir, storedName), buf);
+    let deduplicated = false;
+    try {
+      await fs.writeFile(path.join(uploadsDir, storedName), buf, { flag: 'wx' });
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      deduplicated = true;
+    }
 
-    res.json({ url: `/api/uploads/${encodeURIComponent(storedName)}`, fileName });
+    const suppliedOriginalSize = Number(req.get('x-original-size'));
+    const originalSize = Number.isFinite(suppliedOriginalSize) && suppliedOriginalSize >= buf.length
+      ? suppliedOriginalSize
+      : buf.length;
+    res.json({
+      url: `/api/uploads/${encodeURIComponent(storedName)}`,
+      fileName,
+      contentType,
+      originalSize,
+      storedSize: buf.length,
+      optimized: originalSize > buf.length,
+      deduplicated,
+    });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

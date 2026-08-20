@@ -52,7 +52,7 @@ import { inputClass, labelClass } from '@/src/components/views/queues/shared';
 						  type LastSupplierInfoWithId,
 				} from '@/src/lib/purchaseRequests';
 	import { cn } from '@/src/lib/utils';
-import { uploadFileToServer } from '@/src/lib/uploads';
+import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { formatGrnNumber, formatPoNumber, formatPrNumber } from '@/src/lib/docNumbers';
 import { type AuthUser } from '@/src/lib/auth';
@@ -2452,6 +2452,23 @@ export default function PurchaseRequestDetailView({
 	      .finally(() => setBusy(false));
 	  };
 
+  const uploadInvoiceAttachment = async (
+    file: File,
+    setValue: React.Dispatch<React.SetStateAction<string>>,
+    setFileName?: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    setBusy(true);
+    setInvoiceFormError(null);
+    try {
+      const result = await uploadFileToServer(file);
+      setValue(result.url);
+      setFileName?.(`${file.name} (${formatUploadSize(result)})`);
+    } catch (uploadError) {
+      setInvoiceFormError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+    } finally {
+      setBusy(false);
+    }
+  };
 			  const closeInvoiceDetails = () => {
 			    setInvoiceDetailsOpen(false);
 			    setActiveInvoiceDetails(null);
@@ -5499,20 +5516,11 @@ export default function PurchaseRequestDetailView({
 		                              disabled={busy}
 		                              className="hidden"
 		                              onChange={(e) => {
-		                                const file = e.target.files?.[0];
-		                                e.target.value = '';
-		                                if (!file) return;
-		                                const reader = new FileReader();
-		                                reader.onload = () => {
-		                                  const result = reader.result;
-		                                  const dataUrl = typeof result === 'string' ? result : '';
-		                                  if (!dataUrl) return;
-		                                  setInvoiceFormError(null);
-		                                  setInvoicePdfFileName(file.name);
-		                                  setInvoicePdf(dataUrl);
-		                                };
-		                                reader.readAsDataURL(file);
-		                              }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setInvoicePdf, setInvoicePdfFileName);
+                                }}
 		                            />
 		                            <div className="text-xs text-on-surface-variant truncate min-w-0">{invoicePdfFileName || (invoicePdf ? 'Uploaded' : 'No file chosen')}</div>
 		                          </div>
@@ -5531,20 +5539,11 @@ export default function PurchaseRequestDetailView({
 		                              disabled={busy}
 		                              className="hidden"
 		                              onChange={(e) => {
-		                                const file = e.target.files?.[0];
-		                                e.target.value = '';
-		                                if (!file) return;
-		                                const reader = new FileReader();
-		                                reader.onload = () => {
-		                                  const result = reader.result;
-		                                  const dataUrl = typeof result === 'string' ? result : '';
-		                                  if (!dataUrl) return;
-		                                  setInvoiceFormError(null);
-		                                  setInvoiceCourierCopyFileName(file.name);
-		                                  setInvoiceCourierCopy(dataUrl);
-		                                };
-		                                reader.readAsDataURL(file);
-		                              }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setInvoiceCourierCopy, setInvoiceCourierCopyFileName);
+                                }}
 		                            />
 		                            <div className="text-xs text-on-surface-variant truncate min-w-0">
 		                              {invoiceCourierCopyFileName || (invoiceCourierCopy ? 'Uploaded' : 'No file chosen')}
@@ -5568,20 +5567,11 @@ export default function PurchaseRequestDetailView({
 		                                disabled={busy}
 		                                className="hidden"
 		                                onChange={(e) => {
-		                                  const file = e.target.files?.[0];
-		                                  e.target.value = '';
-		                                  if (!file) return;
-		                                  const reader = new FileReader();
-		                                  reader.onload = () => {
-		                                    const result = reader.result;
-		                                    const dataUrl = typeof result === 'string' ? result : '';
-		                                    if (!dataUrl) return;
-		                                    setInvoiceFormError(null);
-		                                    setEwayBillDocFileName(file.name);
-		                                    setEwayBillDoc(dataUrl);
-		                                  };
-		                                  reader.readAsDataURL(file);
-		                                }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setEwayBillDoc, setEwayBillDocFileName);
+                                }}
 		                              />
 		                              <div className="text-xs text-on-surface-variant truncate min-w-0">
 		                                {ewayBillDocFileName || (ewayBillDoc ? 'Uploaded' : 'No file chosen')}
@@ -5714,19 +5704,11 @@ export default function PurchaseRequestDetailView({
 				                                disabled={busy}
 				                                className="hidden"
 				                                onChange={(e) => {
-				                                  const file = e.target.files?.[0];
-				                                  e.target.value = '';
-				                                  if (!file) return;
-				                                  const reader = new FileReader();
-				                                  reader.onload = () => {
-				                                    const result = reader.result;
-				                                    const dataUrl = typeof result === 'string' ? result : '';
-				                                    if (!dataUrl) return;
-				                                    setInvoiceFormError(null);
-				                                    setInvoicePdf(dataUrl);
-				                                  };
-				                                  reader.readAsDataURL(file);
-				                                }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setInvoicePdf, setInvoicePdfFileName);
+                                }}
 				                              />
 				                              <label
 				                                htmlFor="invoice-pdf-upload"
@@ -5890,19 +5872,11 @@ export default function PurchaseRequestDetailView({
 				                                disabled={busy}
 				                                className="hidden"
 				                                onChange={(e) => {
-				                                  const file = e.target.files?.[0];
-				                                  e.target.value = '';
-				                                  if (!file) return;
-				                                  const reader = new FileReader();
-				                                  reader.onload = () => {
-				                                    const result = reader.result;
-				                                    const dataUrl = typeof result === 'string' ? result : '';
-				                                    if (!dataUrl) return;
-				                                    setInvoiceFormError(null);
-				                                    setInvoiceCourierCopy(dataUrl);
-				                                  };
-				                                  reader.readAsDataURL(file);
-				                                }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setInvoiceCourierCopy, setInvoiceCourierCopyFileName);
+                                }}
 				                              />
 				                              <label
 				                                htmlFor="invoice-courier-copy-upload"
@@ -5947,19 +5921,11 @@ export default function PurchaseRequestDetailView({
 				                                disabled={busy}
 				                                className="hidden"
 				                                onChange={(e) => {
-				                                  const file = e.target.files?.[0];
-				                                  e.target.value = '';
-				                                  if (!file) return;
-				                                  const reader = new FileReader();
-				                                  reader.onload = () => {
-				                                    const result = reader.result;
-				                                    const dataUrl = typeof result === 'string' ? result : '';
-				                                    if (!dataUrl) return;
-				                                    setInvoiceFormError(null);
-				                                    setEwayBillDoc(dataUrl);
-				                                  };
-				                                  reader.readAsDataURL(file);
-				                                }}
+                                  const file = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (!file) return;
+                                  void uploadInvoiceAttachment(file, setEwayBillDoc, setEwayBillDocFileName);
+                                }}
 				                              />
 				                              <label
 				                                htmlFor="eway-bill-doc-upload-pr"

@@ -6,6 +6,7 @@ import { Plus, Trash2, ChevronDown, Download, Eye } from 'lucide-react';
 import { downloadTextFile, parseCsv, toCsv } from '@/src/lib/csvFile';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { openDocument } from '@/src/lib/utils';
+import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 import { getSidebarPermissionItems } from '@/src/lib/sidebarMenu';
 import {
   createDepartment,
@@ -324,6 +325,7 @@ export default function MastersView({
   const [newItemUnit, setNewItemUnit] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemPhotos, setNewItemPhotos] = useState<string[]>(['', '', '', '', '']);
+  const [uploadInfoByKey, setUploadInfoByKey] = useState<Record<string, string>>({});
   const [newItemLink, setNewItemLink] = useState('');
   const [newItemVideoLink, setNewItemVideoLink] = useState('');
   const [newItemReorderLevel, setNewItemReorderLevel] = useState('');
@@ -981,6 +983,7 @@ export default function MastersView({
   }, [tab]);
 
   const closeModal = () => {
+    setUploadInfoByKey({});
     setAddOpen(false);
     setEditCtx(null);
     setFieldErrors({});
@@ -988,6 +991,7 @@ export default function MastersView({
   };
 
 						  const openAddModal = () => {
+    setUploadInfoByKey({});
 						    setEditCtx(null);
 						    setError(null);
 						    setFieldErrors({});
@@ -1102,6 +1106,7 @@ export default function MastersView({
 	  };
 
 						  const openEditModal = (id: string) => {
+    setUploadInfoByKey({});
 						    setError(null);
 						    setFieldErrors({});
 						    setEditCtx({ tab, id });
@@ -2304,28 +2309,31 @@ export default function MastersView({
 				                          className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
 				                          accept="image/png,image/jpeg"
 				                          disabled={busy}
-			                          onChange={(e) => {
-			                            const file = e.target.files?.[0];
-			                            if (!file) return;
-			                            const maxBytes = 2 * 1024 * 1024; // 2MB
-			                            if (file.size > maxBytes) {
-			                              setError('Logo image is too large. Please upload a PNG/JPG under 2MB.');
-			                              return;
-			                            }
-			                            if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
-			                              setError('Logo must be a PNG or JPG image.');
-			                              return;
-			                            }
-			                            const reader = new FileReader();
-			                            reader.onload = () => setNewFirmLogoUrl(String(reader.result ?? ''));
-			                            reader.onerror = () => setError('Failed to read image file.');
-			                            reader.readAsDataURL(file);
-			                          }}
+			                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            setBusy(true);
+                            setError(null);
+                            try {
+                              const result = await uploadFileToServer(file);
+                              setNewFirmLogoUrl(result.url);
+                              setUploadInfoByKey((previous) => ({ ...previous, firmLogo: formatUploadSize(result) }));
+                            } catch (uploadError) {
+                              setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
 			                        />
+                        {uploadInfoByKey.firmLogo ? <div className="text-xs text-on-surface-variant">Uploaded size: {uploadInfoByKey.firmLogo}</div> : null}
 			                        <input
 			                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
 			                          value={newFirmLogoUrl}
-			                          onChange={(e) => setNewFirmLogoUrl(e.target.value)}
+			                          onChange={(e) => {
+                            setNewFirmLogoUrl(e.target.value);
+                            setUploadInfoByKey((previous) => ({ ...previous, firmLogo: '' }));
+                          }}
 			                          placeholder="Paste direct .png/.jpg URL or data:image/... (upload recommended for PDF)"
 			                        />
 			                        {String(newFirmLogoUrl ?? '').trim() ? (
@@ -3320,24 +3328,31 @@ export default function MastersView({
                                     className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
                                     accept=".pdf,image/png,image/jpeg"
                                     disabled={busy}
-                                    onChange={(e) => {
+                                    onChange={async (e) => {
                                       const file = e.target.files?.[0];
+                                      e.target.value = '';
                                       if (!file) return;
-                                      const maxBytes = 5 * 1024 * 1024; // 5MB
-                                      if (file.size > maxBytes) {
-                                        setError('File is too large. Please upload under 5MB.');
-                                        return;
+                                      setBusy(true);
+                                      setError(null);
+                                      try {
+                                        const result = await uploadFileToServer(file);
+                                        setNewSupplierMsmeCertificateUrl(result.url);
+                                        setUploadInfoByKey((previous) => ({ ...previous, supplierMsme: formatUploadSize(result) }));
+                                      } catch (uploadError) {
+                                        setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+                                      } finally {
+                                        setBusy(false);
                                       }
-                                      const reader = new FileReader();
-                                      reader.onload = () => setNewSupplierMsmeCertificateUrl(String(reader.result ?? ''));
-                                      reader.onerror = () => setError('Failed to read file.');
-                                      reader.readAsDataURL(file);
                                     }}
                                   />
+                                  {uploadInfoByKey.supplierMsme ? <div className="text-xs text-on-surface-variant">Uploaded size: {uploadInfoByKey.supplierMsme}</div> : null}
                                   <input
                                     className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
                                     value={newSupplierMsmeCertificateUrl}
-                                    onChange={(e) => setNewSupplierMsmeCertificateUrl(e.target.value)}
+                                    onChange={(e) => {
+                                      setNewSupplierMsmeCertificateUrl(e.target.value);
+                                      setUploadInfoByKey((previous) => ({ ...previous, supplierMsme: '' }));
+                                    }}
                                     placeholder="Paste certificate URL or data:..."
                                   />
                                   {newSupplierMsmeCertificateUrl && (
@@ -3353,7 +3368,10 @@ export default function MastersView({
                                       <button
                                         type="button"
                                         className="text-xs text-error hover:underline"
-                                        onClick={() => setNewSupplierMsmeCertificateUrl('')}
+                                        onClick={() => {
+                                          setNewSupplierMsmeCertificateUrl('');
+                                          setUploadInfoByKey((previous) => ({ ...previous, supplierMsme: '' }));
+                                        }}
                                       >
                                         Remove
                                       </button>
@@ -4600,39 +4618,40 @@ export default function MastersView({
                                   type="file"
                                   accept="image/png,image/jpeg"
                                   className="block w-full text-sm text-on-surface file:mr-3 file:rounded-md file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-black/90"
-                                  onChange={(e) => {
+                                  disabled={busy}
+                                  onChange={async (e) => {
                                     const file = e.target.files?.[0];
+                                    e.target.value = '';
                                     if (!file) return;
-                                    const maxBytes = 2 * 1024 * 1024;
-                                    if (file.size > maxBytes) {
-                                      setError(`Photo ${idx + 1} is too large. Please upload under 2MB.`);
-                                      return;
-                                    }
-                                    if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
-                                      setError(`Photo ${idx + 1} must be PNG or JPG.`);
-                                      return;
-                                    }
-                                    const reader = new FileReader();
-                                    reader.onload = () =>
-                                      setNewItemPhotos((prev) => {
-                                        const next = [...prev];
-                                        next[idx] = String(reader.result ?? '');
+                                    setBusy(true);
+                                    setError(null);
+                                    try {
+                                      const result = await uploadFileToServer(file);
+                                      setNewItemPhotos((previous) => {
+                                        const next = [...previous];
+                                        next[idx] = result.url;
                                         return next;
                                       });
-                                    reader.onerror = () => setError(`Failed to read Photo ${idx + 1}.`);
-                                    reader.readAsDataURL(file);
+                                      setUploadInfoByKey((previous) => ({ ...previous, [`itemPhoto${idx}`]: formatUploadSize(result) }));
+                                    } catch (uploadError) {
+                                      setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+                                    } finally {
+                                      setBusy(false);
+                                    }
                                   }}
                                 />
+                                {uploadInfoByKey[`itemPhoto${idx}`] ? <div className="text-xs text-on-surface-variant">Uploaded size: {uploadInfoByKey[`itemPhoto${idx}`]}</div> : null}
                                 <input
                                   className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm outline-none"
                                   value={value}
-                                  onChange={(e) =>
-                                    setNewItemPhotos((prev) => {
-                                      const next = [...prev];
+                                  onChange={(e) => {
+                                    setNewItemPhotos((previous) => {
+                                      const next = [...previous];
                                       next[idx] = e.target.value;
                                       return next;
-                                    })
-                                  }
+                                    });
+                                    setUploadInfoByKey((previous) => ({ ...previous, [`itemPhoto${idx}`]: '' }));
+                                  }}
                                   placeholder={`Paste Photo ${idx + 1} URL or data:image/...`}
                                 />
                               </div>
