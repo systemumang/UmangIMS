@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchFirms, type Firm } from '@/src/lib/purchaseRequests';
-import { createReturn } from '@/src/lib/stockMaster';
+import { createReturn, fetchProjectReturnBalances, type ProjectReturnBalance } from '@/src/lib/stockMaster';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
 import InlineCreateDialog from '@/src/components/common/InlineCreateDialog';
@@ -90,6 +90,8 @@ export default function ReturnView({
 				  const [customers, setCustomers] = useState<Customer[]>([]);
 				  const [loadingCustomers, setLoadingCustomers] = useState(true);
 				  const [projectId, setProjectId] = useState('');
+					  const [projectReturnBalances, setProjectReturnBalances] = useState<ProjectReturnBalance[]>([]);
+					  const [loadingProjectReturnBalances, setLoadingProjectReturnBalances] = useState(false);
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
@@ -109,6 +111,21 @@ export default function ReturnView({
 	  const [specs, setSpecs] = useState<Specification[]>([]);
 	  const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 	  const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+		  const projectBalanceByItemId = useMemo(
+		    () => Object.fromEntries(projectReturnBalances.map((row) => [row.itemId, Number(row.balance) || 0])),
+		    [projectReturnBalances]
+		  );
+		  const projectReturnableItemIds = useMemo(
+		    () => new Set(projectReturnBalances.filter((row) => Number(row.balance) > 0).map((row) => row.itemId)),
+		    [projectReturnBalances]
+		  );
+		  const selectableItemNames = useMemo(() => {
+		    if (returnType !== 'Project') return itemNames;
+		    const returnableItemNameIds = new Set(
+		      masterItems.filter((item) => projectReturnableItemIds.has(item.id)).map((item) => item.itemNameId)
+		    );
+		    return itemNames.filter((itemName) => returnableItemNameIds.has(itemName.id));
+		  }, [itemNames, masterItems, projectReturnableItemIds, returnType]);
 
 	  const [createItemOpen, setCreateItemOpen] = useState(false);
 	  const [createItemRowIndex, setCreateItemRowIndex] = useState<number | null>(null);
@@ -230,6 +247,31 @@ export default function ReturnView({
 			  }, [projectId, returnType, projects]);
 
 			  useEffect(() => {
+				    if (returnType !== 'Project' || !projectId) {
+				      setProjectReturnBalances([]);
+				      setLoadingProjectReturnBalances(false);
+				      return;
+				    }
+
+				    const ac = new AbortController();
+				    setLoadingProjectReturnBalances(true);
+				    setProjectReturnBalances([]);
+				    setItems([{ itemId: '', itemNameId: '', item: '', quantity: '', specification: '', specs: {}, reason: '' }]);
+				    setItemRowErrors([]);
+				    fetchProjectReturnBalances(projectId, ac.signal)
+				      .then((rows) => setProjectReturnBalances(rows.filter((row) => Number(row.balance) > 0)))
+				      .catch((e) => {
+				        if (ac.signal.aborted) return;
+				        setProjectReturnBalances([]);
+				        setError(e instanceof Error ? e.message : String(e));
+				      })
+				      .finally(() => {
+				        if (!ac.signal.aborted) setLoadingProjectReturnBalances(false);
+				      });
+				    return () => ac.abort();
+				  }, [projectId, returnType]);
+
+				  useEffect(() => {
 			    const ac = new AbortController();
 			    setLoadingItemNames(true);
 			    fetchItemNames(ac.signal)
@@ -413,8 +455,8 @@ export default function ReturnView({
   };
 
 						  const canSubmit = useMemo(() => {
-						    if (!firmId || !storeId.trim() || !departmentId.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
-						    if (returnType === 'Project' && !projectId.trim()) return false;
+						    if (!firmId || !storeId.trim() || !departmentId.trim() || !returnBy.trim() || !requestedByUserId.trim() || !requiredDate.trim()) return false;
+						    if (returnType === 'Project' && (!projectId.trim() || loadingProjectReturnBalances || projectReturnBalances.length === 0)) return false;
 							    if (!customerName.trim()) return false;
 								    const normalized = items
 								      .map((it) => ({
@@ -429,6 +471,7 @@ export default function ReturnView({
 									    .filter((it) => {
                         if (!Number.isFinite(it.quantity) || it.quantity <= 0) return false;
                         if (!it.reason) return false;
+                        if (returnType === 'Project' && (!it.itemId || it.quantity > (projectBalanceByItemId[it.itemId] ?? 0))) return false;
                         if (it.itemId && it.item) return true;
                         if (!it.itemNameId) return false;
                         const specIds = getItemNameSpecIds(it.itemNameId);
@@ -437,7 +480,7 @@ export default function ReturnView({
                         return true;
                       });
 							    return normalized.length > 0;
-							  }, [departmentId, firmId, items, projectId, requestedByUserId, requiredDate, returnType, customerName, storeId]);
+							  }, [customerName, departmentId, firmId, items, loadingProjectReturnBalances, projectBalanceByItemId, projectId, projectReturnBalances.length, requestedByUserId, requiredDate, returnBy, returnType, storeId]);
 
 	  function getItemNameSpecIds(itemNameId: string): string[] {
 	    const row = itemNames.find((n) => n.id === itemNameId);
@@ -457,7 +500,9 @@ export default function ReturnView({
   const resolveSelectedItem = (itemNameId: string, specValues: Record<string, string>) => {
     if (!itemNameId) return null;
     const specIds = getItemNameSpecIds(itemNameId);
-    const candidates = masterItems.filter((it) => it.itemNameId === itemNameId);
+    const candidates = masterItems.filter((it) =>
+	      it.itemNameId === itemNameId && (returnType !== 'Project' || projectReturnableItemIds.has(it.id))
+	    );
     if (!candidates.length) return null;
     if (!specIds.length) return candidates[0] ?? null;
     if (specIds.some((specId) => !String(specValues?.[specId] ?? '').trim())) return null;
@@ -469,6 +514,27 @@ export default function ReturnView({
     );
   };
 
+	  const getSpecificationOptions = (itemNameId: string, specificationId: string, currentValue: string) => {
+	    const values =
+	      returnType === 'Project'
+	        ? masterItems
+	            .filter((item) => item.itemNameId === itemNameId && projectReturnableItemIds.has(item.id))
+	            .map((item) => String(parseSpecObject(item.specificationsJson)[specificationId] ?? '').trim())
+	        : (specValueOptions[specValueKey(itemNameId, specificationId)] ?? []).map((option) => String(option.value ?? '').trim());
+
+	    const uniqueValues = new Map<string, string>();
+	    for (const value of values) {
+	      if (!value) continue;
+	      const normalized = value.toLocaleLowerCase();
+	      if (!uniqueValues.has(normalized)) uniqueValues.set(normalized, value);
+	    }
+	    if (currentValue && !uniqueValues.has(currentValue.toLocaleLowerCase())) {
+	      uniqueValues.set(currentValue.toLocaleLowerCase(), currentValue);
+	    }
+	    return Array.from(uniqueValues.values())
+	      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+	      .map((value) => ({ value, label: value }));
+	  };
 			  const storeOptions = useMemo(() => {
 			    const list = firmId ? stores.filter((s) => s.firmId === firmId) : stores;
 			    return list.map((s) => ({ value: s.id, label: s.name }));
@@ -736,7 +802,15 @@ export default function ReturnView({
 				          </div>
 				        </div>
 
-							        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
+							        { returnType === 'Project' && projectId ? (
+						          loadingProjectReturnBalances ? (
+						            <div className="text-sm text-on-surface-variant">Checking issued item balances...</div>
+						          ) : projectReturnBalances.length === 0 ? (
+						            <div className="text-sm font-semibold text-error">No items for Return</div>
+						          ) : null
+						        ) : null }
+
+								        <div className="w-full rounded-xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
 							          <div className="grid grid-cols-1 md:grid-cols-12 gap-0 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high border-b border-outline-variant">
 								            <div className="md:col-span-3 px-2 py-2 md:border-r md:border-outline-variant">Item Name</div>
 								            <div className="md:col-span-5 px-2 py-2 md:border-r md:border-outline-variant">Specifications</div>
@@ -756,7 +830,7 @@ export default function ReturnView({
 							              <div className="md:col-span-3 px-2 py-2 md:border-r md:border-outline-variant space-y-2">
 						                <SearchableSelect
 					                  value={row.itemNameId}
-					                  options={itemNames.map((it) => ({ value: it.id, label: it.name }))}
+					                  options={selectableItemNames.map((it) => ({ value: it.id, label: it.name }))}
 					                  onChange={(itemNameId) => {
 				                    setItemRowErrors((prev) => prev.map((m, i) => (i === idx ? '' : m)));
                             const specIdsToLoad = itemNameId ? getItemNameSpecIds(itemNameId) : [];
@@ -768,10 +842,21 @@ export default function ReturnView({
                                 .catch(() => {});
                             }
 				                    setItems((prev) =>
-				                      prev.map((p, i) => (i === idx ? { ...p, itemNameId, itemId: '', item: '', specification: '', specs: {} } : p))
+				                      prev.map((p, i) => {
+	                        if (i !== idx) return p;
+	                        const matched = resolveSelectedItem(itemNameId, {});
+	                        return {
+	                          ...p,
+	                          itemNameId,
+	                          itemId: matched?.id ?? '',
+	                          item: matched?.itemName ?? '',
+	                          specification: matched ? formatSpecsLines(matched.specificationsJson, specNameById).join('\n').trim() : '',
+	                          specs: {},
+	                        };
+	                      })
 				                    );
 					                  }}
-					                  disabled={loadingItemNames}
+					                  disabled={loadingItemNames || (returnType === 'Project' && (loadingProjectReturnBalances || projectReturnBalances.length === 0))}
 					                  placeholder="Search item name..."
 					                  allowClear
 			                />
@@ -782,9 +867,7 @@ export default function ReturnView({
                                     {getItemNameSpecIds(row.itemNameId).map((specId) => {
                                       const specName = specNameById?.[specId] ?? specId;
                                       const value = String(row.specs?.[specId] ?? '');
-                                      const key = specValueKey(row.itemNameId, specId);
-                                      const options = (specValueOptions[key] ?? []).map((v) => ({ value: v.value, label: v.value }));
-                                      if (value && !options.some((opt) => opt.value === value)) options.unshift({ value, label: value });
+                                      const options = getSpecificationOptions(row.itemNameId, specId, value);
                                       return (
                                         <label key={`${idx}-${specId}`} className="space-y-1">
                                           <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{specName}</div>
@@ -827,6 +910,7 @@ export default function ReturnView({
 				                  type="number"
 				                  inputMode="numeric"
 				                  min={0}
+				                  max={returnType === 'Project' && row.itemId ? projectBalanceByItemId[row.itemId] : undefined}
 				                  step={1}
 				                  value={row.quantity}
 				                  onChange={(e) => {
@@ -835,6 +919,9 @@ export default function ReturnView({
 				                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, quantity: v } : p)));
 				                  }}
 				                />
+				                {returnType === 'Project' && row.itemId ? (
+				                  <div className="text-[11px] text-on-surface-variant">Available to Return: {projectBalanceByItemId[row.itemId] ?? 0}</div>
+				                ) : null}
 				                {itemRowErrors[idx] ? <div className="text-[11px] text-error">{itemRowErrors[idx]}</div> : null}
 				              </div>
 							              <div className="md:col-span-1 px-2 py-2 md:border-r md:border-outline-variant space-y-1">
@@ -902,6 +989,7 @@ export default function ReturnView({
 							                      else if (!itemId && getItemNameSpecIds(itemNameId).some((sid) => !String(it.specs?.[sid] ?? '').trim())) rowMessages[i] = 'Select specifications.';
 							                      else if (itemId && usedItemIds.has(itemId)) rowMessages[i] = 'Item already selected.';
 							                      else if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) rowMessages[i] = 'Enter valid Qty.';
+								                      else if (returnType === 'Project' && quantityNumber > (projectBalanceByItemId[itemId] ?? 0)) rowMessages[i] = `Maximum return Qty is ${projectBalanceByItemId[itemId] ?? 0}.`;
 							                      else if (!reason) rowMessages[i] = 'Enter reason.';
 							                      if (itemId) usedItemIds.add(itemId);
 							                      return { itemId, itemNameId, specs: it.specs ?? {}, item: itemName, quantity: quantityNumber, specification, remark: reason };
@@ -920,6 +1008,10 @@ export default function ReturnView({
 							                    setError('Please select a Project Name for Project-type returns.');
 							                    return;
 							                  }
+								                  if (returnType === 'Project' && projectReturnBalances.length === 0) {
+								                    setError('No items for Return');
+								                    return;
+								                  }
 
 					                  setSaving(true);
 						                  createReturn({
@@ -929,6 +1021,7 @@ export default function ReturnView({
 						                    department,
 						                    projectId: returnType === 'Project' ? projectId : undefined,
 						                    person: requestedBy,
+							                    returnBy: returnBy.trim(),
 						                    date: requiredDate,
 						                    returnType,
 						                    customerName,

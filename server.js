@@ -13851,6 +13851,40 @@ async function getNextTransactionNo(pool, table, prefix) {
   return `${prefix}-${date}-${String(count).padStart(4, '0')}`;
 }
 
+async function getProjectReturnBalances(pool, projectId) {
+  const normalizedProjectId = String(projectId ?? '').trim();
+  if (!normalizedProjectId) return [];
+
+  const [issueRows] = await pool.query(
+    `SELECT ii.item_id AS itemId, SUM(ii.quantity) AS quantity
+     FROM item_issue_items ii
+     INNER JOIN item_issues i ON i.id = ii.issue_id
+     WHERE i.issue_type = 'Project' AND i.project_id = ?
+     GROUP BY ii.item_id`,
+    [normalizedProjectId]
+  );
+  const [returnRows] = await pool.query(
+    `SELECT ri.item_id AS itemId, SUM(ri.quantity) AS quantity
+     FROM item_return_items ri
+     INNER JOIN item_returns r ON r.id = ri.return_id
+     WHERE r.return_type = 'Project' AND r.project_id = ?
+     GROUP BY ri.item_id`,
+    [normalizedProjectId]
+  );
+
+  const returnedByItem = new Map(
+    (Array.isArray(returnRows) ? returnRows : []).map((row) => [String(row.itemId ?? '').trim(), Number(row.quantity) || 0])
+  );
+  return (Array.isArray(issueRows) ? issueRows : [])
+    .map((row) => {
+      const itemId = String(row.itemId ?? '').trim();
+      const issuedQuantity = Number(row.quantity) || 0;
+      const returnedQuantity = returnedByItem.get(itemId) || 0;
+      return { itemId, issuedQuantity, returnedQuantity, balance: Math.max(0, issuedQuantity - returnedQuantity) };
+    })
+    .filter((row) => row.itemId && row.balance > 0);
+}
+
 async function handleListTransactions(req, res, table, itemsTable, kind) {
   try {
     const pool = getMysqlPool();
@@ -13988,6 +14022,26 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     }
     if (table === 'item_returns' && !String(data.person ?? '').trim()) {
       return res.status(400).json({ error: 'Received By is required.' });
+    }
+    if (table === 'item_returns' && data.returnType === 'Project') {
+      const projectId = String(data.projectId ?? '').trim();
+      if (!projectId) return res.status(400).json({ error: 'Project Name is required.' });
+      const balances = await getProjectReturnBalances(pool, projectId);
+      if (!balances.length) return res.status(400).json({ error: 'No items for Return' });
+      const balanceByItem = new Map(balances.map((row) => [row.itemId, row.balance]));
+      const requestedByItem = new Map();
+      for (const item of Array.isArray(data.items) ? data.items : []) {
+        const itemId = String(item?.itemId ?? '').trim();
+        const quantity = Number(item?.quantity) || 0;
+        requestedByItem.set(itemId, (requestedByItem.get(itemId) || 0) + quantity);
+      }
+      if (!requestedByItem.size) return res.status(400).json({ error: 'No items for Return' });
+      for (const [itemId, quantity] of requestedByItem) {
+        const balance = balanceByItem.get(itemId) || 0;
+        if (!itemId || quantity <= 0 || quantity > balance) {
+          return res.status(400).json({ error: `Return quantity exceeds available project balance (${balance}).` });
+        }
+      }
     }
 
     if (table === 'item_issues') {
@@ -14214,6 +14268,17 @@ app.delete('/api/stock-transactions/issues/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/stock-transactions/project-return-balances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const projectId = String(req.query.projectId ?? '').trim();
+    if (!projectId) return res.status(400).json({ error: 'projectId is required.' });
+    res.json({ balances: await getProjectReturnBalances(pool, projectId) });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 app.get('/api/stock-transactions/returns', (req, res) => handleListTransactions(req, res, 'item_returns', 'item_return_items', 'return'));
 app.post('/api/stock-transactions/returns', (req, res) => handleCreateTransaction(req, res, 'item_returns', 'item_return_items', 'return', 'RET'));
 app.delete('/api/stock-transactions/returns/:id', async (req, res) => {

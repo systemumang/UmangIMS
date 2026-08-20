@@ -35,6 +35,13 @@ export type StockTransaction = {
   items: StockTransactionItem[];
 };
 
+export type ProjectReturnBalance = {
+  itemId: string;
+  issuedQuantity: number;
+  returnedQuantity: number;
+  balance: number;
+};
+
 // Issues API endpoints
 export async function createIssue(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
   const res = await fetch('/api/stock-transactions/issues', {
@@ -84,6 +91,17 @@ export async function deleteIssue(id: string) {
 }
 
 // Returns API endpoints
+export async function fetchProjectReturnBalances(projectId: string, signal?: AbortSignal): Promise<ProjectReturnBalance[]> {
+  const params = new URLSearchParams({ projectId });
+  const res = await fetch(`/api/stock-transactions/project-return-balances?${params.toString()}`, { signal });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to load project return balances (${res.status})`);
+  }
+  const data = await res.json();
+  return Array.isArray(data.balances) ? data.balances : [];
+}
+
 export async function createReturn(data: Omit<StockTransaction, 'id' | 'transactionNo'>) {
   const res = await fetch('/api/stock-transactions/returns', {
     method: 'POST',
