@@ -663,7 +663,7 @@ export default function ReturnView({
 	          </label>
 
 	          <label className="space-y-1">
-	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Received By</div>
+	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Return By *</div>
 	            <SearchableSelect
 	              value={requestedByUserId}
 	              options={users.map((u) => ({ value: u.id, label: u.name }))}
@@ -907,7 +907,7 @@ export default function ReturnView({
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
 								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
 								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length || !customerName.trim()) {
-								                    setError('Please fill Firm, Store, Department, Received By, Return Date, Customer Name, and at least one valid item.');
+								                    setError('Please fill Firm, Store, Department, Return By, Return Date, Customer Name, and at least one valid item.');
 								                    return;
 						                  }
 							                  if (returnType === 'Project' && !projectId.trim()) {

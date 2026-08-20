@@ -13980,6 +13980,10 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     const transactionNo = await getNextTransactionNo(pool, table, prefix);
     const data = req.body;
 
+    if (table === 'item_returns' && !String(data.person ?? '').trim()) {
+      return res.status(400).json({ error: 'Return By is required.' });
+    }
+
     if (table === 'item_issues') {
       const issueType = String(data.issueType ?? '').trim();
       const department = String(data.department ?? '').trim();

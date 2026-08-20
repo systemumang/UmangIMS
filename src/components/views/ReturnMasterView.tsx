@@ -287,7 +287,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	                </th>
 	                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('person')} className="w-full px-3 py-3 flex items-center justify-between">
-	                    <span>Received By</span><ArrowUpDown size={12} />
+	                    <span>Return By</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
 	                <th className="p-0 border-b border-r border-black text-right">
@@ -358,7 +358,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department}</div>
-                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Returned By</span> {viewItem.person}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return By</span> {viewItem.person}</div>
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
 	                <table className="w-full text-left border-collapse text-sm">
@@ -476,7 +476,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
                   </label>
                 )}
                 <label className="space-y-1 md:col-span-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Received By</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Return By</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.person ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, person: e.target.value }) : p)} />
                 </label>
               </div>
