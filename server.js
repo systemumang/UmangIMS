@@ -14480,7 +14480,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
           SELECT t.to_store_id AS storeId, ti.item_id AS itemId
           FROM item_transfers t
           INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
-          WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+          WHERE COALESCE(NULLIF(t.to_firm_id, ''), t.firm_id) = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
           UNION
           SELECT t.from_store_id AS storeId, ti.item_id AS itemId
           FROM item_transfers t
@@ -14519,7 +14519,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         SELECT t.to_store_id AS storeId, ti.item_id AS itemId, SUM(ti.quantity) AS transferIn
         FROM item_transfers t
         INNER JOIN item_transfer_items ti ON ti.transfer_id = t.id
-        WHERE t.firm_id = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
+        WHERE COALESCE(NULLIF(t.to_firm_id, ''), t.firm_id) = ? AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?
         GROUP BY t.to_store_id, ti.item_id
       ) tin ON tin.storeId = base.storeId AND tin.itemId = base.itemId
       LEFT JOIN (
@@ -14572,9 +14572,10 @@ app.get('/api/inventory/sheet', async (req, res) => {
       const storeId = String(r.storeId ?? '');
       const itemId = String(r.itemId ?? '');
       if (!storeId || !itemId) continue;
-	      aggMap.set(keyOf(storeId, itemId), {
-	        opening: num(r.opening, 0),
-	        purchase: num(r.purchase, 0),
+      aggMap.set(keyOf(storeId, itemId), {
+        opening: num(r.opening, 0),
+        purchase: num(r.purchase, 0),
+	        returns: 0,
         issue: num(r.issueQty, 0),
         damage: num(r.damageQty, 0),
         transferIn: num(r.transferIn, 0),
@@ -14582,28 +14583,73 @@ app.get('/api/inventory/sheet', async (req, res) => {
       });
     }
 
+    const mergeInventoryQuantity = (sourceRows, sourceField, targetField) => {
+      for (const row of Array.isArray(sourceRows) ? sourceRows : []) {
+        const storeId = String(row.storeId ?? '');
+        const itemId = String(row.itemId ?? '');
+        if (!storeId || !itemId) continue;
+        const key = keyOf(storeId, itemId);
+        const agg = aggMap.get(key) ?? {
+          opening: 0,
+          purchase: 0,
+          returns: 0,
+          issue: 0,
+          damage: 0,
+          transferIn: 0,
+          transferOut: 0,
+        };
+        agg[targetField] = num(agg[targetField], 0) + num(row[sourceField], 0);
+        aggMap.set(key, agg);
+      }
+    };
+
+    const [returnAggRows] = await pool.query(
+      `
+      SELECT r.store_id AS storeId, ri.item_id AS itemId, SUM(ri.quantity) AS returnQty
+      FROM item_returns r
+      INNER JOIN item_return_items ri ON ri.return_id = r.id
+      WHERE r.firm_id = ? AND DATE(COALESCE(r.date, r.created_at)) >= ? AND DATE(COALESCE(r.date, r.created_at)) <= ?
+      GROUP BY r.store_id, ri.item_id
+      `,
+      [firmId, range.start, range.end]
+    );
+    mergeInventoryQuantity(returnAggRows, 'returnQty', 'returns');
+
+    const [damageTransactionRows] = await pool.query(
+      `
+      SELECT d.store_id AS storeId, di.item_id AS itemId, SUM(di.quantity) AS damageQty
+      FROM item_damages d
+      INNER JOIN item_damage_items di ON di.damage_id = d.id
+      WHERE d.firm_id = ? AND DATE(COALESCE(d.date, d.created_at)) >= ? AND DATE(COALESCE(d.date, d.created_at)) <= ?
+      GROUP BY d.store_id, di.item_id
+      `,
+      [firmId, range.start, range.end]
+    );
+    mergeInventoryQuantity(damageTransactionRows, 'damageQty', 'damage');
+
     const storeIds = Array.from(storeById.keys());
     const itemIds = Array.from(itemById.keys());
 
     const makeRow = (storeId, itemId) => {
-	      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, openingStock: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', itemLink: '', videoLink: '' };
-	      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
+      const meta = itemById.get(itemId) ?? { itemCode: '', itemName: '', specificationsJson: '', unit: '', reorderLevel: 0, openingStock: 0, photo1: '', photo2: '', photo3: '', photo4: '', photo5: '', itemLink: '', videoLink: '' };
+      const agg = aggMap.get(keyOf(storeId, itemId)) ?? {
 	        opening: 0,
 	        purchase: 0,
+	        returns: 0,
         issue: 0,
         damage: 0,
         transferIn: 0,
         transferOut: 0,
 	      };
-	      const opening = num(agg.opening, 0);
-	      const reorderLevel = num(meta.reorderLevel, 0);
+      const opening = num(agg.opening, 0);
+      const reorderLevel = num(meta.reorderLevel, 0);
       const purchase = num(agg.purchase, 0);
       const issue = num(agg.issue, 0);
       const damage = num(agg.damage, 0);
-      const returns = 0;
+      const returns = num(agg.returns, 0);
       const transferIn = num(agg.transferIn, 0);
       const transferOut = num(agg.transferOut, 0);
-      const balance = opening + purchase - issue - damage - returns + transferIn - transferOut;
+      const balance = opening + purchase + returns + transferIn - issue - damage - transferOut;
       return {
         itemId,
         itemCode: meta.itemCode,
@@ -14786,9 +14832,15 @@ async function fetchStockSummaryRows(pool) {
       GROUP BY iii.item_id
     ) issue ON issue.itemId = it.id
     LEFT JOIN (
-      SELECT item_id AS itemId, SUM(COALESCE(quantity, 0)) AS damageQty
-      FROM damaged_items
-      GROUP BY item_id
+      SELECT damageRows.itemId, SUM(damageRows.damageQty) AS damageQty
+      FROM (
+        SELECT item_id AS itemId, COALESCE(quantity, 0) AS damageQty
+        FROM damaged_items
+        UNION ALL
+        SELECT idi.item_id AS itemId, COALESCE(idi.quantity, 0) AS damageQty
+        FROM item_damage_items idi
+      ) damageRows
+      GROUP BY damageRows.itemId
     ) damage ON damage.itemId = it.id
     LEFT JOIN (
       SELECT

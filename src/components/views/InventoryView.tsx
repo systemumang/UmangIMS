@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Save, ArrowUpDown } from 'lucide-react';
 import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
-import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import Spinner from '@/src/components/common/Spinner';
 import { Modal, inputClass, labelClass } from './queues/shared';
@@ -25,10 +24,6 @@ export default function InventoryView() {
   const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [photoModal, setPhotoModal] = useState<{ title: string; photos: string[] } | null>(null);
-  const [issueRows, setIssueRows] = useState<StockTransaction[]>([]);
-  const [returnRows, setReturnRows] = useState<StockTransaction[]>([]);
-  const [damageRows, setDamageRows] = useState<StockTransaction[]>([]);
-  const [transferRows, setTransferRows] = useState<StockTransaction[]>([]);
 
   useEffect(() => {
     fetchFirms().then((data) => {
@@ -53,19 +48,6 @@ export default function InventoryView() {
     fetchSpecifications()
       .then((list) => setSpecNameById(Object.fromEntries(list.map((s) => [s.id, s.name]))))
       .catch(() => setSpecNameById({}));
-    Promise.all([listIssues(), listReturns(), listDamages(), listTransfers()])
-      .then(([issues, returnsList, damages, transfers]) => {
-        setIssueRows(issues);
-        setReturnRows(returnsList);
-        setDamageRows(damages);
-        setTransferRows(transfers);
-      })
-      .catch(() => {
-        setIssueRows([]);
-        setReturnRows([]);
-        setDamageRows([]);
-        setTransferRows([]);
-      });
   }, []);
 
   useEffect(() => {
@@ -106,86 +88,10 @@ export default function InventoryView() {
 	      .finally(() => setLoading(false));
 	  }, [selectedFirmId, selectedStoreFilterId, firms]);
 
-  const adjustedRows = React.useMemo(() => {
-    const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase();
-    const splitStores = (value: unknown) =>
-      String(value ?? '')
-        .split(',')
-        .map((x) => normalize(x))
-        .filter(Boolean);
-    const resolveFirmId = (rawValue: unknown) => {
-      const raw = String(rawValue ?? '').trim();
-      if (!raw) return '';
-      const byId = firms.find((f) => f.id === raw);
-      if (byId) return byId.id;
-      const needle = normalize(raw);
-      const byName = firms.find((f) => normalize(f.name) === needle || normalize(f.sortName) === needle);
-      return byName?.id ?? '';
-    };
-    const matchesStore = (row: InventorySheetRow, txStore: string) => {
-      const wanted = normalize(txStore);
-      if (!wanted) return true;
-      const rowStores = splitStores(getStoreLabel(row));
-      if (!rowStores.length || rowStores.includes('-')) return true;
-      return rowStores.includes(wanted);
-    };
-	    const qtyForRow = (tx: StockTransaction, row: InventorySheetRow) =>
-	      (tx.items ?? [])
-	        .filter((it) => {
-	          const txItemId = String(it.itemId ?? '').trim();
-	          if (txItemId && txItemId === String(row.itemId ?? '').trim()) return true;
-
-	          const txItem = normalize(it.item);
-	          if (!txItem) return false;
-	          const rowInline = normalize(getFullSheetItemLabel(row, specNameById));
-	          const rowName = normalize(row.itemName);
-	          return txItem === rowInline || txItem === rowName || txItem.includes(rowName) || rowInline.includes(txItem);
-	        })
-	        .reduce((sum, it) => sum + Number(it.quantity ?? 0), 0);
-
-    return rows
-      .filter((row) => goodsItemIds.has(String(row.itemId ?? '')))
-      .map((row) => {
-      const rowFirmId = resolveFirmId(getFirmLabel(row));
-      let issueDelta = 0;
-      let returnDelta = 0;
-      let damageDelta = 0;
-      let transferOut = 0;
-      let transferIn = 0;
-
-      for (const tx of issueRows) {
-        if (rowFirmId && resolveFirmId(tx.firmId) !== rowFirmId) continue;
-        if (!matchesStore(row, String(tx.store ?? ''))) continue;
-        issueDelta += qtyForRow(tx, row);
-      }
-      for (const tx of returnRows) {
-        if (rowFirmId && resolveFirmId(tx.firmId) !== rowFirmId) continue;
-        if (!matchesStore(row, String(tx.store ?? ''))) continue;
-        returnDelta += qtyForRow(tx, row);
-      }
-      for (const tx of damageRows) {
-        if (rowFirmId && resolveFirmId(tx.firmId) !== rowFirmId) continue;
-        if (!matchesStore(row, String(tx.store ?? ''))) continue;
-        damageDelta += qtyForRow(tx, row);
-      }
-      for (const tx of transferRows) {
-        if (rowFirmId && resolveFirmId(tx.firmId) === rowFirmId && matchesStore(row, String(tx.store ?? ''))) {
-          transferOut += qtyForRow(tx, row);
-        }
-        if (rowFirmId && resolveFirmId(tx.toFirmId) === rowFirmId && matchesStore(row, String(tx.toStore ?? ''))) {
-          transferIn += qtyForRow(tx, row);
-        }
-      }
-
-      const opening = Number(row.opening ?? 0);
-      const purchase = Number(row.purchase ?? 0);
-      const issue = Number(row.issue ?? 0) + issueDelta;
-      const returns = Number(row.returns ?? 0) + returnDelta;
-      const damage = Number(row.damage ?? 0) + damageDelta;
-      const balance = opening + purchase + returns + transferIn - issue - damage - transferOut;
-      return { ...row, issue, returns, damage, transferIn, transferOut, balance };
-      });
-  }, [rows, firms, issueRows, returnRows, damageRows, transferRows, specNameById, goodsItemIds]);
+  const adjustedRows = React.useMemo(
+    () => rows.filter((row) => goodsItemIds.has(String(row.itemId ?? ''))),
+    [rows, goodsItemIds]
+  );
 
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
