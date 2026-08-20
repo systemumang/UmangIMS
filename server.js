@@ -1321,8 +1321,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-const MAX_UPLOAD_BYTES = Math.max(1024, Number(process.env.UPLOAD_MAX_BYTES || 15 * 1024 * 1024));
-const parseUploadBody = express.raw({ type: () => true, limit: process.env.UPLOAD_BODY_LIMIT || '20mb' });
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const parseUploadBody = express.raw({ type: () => true, limit: '6mb' });
 
 function detectUploadContentType(buf) {
   if (buf.length >= 5 && buf.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
@@ -1351,7 +1351,7 @@ app.post('/api/uploads', (req, res, next) => {
     if (!error) return next();
     const tooLarge = error?.type === 'entity.too.large';
     return res.status(tooLarge ? 413 : 400).json({
-      error: tooLarge ? 'File is too large. Maximum upload size is 15 MB.' : 'Unable to read upload content.',
+      error: tooLarge ? 'File is too large. Maximum upload size is 5 MB.' : 'Unable to read upload content.',
     });
   });
 }, async (req, res) => {
@@ -1372,7 +1372,7 @@ app.post('/api/uploads', (req, res, next) => {
 
     const buf = isBinary ? req.body : Buffer.from(base64, 'base64');
     if (!buf.length) return res.status(400).json({ error: 'Invalid upload content.' });
-    if (buf.length > MAX_UPLOAD_BYTES) return res.status(413).json({ error: 'File is too large. Maximum upload size is 15 MB.' });
+    if (buf.length > MAX_UPLOAD_BYTES) return res.status(413).json({ error: 'File is too large. Maximum upload size is 5 MB.' });
 
     const contentType = detectUploadContentType(buf);
     const ext = extensionForUploadType(contentType);

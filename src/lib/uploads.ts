@@ -1,4 +1,4 @@
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_EDGE = 1600;
 const TARGET_IMAGE_BYTES = 700 * 1024;
 
@@ -11,7 +11,7 @@ export type UploadResult = {
 };
 
 export async function uploadFileToServer(file: File): Promise<UploadResult> {
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error('File is too large. Maximum upload size is 15 MB.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('File is too large. Maximum upload size is 5 MB.');
   const upload = await optimizeUploadFile(file);
   let res = await fetch('/api/uploads', {
     method: 'POST',
