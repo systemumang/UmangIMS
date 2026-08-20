@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Eye, FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import GstRateSelect from '@/src/components/common/GstRateSelect';
 import { cn } from '@/src/lib/utils';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { formatPrNumber } from '@/src/lib/docNumbers';
@@ -168,6 +169,11 @@ type EditInvoiceLine = {
   unit: string;
   isArea: boolean;
   poDimUnit: 'ft' | 'm' | '';
+  poLength: string;
+  poBreadth: string;
+  poPcs: string;
+  poQuantity: string;
+  poRate: string;
   inputUnit: 'ft' | 'm' | '';
   length: string;
   breadth: string;
@@ -180,6 +186,9 @@ type EditInvoiceLine = {
 type EditInvoiceForm = {
   id: string;
   poNumber: string;
+  supplierId: string;
+  supplierName: string;
+  supplierHasGst: boolean;
   invoiceNo: string;
   invoiceDate: string;
   updatedBy: string;
@@ -188,6 +197,13 @@ type EditInvoiceForm = {
   labourCharge: string;
   otherCharge: string;
   chargesGstAmount: string;
+  transporterId: string;
+  transporterName: string;
+  cnNumber: string;
+  ewayBillNumber: string;
+  documentUrl: string;
+  cnCopyUrl: string;
+  ewayBillUrl: string;
   lines: EditInvoiceLine[];
 };
 export default function OperationsView({
@@ -202,7 +218,7 @@ export default function OperationsView({
   initialTab?: OpsTab;
   currentUser?: AuthUser | null;
 }) {
-  const masters = useQueueMasters({ includeSuppliers: true, includeStores: true, includeUsers: true });
+  const masters = useQueueMasters({ includeSuppliers: true, includeStores: true, includeUsers: true, includeTransporters: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [itemNames, setItemNames] = useState<ItemName[]>([]);
@@ -283,27 +299,35 @@ export default function OperationsView({
   const [editInvoiceBusy, setEditInvoiceBusy] = useState(false);
   const [editInvoiceError, setEditInvoiceError] = useState<string | null>(null);
   const [editInvoiceForm, setEditInvoiceForm] = useState<EditInvoiceForm | null>(null);
+  const [editInvoiceDocumentFile, setEditInvoiceDocumentFile] = useState<File | null>(null);
+  const [editInvoiceCnCopyFile, setEditInvoiceCnCopyFile] = useState<File | null>(null);
+  const [editInvoiceEwayBillFile, setEditInvoiceEwayBillFile] = useState<File | null>(null);
+  const editInvoiceItemTotal = useMemo(() => {
+    if (!editInvoiceForm) return 0;
+    return round2(
+      editInvoiceForm.lines.reduce((sum, line) => {
+        const quantity = Number(line.quantity ?? 0);
+        const rate = Number(line.rate ?? 0);
+        const taxPercent = editInvoiceForm.supplierHasGst ? Number(line.taxPercent ?? 0) : 0;
+        if (![quantity, rate, taxPercent].every(Number.isFinite)) return sum;
+        return sum + quantity * rate * (1 + taxPercent / 100);
+      }, 0)
+    );
+  }, [editInvoiceForm]);
   const editInvoiceTotal = useMemo(() => {
     if (!editInvoiceForm) return 0;
-    const itemTotal = editInvoiceForm.lines.reduce((sum, line) => {
-      const quantity = Number(line.quantity ?? 0);
-      const rate = Number(line.rate ?? 0);
-      const taxPercent = Number(line.taxPercent ?? 0);
-      if (![quantity, rate, taxPercent].every(Number.isFinite)) return sum;
-      return sum + quantity * rate * (1 + taxPercent / 100);
-    }, 0);
     const charges = [
       editInvoiceForm.courierCharge,
       editInvoiceForm.packingCharge,
       editInvoiceForm.labourCharge,
       editInvoiceForm.otherCharge,
-      editInvoiceForm.chargesGstAmount,
+      ...(editInvoiceForm.supplierHasGst ? [editInvoiceForm.chargesGstAmount] : []),
     ].reduce((sum, value) => {
       const amount = Number(String(value ?? '').trim() || 0);
       return sum + (Number.isFinite(amount) ? amount : 0);
     }, 0);
-    return round2(itemTotal + charges);
-  }, [editInvoiceForm]);
+    return round2(editInvoiceItemTotal + charges);
+  }, [editInvoiceForm, editInvoiceItemTotal]);
 
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [selectedNestedRowId, setSelectedNestedRowId] = useState<string | null>(null);
@@ -904,11 +928,18 @@ export default function OperationsView({
     });
   };
 
+  const resetEditInvoiceFiles = () => {
+    setEditInvoiceDocumentFile(null);
+    setEditInvoiceCnCopyFile(null);
+    setEditInvoiceEwayBillFile(null);
+  };
+
   const closeEditInvoice = () => {
     if (editInvoiceBusy) return;
     setEditInvoiceOpen(false);
     setEditInvoiceError(null);
     setEditInvoiceForm(null);
+    resetEditInvoiceFiles();
   };
 
   const openEditInvoice = async (row: OperationsInvoiceListRow) => {
@@ -918,32 +949,47 @@ export default function OperationsView({
     setEditInvoiceBusy(true);
     setEditInvoiceError(null);
     setEditInvoiceForm(null);
+    resetEditInvoiceFiles();
     try {
-      const detail = inlineInvoiceDetailById[invoiceId] ?? (await fetchOperationsInvoiceDetail(invoiceId));
+      const detailRequest = inlineInvoiceDetailById[invoiceId]
+        ? Promise.resolve(inlineInvoiceDetailById[invoiceId])
+        : fetchOperationsInvoiceDetail(invoiceId);
+      const [detail, poDetail] = await Promise.all([
+        detailRequest,
+        fetchOperationsPoDetail(String(row.poId ?? '')).catch(() => null),
+      ]);
       const invoicePayload = detail?.invoice;
       const invoice = invoicePayload?.invoice;
       const invoiceItems = Array.isArray(invoicePayload?.items) ? invoicePayload.items : [];
+      const poItems = Array.isArray(poDetail?.po?.items) ? poDetail.po.items : [];
       if (!invoice) throw new Error('Invoice details not found.');
 
       const lines: EditInvoiceLine[] = invoiceItems.map((item: any) => {
-        const unit = String(item?.unit ?? '').trim();
+        const itemId = String(item?.itemId ?? '').trim();
+        const poItem = poItems.find((candidate: any) => String(candidate?.itemId ?? '').trim() === itemId);
+        const unit = String(item?.unit ?? poItem?.unit ?? '').trim();
         const areaUnit = normalizeAreaUnitName(unit);
         const defaultPoDimUnit = baseDimUnitForAreaUnit(areaUnit);
-        const rawPoDimUnit = String(item?.poDimUnit ?? defaultPoDimUnit).trim().toLowerCase();
+        const rawPoDimUnit = String(item?.poDimUnit ?? poItem?.dimUnit ?? defaultPoDimUnit).trim().toLowerCase();
         const poDimUnit = (rawPoDimUnit === 'ft' || rawPoDimUnit === 'm' ? rawPoDimUnit : defaultPoDimUnit) as 'ft' | 'm' | '';
         const rawInputUnit = String(item?.dimUnit ?? item?.dimInputUnit ?? poDimUnit).trim().toLowerCase();
         const inputUnit = (rawInputUnit === 'ft' || rawInputUnit === 'm' ? rawInputUnit : poDimUnit) as 'ft' | 'm' | '';
-        const isArea = Boolean(areaUnit || item?.dimLength != null || item?.dimBreadth != null);
+        const isArea = Boolean(areaUnit || item?.dimLength != null || item?.dimBreadth != null || poItem?.dimLength != null);
         return {
-          itemId: String(item?.itemId ?? '').trim(),
-          label: formatItemInline(String(item?.item ?? item?.itemId ?? ''), item?.specificationsJson, specNameById),
+          itemId,
+          label: formatItemInline(String(item?.item ?? poItem?.item ?? itemId), item?.specificationsJson ?? poItem?.specificationsJson, specNameById),
           unit,
           isArea,
           poDimUnit,
+          poLength: poItem?.dimLength != null ? String(poItem.dimLength) : '',
+          poBreadth: poItem?.dimBreadth != null ? String(poItem.dimBreadth) : '',
+          poPcs: poItem?.dimPcs != null ? String(poItem.dimPcs) : '',
+          poQuantity: String(poItem?.quantity ?? item?.quantity ?? ''),
+          poRate: String(poItem?.rate ?? item?.rate ?? ''),
           inputUnit,
           length: item?.dimLength != null ? String(item.dimLength) : '',
           breadth: item?.dimBreadth != null ? String(item.dimBreadth) : '',
-          pcs: isArea ? String(item?.dimPcs ?? 1) : '',
+          pcs: isArea ? String(item?.dimPcs ?? poItem?.dimPcs ?? 1) : '',
           quantity: String(item?.quantity ?? ''),
           rate: String(item?.rate ?? ''),
           taxPercent: String(item?.taxPercent ?? 0),
@@ -951,10 +997,21 @@ export default function OperationsView({
       });
 
       if (!lines.length) throw new Error('No invoice items found.');
+      const supplierId = String(row.supplierId ?? '').trim();
+      const supplier = masters.suppliers.find((candidate) => candidate.id === supplierId);
+      const supplierHasGst = supplier ? Boolean(String(supplier.gstNumber ?? '').trim()) : true;
+      const transporterName = String(invoice?.transporterName ?? '').trim();
+      const transporter = (masters.transporters ?? []).find(
+        (candidate) => String(candidate.name ?? '').trim().toLowerCase() === transporterName.toLowerCase()
+      );
+
       setInlineInvoiceDetailById((previous) => ({ ...previous, [invoiceId]: detail }));
       setEditInvoiceForm({
         id: invoiceId,
         poNumber: String(row.poNumber ?? invoice?.poId ?? '-'),
+        supplierId,
+        supplierName: String(row.supplierName ?? supplier?.name ?? '-'),
+        supplierHasGst,
         invoiceNo: String(invoice?.supplierInvoiceNo ?? row.invoiceNo ?? ''),
         invoiceDate: String(invoice?.invoiceDate ?? row.invoiceDate ?? '').slice(0, 10),
         updatedBy: currentUserDisplayName,
@@ -963,6 +1020,13 @@ export default function OperationsView({
         labourCharge: Number(invoice?.labourCharge ?? 0) ? String(invoice.labourCharge) : '',
         otherCharge: Number(invoice?.otherCharge ?? 0) ? String(invoice.otherCharge) : '',
         chargesGstAmount: Number(invoice?.chargesGstAmount ?? 0) ? String(invoice.chargesGstAmount) : '',
+        transporterId: transporter?.id ?? '',
+        transporterName,
+        cnNumber: String(invoice?.cnNumber ?? invoice?.courierNumber ?? ''),
+        ewayBillNumber: String(invoice?.ewayBillNumber ?? ''),
+        documentUrl: String(invoice?.documentUrl ?? ''),
+        cnCopyUrl: String(invoice?.cnCopyUrl ?? ''),
+        ewayBillUrl: String(invoice?.ewayBillUrl ?? ''),
         lines,
       });
     } catch (error) {
@@ -988,7 +1052,7 @@ export default function OperationsView({
       { label: 'Packing Charge', value: form.packingCharge },
       { label: 'Labour Charge', value: form.labourCharge },
       { label: 'Other Charge', value: form.otherCharge },
-      { label: 'GST on Charges', value: form.chargesGstAmount },
+      ...(form.supplierHasGst ? [{ label: 'GST on Charges', value: form.chargesGstAmount }] : []),
     ];
     for (const charge of chargeValues) {
       const amount = Number(String(charge.value ?? '').trim() || 0);
@@ -1011,7 +1075,7 @@ export default function OperationsView({
     for (const line of form.lines) {
       const quantity = Number(line.quantity);
       const rate = Number(line.rate);
-      const taxPercent = Number(line.taxPercent);
+      const taxPercent = form.supplierHasGst ? Number(line.taxPercent) : 0;
       if (!line.itemId || !Number.isFinite(quantity) || quantity <= 0) {
         setEditInvoiceError('Enter a valid quantity for ' + (line.label || 'each invoice item') + '.');
         return;
@@ -1041,6 +1105,11 @@ export default function OperationsView({
     setEditInvoiceBusy(true);
     setEditInvoiceError(null);
     try {
+      const [documentUrl, cnCopyUrl, ewayBillUrl] = await Promise.all([
+        editInvoiceDocumentFile ? uploadFileToServer(editInvoiceDocumentFile).then((result) => result.url) : Promise.resolve(form.documentUrl),
+        editInvoiceCnCopyFile ? uploadFileToServer(editInvoiceCnCopyFile).then((result) => result.url) : Promise.resolve(form.cnCopyUrl),
+        form.supplierHasGst && editInvoiceEwayBillFile ? uploadFileToServer(editInvoiceEwayBillFile).then((result) => result.url) : Promise.resolve(form.ewayBillUrl),
+      ]);
       await updateInvoice(form.id, {
         supplierInvoiceNo: invoiceNo,
         invoiceDate,
@@ -1049,7 +1118,13 @@ export default function OperationsView({
         packingCharge: Number(form.packingCharge || 0),
         labourCharge: Number(form.labourCharge || 0),
         otherCharge: Number(form.otherCharge || 0),
-        chargesGstAmount: Number(form.chargesGstAmount || 0),
+        chargesGstAmount: form.supplierHasGst ? Number(form.chargesGstAmount || 0) : 0,
+        documentUrl: documentUrl || undefined,
+        cnCopyUrl: cnCopyUrl || undefined,
+        ewayBillUrl: form.supplierHasGst ? ewayBillUrl || undefined : undefined,
+        ewayBillNumber: form.supplierHasGst ? form.ewayBillNumber.trim() || undefined : undefined,
+        cnNumber: form.cnNumber.trim() || undefined,
+        transporterName: form.transporterName.trim() || undefined,
         updatedBy,
         items: normalizedItems,
       });
@@ -1058,19 +1133,17 @@ export default function OperationsView({
         fetchOperationsInvoiceDetail(form.id).catch(() => null),
         fetchOperationsInvoices(filters).catch(() => null),
       ]);
-      if (refreshedDetail) {
-        setInlineInvoiceDetailById((previous) => ({ ...previous, [form.id]: refreshedDetail }));
-      }
+      if (refreshedDetail) setInlineInvoiceDetailById((previous) => ({ ...previous, [form.id]: refreshedDetail }));
       if (refreshedInvoices) setInvoices(refreshedInvoices);
       setEditInvoiceOpen(false);
       setEditInvoiceForm(null);
+      resetEditInvoiceFiles();
     } catch (error) {
       setEditInvoiceError(error instanceof Error ? error.message : String(error));
     } finally {
       setEditInvoiceBusy(false);
     }
-  };
-  const openAdvanceModal = async (row: OperationsPoListRow) => {
+  };  const openAdvanceModal = async (row: OperationsPoListRow) => {
     const poId = String(row.poId ?? '').trim();
     if (!poId) return;
     setAdvanceModalPoId(poId);
@@ -2655,241 +2728,71 @@ export default function OperationsView({
         fullScreen
       >
         <div className="space-y-4">
-          {editInvoiceError ? (
-            <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">
-              {editInvoiceError}
-            </div>
-          ) : null}
+          {editInvoiceError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{editInvoiceError}</div> : null}
           {editInvoiceBusy && !editInvoiceForm ? <div className="text-sm text-on-surface-variant">Loading invoice...</div> : null}
           {editInvoiceForm ? (
             <>
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-4 md:grid-cols-4">
-                <label className="space-y-1">
-                  <div className={labelClass}>PO Number</div>
-                  <input className={inputClass} value={editInvoiceForm.poNumber} readOnly />
-                </label>
-                <label className="space-y-1">
-                  <div className={labelClass}>Invoice No. *</div>
-                  <input
-                    className={inputClass}
-                    value={editInvoiceForm.invoiceNo}
-                    onChange={(event) =>
-                      setEditInvoiceForm((previous) => (previous ? { ...previous, invoiceNo: event.target.value } : previous))
-                    }
-                    disabled={editInvoiceBusy}
-                  />
-                </label>
-                <label className="space-y-1">
-                  <div className={labelClass}>Invoice Date *</div>
-                  <input
-                    className={inputClass}
-                    type="date"
-                    value={editInvoiceForm.invoiceDate}
-                    onChange={(event) =>
-                      setEditInvoiceForm((previous) => (previous ? { ...previous, invoiceDate: event.target.value } : previous))
-                    }
-                    disabled={editInvoiceBusy}
-                  />
-                </label>
-                <label className="space-y-1">
-                  <div className={labelClass}>Updated By *</div>
-                  <select
-                    className={inputClass}
-                    value={editInvoiceForm.updatedBy}
-                    onChange={(event) =>
-                      setEditInvoiceForm((previous) => (previous ? { ...previous, updatedBy: event.target.value } : previous))
-                    }
-                    disabled={editInvoiceBusy}
-                  >
-                    <option value="">Select user</option>
-                    {editInvoiceForm.updatedBy &&
-                    !(masters.users ?? []).some((user) => String(user.name ?? '') === editInvoiceForm.updatedBy) ? (
-                      <option value={editInvoiceForm.updatedBy}>{editInvoiceForm.updatedBy}</option>
-                    ) : null}
-                    {(masters.users ?? []).map((user) => (
-                      <option key={user.id} value={user.name}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              <div className="invoice-parent-grid">
+                <div className="invoice-parent-card">
+                  <div className="invoice-parent-card-header"><div className="text-[11px] font-bold uppercase tracking-widest text-white">PO &amp; Invoice Basic Details</div></div>
+                  <div className="invoice-parent-card-body"><div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>PO Number</div><input className={cn(inputClass, 'py-2')} value={editInvoiceForm.poNumber} readOnly /></label>
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>Supplier Invoice No <span className="text-error">*</span></div><input className={cn(inputClass, 'py-2')} value={editInvoiceForm.invoiceNo} onChange={(event) => setEditInvoiceForm((previous) => previous ? { ...previous, invoiceNo: event.target.value } : previous)} disabled={editInvoiceBusy} placeholder="Enter supplier invoice no" /></label>
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>Invoice Date <span className="text-error">*</span></div><input className={cn(inputClass, 'py-2')} type="date" value={editInvoiceForm.invoiceDate} onChange={(event) => setEditInvoiceForm((previous) => previous ? { ...previous, invoiceDate: event.target.value } : previous)} disabled={editInvoiceBusy} /></label>
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>Updated By <span className="text-error">*</span></div><select className={cn(inputClass, 'py-2')} value={editInvoiceForm.updatedBy} onChange={(event) => setEditInvoiceForm((previous) => previous ? { ...previous, updatedBy: event.target.value } : previous)} disabled={editInvoiceBusy}><option value="">Select user</option>{editInvoiceForm.updatedBy && !(masters.users ?? []).some((user) => String(user.name ?? '') === editInvoiceForm.updatedBy) ? <option value={editInvoiceForm.updatedBy}>{editInvoiceForm.updatedBy}</option> : null}{(masters.users ?? []).map((user) => <option key={user.id} value={user.name}>{user.name}</option>)}</select></label>
+                    <div className="rounded-lg border border-outline-variant/30 bg-primary-container/25 p-3"><div className="text-[11px] font-bold uppercase tracking-widest text-blue-800">Invoice Amount</div><div className="text-lg font-extrabold tabular-nums text-on-surface">{editInvoiceTotal.toFixed(3)}</div><div className="mt-2 text-[11px] font-bold uppercase tracking-widest text-blue-800">Item Total</div><div className="text-sm font-bold tabular-nums text-on-surface">{editInvoiceItemTotal.toFixed(3)}</div></div>
+                  </div></div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-4 md:grid-cols-6">
-                {[
-                  { key: 'courierCharge', label: 'Courier Charge' },
-                  { key: 'packingCharge', label: 'Packing Charge' },
-                  { key: 'labourCharge', label: 'Labour Charge' },
-                  { key: 'otherCharge', label: 'Other Charge' },
-                  { key: 'chargesGstAmount', label: 'GST on Charges' },
-                ].map((field) => (
-                  <label key={field.key} className="space-y-1">
-                    <div className={labelClass}>{field.label}</div>
-                    <input
-                      className={inputClass}
-                      inputMode="decimal"
-                      value={String(editInvoiceForm[field.key as keyof EditInvoiceForm] ?? '')}
-                      onChange={(event) => {
-                        const value = sanitizeDecimalInput(event.target.value);
-                        setEditInvoiceForm((previous) =>
-                          previous ? ({ ...previous, [field.key]: value } as EditInvoiceForm) : previous
-                        );
-                      }}
-                      disabled={editInvoiceBusy}
-                      placeholder="0"
-                    />
-                  </label>
-                ))}
-                <div className="rounded-lg border border-primary/20 bg-primary-container/40 px-3 py-2">
-                  <div className={labelClass}>Invoice Total</div>
-                  <div className="mt-2 text-lg font-extrabold tabular-nums">{editInvoiceTotal.toFixed(3)}</div>
+                <div className="invoice-parent-card">
+                  <div className="invoice-parent-card-header"><div className="text-[11px] font-bold uppercase tracking-widest text-white">Charges &amp; Adjustments</div></div>
+                  <div className="invoice-parent-card-body"><div className="grid grid-cols-1 gap-3">{[
+                    { key: 'courierCharge', label: 'Courier Charge' }, { key: 'packingCharge', label: 'Packing Charge' },
+                    { key: 'labourCharge', label: 'Labour Charge' }, { key: 'otherCharge', label: 'Other Charge' },
+                    ...(editInvoiceForm.supplierHasGst ? [{ key: 'chargesGstAmount', label: 'GST on Charges' }] : []),
+                  ].map((field) => <label key={field.key} className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>{field.label}</div><input className={cn(inputClass, 'py-2')} inputMode="decimal" value={String(editInvoiceForm[field.key as keyof EditInvoiceForm] ?? '')} onChange={(event) => { const value = sanitizeDecimalInput(event.target.value); setEditInvoiceForm((previous) => previous ? ({ ...previous, [field.key]: value } as EditInvoiceForm) : previous); }} disabled={editInvoiceBusy} placeholder="0" /></label>)}</div></div>
+                </div>
+
+                <div className="invoice-parent-card">
+                  <div className="invoice-parent-card-header"><div className="text-[11px] font-bold uppercase tracking-widest text-white">Logistics &amp; Compliance</div></div>
+                  <div className="invoice-parent-card-body"><div className="grid grid-cols-1 gap-3">
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>Transporter</div><select className={cn(inputClass, 'py-2')} value={editInvoiceForm.transporterId} onChange={(event) => { const transporterId = event.target.value; const transporterName = (masters.transporters ?? []).find((item) => item.id === transporterId)?.name ?? ''; setEditInvoiceForm((previous) => previous ? { ...previous, transporterId, transporterName } : previous); }} disabled={editInvoiceBusy}><option value="">Select transporter</option>{(masters.transporters ?? []).map((transporter) => <option key={transporter.id} value={transporter.id}>{transporter.name}</option>)}</select></label>
+                    {editInvoiceForm.supplierHasGst ? <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>E-way Bill No</div><input className={cn(inputClass, 'py-2')} value={editInvoiceForm.ewayBillNumber} onChange={(event) => setEditInvoiceForm((previous) => previous ? { ...previous, ewayBillNumber: event.target.value } : previous)} disabled={editInvoiceBusy} placeholder="Optional" /></label> : null}
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>CN/Courier No</div><input className={cn(inputClass, 'py-2')} value={editInvoiceForm.cnNumber} onChange={(event) => setEditInvoiceForm((previous) => previous ? { ...previous, cnNumber: event.target.value } : previous)} disabled={editInvoiceBusy} placeholder="Optional" /></label>
+                    {editInvoiceForm.transporterName ? <div className="text-xs text-on-surface-variant">Selected transporter: <span className="font-semibold text-on-surface">{editInvoiceForm.transporterName}</span></div> : null}
+                  </div></div>
+                </div>
+
+                <div className="invoice-parent-card">
+                  <div className="invoice-parent-card-header"><div className="text-[11px] font-bold uppercase tracking-widest text-white">Attachments &amp; References</div></div>
+                  <div className="invoice-parent-card-body"><div className="grid grid-cols-1 gap-3">
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>Invoice PDF</div><div className="flex min-w-0 items-center gap-2"><label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="editInvoicePdfInput">{editInvoiceForm.documentUrl ? 'Change File' : 'Choose File'}</label><input id="editInvoicePdfInput" className="hidden" type="file" accept=".pdf,application/pdf" onChange={(event) => setEditInvoiceDocumentFile(event.target.files?.[0] ?? null)} /><div className="min-w-0 truncate text-xs text-on-surface-variant">{editInvoiceDocumentFile ? editInvoiceDocumentFile.name : editInvoiceForm.documentUrl ? 'Existing document' : 'No file chosen'}</div></div>{editInvoiceForm.documentUrl && !editInvoiceDocumentFile ? <a className="text-xs font-semibold text-primary underline" href={uploadDocumentHref(editInvoiceForm.documentUrl)} target="_blank" rel="noreferrer">View existing</a> : null}</label>
+                    <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>CN/Courier Copy</div><div className="flex min-w-0 items-center gap-2"><label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="editInvoiceCnCopyInput">{editInvoiceForm.cnCopyUrl ? 'Change File' : 'Choose File'}</label><input id="editInvoiceCnCopyInput" className="hidden" type="file" accept=".pdf,application/pdf,image/*" onChange={(event) => setEditInvoiceCnCopyFile(event.target.files?.[0] ?? null)} /><div className="min-w-0 truncate text-xs text-on-surface-variant">{editInvoiceCnCopyFile ? editInvoiceCnCopyFile.name : editInvoiceForm.cnCopyUrl ? 'Existing document' : 'No file chosen'}</div></div>{editInvoiceForm.cnCopyUrl && !editInvoiceCnCopyFile ? <a className="text-xs font-semibold text-primary underline" href={uploadDocumentHref(editInvoiceForm.cnCopyUrl)} target="_blank" rel="noreferrer">View existing</a> : null}</label>
+                    {editInvoiceForm.supplierHasGst ? <label className="space-y-1"><div className={cn(labelClass, 'text-blue-800')}>E-way Bill Document</div><div className="flex min-w-0 items-center gap-2"><label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="editInvoiceEwayBillInput">{editInvoiceForm.ewayBillUrl ? 'Change File' : 'Choose File'}</label><input id="editInvoiceEwayBillInput" className="hidden" type="file" accept=".pdf,application/pdf,image/*" onChange={(event) => setEditInvoiceEwayBillFile(event.target.files?.[0] ?? null)} /><div className="min-w-0 truncate text-xs text-on-surface-variant">{editInvoiceEwayBillFile ? editInvoiceEwayBillFile.name : editInvoiceForm.ewayBillUrl ? 'Existing document' : 'No file chosen'}</div></div>{editInvoiceForm.ewayBillUrl && !editInvoiceEwayBillFile ? <a className="text-xs font-semibold text-primary underline" href={uploadDocumentHref(editInvoiceForm.ewayBillUrl)} target="_blank" rel="noreferrer">View existing</a> : null}</label> : null}
+                  </div></div>
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-outline-variant">
-                <table className="w-full min-w-[1280px] table-fixed text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-primary text-on-primary">
-                      <th className="w-[260px] px-3 py-2 border border-outline-variant">Item</th>
-                      <th className="w-[80px] px-3 py-2 border border-outline-variant">Unit</th>
-                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Length</th>
-                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Breadth</th>
-                      <th className="w-[90px] px-3 py-2 border border-outline-variant">PCs</th>
-                      <th className="w-[100px] px-3 py-2 border border-outline-variant">Input Unit</th>
-                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Qty</th>
-                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Rate</th>
-                      <th className="w-[100px] px-3 py-2 border border-outline-variant">GST %</th>
-                      <th className="w-[140px] px-3 py-2 border border-outline-variant">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {editInvoiceForm.lines.map((line, index) => {
-                      const quantity = Number(line.quantity || 0);
-                      const rate = Number(line.rate || 0);
-                      const taxPercent = Number(line.taxPercent || 0);
-                      const amount =
-                        Number.isFinite(quantity) && Number.isFinite(rate) && Number.isFinite(taxPercent)
-                          ? quantity * rate * (1 + taxPercent / 100)
-                          : 0;
-                      return (
-                        <tr key={line.itemId + '-' + index}>
-                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{line.label}</td>
-                          <td className="px-3 py-2 border border-outline-variant">{line.unit || '-'}</td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            {line.isArea ? (
-                              <input
-                                className={cn(inputClass, 'py-1.5')}
-                                value={line.length}
-                                onChange={(event) => updateEditInvoiceLine(index, { length: sanitizeDecimalInput(event.target.value) })}
-                                disabled={editInvoiceBusy}
-                                placeholder="Length"
-                              />
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            {line.isArea ? (
-                              <input
-                                className={cn(inputClass, 'py-1.5')}
-                                value={line.breadth}
-                                onChange={(event) => updateEditInvoiceLine(index, { breadth: sanitizeDecimalInput(event.target.value) })}
-                                disabled={editInvoiceBusy}
-                                placeholder="Breadth"
-                              />
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            {line.isArea ? (
-                              <input
-                                className={cn(inputClass, 'py-1.5')}
-                                inputMode="numeric"
-                                value={line.pcs}
-                                onChange={(event) => updateEditInvoiceLine(index, { pcs: event.target.value.replace(/\D/g, '') })}
-                                disabled={editInvoiceBusy}
-                                placeholder="PCs"
-                              />
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            {line.isArea ? (
-                              <select
-                                className={cn(inputClass, 'py-1.5')}
-                                value={line.inputUnit}
-                                onChange={(event) =>
-                                  updateEditInvoiceLine(index, { inputUnit: event.target.value as 'ft' | 'm' })
-                                }
-                                disabled={editInvoiceBusy}
-                              >
-                                <option value="">Select</option>
-                                <option value="ft">Ft</option>
-                                <option value="m">Mtr</option>
-                              </select>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={line.quantity}
-                              onChange={(event) =>
-                                updateEditInvoiceLine(index, { quantity: sanitizeDecimalInput(event.target.value) })
-                              }
-                              disabled={editInvoiceBusy || line.isArea}
-                              inputMode="decimal"
-                              placeholder="Qty"
-                            />
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={line.rate}
-                              onChange={(event) => updateEditInvoiceLine(index, { rate: sanitizeDecimalInput(event.target.value) })}
-                              disabled={editInvoiceBusy}
-                              inputMode="decimal"
-                              placeholder="Rate"
-                            />
-                          </td>
-                          <td className="px-2 py-2 border border-outline-variant">
-                            <input
-                              className={cn(inputClass, 'py-1.5')}
-                              value={line.taxPercent}
-                              onChange={(event) =>
-                                updateEditInvoiceLine(index, { taxPercent: sanitizeDecimalInput(event.target.value) })
-                              }
-                              disabled={editInvoiceBusy}
-                              inputMode="decimal"
-                              placeholder="GST"
-                            />
-                          </td>
-                          <td className="px-3 py-2 border border-outline-variant tabular-nums font-semibold">
-                            {amount.toFixed(3)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button type="button" className="btn btn-sm" onClick={closeEditInvoice} disabled={editInvoiceBusy}>
-                  Cancel
-                </button>
-                <button type="button" className="btn-primary btn-sm" onClick={saveEditedInvoice} disabled={editInvoiceBusy}>
-                  {editInvoiceBusy ? 'Saving...' : 'Save Invoice'}
-                </button>
-              </div>
+              <div className="rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest"><div className="overflow-x-auto"><table className="w-full min-w-[1900px] table-fixed text-left border-collapse border border-black text-xs [&_th]:border-black [&_td]:border-black">
+                <colgroup><col className="w-[120px]" /><col className="w-[160px]" /><col className="w-[300px]" /><col className="w-[80px]" /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[80px]" /><col className="w-[110px]" /><col className="w-[70px]" /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[80px]" /><col className="w-[120px]" /><col className="w-[100px]" />{editInvoiceForm.supplierHasGst ? <><col className="w-[130px]" /><col className="w-[120px]" /></> : null}<col className="w-[130px]" /></colgroup>
+                <thead><tr className="bg-primary text-on-primary"><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">PO No</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">Supplier</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black">Item</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO Unit</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO L</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO B</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center">PO PCs</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-right">PO Qty</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Inv Unit</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Inv L</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Inv B</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Inv PCs</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Invoice Qty</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Inv Rate</th>{editInvoiceForm.supplierHasGst ? <><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">GST %</th><th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">GST Amount</th></> : null}<th className="px-2 py-2 font-bold uppercase tracking-widest border border-black text-center bg-orange-600 text-white">Amount</th></tr></thead>
+                <tbody>{editInvoiceForm.lines.map((line, index) => {
+                  const quantity = Number(line.quantity || 0); const rate = Number(line.rate || 0); const taxPercent = editInvoiceForm.supplierHasGst ? Number(line.taxPercent || 0) : 0; const baseAmount = Number.isFinite(quantity) && Number.isFinite(rate) ? quantity * rate : 0; const gstAmount = Number.isFinite(taxPercent) ? baseAmount * taxPercent / 100 : 0; const amount = baseAmount + gstAmount;
+                  return <tr key={line.itemId + '-' + index} className="hover:bg-surface-container-low transition-colors">
+                    {index === 0 ? <td className="px-2 py-2 border border-black align-top font-semibold" rowSpan={editInvoiceForm.lines.length}>{editInvoiceForm.poNumber}</td> : null}{index === 0 ? <td className="px-2 py-2 border border-black align-top font-semibold" rowSpan={editInvoiceForm.lines.length}>{editInvoiceForm.supplierName}</td> : null}
+                    <td className="px-2 py-2 border border-black whitespace-normal break-words">{line.label}</td><td className="px-2 py-2 border border-black text-center">{line.unit || '-'}</td><td className="px-2 py-2 border border-black text-center">{line.poLength || '-'}</td><td className="px-2 py-2 border border-black text-center">{line.poBreadth || '-'}</td><td className="px-2 py-2 border border-black text-center">{line.poPcs || '-'}</td><td className="px-2 py-2 border border-black text-right tabular-nums">{Number(line.poQuantity || 0).toFixed(3)}</td>
+                    <td className="px-1 py-2 border border-black text-center">{line.isArea ? <select className={cn(inputClass, 'py-1.5 h-8 text-[11px]')} value={line.inputUnit} onChange={(event) => updateEditInvoiceLine(index, { inputUnit: event.target.value as 'ft' | 'm' })} disabled={editInvoiceBusy}><option value="">Select</option><option value="ft">Ft</option><option value="m">Mtr</option></select> : line.unit || '-'}</td>
+                    <td className="px-1 py-2 border border-black">{line.isArea ? <input className={cn(inputClass, 'py-1.5 h-8 text-[11px]')} value={line.length} onChange={(event) => updateEditInvoiceLine(index, { length: sanitizeDecimalInput(event.target.value) })} disabled={editInvoiceBusy} /> : '-'}</td><td className="px-1 py-2 border border-black">{line.isArea ? <input className={cn(inputClass, 'py-1.5 h-8 text-[11px]')} value={line.breadth} onChange={(event) => updateEditInvoiceLine(index, { breadth: sanitizeDecimalInput(event.target.value) })} disabled={editInvoiceBusy} /> : '-'}</td><td className="px-1 py-2 border border-black">{line.isArea ? <input className={cn(inputClass, 'py-1.5 h-8 text-[11px]')} inputMode="numeric" value={line.pcs} onChange={(event) => updateEditInvoiceLine(index, { pcs: event.target.value.replace(/\D/g, '') })} disabled={editInvoiceBusy} /> : '-'}</td>
+                    <td className="px-1 py-2 border border-black"><input className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')} value={line.quantity} onChange={(event) => updateEditInvoiceLine(index, { quantity: sanitizeDecimalInput(event.target.value) })} disabled={editInvoiceBusy || line.isArea} inputMode="decimal" /></td><td className="px-1 py-2 border border-black"><input className={cn(inputClass, 'py-1.5 h-8 text-[11px] text-right')} value={line.rate} onChange={(event) => updateEditInvoiceLine(index, { rate: sanitizeDecimalInput(event.target.value) })} disabled={editInvoiceBusy} inputMode="decimal" /></td>
+                    {editInvoiceForm.supplierHasGst ? <><td className="px-1 py-2 border border-black"><GstRateSelect className="w-full" inputClassName="py-1.5 h-8 text-[11px]" value={line.taxPercent} onChange={(value) => updateEditInvoiceLine(index, { taxPercent: value })} disabled={editInvoiceBusy} /></td><td className="px-2 py-2 border border-black text-right tabular-nums font-medium">{gstAmount.toFixed(3)}</td></> : null}<td className="px-2 py-2 border border-black text-right tabular-nums font-bold">{amount.toFixed(3)}</td>
+                  </tr>;
+                })}</tbody>
+              </table></div></div>
+              <div className="flex justify-end gap-2"><button type="button" className="btn btn-sm" onClick={closeEditInvoice} disabled={editInvoiceBusy}>Cancel</button><button type="button" className="btn-primary btn-sm" onClick={saveEditedInvoice} disabled={editInvoiceBusy}>{editInvoiceBusy ? 'Saving...' : 'Save Invoice'}</button></div>
             </>
           ) : null}
         </div>
-      </Modal>
-      <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} fullScreen>
+      </Modal>      <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} fullScreen>
         <div className="space-y-3">
           {advanceModalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{advanceModalError}</div> : null}
           <div className="overflow-x-auto">

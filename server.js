@@ -5331,6 +5331,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     tallyEntryDate: toIsoDate(invRow.tallyEntryDate) || undefined,
     documentUrl: invRow.documentUrl != null ? String(invRow.documentUrl) : undefined,
     cnCopyUrl: invRow.cnCopyUrl != null ? String(invRow.cnCopyUrl) : undefined,
+    ewayBillUrl: invRow.ewayBillUrl != null ? String(invRow.ewayBillUrl) : undefined,
     ewayBillNumber: invRow.ewayBillNumber != null ? String(invRow.ewayBillNumber) : undefined,
     cnNumber: invRow.cnNumber != null ? String(invRow.cnNumber) : undefined,
     courierNumber: invRow.courierNumber != null ? String(invRow.courierNumber) : undefined,
