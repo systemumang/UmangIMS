@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Eye, FileText, Pencil, Plus, Upload } from 'lucide-react';
+import { Check, Eye, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
-import { fetchProjects, fetchSuppliers, type Project, type Supplier } from '@/src/lib/masters';
+import { fetchProjects, fetchSuppliers, fetchUsers, type Project, type Supplier, type User } from '@/src/lib/masters';
 import { fetchOperationsPos, type OperationsPoListRow } from '@/src/lib/operations';
 import { uploadFileToServer } from '@/src/lib/uploads';
 import { openDocument } from '@/src/lib/utils';
 import {
   addCourierUpdate,
   createCourier,
+  deleteCourier,
   fetchCourierUpdates,
   fetchCouriers,
   fetchPendingReceiptCouriers,
@@ -60,6 +61,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const [rows, setRows] = useState<CourierRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [pos, setPos] = useState<OperationsPoListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     () => pos.map((p) => ({ value: p.poId, label: `${p.poNumber}${p.supplierName ? ` - ${p.supplierName}` : ''}` })),
     [pos]
   );
+  const userOptions = useMemo(() => users.map((u) => ({ value: u.name, label: u.name })), [users]);
 
   const loadRows = () => {
     setLoading(true);
@@ -112,12 +115,14 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       load(ac.signal),
       fetchSuppliers(ac.signal).catch(() => []),
       fetchProjects(ac.signal).catch(() => []),
+      fetchUsers(ac.signal).catch(() => []),
       fetchOperationsPos(undefined, ac.signal).catch(() => []),
     ])
-      .then(([courierRows, supplierRows, projectRows, poRows]) => {
+      .then(([courierRows, supplierRows, projectRows, userRows, poRows]) => {
         setRows(courierRows);
         setSuppliers(supplierRows);
         setProjects(projectRows);
+        setUsers(userRows);
         setPos(poRows);
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
@@ -291,7 +296,16 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={`${tdClass} w-[96px]`}>
                     <div className="flex items-center justify-center gap-2">
                       <button type="button" className="btn btn-sm !px-2 w-8 h-8" onClick={() => openDetails(row)} title="Details" aria-label="Details"><Eye size={14} /></button>
-                      <button type="button" className="btn-primary btn-sm !px-2 w-8 h-8" onClick={() => openUpdate(row)} title="Update" aria-label="Update"><Pencil size={14} /></button>
+                      <button type="button" className="btn-primary btn-sm !px-2 w-8 h-8" onClick={() => openUpdate(row)} title="Mark Update" aria-label="Mark Update"><Check size={14} /></button>
+                      <button type="button" className="btn btn-sm !px-2 w-8 h-8 text-error border border-red-200 bg-red-50 hover:bg-red-100" onClick={async () => {
+                        if (!confirm(`Delete courier ${row.courierNo}?`)) return;
+                        try {
+                          await deleteCourier(row.id);
+                          loadRows();
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : String(e));
+                        }
+                      }} title="Delete" aria-label="Delete"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -350,11 +364,11 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         <Modal title={`Update Courier - ${updateFor.courierNo}`} onClose={() => setUpdateFor(null)}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="space-y-1"><div className={labelClass}>Update Date *</div><input className={inputClass} type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} /></label>
-            <label className="space-y-1"><div className={labelClass}>Update By *</div><input className={inputClass} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>Update By *</div><select className={inputClass} value={updatedBy} onChange={(e) => setUpdatedBy(e.target.value)}><option value="">Select user...</option>{userOptions.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
             <label className="space-y-1"><div className={labelClass}>Status *</div><select className={inputClass} value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value as CourierStatus)}>{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
             {updateStatus === 'Received' ? (
               <>
-                <label className="space-y-1"><div className={labelClass}>Received By *</div><input className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} /></label>
+                <label className="space-y-1"><div className={labelClass}>Received By *</div><select className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)}><option value="">Select user...</option>{userOptions.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
                 <label className="space-y-1"><div className={labelClass}>Received Date *</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
               </>
             ) : null}

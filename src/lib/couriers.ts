@@ -82,6 +82,14 @@ export async function createCourier(input: {
   return data.courier;
 }
 
+export async function deleteCourier(courierId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/couriers/${encodeURIComponent(courierId)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete courier');
+}
+
 export async function fetchCourierUpdates(courierId: string, signal?: AbortSignal): Promise<CourierUpdateRow[]> {
   const res = await fetch(`/api/couriers/${encodeURIComponent(courierId)}/updates`, { signal });
   const data = await requireOk<{ updates?: CourierUpdateRow[] }>(res, 'Failed to load courier updates');

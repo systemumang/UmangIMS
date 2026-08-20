@@ -16349,6 +16349,21 @@ app.post('/api/couriers', async (req, res) => {
   }
 });
 
+app.delete('/api/couriers/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const courierId = String(req.params.id ?? '').trim();
+    if (!courierId) return res.status(400).json({ error: 'id is required' });
+    await pool.query('DELETE FROM courier_updates WHERE courier_id = ?', [courierId]);
+    const [result] = await pool.query('DELETE FROM couriers WHERE id = ? LIMIT 1', [courierId]);
+    if (!result || Number(result.affectedRows ?? 0) === 0) return res.status(404).json({ error: 'Courier not found' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/couriers/:id/updates', async (req, res) => {
   try {
     const pool = getMysqlPool();
