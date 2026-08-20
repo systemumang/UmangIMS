@@ -1976,10 +1976,11 @@ export default function OperationsView({
 		                      Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
 		                      </div>
 		                      <div className="overflow-x-auto">
-		                      <table className="w-full min-w-[1250px] table-fixed text-left border-collapse border border-outline-variant text-sm">
+		                      <table className="w-full min-w-[1470px] table-fixed text-left border-collapse border border-outline-variant text-sm">
 			                      <thead>
 			                                      <tr className="bg-primary text-on-primary">
 			                                        <th className="px-3 py-2 border border-outline-variant">Item</th>
+				                                        <th className="px-3 py-2 border border-outline-variant w-[220px]">Description</th>
 			                      <th className="px-3 py-2 border border-outline-variant w-[80px]">Unit</th>
 			                      <th className="px-3 py-2 border border-outline-variant w-[90px]">Length</th>
 			                      <th className="px-3 py-2 border border-outline-variant w-[90px]">Breadth</th>
@@ -2002,6 +2003,7 @@ export default function OperationsView({
 		                      const rate = Number(it?.rate ?? 0);
 		                      const disc = Number(it?.discountPercent ?? 0);
 		                      const total = Number(it?.totalAmount ?? 0);
+			                      const itemDescription = String(it?.description ?? items.find((item) => item.id === it?.itemId)?.description ?? '').trim();
 		                      return (
 		                                            <tr
 		                      key={`${String(r.poId ?? '')}-it-${idx}`}
@@ -2014,6 +2016,9 @@ export default function OperationsView({
 				                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
                                                 {formatItemInline(String(it?.item ?? it?.itemLabel ?? it?.itemId ?? ''), it?.specificationsJson, specNameById) || it?.itemLabel || '-'}
                                               </td>
+	                                              <td className="px-3 py-2 border border-outline-variant whitespace-pre-wrap break-words">
+	                                                {itemDescription || '-'}
+	                                              </td>
 			                                              <td className="px-3 py-2 border border-outline-variant">{it?.unit ?? '-'}</td>
 			                      <td className="px-3 py-2 border border-outline-variant whitespace-nowrap">
 			                      {it.dimLength ? `${it.dimLength}${it.dimUnit ? ` ${it.dimUnit}` : ''}` : '-'}
@@ -2034,7 +2039,7 @@ export default function OperationsView({
 		                      })
 		                      ) : (
 		                      <tr>
-		                                          <td colSpan={12} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
+		                                          <td colSpan={13} className="px-3 py-3 border border-outline-variant text-on-surface-variant">
 		                                            No PO items found.
 		                                          </td>
 		                                        </tr>
