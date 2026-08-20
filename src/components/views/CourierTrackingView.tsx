@@ -256,7 +256,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         ) : null}
 
         <div className="p-4 overflow-x-auto">
-          <table className="w-full min-w-[1780px] border-2 border-outline-variant border-collapse table-fixed">
+          <table className="w-full min-w-[1824px] border-2 border-outline-variant border-collapse table-fixed">
             <thead>
               <tr>
                 <th className={`${thClass} w-[110px]`}>Date</th>
@@ -271,7 +271,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                 <th className={`${thClass} w-[130px]`}>Last Update Date</th>
                 <th className={`${thClass} w-[130px]`}>Last Update By</th>
                 <th className={`${thClass} w-[180px]`}>Last Update Remarks</th>
-                <th className={`${thClass} w-[96px]`}>Action</th>
+                <th className={`${thClass} w-[140px]`}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -293,8 +293,8 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={tdClass}>{formatDate(row.lastUpdateDate)}</td>
                   <td className={tdClass}>{row.lastUpdateBy || '-'}</td>
                   <td className={`${tdClass} max-w-[240px] whitespace-pre-wrap`}>{row.lastUpdateRemarks || '-'}</td>
-                  <td className={`${tdClass} w-[96px]`}>
-                    <div className="flex items-center justify-center gap-2">
+                  <td className={`${tdClass} w-[140px]`}>
+                    <div className="flex min-w-[112px] items-center justify-center gap-2 whitespace-nowrap">
                       <button type="button" className="btn btn-sm !px-2 w-8 h-8" onClick={() => openDetails(row)} title="Details" aria-label="Details"><Eye size={14} /></button>
                       <button type="button" className="btn-primary btn-sm !px-2 w-8 h-8" onClick={() => openUpdate(row)} title="Mark Update" aria-label="Mark Update"><Check size={14} /></button>
                       <button type="button" className="btn btn-sm !px-2 w-8 h-8 text-error border border-red-200 bg-red-50 hover:bg-red-100" onClick={async () => {
