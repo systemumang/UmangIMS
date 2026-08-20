@@ -185,6 +185,7 @@ function getMysqlPool() {
             store_id VARCHAR(255),
             department VARCHAR(255),
             person VARCHAR(255),
+            return_by VARCHAR(255),
             date DATE,
             issue_type VARCHAR(255),
             issued_to VARCHAR(255),
@@ -227,6 +228,7 @@ function getMysqlPool() {
           ['store_id', 'VARCHAR(255)'],
           ['department', 'VARCHAR(255)'],
           ['person', 'VARCHAR(255)'],
+          ['return_by', 'VARCHAR(255)'],
           ['date', 'DATE'],
           ['issue_type', 'VARCHAR(255)'],
           ['issued_to', 'VARCHAR(255)'],
@@ -13949,6 +13951,7 @@ async function handleListTransactions(req, res, table, itemsTable, kind) {
         toDepartment: row.to_department,
         projectId: row.project_id,
         projectName: row.project_name,
+        returnBy: row.return_by,
         materialRequestId: row.material_request_id,
         materialRequestNo: row.material_request_no,
         items: (Array.isArray(itemRows) ? itemRows : []).map(it => ({
@@ -13980,8 +13983,11 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
     const transactionNo = await getNextTransactionNo(pool, table, prefix);
     const data = req.body;
 
-    if (table === 'item_returns' && !String(data.person ?? '').trim()) {
+    if (table === 'item_returns' && !String(data.returnBy ?? '').trim()) {
       return res.status(400).json({ error: 'Return By is required.' });
+    }
+    if (table === 'item_returns' && !String(data.person ?? '').trim()) {
+      return res.status(400).json({ error: 'Received By is required.' });
     }
 
     if (table === 'item_issues') {
@@ -14016,6 +14022,7 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
       storeCol,
       'department',
       'person',
+      'return_by',
       'date',
       'issue_type',
       'issued_to',
@@ -14034,6 +14041,7 @@ async function handleCreateTransaction(req, res, table, itemsTable, kind, prefix
       storeId,
       data.department,
       data.person,
+      data.returnBy,
       data.date,
       data.issueType,
       data.issuedTo,

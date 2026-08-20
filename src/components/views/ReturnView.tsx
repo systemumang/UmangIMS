@@ -93,6 +93,7 @@ export default function ReturnView({
 			  const [users, setUsers] = useState<User[]>([]);
 			  const [loadingUsers, setLoadingUsers] = useState(true);
 			  const [requestedByUserId, setRequestedByUserId] = useState('');
+			  const [returnBy, setReturnBy] = useState('');
 		  const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
 		  const [firmId, setFirmId] = useState('');
 		  const [items, setItems] = useState<ItemDraft[]>([{ itemId: '', itemNameId: '', item: '', quantity: '', specification: '', specs: {}, reason: '' }]);
@@ -664,8 +665,13 @@ export default function ReturnView({
 
 	          <label className="space-y-1">
 	            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Return By *</div>
-	            <SearchableSelect
-	              value={requestedByUserId}
+		            <input className={inputClass} value={returnBy} onChange={(e) => setReturnBy(e.target.value)} placeholder="Enter return by..." />
+		          </label>
+
+		          <label className="space-y-1">
+		            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Received By *</div>
+		            <SearchableSelect
+		              value={requestedByUserId}
 	              options={users.map((u) => ({ value: u.id, label: u.name }))}
 	              onChange={setRequestedByUserId}
 	              disabled={loadingUsers}
@@ -906,8 +912,8 @@ export default function ReturnView({
 								                  const department = departments.find((d) => d.id === departmentId)?.name ?? '';
 								                  const requestedBy = users.find((u) => u.id === requestedByUserId)?.name ?? '';
 								                  const store = stores.find((s) => s.id === storeId)?.name ?? '';
-								                  if (!firmId || !store.trim() || !department.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length || !customerName.trim()) {
-								                    setError('Please fill Firm, Store, Department, Return By, Return Date, Customer Name, and at least one valid item.');
+								                  if (!firmId || !store.trim() || !department.trim() || !returnBy.trim() || !requestedBy.trim() || !requiredDate.trim() || !normalizedItems.length || !customerName.trim()) {
+								                    setError('Please fill Firm, Store, Department, Return By, Received By, Return Date, Customer Name, and at least one valid item.');
 								                    return;
 						                  }
 							                  if (returnType === 'Project' && !projectId.trim()) {

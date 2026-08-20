@@ -14,7 +14,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [sortBy, setSortBy] = useState<
-    'transactionNo' | 'date' | 'returnType' | 'customerName' | 'firm' | 'store' | 'department' | 'person' | 'total'
+    'transactionNo' | 'date' | 'returnType' | 'customerName' | 'firm' | 'store' | 'department' | 'returnBy' | 'person' | 'total'
   >('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [viewItem, setViewItem] = useState<StockTransaction | null>(null);
@@ -159,6 +159,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
         String(i.store ?? '').toLowerCase().includes(query) ||
         getStoreDisplay(i.store).toLowerCase().includes(query) ||
         i.department.toLowerCase().includes(query) ||
+        String(i.returnBy ?? '').toLowerCase().includes(query) ||
         i.person.toLowerCase().includes(query) ||
         getReturnTypeDisplay(i).toLowerCase().includes(query) ||
         (i.customerName ?? '').toLowerCase().includes(query)
@@ -194,6 +195,8 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	        return dir * strCmp(getStoreDisplay(a.store), getStoreDisplay(b.store));
 	      case 'department':
 	        return dir * strCmp(String(a.department ?? ''), String(b.department ?? ''));
+	      case 'returnBy':
+	        return dir * strCmp(String(a.returnBy ?? ''), String(b.returnBy ?? ''));
 	      case 'person':
 	        return dir * strCmp(String(a.person ?? ''), String(b.person ?? ''));
 	      case 'total':
@@ -250,47 +253,52 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	          <table className="w-full text-left border-collapse text-sm">
 	            <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
 	              <tr>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('transactionNo')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Return No</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('date')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Return Date</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('returnType')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Return Type</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('customerName')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Customer Name</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('firm')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Firm</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('store')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Store Name</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
+		                <th className="p-0 border-b border-r border-black">
 	                  <button type="button" onClick={() => onSort('department')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Department</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black">
-	                  <button type="button" onClick={() => onSort('person')} className="w-full px-3 py-3 flex items-center justify-between">
+		                <th className="p-0 border-b border-r border-black">
+	                  <button type="button" onClick={() => onSort('returnBy')} className="w-full px-3 py-3 flex items-center justify-between">
 	                    <span>Return By</span><ArrowUpDown size={12} />
 	                  </button>
 	                </th>
-	                <th className="p-0 border-b border-r border-black text-right">
+		                <th className="p-0 border-b border-r border-black">
+		                  <button type="button" onClick={() => onSort('person')} className="w-full px-3 py-3 flex items-center justify-between">
+		                    <span>Received By</span><ArrowUpDown size={12} />
+		                  </button>
+		                </th>
+		                <th className="p-0 border-b border-r border-black text-right">
 	                  <button type="button" onClick={() => onSort('total')} className="w-full px-3 py-3 flex items-center justify-end gap-1">
 	                    <span>Total Items</span><ArrowUpDown size={12} />
 	                  </button>
@@ -301,7 +309,7 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
 	            <tbody className="divide-y divide-outline-variant">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-4 text-center text-on-surface-variant text-sm">
+                  <td colSpan={11} className="p-4 text-center text-on-surface-variant text-sm">
                     No returns found
                   </td>
                 </tr>
@@ -320,7 +328,8 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getStoreDisplay(row.store)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant">{row.person}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{row.returnBy || '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{row.person || '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + it.quantity, 0)}</td>
 	                  <td className="p-3 text-right">
 	                    <div className="flex items-center justify-end gap-3">
@@ -358,7 +367,8 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Firm</span> {getFirmDisplay(viewItem.firmId)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Store Name</span> {getStoreDisplay(viewItem.store)}</div>
                 <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Department</span> {viewItem.department}</div>
-                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return By</span> {viewItem.person}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Return By</span> {viewItem.returnBy || "-"}</div>
+                <div><span className="font-bold text-[10px] uppercase text-on-surface-variant tracking-wider block mb-1">Received By</span> {viewItem.person || "-"}</div>
               </div>
 	              <div className="rounded-xl overflow-hidden border border-outline-variant">
 	                <table className="w-full text-left border-collapse text-sm">
@@ -476,7 +486,11 @@ export default function ReturnMasterView({ onAdd }: { onAdd?: () => void } = {})
                   </label>
                 )}
                 <label className="space-y-1 md:col-span-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Return By</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Return By *</div>
+                  <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.returnBy ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, returnBy: e.target.value }) : p)} />
+                </label>
+                <label className="space-y-1 md:col-span-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Received By</div>
                   <input className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm" value={editItem.person ?? ''} onChange={(e) => setEditItem((p) => p ? ({ ...p, person: e.target.value }) : p)} />
                 </label>
               </div>

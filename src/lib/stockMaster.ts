@@ -16,7 +16,9 @@ export type StockTransaction = {
   store?: string;
   department: string;
   projectId?: string;
+
   projectName?: string;
+  returnBy?: string;
   toFirmId?: string;
   toStoreId?: string;
   toStore?: string;
