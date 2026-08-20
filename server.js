@@ -431,6 +431,7 @@ function getMysqlPool() {
           advance_amount DOUBLE NOT NULL DEFAULT 0,
           payment_mode VARCHAR(32) NULL,
           payment_copy TEXT NULL,
+          remarks TEXT NULL,
           created_by VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -460,6 +461,7 @@ function getMysqlPool() {
 
       await ensureColumn('po_advances', 'payment_mode', 'VARCHAR(32) NULL');
       await ensureColumn('po_advances', 'payment_copy', 'TEXT NULL');
+      await ensureColumn('po_advances', 'remarks', 'TEXT NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'payment_mode', 'VARCHAR(32) NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'payment_copy', 'TEXT NULL');
       await ensureColumn('po_advance_invoice_adjustments', 'receipt_type', "VARCHAR(32) NOT NULL DEFAULT 'ADVANCE_ADJUSTMENT'");
@@ -8552,7 +8554,8 @@ app.get('/api/pos/:id/advances', async (req, res) => {
 	        advance_date AS advanceDate,
 	        advance_amount AS advanceAmount,
 	        payment_mode AS paymentMode,
-	        payment_copy AS paymentCopy
+	        payment_copy AS paymentCopy,
+        remarks
 	      FROM po_advances
 	      WHERE po_id = ?
 	      ORDER BY advance_date ASC, created_at ASC
@@ -8567,6 +8570,7 @@ app.get('/api/pos/:id/advances', async (req, res) => {
 	      advanceAmount: Number(r.advanceAmount ?? 0),
 	      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
 	      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+      remarks: r.remarks != null ? String(r.remarks) : '',
 	    }));
 
     if (!advances.length && Number(poRow.advanceAmount ?? 0) > 0) {
@@ -8578,6 +8582,7 @@ app.get('/api/pos/:id/advances', async (req, res) => {
 	          advanceAmount: Number(poRow.advanceAmount ?? 0),
 	          paymentMode: '',
 	          paymentCopy: '',
+          remarks: '',
 	        },
 	      ];
 	    }
@@ -8603,6 +8608,7 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	      const advanceAmount = Math.max(0, num(raw?.advanceAmount, 0));
 	      const paymentMode = raw?.paymentMode != null ? String(raw.paymentMode).trim() : '';
 	      const paymentCopy = raw?.paymentCopy != null ? String(raw.paymentCopy).trim() : '';
+      const remarks = raw?.remarks != null ? String(raw.remarks).trim() : '';
 	      if (!advanceDate) continue;
 	      if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) continue;
 	      normalized.push({
@@ -8611,6 +8617,7 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	        advanceAmount,
 	        paymentMode,
 	        paymentCopy,
+        remarks,
 	      });
 	    }
       for (const row of normalized) {
@@ -8632,10 +8639,10 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	    for (const row of normalized) {
 	      await conn.query(
 	        `
-	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, created_by, created_at, updated_at)
-	        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, remarks, created_by, created_at, updated_at)
+	        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 	        `,
-	        [row.id || crypto.randomUUID(), poId, row.advanceDate, row.advanceAmount, row.paymentMode || null, row.paymentCopy || null, 'Purchase Team']
+	        [row.id || crypto.randomUUID(), poId, row.advanceDate, row.advanceAmount, row.paymentMode || null, row.paymentCopy || null, row.remarks || null, 'Purchase Team']
 	      );
 	    }
 
@@ -8650,7 +8657,8 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	        advance_date AS advanceDate,
 	        advance_amount AS advanceAmount,
 	        payment_mode AS paymentMode,
-	        payment_copy AS paymentCopy
+	        payment_copy AS paymentCopy,
+        remarks
 	      FROM po_advances
 	      WHERE po_id = ?
 	      ORDER BY advance_date ASC, created_at ASC
@@ -8664,6 +8672,7 @@ app.put('/api/pos/:id/advances', async (req, res) => {
 	      advanceAmount: Number(r.advanceAmount ?? 0),
 	      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
 	      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+      remarks: r.remarks != null ? String(r.remarks) : '',
 	    }));
 
     res.json({ ok: true, advances, summary });
