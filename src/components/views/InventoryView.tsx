@@ -18,6 +18,8 @@ export default function InventoryView() {
   const [selectedStoreFilterId, setSelectedStoreFilterId] = useState<string>('');
   const [rows, setRows] = useState<InventorySheetRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [search, setSearch] = useState('');
   const [itemNameFilterId, setItemNameFilterId] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -60,33 +62,59 @@ export default function InventoryView() {
     }
   }, [selectedFirmId, selectedStoreFilterId, stores]);
 
-	  useEffect(() => {
-	    if (!selectedFirmId) return;
-	    const includeEmpty = !selectedStoreFilterId;
-	    setLoading(true);
-	    if (selectedFirmId === ALL_FIRMS_VALUE) {
-	      Promise.all(firms.map((f) => fetchInventorySheet(f.id, undefined, undefined, { includeEmpty })))
-		        .then((all) =>
-		          setRows(
-		            all.flatMap((list, idx) =>
-		              list.map((r) => ({
-		                ...r,
-		                firm: String(firms[idx]?.sortName ?? '').trim() || firms[idx]?.name || '',
-		              }))
-		            )
-		          )
-		        )
-	        .finally(() => setLoading(false));
-	      return;
-	    }
-		    fetchInventorySheet(selectedFirmId, undefined, undefined, { includeEmpty })
-		      .then((list) => {
-		        const selectedFirm = firms.find((f) => f.id === selectedFirmId);
-		        const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
-		        setRows(list.map((r) => ({ ...r, firm: firmName })));
-		      })
-	      .finally(() => setLoading(false));
-	  }, [selectedFirmId, selectedStoreFilterId, firms]);
+  useEffect(() => {
+    if (!selectedFirmId) return;
+    const controller = new AbortController();
+    const includeEmpty = !selectedStoreFilterId;
+    let active = true;
+
+    const loadInventory = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        if (selectedFirmId === ALL_FIRMS_VALUE) {
+          const results = await Promise.allSettled(
+            firms.map((firm) => fetchInventorySheet(firm.id, undefined, controller.signal, { includeEmpty }))
+          );
+          if (!active) return;
+
+          const failedFirms: string[] = [];
+          const loadedRows = results.flatMap((result, index) => {
+            const firm = firms[index];
+            const firmName = String(firm?.sortName ?? '').trim() || firm?.name || '';
+            if (result.status === 'rejected') {
+              failedFirms.push(firmName);
+              return [];
+            }
+            return result.value.map((row) => ({ ...row, firm: firmName }));
+          });
+          setRows(loadedRows);
+          if (failedFirms.length) {
+            setLoadError(`Inventory data could not be loaded for ${failedFirms.join(', ')}. Please retry.`);
+          }
+          return;
+        }
+
+        const list = await fetchInventorySheet(selectedFirmId, undefined, controller.signal, { includeEmpty });
+        if (!active) return;
+        const selectedFirm = firms.find((firm) => firm.id === selectedFirmId);
+        const firmName = selectedFirm ? String(selectedFirm.sortName ?? '').trim() || selectedFirm.name : '';
+        setRows(list.map((row) => ({ ...row, firm: firmName })));
+      } catch (error) {
+        if (!active || controller.signal.aborted) return;
+        setRows([]);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load inventory sheet.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadInventory();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [selectedFirmId, selectedStoreFilterId, firms, reloadKey]);
 
   const adjustedRows = React.useMemo(
     () => rows.filter((row) => goodsItemIds.has(String(row.itemId ?? ''))),
@@ -421,6 +449,14 @@ export default function InventoryView() {
           </div>
         </div>
         
+        {loadError ? (
+          <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+            <span>{loadError}</span>
+            <button type="button" className="btn btn-sm shrink-0" onClick={() => setReloadKey((value) => value + 1)}>
+              Retry
+            </button>
+          </div>
+        ) : null}
 	        <div className="overflow-x-auto">
           {loading ? (
             <div className="p-12 flex justify-center"><Spinner /></div>

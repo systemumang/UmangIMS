@@ -75,9 +75,26 @@ export async function fetchInventorySheet(
   params.set('firmId', firmId);
   params.set('year', year);
   if (opts?.includeEmpty) params.set('includeEmpty', '1');
-  const res = await fetch(`/api/inventory/sheet?${params.toString()}`, { signal });
-  const data = await requireOk<{ rows?: InventorySheetRow[] }>(res, 'Failed to load inventory sheet');
-  return data.rows ?? [];
+  const url = `/api/inventory/sheet?${params.toString()}`;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let status = 0;
+    try {
+      const res = await fetch(url, { signal });
+      status = res.status;
+      const data = await requireOk<{ rows?: InventorySheetRow[] }>(res, 'Failed to load inventory sheet');
+      return data.rows ?? [];
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      lastError = error;
+      const retryable = status === 0 || status === 200 || status === 408 || status === 429 || status >= 500;
+      if (!retryable || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 350 * 2 ** attempt));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to load inventory sheet');
 }
 
 export async function fetchOpeningBalances(storeId: string, year: string = fiscalYearLabel(), signal?: AbortSignal): Promise<OpeningBalanceRow[]> {
