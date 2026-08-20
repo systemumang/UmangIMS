@@ -59,11 +59,38 @@ function itemTotalNumber(it: PoItem) {
   return afterDisc + (afterDisc * gst) / 100;
 }
 
-export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
+export default function CheckPoQueueView({
+  onViewPr,
+  vendorPoOnly = false,
+}: {
+  onViewPr: (prId: string) => void;
+  vendorPoOnly?: boolean;
+
+}) {
   const masters = useQueueMasters({ includeSuppliers: true, includeUsers: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [filters, setFilters] = useState<QueueFilters>({ q: '', firmId: '', projectId: '', supplierId: '', from: '', to: '' });
   const [rows, setRows] = useState<CheckPoQueueRow[]>([]);
+  const vendorSupplierKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const supplier of masters.suppliers) {
+      if (!supplier.isVendor) continue;
+      const id = String(supplier.id ?? '').trim();
+      const name = String(supplier.name ?? '').trim().toLowerCase();
+      if (id) keys.add(`id:${id}`);
+      if (name) keys.add(`name:${name}`);
+    }
+    return keys;
+  }, [masters.suppliers]);
+  const filteredRows = useMemo(() => {
+    if (!vendorPoOnly) return rows;
+    return rows.filter((row) => {
+      const supplierId = String(row.supplierId ?? '').trim();
+      const supplierName = String(row.supplierName ?? '').trim().toLowerCase();
+      return (supplierId && vendorSupplierKeys.has(`id:${supplierId}`)) ||
+        (supplierName && vendorSupplierKeys.has(`name:${supplierName}`));
+    });
+  }, [rows, vendorPoOnly, vendorSupplierKeys]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
@@ -90,17 +117,17 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 
   useEffect(() => {
     setPage(1);
-  }, [filters]);
+  }, [filters, vendorPoOnly]);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [page, pageSize, rows.length]);
+  }, [page, pageSize, filteredRows.length]);
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [page, pageSize, rows]);
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, page, pageSize]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [active, setActive] = useState<CheckPoQueueRow | null>(null);
@@ -261,7 +288,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	      {masters.error ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load masters: {masters.error}</div> : null}
 	      <div className="hidden">
 	        <div className="text-sm text-on-surface-variant">Check PO</div>
-	        <ExportCsvButton id="pending-export-btn" filename={`queue-check-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={rows} disabled={loading} />
+	        <ExportCsvButton id="pending-export-btn" filename={`queue-check-po-${new Date().toISOString().slice(0, 10)}.csv`} rows={filteredRows} disabled={loading} />
 	      </div>
 	      <QueueFiltersBar filters={filters} onChange={setFilters} masters={mastersForFilters} />
 
@@ -270,7 +297,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
 	      ) : error ? (
         <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-4 text-sm text-on-surface">Failed to load queue: {error}</div>
       ) : (
-        <QueueCard title="Check PO" subtitle={`${rows.length} pending`} hideHeader>
+        <QueueCard title="Check PO" subtitle={`${filteredRows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
 		            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse border border-outline-variant">
 		              <colgroup>
@@ -460,7 +487,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
                 ) : (
                   <tr>
 			                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={6}>
-	                      No records.
+	                      {vendorPoOnly ? 'No Vendor POs found.' : 'No records.'}
 	                    </td>
                   </tr>
                 )}
@@ -468,7 +495,7 @@ export default function CheckPoQueueView({ onViewPr }: { onViewPr: (prId: string
             </table>
           </div>
           <div className="pt-3">
-            <Pagination totalItems={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+            <Pagination totalItems={filteredRows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
           </div>
         </QueueCard>
       )}

@@ -177,6 +177,11 @@ export default function App() {
 	        const [reportsExpanded, setReportsExpanded] = useState(false);
         const [courierTrackingExpanded, setCourierTrackingExpanded] = useState(false);
 	        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
+        const [vendorPoOnlyByView, setVendorPoOnlyByView] = useState({
+          operations: false,
+          queueDraftPo: false,
+          queueCheckPo: false,
+        });
 		  const [sidebarOpen, setSidebarOpen] = useState(true);
       const [pendingQueueCounts, setPendingQueueCounts] = useState<Partial<Record<PendingQueueKey, number>>>({});
       const [mastersCounts, setMastersCounts] = useState<Partial<Record<MastersTab, number>>>({});
@@ -863,20 +868,42 @@ export default function App() {
 	            subtitle={topBar.subtitle}
 	            showSearch={topBar.showSearch}
 	            headerRight={
-	              isPendingQueueView(view) ? (
-	                <button
-	                  type="button"
-	                  className="btn btn-sm"
-	                  onClick={() => {
-	                    const btn = document.getElementById('pending-export-btn') as HTMLButtonElement | null;
-	                    btn?.click();
-	                  }}
-	                >
-	                  Export Excel
-	                </button>
-	              ) : null
-	            }
-	            sidebarOpen={sidebarOpen}
+              isPendingQueueView(view) ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      const btn = document.getElementById('pending-export-btn') as HTMLButtonElement | null;
+                      btn?.click();
+                    }}
+                  >
+                    Export Excel
+                  </button>
+                  {view === 'queueDraftPo' || view === 'queueCheckPo' ? (
+                    <button
+                      type="button"
+                      className={cn(
+                        'btn btn-sm',
+                        (view === 'queueDraftPo' ? vendorPoOnlyByView.queueDraftPo : vendorPoOnlyByView.queueCheckPo) &&
+                          'bg-primary text-on-primary border-primary'
+                      )}
+                      aria-pressed={view === 'queueDraftPo' ? vendorPoOnlyByView.queueDraftPo : vendorPoOnlyByView.queueCheckPo}
+                      onClick={() => {
+                        if (view === 'queueDraftPo') {
+                          setVendorPoOnlyByView((previous) => ({ ...previous, queueDraftPo: !previous.queueDraftPo }));
+                        } else {
+                          setVendorPoOnlyByView((previous) => ({ ...previous, queueCheckPo: !previous.queueCheckPo }));
+                        }
+                      }}
+                    >
+                      Vendor PO
+                    </button>
+                  ) : null}
+                </div>
+              ) : null
+            }
+            sidebarOpen={sidebarOpen}
 	            onToggleSidebar={() => {
 	              setSidebarOpen((prev) => !prev);
 	            }}
@@ -994,7 +1021,16 @@ export default function App() {
               }}
             />
 		          ) : null}
-				          {view === 'operations' ? <OperationsView key={operationsTab} onViewPr={openPrDetail} initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab} currentUser={currentUser} /> : null}
+				          {view === 'operations' ? (
+                <OperationsView
+                  key={operationsTab}
+                  onViewPr={openPrDetail}
+                  initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab}
+                  currentUser={currentUser}
+                  vendorPoOnly={vendorPoOnlyByView.operations}
+                  onVendorPoOnlyChange={(value) => setVendorPoOnlyByView((previous) => ({ ...previous, operations: value }))}
+                />
+              ) : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} currentUser={currentUser} /> : null}
 
@@ -1046,8 +1082,23 @@ export default function App() {
               {view === 'stockSummary' ? <StockSummaryView /> : null}
 		          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
 		          {view === 'queueCreatePo' ? <CreatePoQueueView onViewPr={openPrDetail} /> : null}
-              {view === 'queueDraftPo' ? <OperationsView key="queueDraftPo" onViewPr={openPrDetail} initialTab="draftPos" currentUser={currentUser} /> : null}
-		          {view === 'queueCheckPo' ? <CheckPoQueueView onViewPr={openPrDetail} /> : null}
+              {view === 'queueDraftPo' ? (
+                <OperationsView
+                  key="queueDraftPo"
+                  onViewPr={openPrDetail}
+                  initialTab="draftPos"
+                  currentUser={currentUser}
+                  vendorPoOnly={vendorPoOnlyByView.queueDraftPo}
+
+                />
+              ) : null}
+		          {view === 'queueCheckPo' ? (
+                <CheckPoQueueView
+                  onViewPr={openPrDetail}
+                  vendorPoOnly={vendorPoOnlyByView.queueCheckPo}
+
+                />
+              ) : null}
 	          {view === 'queueSendPo' ? <SendPoQueueView onViewPr={openPrDetail} /> : null}
 	          {view === 'queueCreateGrn' ? <CreateGrnQueueView onViewPr={openPrDetail} poType="Goods" /> : null}
 		          {view === 'queueCreateSrn' ? <CreateGrnQueueView onViewPr={openPrDetail} poType="Services" viewLabel="Create SRN" receiptLabel="SRN" /> : null}

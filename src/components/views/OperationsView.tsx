@@ -210,6 +210,8 @@ export default function OperationsView({
   onViewPr,
   initialTab = 'prs',
   currentUser,
+  vendorPoOnly = false,
+  onVendorPoOnlyChange,
 }: {
   onViewPr?: (
     prId: string,
@@ -217,6 +219,8 @@ export default function OperationsView({
   ) => void;
   initialTab?: OpsTab;
   currentUser?: AuthUser | null;
+  vendorPoOnly?: boolean;
+  onVendorPoOnlyChange?: (value: boolean) => void;
 }) {
   const masters = useQueueMasters({ includeSuppliers: true, includeStores: true, includeUsers: true, includeTransporters: true });
   const [specs, setSpecs] = useState<Specification[]>([]);
@@ -229,6 +233,17 @@ export default function OperationsView({
   const currentUserDisplayName = String(currentUser?.name ?? currentUser?.loginId ?? '').trim() || 'system';
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
+  const vendorSupplierKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const supplier of masters.suppliers) {
+      if (!supplier.isVendor) continue;
+      const id = String(supplier.id ?? '').trim();
+      const name = String(supplier.name ?? '').trim().toLowerCase();
+      if (id) keys.add(`id:${id}`);
+      if (name) keys.add(`name:${name}`);
+    }
+    return keys;
+  }, [masters.suppliers]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -513,7 +528,16 @@ export default function OperationsView({
                     : tab === 'creditVouchers'
                       ? creditVouchers
 			                : payments;
-	    const out = [...(list ?? [])];
+	    const vendorFilterApplies = vendorPoOnly && (tab === 'pos' || tab === 'draftPos');
+        const filteredList = vendorFilterApplies
+          ? (list ?? []).filter((row: any) => {
+              const supplierId = String(row?.supplierId ?? '').trim();
+              const supplierName = String(row?.supplierName ?? '').trim().toLowerCase();
+              return (supplierId && vendorSupplierKeys.has(`id:${supplierId}`)) ||
+                (supplierName && vendorSupplierKeys.has(`name:${supplierName}`));
+            })
+          : list ?? [];
+        const out = [...filteredList];
 	    const key = String(sort.key ?? '');
 	    const dir = sort.dir === 'asc' ? 1 : -1;
 
@@ -556,7 +580,7 @@ export default function OperationsView({
 
 	    out.sort((ra, rb) => cmp(ra?.[key], rb?.[key]) * dir);
 	    return out;
-			  }, [advancePos, creditVouchers, grns, invoices, payments, pos, prs, sort.dir, sort.key, tab]);
+			  }, [advancePos, creditVouchers, grns, invoices, payments, pos, prs, sort.dir, sort.key, tab, vendorPoOnly, vendorSupplierKeys]);
 
 	  const rowsCount = sortedRows.length;
 
@@ -599,7 +623,7 @@ export default function OperationsView({
 	    setPage(1);
 	    setSelectedRowId(null);
       setSelectedNestedRowId(null);
-	  }, [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir]);
+	  }, [tab, filters.q, filters.firmId, filters.projectId, filters.supplierId, filters.status, filters.from, filters.to, sort.key, sort.dir, vendorPoOnly]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(rowsCount / pageSize));
@@ -1709,15 +1733,28 @@ export default function OperationsView({
             })}
           </div>
         ) : null}
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={exportCsv}
-          disabled={loading}
-          title={tab === 'pos' ? 'Download Excel' : 'Export'}
-        >
-          {tab === 'pos' ? 'Download Excel' : 'Export'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id={tab === 'draftPos' ? 'pending-export-btn' : undefined}
+            type="button"
+            className="btn btn-sm"
+            onClick={exportCsv}
+            disabled={loading}
+            title={tab === 'pos' ? 'Download Excel' : 'Export'}
+          >
+            {tab === 'pos' ? 'Download Excel' : 'Export'}
+          </button>
+          {tab === 'pos' && onVendorPoOnlyChange ? (
+            <button
+              type="button"
+              className={cn('btn btn-sm', vendorPoOnly && 'bg-primary text-on-primary border-primary')}
+              aria-pressed={vendorPoOnly}
+              onClick={() => onVendorPoOnlyChange(!vendorPoOnly)}
+            >
+              Vendor PO
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
@@ -1923,7 +1960,7 @@ export default function OperationsView({
 				              ) : !paged.length ? (
 				                <tr>
 								                  <td colSpan={tab === 'pos' ? 11 : tab === 'draftPos' ? 10 : tab === 'prs' ? 7 : tab === 'pendingAdjustments' ? 7 : tab === 'invoices' ? 13 : tab === 'creditVouchers' ? 11 : 9} className="px-3 py-8 text-sm text-on-surface-variant border border-outline-variant">
-				                    No records.
+				                    {vendorPoOnly && (tab === 'pos' || tab === 'draftPos') ? 'No Vendor POs found.' : 'No records.'}
 				                  </td>
 				                </tr>
 		              ) : (
