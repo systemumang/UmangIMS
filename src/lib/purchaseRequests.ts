@@ -150,6 +150,8 @@ export type InvoiceItem = {
 	  id: string;
 	  itemId: string;
 	  item: string;
+  unit?: string | null;
+  poDimUnit?: 'ft' | 'm' | string | null;
 	  specificationsJson?: string;
 	  quantity: number;
   rate: number;

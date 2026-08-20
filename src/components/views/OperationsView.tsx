@@ -22,7 +22,7 @@ import {
   type Specification,
   type SpecificationValue,
 } from '@/src/lib/masters';
-import { updatePo } from '@/src/lib/purchaseRequests';
+import { updateInvoice, updatePo } from '@/src/lib/purchaseRequests';
 import {
 	          fetchOperationsCreditVouchers,
 						  fetchOperationsGrnDetail,
@@ -140,6 +140,16 @@ function computeAreaQty(length: number, breadth: number, pcs: number) {
   return 0;
 }
 
+function convertAreaQty(qty: number, fromDimUnit: string, toDimUnit: string) {
+  const from = String(fromDimUnit ?? '').trim().toLowerCase();
+  const to = String(toDimUnit ?? '').trim().toLowerCase();
+  if (!Number.isFinite(qty)) return 0;
+  if (!from || !to || from === to) return qty;
+  const squareMetresToSquareFeet = 10.7639104167;
+  if (from === 'm' && to === 'ft') return qty * squareMetresToSquareFeet;
+  if (from === 'ft' && to === 'm') return qty / squareMetresToSquareFeet;
+  return 0;
+}
 function isIgnorableUpdatedByError(message: unknown) {
   return String(message ?? '').includes("Cannot access 'updatedBy' before initialization");
 }
@@ -152,6 +162,34 @@ function getConvertedDim(val: string, from: 'ft' | 'm' | '') {
   return '';
 }
 
+type EditInvoiceLine = {
+  itemId: string;
+  label: string;
+  unit: string;
+  isArea: boolean;
+  poDimUnit: 'ft' | 'm' | '';
+  inputUnit: 'ft' | 'm' | '';
+  length: string;
+  breadth: string;
+  pcs: string;
+  quantity: string;
+  rate: string;
+  taxPercent: string;
+};
+
+type EditInvoiceForm = {
+  id: string;
+  poNumber: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  updatedBy: string;
+  courierCharge: string;
+  packingCharge: string;
+  labourCharge: string;
+  otherCharge: string;
+  chargesGstAmount: string;
+  lines: EditInvoiceLine[];
+};
 export default function OperationsView({
   onViewPr,
   initialTab = 'prs',
@@ -241,6 +279,31 @@ export default function OperationsView({
   const [inlineInvoiceDetailById, setInlineInvoiceDetailById] = useState<Record<string, any>>({});
   const [inlineInvoiceLoadingById, setInlineInvoiceLoadingById] = useState<Record<string, boolean>>({});
   const [inlineInvoiceErrorById, setInlineInvoiceErrorById] = useState<Record<string, string>>({});
+  const [editInvoiceOpen, setEditInvoiceOpen] = useState(false);
+  const [editInvoiceBusy, setEditInvoiceBusy] = useState(false);
+  const [editInvoiceError, setEditInvoiceError] = useState<string | null>(null);
+  const [editInvoiceForm, setEditInvoiceForm] = useState<EditInvoiceForm | null>(null);
+  const editInvoiceTotal = useMemo(() => {
+    if (!editInvoiceForm) return 0;
+    const itemTotal = editInvoiceForm.lines.reduce((sum, line) => {
+      const quantity = Number(line.quantity ?? 0);
+      const rate = Number(line.rate ?? 0);
+      const taxPercent = Number(line.taxPercent ?? 0);
+      if (![quantity, rate, taxPercent].every(Number.isFinite)) return sum;
+      return sum + quantity * rate * (1 + taxPercent / 100);
+    }, 0);
+    const charges = [
+      editInvoiceForm.courierCharge,
+      editInvoiceForm.packingCharge,
+      editInvoiceForm.labourCharge,
+      editInvoiceForm.otherCharge,
+      editInvoiceForm.chargesGstAmount,
+    ].reduce((sum, value) => {
+      const amount = Number(String(value ?? '').trim() || 0);
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+    return round2(itemTotal + charges);
+  }, [editInvoiceForm]);
 
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [selectedNestedRowId, setSelectedNestedRowId] = useState<string | null>(null);
@@ -824,6 +887,189 @@ export default function OperationsView({
 	    );
 		  };
 
+  const updateEditInvoiceLine = (index: number, patch: Partial<EditInvoiceLine>) => {
+    setEditInvoiceForm((previous) => {
+      if (!previous) return previous;
+      const lines = previous.lines.map((current, lineIndex) => {
+        if (lineIndex !== index) return current;
+        const next = { ...current, ...patch };
+        if (next.isArea) {
+          const areaQty = computeAreaQty(Number(next.length), Number(next.breadth), Number(next.pcs));
+          const convertedQty = convertAreaQty(areaQty, next.inputUnit, next.poDimUnit || next.inputUnit);
+          next.quantity = convertedQty > 0 ? String(round2(convertedQty)) : '';
+        }
+        return next;
+      });
+      return { ...previous, lines };
+    });
+  };
+
+  const closeEditInvoice = () => {
+    if (editInvoiceBusy) return;
+    setEditInvoiceOpen(false);
+    setEditInvoiceError(null);
+    setEditInvoiceForm(null);
+  };
+
+  const openEditInvoice = async (row: OperationsInvoiceListRow) => {
+    const invoiceId = String(row.invoiceId ?? '').trim();
+    if (!invoiceId) return;
+    setEditInvoiceOpen(true);
+    setEditInvoiceBusy(true);
+    setEditInvoiceError(null);
+    setEditInvoiceForm(null);
+    try {
+      const detail = inlineInvoiceDetailById[invoiceId] ?? (await fetchOperationsInvoiceDetail(invoiceId));
+      const invoicePayload = detail?.invoice;
+      const invoice = invoicePayload?.invoice;
+      const invoiceItems = Array.isArray(invoicePayload?.items) ? invoicePayload.items : [];
+      if (!invoice) throw new Error('Invoice details not found.');
+
+      const lines: EditInvoiceLine[] = invoiceItems.map((item: any) => {
+        const unit = String(item?.unit ?? '').trim();
+        const areaUnit = normalizeAreaUnitName(unit);
+        const defaultPoDimUnit = baseDimUnitForAreaUnit(areaUnit);
+        const rawPoDimUnit = String(item?.poDimUnit ?? defaultPoDimUnit).trim().toLowerCase();
+        const poDimUnit = (rawPoDimUnit === 'ft' || rawPoDimUnit === 'm' ? rawPoDimUnit : defaultPoDimUnit) as 'ft' | 'm' | '';
+        const rawInputUnit = String(item?.dimUnit ?? item?.dimInputUnit ?? poDimUnit).trim().toLowerCase();
+        const inputUnit = (rawInputUnit === 'ft' || rawInputUnit === 'm' ? rawInputUnit : poDimUnit) as 'ft' | 'm' | '';
+        const isArea = Boolean(areaUnit || item?.dimLength != null || item?.dimBreadth != null);
+        return {
+          itemId: String(item?.itemId ?? '').trim(),
+          label: formatItemInline(String(item?.item ?? item?.itemId ?? ''), item?.specificationsJson, specNameById),
+          unit,
+          isArea,
+          poDimUnit,
+          inputUnit,
+          length: item?.dimLength != null ? String(item.dimLength) : '',
+          breadth: item?.dimBreadth != null ? String(item.dimBreadth) : '',
+          pcs: isArea ? String(item?.dimPcs ?? 1) : '',
+          quantity: String(item?.quantity ?? ''),
+          rate: String(item?.rate ?? ''),
+          taxPercent: String(item?.taxPercent ?? 0),
+        };
+      });
+
+      if (!lines.length) throw new Error('No invoice items found.');
+      setInlineInvoiceDetailById((previous) => ({ ...previous, [invoiceId]: detail }));
+      setEditInvoiceForm({
+        id: invoiceId,
+        poNumber: String(row.poNumber ?? invoice?.poId ?? '-'),
+        invoiceNo: String(invoice?.supplierInvoiceNo ?? row.invoiceNo ?? ''),
+        invoiceDate: String(invoice?.invoiceDate ?? row.invoiceDate ?? '').slice(0, 10),
+        updatedBy: currentUserDisplayName,
+        courierCharge: Number(invoice?.courierCharge ?? 0) ? String(invoice.courierCharge) : '',
+        packingCharge: Number(invoice?.packingCharge ?? 0) ? String(invoice.packingCharge) : '',
+        labourCharge: Number(invoice?.labourCharge ?? 0) ? String(invoice.labourCharge) : '',
+        otherCharge: Number(invoice?.otherCharge ?? 0) ? String(invoice.otherCharge) : '',
+        chargesGstAmount: Number(invoice?.chargesGstAmount ?? 0) ? String(invoice.chargesGstAmount) : '',
+        lines,
+      });
+    } catch (error) {
+      setEditInvoiceError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEditInvoiceBusy(false);
+    }
+  };
+
+  const saveEditedInvoice = async () => {
+    const form = editInvoiceForm;
+    if (!form) return;
+    const invoiceNo = form.invoiceNo.trim();
+    const invoiceDate = form.invoiceDate.trim();
+    const updatedBy = form.updatedBy.trim();
+    if (!invoiceNo || !invoiceDate || !updatedBy) {
+      setEditInvoiceError('Invoice No, Invoice Date and Updated By are required.');
+      return;
+    }
+
+    const chargeValues = [
+      { label: 'Courier Charge', value: form.courierCharge },
+      { label: 'Packing Charge', value: form.packingCharge },
+      { label: 'Labour Charge', value: form.labourCharge },
+      { label: 'Other Charge', value: form.otherCharge },
+      { label: 'GST on Charges', value: form.chargesGstAmount },
+    ];
+    for (const charge of chargeValues) {
+      const amount = Number(String(charge.value ?? '').trim() || 0);
+      if (!Number.isFinite(amount) || amount < 0) {
+        setEditInvoiceError(charge.label + ' must be a valid non-negative number.');
+        return;
+      }
+    }
+
+    const normalizedItems: Array<{
+      itemId: string;
+      quantity: number;
+      rate: number;
+      taxPercent: number;
+      length?: number;
+      breadth?: number;
+      pcs?: number;
+      inputUnit?: string;
+    }> = [];
+    for (const line of form.lines) {
+      const quantity = Number(line.quantity);
+      const rate = Number(line.rate);
+      const taxPercent = Number(line.taxPercent);
+      if (!line.itemId || !Number.isFinite(quantity) || quantity <= 0) {
+        setEditInvoiceError('Enter a valid quantity for ' + (line.label || 'each invoice item') + '.');
+        return;
+      }
+      if (!Number.isFinite(rate) || rate < 0) {
+        setEditInvoiceError('Enter a valid rate for ' + (line.label || 'each invoice item') + '.');
+        return;
+      }
+      if (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100) {
+        setEditInvoiceError('GST must be between 0 and 100 for ' + (line.label || 'each invoice item') + '.');
+        return;
+      }
+      if (line.isArea) {
+        const length = Number(line.length);
+        const breadth = Number(line.breadth);
+        const pcs = Number(line.pcs);
+        if (![length, breadth, pcs].every(Number.isFinite) || length <= 0 || breadth <= 0 || !Number.isInteger(pcs) || pcs <= 0 || !line.inputUnit) {
+          setEditInvoiceError('Enter valid Length, Breadth, PCs and Unit for ' + (line.label || 'each area item') + '.');
+          return;
+        }
+        normalizedItems.push({ itemId: line.itemId, quantity, rate, taxPercent, length, breadth, pcs, inputUnit: line.inputUnit });
+      } else {
+        normalizedItems.push({ itemId: line.itemId, quantity, rate, taxPercent });
+      }
+    }
+
+    setEditInvoiceBusy(true);
+    setEditInvoiceError(null);
+    try {
+      await updateInvoice(form.id, {
+        supplierInvoiceNo: invoiceNo,
+        invoiceDate,
+        invoiceAmount: editInvoiceTotal,
+        courierCharge: Number(form.courierCharge || 0),
+        packingCharge: Number(form.packingCharge || 0),
+        labourCharge: Number(form.labourCharge || 0),
+        otherCharge: Number(form.otherCharge || 0),
+        chargesGstAmount: Number(form.chargesGstAmount || 0),
+        updatedBy,
+        items: normalizedItems,
+      });
+
+      const [refreshedDetail, refreshedInvoices] = await Promise.all([
+        fetchOperationsInvoiceDetail(form.id).catch(() => null),
+        fetchOperationsInvoices(filters).catch(() => null),
+      ]);
+      if (refreshedDetail) {
+        setInlineInvoiceDetailById((previous) => ({ ...previous, [form.id]: refreshedDetail }));
+      }
+      if (refreshedInvoices) setInvoices(refreshedInvoices);
+      setEditInvoiceOpen(false);
+      setEditInvoiceForm(null);
+    } catch (error) {
+      setEditInvoiceError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEditInvoiceBusy(false);
+    }
+  };
   const openAdvanceModal = async (row: OperationsPoListRow) => {
     const poId = String(row.poId ?? '').trim();
     if (!poId) return;
@@ -1803,6 +2049,18 @@ export default function OperationsView({
                                 >
                                   <Eye size={16} />
                                 </button>
+                                <button
+                                  type="button"
+                                  className="ml-1.5 inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                                  title="Edit Invoice"
+                                  aria-label="Edit Invoice"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditInvoice(r as OperationsInvoiceListRow);
+                                  }}
+                                >
+                                  <Pencil size={16} />
+                                </button>
                               </td>
 					                      </>
 		                    ) : tab === 'creditVouchers' ? (
@@ -2390,6 +2648,247 @@ export default function OperationsView({
         </div>
       </div>
 
+      <Modal
+        open={editInvoiceOpen}
+        title={'Edit Invoice: ' + (editInvoiceForm?.invoiceNo || '-')}
+        onClose={closeEditInvoice}
+        fullScreen
+      >
+        <div className="space-y-4">
+          {editInvoiceError ? (
+            <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">
+              {editInvoiceError}
+            </div>
+          ) : null}
+          {editInvoiceBusy && !editInvoiceForm ? <div className="text-sm text-on-surface-variant">Loading invoice...</div> : null}
+          {editInvoiceForm ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-4 md:grid-cols-4">
+                <label className="space-y-1">
+                  <div className={labelClass}>PO Number</div>
+                  <input className={inputClass} value={editInvoiceForm.poNumber} readOnly />
+                </label>
+                <label className="space-y-1">
+                  <div className={labelClass}>Invoice No. *</div>
+                  <input
+                    className={inputClass}
+                    value={editInvoiceForm.invoiceNo}
+                    onChange={(event) =>
+                      setEditInvoiceForm((previous) => (previous ? { ...previous, invoiceNo: event.target.value } : previous))
+                    }
+                    disabled={editInvoiceBusy}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className={labelClass}>Invoice Date *</div>
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={editInvoiceForm.invoiceDate}
+                    onChange={(event) =>
+                      setEditInvoiceForm((previous) => (previous ? { ...previous, invoiceDate: event.target.value } : previous))
+                    }
+                    disabled={editInvoiceBusy}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className={labelClass}>Updated By *</div>
+                  <select
+                    className={inputClass}
+                    value={editInvoiceForm.updatedBy}
+                    onChange={(event) =>
+                      setEditInvoiceForm((previous) => (previous ? { ...previous, updatedBy: event.target.value } : previous))
+                    }
+                    disabled={editInvoiceBusy}
+                  >
+                    <option value="">Select user</option>
+                    {editInvoiceForm.updatedBy &&
+                    !(masters.users ?? []).some((user) => String(user.name ?? '') === editInvoiceForm.updatedBy) ? (
+                      <option value={editInvoiceForm.updatedBy}>{editInvoiceForm.updatedBy}</option>
+                    ) : null}
+                    {(masters.users ?? []).map((user) => (
+                      <option key={user.id} value={user.name}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-4 md:grid-cols-6">
+                {[
+                  { key: 'courierCharge', label: 'Courier Charge' },
+                  { key: 'packingCharge', label: 'Packing Charge' },
+                  { key: 'labourCharge', label: 'Labour Charge' },
+                  { key: 'otherCharge', label: 'Other Charge' },
+                  { key: 'chargesGstAmount', label: 'GST on Charges' },
+                ].map((field) => (
+                  <label key={field.key} className="space-y-1">
+                    <div className={labelClass}>{field.label}</div>
+                    <input
+                      className={inputClass}
+                      inputMode="decimal"
+                      value={String(editInvoiceForm[field.key as keyof EditInvoiceForm] ?? '')}
+                      onChange={(event) => {
+                        const value = sanitizeDecimalInput(event.target.value);
+                        setEditInvoiceForm((previous) =>
+                          previous ? ({ ...previous, [field.key]: value } as EditInvoiceForm) : previous
+                        );
+                      }}
+                      disabled={editInvoiceBusy}
+                      placeholder="0"
+                    />
+                  </label>
+                ))}
+                <div className="rounded-lg border border-primary/20 bg-primary-container/40 px-3 py-2">
+                  <div className={labelClass}>Invoice Total</div>
+                  <div className="mt-2 text-lg font-extrabold tabular-nums">{editInvoiceTotal.toFixed(3)}</div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-outline-variant">
+                <table className="w-full min-w-[1280px] table-fixed text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-primary text-on-primary">
+                      <th className="w-[260px] px-3 py-2 border border-outline-variant">Item</th>
+                      <th className="w-[80px] px-3 py-2 border border-outline-variant">Unit</th>
+                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Length</th>
+                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Breadth</th>
+                      <th className="w-[90px] px-3 py-2 border border-outline-variant">PCs</th>
+                      <th className="w-[100px] px-3 py-2 border border-outline-variant">Input Unit</th>
+                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Qty</th>
+                      <th className="w-[120px] px-3 py-2 border border-outline-variant">Rate</th>
+                      <th className="w-[100px] px-3 py-2 border border-outline-variant">GST %</th>
+                      <th className="w-[140px] px-3 py-2 border border-outline-variant">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editInvoiceForm.lines.map((line, index) => {
+                      const quantity = Number(line.quantity || 0);
+                      const rate = Number(line.rate || 0);
+                      const taxPercent = Number(line.taxPercent || 0);
+                      const amount =
+                        Number.isFinite(quantity) && Number.isFinite(rate) && Number.isFinite(taxPercent)
+                          ? quantity * rate * (1 + taxPercent / 100)
+                          : 0;
+                      return (
+                        <tr key={line.itemId + '-' + index}>
+                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">{line.label}</td>
+                          <td className="px-3 py-2 border border-outline-variant">{line.unit || '-'}</td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            {line.isArea ? (
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={line.length}
+                                onChange={(event) => updateEditInvoiceLine(index, { length: sanitizeDecimalInput(event.target.value) })}
+                                disabled={editInvoiceBusy}
+                                placeholder="Length"
+                              />
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            {line.isArea ? (
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                value={line.breadth}
+                                onChange={(event) => updateEditInvoiceLine(index, { breadth: sanitizeDecimalInput(event.target.value) })}
+                                disabled={editInvoiceBusy}
+                                placeholder="Breadth"
+                              />
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            {line.isArea ? (
+                              <input
+                                className={cn(inputClass, 'py-1.5')}
+                                inputMode="numeric"
+                                value={line.pcs}
+                                onChange={(event) => updateEditInvoiceLine(index, { pcs: event.target.value.replace(/\D/g, '') })}
+                                disabled={editInvoiceBusy}
+                                placeholder="PCs"
+                              />
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            {line.isArea ? (
+                              <select
+                                className={cn(inputClass, 'py-1.5')}
+                                value={line.inputUnit}
+                                onChange={(event) =>
+                                  updateEditInvoiceLine(index, { inputUnit: event.target.value as 'ft' | 'm' })
+                                }
+                                disabled={editInvoiceBusy}
+                              >
+                                <option value="">Select</option>
+                                <option value="ft">Ft</option>
+                                <option value="m">Mtr</option>
+                              </select>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={line.quantity}
+                              onChange={(event) =>
+                                updateEditInvoiceLine(index, { quantity: sanitizeDecimalInput(event.target.value) })
+                              }
+                              disabled={editInvoiceBusy || line.isArea}
+                              inputMode="decimal"
+                              placeholder="Qty"
+                            />
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={line.rate}
+                              onChange={(event) => updateEditInvoiceLine(index, { rate: sanitizeDecimalInput(event.target.value) })}
+                              disabled={editInvoiceBusy}
+                              inputMode="decimal"
+                              placeholder="Rate"
+                            />
+                          </td>
+                          <td className="px-2 py-2 border border-outline-variant">
+                            <input
+                              className={cn(inputClass, 'py-1.5')}
+                              value={line.taxPercent}
+                              onChange={(event) =>
+                                updateEditInvoiceLine(index, { taxPercent: sanitizeDecimalInput(event.target.value) })
+                              }
+                              disabled={editInvoiceBusy}
+                              inputMode="decimal"
+                              placeholder="GST"
+                            />
+                          </td>
+                          <td className="px-3 py-2 border border-outline-variant tabular-nums font-semibold">
+                            {amount.toFixed(3)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button type="button" className="btn btn-sm" onClick={closeEditInvoice} disabled={editInvoiceBusy}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-primary btn-sm" onClick={saveEditedInvoice} disabled={editInvoiceBusy}>
+                  {editInvoiceBusy ? 'Saving...' : 'Save Invoice'}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </Modal>
       <Modal open={advanceModalOpen} title={`PO Advance: ${advanceModalPoNumber || '-'}`} onClose={closeAdvanceModal} fullScreen>
         <div className="space-y-3">
           {advanceModalError ? <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">{advanceModalError}</div> : null}

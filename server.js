@@ -5283,6 +5283,12 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       ii.item_id AS itemId,
       iname.name AS item,
       u.name AS unit,
+      (
+        SELECT poi.dim_unit
+        FROM purchase_order_items poi
+        WHERE poi.po_id = ? AND poi.item_id = ii.item_id
+        LIMIT 1
+      ) AS poDimUnit,
       ii.quantity AS quantity,
       ii.rate AS rate,
       ii.tax_percent AS taxPercent,
@@ -5299,7 +5305,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     WHERE ii.invoice_id = ?
     ORDER BY ii.created_at ASC
     `,
-    [invoiceId]
+    [String(invRow.poId), invoiceId]
   );
 
   const invoice = {
@@ -5340,6 +5346,8 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     invoiceId: String(r.invoiceId ?? ''),
     itemId: String(r.itemId ?? ''),
     item: String(r.item ?? ''),
+    unit: r.unit != null ? String(r.unit) : undefined,
+    poDimUnit: r.poDimUnit != null ? String(r.poDimUnit) : undefined,
     specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
     quantity: Number(r.quantity ?? 0),
     rate: Number(r.rate ?? 0),
@@ -15764,6 +15772,8 @@ app.put('/api/invoices/:id', async (req, res) => {
     const supplierInvoiceNo = String(req.body?.supplierInvoiceNo ?? '').trim();
     const invoiceDate = String(req.body?.invoiceDate ?? '').trim();
     const updatedBy = String(req.body?.updatedBy ?? '').trim() || null;
+    const paymentMode = req.body?.paymentMode != null ? String(req.body.paymentMode).trim() || null : null;
+    const tallyEntryDate = req.body?.tallyEntryDate != null ? String(req.body.tallyEntryDate).trim() || null : null;
     const documentUrl = req.body?.documentUrl != null ? String(req.body.documentUrl).trim() : undefined;
     const cnCopyUrl = req.body?.cnCopyUrl != null ? String(req.body.cnCopyUrl).trim() : undefined;
     const ewayBillUrl = req.body?.ewayBillUrl != null ? String(req.body.ewayBillUrl).trim() : undefined;
@@ -15868,7 +15878,7 @@ app.put('/api/invoices/:id', async (req, res) => {
       UPDATE invoices
       SET invoice_number=?, invoice_date=?, goods_amount=?, tax_amount=?, total_amount=?,
           courier_charge=?, packing_charge=?, labour_charge=?, other_charge=?, charges_gst_amount=?,
-          payment_mode=COALESCE(?, payment_mode), tally_entry_date=?,
+          payment_mode=COALESCE(?, payment_mode), tally_entry_date=COALESCE(?, tally_entry_date),
           document_url=COALESCE(?, document_url), cn_copy_url=COALESCE(?, cn_copy_url),
           eway_bill_url=COALESCE(?, eway_bill_url), eway_bill_number=COALESCE(?, eway_bill_number),
           cn_number=COALESCE(?, cn_number), courier_number=COALESCE(?, courier_number),
