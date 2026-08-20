@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   id TEXT PRIMARY KEY,
   po_id TEXT NOT NULL,
   item_id TEXT NOT NULL,
+  description TEXT,
   quantity REAL NOT NULL,
   rate REAL NOT NULL,
   discount_percent REAL,

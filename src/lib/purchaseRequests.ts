@@ -93,6 +93,7 @@ export type PoItem = {
   itemLabel?: string;
   itemNameId?: string | null;
   item: string;
+  description?: string | null;
   unit?: string | null;
   specificationsJson?: string;
   specs?: Record<string, string>;
@@ -486,6 +487,7 @@ export async function createDirectPo(input: {
     itemId?: string;
     itemNameId?: string;
     specs?: Record<string, string>;
+    description?: string;
     quantity: number;
     rate: number;
     discountPercent?: number;
@@ -908,7 +910,7 @@ export async function updatePo(
     advanceAmount?: number;
     advanceDate?: string | null;
     cancelReason?: string;
-    items: Array<{ itemId?: string; itemNameId?: string | null; specs?: Record<string, string>; quantity: number; rate: number; discountPercent?: number; taxPercent?: number; length?: number; breadth?: number; pcs?: number; remarks?: string }>;
+    items: Array<{ itemId?: string; itemNameId?: string | null; specs?: Record<string, string>; description?: string; quantity: number; rate: number; discountPercent?: number; taxPercent?: number; length?: number; breadth?: number; pcs?: number; remarks?: string }>;
     lineCancels?: Array<{ itemId: string; cancelledQty: number; cancelReason?: string }>;
     updatedBy?: string;
   }

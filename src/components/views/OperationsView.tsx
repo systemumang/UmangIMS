@@ -342,6 +342,7 @@ export default function OperationsView({
       itemNameId?: string | null;
       specs?: Record<string, string>;
       itemLabel: string;
+      description: string;
       unit?: string;
       poQty: number;
       grnQty: number;
@@ -959,6 +960,7 @@ export default function OperationsView({
             itemNameId: it.itemNameId ? String(it.itemNameId) : null,
             specs: it.specs ?? parseSpecsJsonToObject(it.specificationsJson),
 	          itemLabel: String(it.itemLabel ?? it.item ?? '-'),
+            description: String(it.description ?? '').trim(),
             unit: String(it.unit ?? '').trim(),
 	          poQty: Number(it.quantity ?? 0),
 	          grnQty: Number(it.grnQty ?? 0),
@@ -1022,6 +1024,7 @@ export default function OperationsView({
             }
           }
           next.itemId = matchedItemId;
+          next.description = String(items.find((item) => item.id === matchedItemId)?.description ?? '').trim();
           const itemNameRow = itemNames.find((x) => x.id === itemNameId) as any;
           next.unit = String(itemNameRow?.unitName ?? itemNameRow?.unit ?? '').trim();
           next.itemLabel = String(itemNameRow?.name ?? next.itemLabel ?? '');
@@ -1040,6 +1043,7 @@ export default function OperationsView({
         itemNameId: '',
         specs: {},
         itemLabel: '',
+        description: '',
         unit: '',
         poQty: 0,
         grnQty: 0,
@@ -1067,6 +1071,7 @@ export default function OperationsView({
               itemNameId: '',
               specs: {},
               itemLabel: '',
+              description: '',
               unit: '',
               poQty: 0,
               grnQty: 0,
@@ -1125,6 +1130,7 @@ export default function OperationsView({
           poItemId: String(l.poItemId ?? '').trim() || undefined,
           itemNameId: l.itemNameId ? String(l.itemNameId) : undefined,
           specs: l.specs ?? {},
+          description: String(l.description ?? '').trim() || undefined,
 	        quantity: Number(l.quantity ?? 0),
 	        rate: Number(l.rate ?? 0),
 	        discountPercent: Number(l.discountPercent ?? 0),
@@ -2753,7 +2759,7 @@ export default function OperationsView({
 
                 {editPoLines.map((l, idx) => {
                   const specIds = l.itemNameId ? getItemNameSpecIdsFromRows(itemNames, l.itemNameId) : [];
-                  const itemDescription = String(items.find((item) => item.id === l.itemId)?.description ?? '').trim();
+                  const itemDescription = l.description ?? '';
                   const areaUnit = normalizeAreaUnitName(l.unit ?? '');
                   const isAreaUnit = !!areaUnit;
                   const dimUnit = baseDimUnitForAreaUnit(areaUnit);
@@ -2832,8 +2838,8 @@ export default function OperationsView({
                           </div>
                         );
                       })}
-                      <div className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant whitespace-pre-wrap break-words">
-                        {itemDescription || '-'}
+                      <div className="p-2 border-r border-outline-variant">
+                        <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8" value={itemDescription} onChange={(e) => updateEditPoLine(idx, { description: e.target.value })} disabled={editPoBusy} placeholder="Description" />
                       </div>
                       <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">{l.unit || '-'}</div>
                       <div className="p-2 border-r border-outline-variant">

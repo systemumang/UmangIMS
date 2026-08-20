@@ -68,6 +68,7 @@ type Line = {
   itemId: string;
   itemNameId: string;
   specs: Record<string, string>;
+  description: string;
   quantity: string;
   rate: string;
   discountPercent: string;
@@ -104,7 +105,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
   const [requiredDate, setRequiredDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [availableStockByItemId, setAvailableStockByItemId] = useState<Record<string, number>>({});
 
-  const [lines, setLines] = useState<Line[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
+  const [lines, setLines] = useState<Line[]>([{ itemId: '', itemNameId: '', specs: {}, description: '', quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supplierCreateOpen, setSupplierCreateOpen] = useState(false);
@@ -285,6 +286,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
       if (patch.itemNameId !== undefined || patch.specs !== undefined) {
         const matched = resolveSelectedItem(next.itemNameId, next.specs);
         next.itemId = matched?.id ?? '';
+        next.description = String(matched?.description ?? '').trim();
         // Unit must come from Item Name master only (not from item/spec combination).
         const itemNameRow = itemNames.find((x) => x.id === next.itemNameId) as any;
         next.unit = String(itemNameRow?.unitName ?? itemNameRow?.unit ?? '').trim();
@@ -296,11 +298,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
   const removeLine = (idx: number) => {
     setLines((prev) => {
       const next = prev.filter((_, i) => i !== idx);
-      return next.length ? next : [{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }];
+      return next.length ? next : [{ itemId: '', itemNameId: '', specs: {}, description: '', quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }];
     });
   };
 
-  const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
+  const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, description: '', quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
 
   const save = async (mode: 'draft' | 'issue' = 'issue') => {
     if (mode === 'issue' && !canSave) return;
@@ -330,6 +332,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 		          itemId: String(l.itemId ?? '').trim(),
 	            itemNameId: String(l.itemNameId ?? '').trim(),
             specs: l.specs ?? {},
+            description: String(l.description ?? '').trim() || undefined,
 	          quantity: Number(l.quantity),
 	          rate: Number(l.rate),
 	          discountPercent: String(l.discountPercent ?? '').trim() ? Number(l.discountPercent) : 0,
@@ -396,7 +399,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                 onChange={(e) => {
                   const next = (String(e.target.value) === 'Services' ? 'Services' : 'Goods') as 'Goods' | 'Services';
                   setPoType(next);
-                  setLines([{ itemId: '', itemNameId: '', specs: {}, quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
+                  setLines([{ itemId: '', itemNameId: '', specs: {}, description: '', quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
                 }}
               >
                 <option value="Goods">Goods</option>
@@ -543,7 +546,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 
                   {lines.map((l, idx) => {
                     const specIds = l.itemNameId ? getItemNameSpecIds(l.itemNameId) : [];
-                    const itemDescription = String(items.find((item) => item.id === l.itemId)?.description ?? '').trim();
                     const areaUnit = normalizeAreaUnitName(l.unit);
                     const isAreaUnit = !!areaUnit;
                     const dimUnit = baseDimUnitForAreaUnit(areaUnit);
@@ -670,8 +672,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 	                            </div>
 	                          );
 	                        })}
-                      <div className="px-2 py-2 border-r border-outline-variant text-xs text-on-surface-variant whitespace-pre-wrap break-words">
-                        {itemDescription || '-'}
+                      <div className="p-2 border-r border-outline-variant">
+                        <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm h-8" value={l.description} onChange={(e) => updateLine(idx, { description: e.target.value })} placeholder="Description" />
                       </div>
                       <div className="p-2 border-r border-outline-variant text-xs text-on-surface-variant text-center">
                         {l.unit || '-'}
@@ -828,6 +830,7 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                   <thead className="bg-surface-container-high text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                     <tr>
                       <th className="px-3 py-2 border border-outline-variant">Service Name</th>
+                      <th className="px-3 py-2 border border-outline-variant min-w-[220px]">Description</th>
                       <th className="px-3 py-2 border border-outline-variant text-center">Unit</th>
                       <th className="px-3 py-2 border border-outline-variant text-center">Length</th>
                       <th className="px-3 py-2 border border-outline-variant text-center">Breadth</th>
@@ -853,6 +856,9 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
                               onChange={(itemNameId) => updateLine(idx, { itemNameId, itemId: '', specs: {} })}
                               placeholder="Search service name..."
                             />
+                          </td>
+                          <td className="p-2 border border-outline-variant min-w-[220px]">
+                            <input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-sm" value={l.description} onChange={(e) => updateLine(idx, { description: e.target.value })} placeholder="Description" />
                           </td>
                           <td className="p-2 border border-outline-variant text-center text-xs text-on-surface-variant w-24">
                             {l.unit || '-'}

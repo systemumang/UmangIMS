@@ -360,6 +360,7 @@ CREATE TABLE purchase_order_items (
   id VARCHAR(255) PRIMARY KEY,
   po_id VARCHAR(255) NOT NULL,
   item_id VARCHAR(255) NOT NULL,
+  description TEXT,
   quantity DOUBLE NOT NULL,
   rate DOUBLE NOT NULL,
   discount_percent DOUBLE,

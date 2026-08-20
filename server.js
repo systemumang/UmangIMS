@@ -586,6 +586,7 @@ function getMysqlPool() {
 	      await ensureColumn('purchase_order_items', 'dim_pcs', 'INT NULL');
 	      await ensureColumn('purchase_order_items', 'dim_unit', 'VARCHAR(8) NULL');
 	      await ensureColumn('purchase_order_items', 'remarks', 'TEXT NULL');
+	      await ensureColumn('purchase_order_items', 'description', 'TEXT NULL');
 	      await ensureColumn('purchase_order_items', 'line_order', 'INT NULL');
 	      await ensureNonUniqueIndex('purchase_order_items', 'idx_poi_po_line_order', ['po_id', 'line_order']);
 	      await pool.query(`
@@ -1584,6 +1585,7 @@ function normalizePoDraftLines(lines) {
     itemNameId: validTextOrNull(row?.itemNameId),
     item: validTextOrNull(row?.item),
     itemLabel: validTextOrNull(row?.itemLabel) || validTextOrNull(row?.item) || '',
+    description: validTextOrNull(row?.description),
     specificationsJson: row?.specificationsJson != null ? String(row.specificationsJson) : undefined,
     specs: row?.specs && typeof row.specs === 'object' ? row.specs : {},
     quantity: Number.isFinite(Number(row?.quantity)) ? Number(row.quantity) : 0,
@@ -4706,6 +4708,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
       u.name AS unit,
       it.item_name_id AS itemNameId,
       it.specifications_json AS specificationsJson,
+      COALESCE(poi.description, it.description) AS description,
       poi.quantity AS quantity,
       poi.rate AS rate,
       poi.discount_percent AS discountPercent,
@@ -4793,6 +4796,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
     poId: String(r.poId ?? ''),
     itemId: String(r.itemId ?? ''),
     item: String(r.item ?? ''),
+    description: r.description != null ? String(r.description) : undefined,
     itemNameId: r.itemNameId != null ? String(r.itemNameId) : null,
     itemLabel: [String(r.item ?? '').trim(), ...formatSpecParts(r.specificationsJson)].filter(Boolean).join(' - ') || String(r.item ?? ''),
     specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
@@ -4814,6 +4818,7 @@ async function fetchPoHeaderAndItems(pool, poId) {
           poId: String(poRow.id ?? ''),
           itemId: String(r.itemId ?? ''),
           item: String(r.item ?? ''),
+	          description: r.description != null ? String(r.description) : undefined,
           itemLabel: String(r.itemLabel ?? r.item ?? ''),
           specificationsJson: r.specificationsJson != null ? String(r.specificationsJson) : undefined,
           unit: String(r.unit ?? '').trim(),
@@ -5038,14 +5043,15 @@ async function replacePoItemsForIssue(pool, poId, items, poType) {
     await pool.query(
       `
       INSERT INTO purchase_order_items
-        (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
+        (id, po_id, item_id, description, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
       `,
       [
         crypto.randomUUID(),
         poId,
         itemId,
+        validTextOrNull(row?.description),
         quantity,
         rate,
         disc,
@@ -8401,14 +8407,15 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      await pool.query(
 		        `
 		        INSERT INTO purchase_order_items
-		          (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
+		          (id, po_id, item_id, description, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
 		        VALUES
-		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
+		          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
 		        `,
 		        [
 		          poItemId,
 		          poId,
 		          itemId,
+		          validTextOrNull(row?.description),
 		          quantity,
 		          rate,
 		          disc || null,
@@ -8429,6 +8436,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
       outItems.push({
         poId,
         itemId,
+        description: validTextOrNull(row?.description) || undefined,
         item: '',
         specificationsJson: undefined,
         quantity,
@@ -8919,6 +8927,7 @@ app.put('/api/pos/:id', async (req, res) => {
       const poItemId = String(row?.poItemId ?? row?.purchaseOrderItemId ?? row?.id ?? '').trim();
       const updateWithItemId = [
         itemId,
+        validTextOrNull(row?.description),
         quantity,
         rate,
         discountPercent || null,
@@ -8943,6 +8952,7 @@ app.put('/api/pos/:id', async (req, res) => {
           `
           UPDATE purchase_order_items
           SET item_id = ?,
+              description = ?,
               quantity = ?,
               rate = ?,
               discount_percent = ?,
@@ -8968,7 +8978,8 @@ app.put('/api/pos/:id', async (req, res) => {
         [result] = await pool.query(
           `
           UPDATE purchase_order_items
-          SET quantity = ?,
+          SET description = ?,
+              quantity = ?,
               rate = ?,
               discount_percent = ?,
               tax_percent = ?,
@@ -8995,9 +9006,9 @@ app.put('/api/pos/:id', async (req, res) => {
         await pool.query(
           `
           INSERT INTO purchase_order_items
-            (id, po_id, item_id, quantity, rate, discount_percent, tax_percent, cancelled_qty, cancel_reason, goods_amount, tax_amount, total_amount, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order, created_by, created_at, updated_by, updated_at)
+            (id, po_id, item_id, description, quantity, rate, discount_percent, tax_percent, cancelled_qty, cancel_reason, goods_amount, tax_amount, total_amount, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order, created_by, created_at, updated_by, updated_at)
           VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
           `,
           [crypto.randomUUID(), poId, ...updateWithItemId, updatedBy]
         );
