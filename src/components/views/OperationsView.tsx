@@ -2663,7 +2663,7 @@ export default function OperationsView({
                 <div className={labelClass}>Project</div>
                 <SearchableSelect
                   value={editPoProjectId}
-                  options={masters.projects.filter((p) => !editPoFirmId || p.firmId === editPoFirmId).map((p) => ({ value: p.id, label: p.name }))}
+                  options={masters.projects.map((p) => ({ value: p.id, label: p.name }))}
                   onChange={(v) => setEditPoProjectId(String(v ?? ''))}
                   disabled={editPoBusy || masters.loading}
                   placeholder="Select project..."

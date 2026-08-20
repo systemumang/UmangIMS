@@ -455,7 +455,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
                 {editItem.issueType === 'Project' ? (
                   <label className="space-y-1">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Project Name</div>
-                    <SearchableSelect value={editItem.projectId ?? ''} options={projects.filter((p) => !editItem.firmId || p.firmId === editItem.firmId).map((p) => ({ value: p.id, label: p.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, projectId: value }) : p)} placeholder="Select project..." />
+                    <SearchableSelect value={editItem.projectId ?? ''} options={projects.map((p) => ({ value: p.id, label: p.name }))} onChange={(value) => setEditItem((p) => p ? ({ ...p, projectId: value }) : p)} placeholder="Select project..." />
                   </label>
                 ) : null}
                 <label className="space-y-1">

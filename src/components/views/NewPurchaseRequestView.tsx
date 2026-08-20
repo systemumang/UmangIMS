@@ -699,9 +699,8 @@ export default function NewPurchaseRequestView({
 			  };
 
 			  const projectOptions = useMemo(() => {
-			    const list = firmId ? projects.filter((p) => p.firmId === firmId) : projects;
-			    return list.map((p) => ({ value: p.id, label: p.name }));
-			  }, [firmId, projects]);
+			    return projects.slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ value: p.id, label: p.name }));
+			  }, [projects]);
 
 				  return (
 				    <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.35)] space-y-5">

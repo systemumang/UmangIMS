@@ -142,14 +142,6 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
     if (!storeOk) setStoreId('');
   }, [firmId, storeId, stores]);
 
-  useEffect(() => {
-    if (!firmId) {
-      setProjectId('');
-      return;
-    }
-    const projectOk = projects.some((p) => p.id === projectId && p.firmId === firmId);
-    if (!projectOk) setProjectId('');
-  }, [firmId, projectId, projects]);
 
   useEffect(() => {
     if (!supplierId) return;
@@ -196,12 +188,11 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
   }, [firmId, stores]);
 
   const projectOptions = useMemo(() => {
-    const list = firmId ? projects.filter((p) => p.firmId === firmId) : projects;
-    return list
+    return projects
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((p) => ({ value: p.id, label: p.name }));
-  }, [firmId, projects]);
+  }, [projects]);
 
   const supplierOptions = useMemo(
     () => suppliers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({ value: s.id, label: s.name })),
