@@ -231,6 +231,7 @@ export default function OperationsView({
   const [tab, setTab] = useState<OpsTab>(initialTab);
   const [invoiceSubTab, setInvoiceSubTab] = useState<InvoiceSubTab>('receipts');
   const currentUserDisplayName = String(currentUser?.name ?? currentUser?.loginId ?? '').trim() || 'system';
+  const canEditPoAfterGrn = String(currentUser?.loginId ?? '').trim().toLowerCase() === 'pankaj';
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
   const vendorSupplierKeys = useMemo(() => {
@@ -2061,7 +2062,7 @@ export default function OperationsView({
 				                          >
 				                            <IndianRupee size={16} />
 				                          </button>
-				                          {Number((r as OperationsPoListRow).grnCount ?? 0) <= 0 ? (
+				                          {Number((r as OperationsPoListRow).grnCount ?? 0) <= 0 || canEditPoAfterGrn ? (
 				                          <button
 				                            type="button"
 				                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
