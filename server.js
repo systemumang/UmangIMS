@@ -6400,6 +6400,252 @@ app.delete('/api/supplier-advances/:id', async (req, res) => {
   }
 });
 
+app.get('/api/supplier-advances/:id/eligible-pos', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params?.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'Supplier advance id is required.' });
+
+    const [[advanceRow]] = await pool.query(
+      `
+      SELECT
+        id,
+        firm_id AS firmId,
+        supplier_id AS supplierId,
+        advance_amount AS advanceAmount,
+        linked_po_id AS linkedPoId
+      FROM supplier_advances
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+    if (!advanceRow) return res.status(404).json({ error: 'Pending supplier advance not found.' });
+    if (advanceRow.linkedPoId) {
+      return res.status(409).json({ error: 'This supplier advance is already linked to a PO.' });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        po.id AS poId,
+        po.po_number AS poNumber,
+        po.order_date AS orderDate,
+        po.status,
+        proj.name AS projectName,
+        COALESCE(items.totalAmount, 0) AS totalAmount,
+        CASE
+          WHEN COALESCE(adv.advanceCount, 0) > 0 THEN COALESCE(adv.rowAdvanceAmount, 0)
+          ELSE COALESCE(po.advance_amount, 0)
+        END AS existingAdvanceAmount
+      FROM purchase_orders po
+      LEFT JOIN projects proj ON proj.id = po.project_id
+      LEFT JOIN (
+        SELECT po_id, SUM(total_amount) AS totalAmount
+        FROM purchase_order_items
+        GROUP BY po_id
+      ) items ON items.po_id = po.id
+      LEFT JOIN (
+        SELECT po_id, COUNT(*) AS advanceCount, SUM(advance_amount) AS rowAdvanceAmount
+        FROM po_advances
+        GROUP BY po_id
+      ) adv ON adv.po_id = po.id
+      WHERE po.firm_id = ?
+        AND po.supplier_id = ?
+        AND LOWER(COALESCE(po.status, '')) NOT IN ('draft', 'closed')
+      ORDER BY po.order_date DESC, po.created_at DESC
+      `,
+      [String(advanceRow.firmId ?? ''), String(advanceRow.supplierId ?? '')]
+    );
+
+    const pendingAmount = Number(advanceRow.advanceAmount ?? 0);
+    const pos = (Array.isArray(rows) ? rows : []).map((row) => {
+      const totalAmount = Number(row.totalAmount ?? 0);
+      const existingAdvanceAmount = Number(row.existingAdvanceAmount ?? 0);
+      const availableAdvanceAmount = Math.max(0, totalAmount - existingAdvanceAmount);
+      return {
+        poId: String(row.poId ?? ''),
+        poNumber: String(row.poNumber ?? row.poId ?? ''),
+        orderDate: toIsoDate(row.orderDate) || '',
+        status: mapPoStatus(row.status),
+        projectName: row.projectName != null ? String(row.projectName) : '',
+        totalAmount,
+        existingAdvanceAmount,
+        availableAdvanceAmount,
+        canLink: totalAmount > 0 && availableAdvanceAmount + 1e-9 >= pendingAmount,
+      };
+    });
+    res.json({ pos });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/supplier-advances/:id/link-po', async (req, res) => {
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params?.id ?? '').trim();
+    const poId = String(req.body?.poId ?? '').trim();
+    const linkedBy = String(req.body?.linkedBy ?? '').trim() || 'system';
+    if (!id) return res.status(400).json({ error: 'Supplier advance id is required.' });
+    if (!poId) return res.status(400).json({ error: 'PO is required.' });
+
+    const fail = (message, statusCode = 400) => {
+      const error = new Error(message);
+      error.statusCode = statusCode;
+      return error;
+    };
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[advanceRow]] = await conn.query(
+      `
+      SELECT
+        id,
+        firm_id AS firmId,
+        supplier_id AS supplierId,
+        advance_date AS advanceDate,
+        advance_amount AS advanceAmount,
+        payment_mode AS paymentMode,
+        payment_copy AS paymentCopy,
+        remarks,
+        linked_po_id AS linkedPoId
+      FROM supplier_advances
+      WHERE id = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [id]
+    );
+    if (!advanceRow) throw fail('Pending supplier advance not found.', 404);
+    if (advanceRow.linkedPoId) throw fail('This supplier advance is already linked to a PO.', 409);
+
+    const [[poRow]] = await conn.query(
+      `
+      SELECT
+        id,
+        firm_id AS firmId,
+        supplier_id AS supplierId,
+        status,
+        order_date AS orderDate,
+        advance_amount AS legacyAdvanceAmount,
+        advance_date AS legacyAdvanceDate
+      FROM purchase_orders
+      WHERE id = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [poId]
+    );
+    if (!poRow) throw fail('PO not found.', 404);
+    if (String(poRow.firmId ?? '') !== String(advanceRow.firmId ?? '')) {
+      throw fail('The selected PO belongs to a different Firm.');
+    }
+    if (String(poRow.supplierId ?? '') !== String(advanceRow.supplierId ?? '')) {
+      throw fail('The selected PO belongs to a different Supplier.');
+    }
+    const poStatus = String(poRow.status ?? '').trim().toLowerCase();
+    if (poStatus === 'draft' || poStatus === 'closed') {
+      throw fail('Only Open or Partial POs can be linked to a pending supplier advance.');
+    }
+
+    const [[totalRow]] = await conn.query(
+      'SELECT COALESCE(SUM(total_amount), 0) AS totalAmount FROM purchase_order_items WHERE po_id = ?',
+      [poId]
+    );
+    const [[advanceSummaryRow]] = await conn.query(
+      `
+      SELECT COUNT(*) AS advanceCount, COALESCE(SUM(advance_amount), 0) AS rowAdvanceAmount
+      FROM po_advances
+      WHERE po_id = ?
+      `,
+      [poId]
+    );
+    const poTotalAmount = Number(totalRow?.totalAmount ?? 0);
+    const advanceCount = Number(advanceSummaryRow?.advanceCount ?? 0);
+    const legacyAdvanceAmount = Math.max(0, Number(poRow.legacyAdvanceAmount ?? 0));
+    const existingAdvanceAmount = advanceCount > 0
+      ? Number(advanceSummaryRow?.rowAdvanceAmount ?? 0)
+      : legacyAdvanceAmount;
+    const pendingAmount = Number(advanceRow.advanceAmount ?? 0);
+    const availableAmount = Math.max(0, poTotalAmount - existingAdvanceAmount);
+    if (!Number.isFinite(pendingAmount) || pendingAmount <= 0) {
+      throw fail('Supplier advance amount must be greater than zero.');
+    }
+    if (poTotalAmount <= 0) throw fail('The selected PO has no value available for advance linking.', 409);
+    if (pendingAmount > availableAmount + 1e-9) {
+      throw fail(`Advance amount exceeds the PO available amount of ${availableAmount.toFixed(3)}.`, 409);
+    }
+
+    if (advanceCount === 0 && legacyAdvanceAmount > 0) {
+      await conn.query(
+        `
+        INSERT INTO po_advances
+          (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, remarks, created_by, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, NULL, NULL, ?, ?, NOW(), NOW())
+        `,
+        [
+          crypto.randomUUID(),
+          poId,
+          toIsoDate(poRow.legacyAdvanceDate) || toIsoDate(poRow.orderDate) || new Date().toISOString().slice(0, 10),
+          legacyAdvanceAmount,
+          'Legacy PO advance',
+          linkedBy,
+        ]
+      );
+    }
+
+    await conn.query(
+      `
+      INSERT INTO po_advances
+        (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, remarks, created_by, created_at, updated_at)
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [
+        crypto.randomUUID(),
+        poId,
+        toIsoDate(advanceRow.advanceDate),
+        pendingAmount,
+        String(advanceRow.paymentMode ?? '').trim() || null,
+        String(advanceRow.paymentCopy ?? '').trim() || null,
+        String(advanceRow.remarks ?? '').trim() || null,
+        linkedBy,
+      ]
+    );
+    const summary = await syncPoAdvanceSummary(conn, poId);
+    const [linkResult] = await conn.query(
+      `
+      UPDATE supplier_advances
+      SET linked_po_id = ?, linked_at = NOW(), linked_by = ?, updated_by = ?, updated_at = NOW()
+      WHERE id = ? AND linked_po_id IS NULL
+      `,
+      [poId, linkedBy, linkedBy, id]
+    );
+    if (Number(linkResult?.affectedRows ?? 0) !== 1) {
+      throw fail('The supplier advance could not be linked because it is no longer pending.', 409);
+    }
+
+    await conn.commit();
+    res.json({ ok: true, poId, summary });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    const statusCode = Number(e?.statusCode ?? 500);
+    res.status(Number.isFinite(statusCode) ? statusCode : 500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
+
 app.get('/api/operations/advances', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -8760,6 +9006,13 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    }
 
 	    if (supplierAdvanceRow) {
+	      const poTotalAmount = outItems.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0);
+	      if (effectiveAdvanceAmount > poTotalAmount + 1e-9) {
+	        throw badDirectPoRequest(
+	          `Advance amount exceeds the PO amount of ${poTotalAmount.toFixed(3)}.`,
+	          409
+	        );
+	      }
 	      const [linkResult] = await directPoConn.query(
 	        `
 	        UPDATE supplier_advances

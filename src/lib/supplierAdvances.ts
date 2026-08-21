@@ -22,6 +22,18 @@ export type SupplierAdvanceRow = {
   createdAt: string;
 };
 
+export type SupplierAdvanceEligiblePo = {
+  poId: string;
+  poNumber: string;
+  orderDate: string;
+  status: 'Open' | 'Partial';
+  projectName?: string;
+  totalAmount: number;
+  existingAdvanceAmount: number;
+  availableAdvanceAmount: number;
+  canLink: boolean;
+};
+
 async function requireOk<T>(response: Response, fallbackMessage: string): Promise<T> {
   const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok) {
@@ -72,4 +84,28 @@ export async function createSupplierAdvance(input: {
 export async function deleteSupplierAdvance(id: string): Promise<{ ok: boolean }> {
   const response = await fetch(`/api/supplier-advances/${encodeURIComponent(id)}`, { method: 'DELETE' });
   return requireOk<{ ok: boolean }>(response, 'Failed to delete supplier advance');
+}
+
+export async function fetchEligiblePosForSupplierAdvance(
+  id: string,
+  signal?: AbortSignal
+): Promise<SupplierAdvanceEligiblePo[]> {
+  const response = await fetch(`/api/supplier-advances/${encodeURIComponent(id)}/eligible-pos`, { signal });
+  const data = await requireOk<{ pos?: SupplierAdvanceEligiblePo[] }>(response, 'Failed to load eligible POs');
+  return Array.isArray(data.pos) ? data.pos : [];
+}
+
+export async function linkSupplierAdvanceToPo(
+  id: string,
+  input: { poId: string; linkedBy?: string }
+): Promise<{ ok: boolean; poId: string; summary: { advanceAmount: number; advanceDate: string | null } }> {
+  const response = await fetch(`/api/supplier-advances/${encodeURIComponent(id)}/link-po`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return requireOk<{ ok: boolean; poId: string; summary: { advanceAmount: number; advanceDate: string | null } }>(
+    response,
+    'Failed to link supplier advance to PO'
+  );
 }

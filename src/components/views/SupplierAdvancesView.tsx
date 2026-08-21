@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FileText, Plus, Trash2 } from 'lucide-react';
+import { FileText, Link2, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { type AuthUser } from '@/src/lib/auth';
@@ -9,7 +9,10 @@ import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import {
   createSupplierAdvance,
   deleteSupplierAdvance,
+  fetchEligiblePosForSupplierAdvance,
   fetchPendingSupplierAdvances,
+  linkSupplierAdvanceToPo,
+  type SupplierAdvanceEligiblePo,
   type SupplierAdvanceFilters,
   type SupplierAdvanceRow,
 } from '@/src/lib/supplierAdvances';
@@ -57,6 +60,12 @@ export default function SupplierAdvancesView({
   const [paymentCopy, setPaymentCopy] = useState('');
   const [uploadSummary, setUploadSummary] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [linkAdvance, setLinkAdvance] = useState<SupplierAdvanceRow | null>(null);
+  const [eligiblePos, setEligiblePos] = useState<SupplierAdvanceEligiblePo[]>([]);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkQuery, setLinkQuery] = useState('');
+  const [linkingPoId, setLinkingPoId] = useState('');
   const pageSize = 20;
   // Pending supplier advances are linked only after the PO is created.
 
@@ -97,6 +106,12 @@ export default function SupplierAdvancesView({
     [masters.suppliers]
   );
   const pagedRows = useMemo(() => rows.slice((page - 1) * pageSize, page * pageSize), [page, rows]);
+  const filteredEligiblePos = useMemo(() => {
+    const query = linkQuery.trim().toLocaleLowerCase();
+    if (!query) return eligiblePos;
+    return eligiblePos.filter((po) => [po.poNumber, po.projectName, po.orderDate, po.status]
+      .some((value) => String(value ?? '').toLocaleLowerCase().includes(query)));
+  }, [eligiblePos, linkQuery]);
 
   const resetForm = () => {
     setFirmId('');
@@ -180,6 +195,47 @@ export default function SupplierAdvancesView({
     }
   };
 
+  const openLinkModal = async (row: SupplierAdvanceRow) => {
+    setLinkAdvance(row);
+    setEligiblePos([]);
+    setLinkQuery('');
+    setLinkError(null);
+    setLinkLoading(true);
+    try {
+      setEligiblePos(await fetchEligiblePosForSupplierAdvance(row.id));
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const closeLinkModal = () => {
+    if (linkingPoId) return;
+    setLinkAdvance(null);
+    setEligiblePos([]);
+    setLinkQuery('');
+    setLinkError(null);
+  };
+
+  const linkToExistingPo = async (po: SupplierAdvanceEligiblePo) => {
+    if (!linkAdvance || !po.canLink) return;
+    const confirmed = window.confirm(`Link this supplier advance to PO ${po.poNumber}?`);
+    if (!confirmed) return;
+    setLinkingPoId(po.poId);
+    setLinkError(null);
+    try {
+      await linkSupplierAdvanceToPo(linkAdvance.id, { poId: po.poId, linkedBy: currentUserName });
+      setRows((previous) => previous.filter((row) => row.id !== linkAdvance.id));
+      setLinkAdvance(null);
+      setEligiblePos([]);
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLinkingPoId('');
+    }
+  };
+
   return (
     <div className='space-y-5'>
       <div className='flex items-center justify-between gap-3 flex-wrap'>
@@ -241,7 +297,7 @@ export default function SupplierAdvancesView({
 
       <div className='bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden'>
         <div className='overflow-x-auto'>
-          <table className='w-full min-w-[1080px] table-fixed text-left border-collapse border border-outline-variant text-sm'>
+          <table className='w-full min-w-[1280px] table-fixed text-left border-collapse border border-outline-variant text-sm'>
             <thead>
               <tr className='bg-primary text-on-primary'>
                 <th className='px-3 py-2 border w-[115px]'>Advance Date</th>
@@ -252,7 +308,7 @@ export default function SupplierAdvancesView({
                 <th className='px-3 py-2 border'>Remarks</th>
                 <th className='px-3 py-2 border w-[105px]'>Payment Copy</th>
                 <th className='px-3 py-2 border w-[125px]'>Created By</th>
-                <th className='px-3 py-2 border w-[195px] text-center'>Action</th>
+                <th className='px-3 py-2 border w-[300px] text-center'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -281,6 +337,8 @@ export default function SupplierAdvancesView({
                     <div className='flex items-center justify-center gap-2'>
                       <button type='button' className='btn-primary btn-sm whitespace-nowrap' disabled={deletingId === row.id}
                         onClick={() => onMakePo(row)}>Make PO</button>
+                      <button type='button' className='btn btn-sm whitespace-nowrap' disabled={deletingId === row.id}
+                        onClick={() => openLinkModal(row)}><Link2 size={15} /> Link PO</button>
                       <button type='button' className='btn btn-sm text-error border-error/30 whitespace-nowrap' title='Delete pending advance'
                         aria-label='Delete pending advance' disabled={deletingId === row.id} onClick={() => removeAdvance(row)}>
                         <Trash2 size={15} /> Delete
@@ -294,6 +352,76 @@ export default function SupplierAdvancesView({
         </div>
         <Pagination totalItems={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
       </div>
+
+      <Modal
+        open={Boolean(linkAdvance)}
+        title='Link Advance to Existing PO'
+        onClose={closeLinkModal}
+        maxWidthClass='max-w-6xl'
+        footer={<button type='button' className='btn btn-sm' onClick={closeLinkModal} disabled={Boolean(linkingPoId)}>Close</button>}
+      >
+        {linkAdvance ? (
+          <div className='space-y-4'>
+            <div className='rounded-xl border border-primary/25 bg-primary/5 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2'>
+              <div>
+                <div className='text-xs font-bold uppercase tracking-wider text-primary'>Pending Supplier Advance</div>
+                <div className='text-sm mt-1'>{linkAdvance.supplierName} | {linkAdvance.firmShortName || linkAdvance.firmName}</div>
+                <div className='text-xs text-on-surface-variant mt-1'>{formatDateDDMMYYYYOnly(linkAdvance.advanceDate)} | {linkAdvance.paymentMode}</div>
+              </div>
+              <div className='text-xl font-bold text-primary tabular-nums'>{Number(linkAdvance.advanceAmount).toFixed(3)}</div>
+            </div>
+
+            <div>
+              <div className={labelClass}>Search PO</div>
+              <input className={inputClass} value={linkQuery} onChange={(event) => setLinkQuery(event.target.value)}
+                placeholder='PO number / project / date / status...' />
+            </div>
+
+            <p className='text-xs text-on-surface-variant'>Only Open or Partial POs for the same Firm and Supplier are shown. The available amount is rechecked when linking.</p>
+            {linkError ? <div className='p-3 rounded-lg border border-error/30 bg-error/10 text-error text-sm'>{linkError}</div> : null}
+
+            <div className='overflow-x-auto rounded-xl border border-outline-variant'>
+              <table className='w-full min-w-[980px] table-fixed text-left border-collapse text-sm'>
+                <thead>
+                  <tr className='bg-primary text-on-primary'>
+                    <th className='px-3 py-2 border w-[150px]'>PO Number</th>
+                    <th className='px-3 py-2 border w-[110px]'>PO Date</th>
+                    <th className='px-3 py-2 border'>Project</th>
+                    <th className='px-3 py-2 border w-[90px]'>Status</th>
+                    <th className='px-3 py-2 border w-[130px] text-right'>PO Amount</th>
+                    <th className='px-3 py-2 border w-[140px] text-right'>Existing Advance</th>
+                    <th className='px-3 py-2 border w-[140px] text-right'>Available</th>
+                    <th className='px-3 py-2 border w-[150px] text-center'>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkLoading ? (
+                    <tr><td colSpan={8} className='px-3 py-8 border text-center text-on-surface-variant'>Loading matching POs...</td></tr>
+                  ) : !filteredEligiblePos.length ? (
+                    <tr><td colSpan={8} className='px-3 py-8 border text-center text-on-surface-variant'>No matching existing POs found.</td></tr>
+                  ) : filteredEligiblePos.map((po) => (
+                    <tr key={po.poId} className={po.canLink ? 'hover:bg-surface-container-high/40' : 'bg-surface-container-low/50'}>
+                      <td className='px-3 py-2 border font-semibold'>{po.poNumber}</td>
+                      <td className='px-3 py-2 border'>{formatDateDDMMYYYYOnly(po.orderDate) || '-'}</td>
+                      <td className='px-3 py-2 border whitespace-normal break-words'>{po.projectName || '-'}</td>
+                      <td className='px-3 py-2 border'>{po.status}</td>
+                      <td className='px-3 py-2 border text-right tabular-nums'>{Number(po.totalAmount).toFixed(3)}</td>
+                      <td className='px-3 py-2 border text-right tabular-nums'>{Number(po.existingAdvanceAmount).toFixed(3)}</td>
+                      <td className='px-3 py-2 border text-right tabular-nums font-semibold'>{Number(po.availableAdvanceAmount).toFixed(3)}</td>
+                      <td className='px-3 py-2 border text-center'>
+                        <button type='button' className={po.canLink ? 'btn-primary btn-sm whitespace-nowrap' : 'btn btn-sm whitespace-nowrap'}
+                          disabled={!po.canLink || Boolean(linkingPoId)} onClick={() => linkToExistingPo(po)}>
+                          {linkingPoId === po.poId ? 'Linking...' : po.canLink ? 'Link Advance' : 'Insufficient Balance'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         open={modalOpen}
