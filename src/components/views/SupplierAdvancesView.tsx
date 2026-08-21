@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { type AuthUser } from '@/src/lib/auth';
@@ -8,11 +8,12 @@ import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { sanitizeDecimalInput } from '@/src/lib/numberInput';
 import {
   createSupplierAdvance,
+  deleteSupplierAdvance,
   fetchPendingSupplierAdvances,
   type SupplierAdvanceFilters,
   type SupplierAdvanceRow,
 } from '@/src/lib/supplierAdvances';
-import { uploadFileToServer } from '@/src/lib/uploads';
+import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 import { cn } from '@/src/lib/utils';
 import { inputClass, labelClass, Modal, useQueueMasters } from './queues/shared';
 
@@ -40,6 +41,8 @@ export default function SupplierAdvancesView({
   const [rows, setRows] = useState<SupplierAdvanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,6 +55,7 @@ export default function SupplierAdvancesView({
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('');
   const [paymentCopy, setPaymentCopy] = useState('');
+  const [uploadSummary, setUploadSummary] = useState('');
   const [remarks, setRemarks] = useState('');
   const pageSize = 20;
   // Pending supplier advances are linked only after the PO is created.
@@ -72,6 +76,11 @@ export default function SupplierAdvancesView({
   }, [deferredFilters, refreshTick]);
 
   useEffect(() => setPage(1), [deferredFilters]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [page, rows.length]);
 
   const firmOptions = useMemo(
     () => masters.firms.slice().sort((a, b) => a.name.localeCompare(b.name)).map((firm) => ({
@@ -96,6 +105,7 @@ export default function SupplierAdvancesView({
     setAdvanceAmount('');
     setPaymentMode('');
     setPaymentCopy('');
+    setUploadSummary('');
     setRemarks('');
     setFormError(null);
     setUploading(false);
@@ -155,6 +165,21 @@ export default function SupplierAdvancesView({
     );
   };
 
+  const removeAdvance = async (row: SupplierAdvanceRow) => {
+    const confirmed = window.confirm(`Delete the pending advance for ${row.supplierName}?`);
+    if (!confirmed) return;
+    setDeletingId(row.id);
+    setDeleteError(null);
+    try {
+      await deleteSupplierAdvance(row.id);
+      setRows((previous) => previous.filter((item) => item.id !== row.id));
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeletingId('');
+    }
+  };
+
   return (
     <div className='space-y-5'>
       <div className='flex items-center justify-between gap-3 flex-wrap'>
@@ -212,6 +237,7 @@ export default function SupplierAdvancesView({
       </div>
 
       {loadError ? <div className='bg-error-container/40 rounded-xl border p-4 text-sm'>Failed to load: {loadError}</div> : null}
+      {deleteError ? <div className='bg-error-container/40 rounded-xl border p-4 text-sm'>Delete failed: {deleteError}</div> : null}
 
       <div className='bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden'>
         <div className='overflow-x-auto'>
@@ -226,7 +252,7 @@ export default function SupplierAdvancesView({
                 <th className='px-3 py-2 border'>Remarks</th>
                 <th className='px-3 py-2 border w-[105px]'>Payment Copy</th>
                 <th className='px-3 py-2 border w-[125px]'>Created By</th>
-                <th className='px-3 py-2 border w-[120px] text-center'>Action</th>
+                <th className='px-3 py-2 border w-[195px] text-center'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +278,14 @@ export default function SupplierAdvancesView({
                   </td>
                   <td className='px-3 py-2 border'>{row.createdBy || '-'}</td>
                   <td className='px-3 py-2 border text-center'>
-                    <button type='button' className='btn-primary btn-sm whitespace-nowrap' onClick={() => onMakePo(row)}>Make PO</button>
+                    <div className='flex items-center justify-center gap-2'>
+                      <button type='button' className='btn-primary btn-sm whitespace-nowrap' disabled={deletingId === row.id}
+                        onClick={() => onMakePo(row)}>Make PO</button>
+                      <button type='button' className='btn btn-sm text-error border-error/30 whitespace-nowrap' title='Delete pending advance'
+                        aria-label='Delete pending advance' disabled={deletingId === row.id} onClick={() => removeAdvance(row)}>
+                        <Trash2 size={15} /> Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -326,6 +359,7 @@ export default function SupplierAdvancesView({
                     try {
                       const result = await uploadFileToServer(file);
                       setPaymentCopy(result.url);
+                      setUploadSummary(result.optimized ? `Optimized: ${formatUploadSize(result)}` : `Upload size: ${formatUploadSize(result)}`);
                     } catch (error) {
                       setFormError(error instanceof Error ? error.message : String(error));
                     } finally {
@@ -336,10 +370,13 @@ export default function SupplierAdvancesView({
                 />
               </label>
               {paymentCopy ? (
-                <a className='text-sm text-primary underline font-semibold' href={uploadDocumentHref(paymentCopy)}
-                  target='_blank' rel='noreferrer'>View uploaded document</a>
+                <div className='flex flex-col gap-1'>
+                  <a className='text-sm text-primary underline font-semibold' href={uploadDocumentHref(paymentCopy)}
+                    target='_blank' rel='noreferrer'>View uploaded document</a>
+                  {uploadSummary ? <span className='text-xs text-on-surface-variant'>{uploadSummary}</span> : null}
+                </div>
               ) : (
-                <span className='text-xs text-on-surface-variant'>Maximum upload size is 5 MB.</span>
+                <span className='text-xs text-on-surface-variant'>Images are optimized before upload. Maximum size is 5 MB.</span>
               )}
             </div>
           </div>

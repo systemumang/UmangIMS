@@ -68,3 +68,8 @@ export async function createSupplierAdvance(input: {
   });
   return requireOk<{ ok: boolean; id: string }>(response, 'Failed to save supplier advance');
 }
+
+export async function deleteSupplierAdvance(id: string): Promise<{ ok: boolean }> {
+  const response = await fetch(`/api/supplier-advances/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return requireOk<{ ok: boolean }>(response, 'Failed to delete supplier advance');
+}

@@ -6376,6 +6376,30 @@ app.post('/api/supplier-advances', async (req, res) => {
   }
 });
 
+app.delete('/api/supplier-advances/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params?.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'Supplier advance id is required.' });
+
+    const [result] = await pool.query(
+      'DELETE FROM supplier_advances WHERE id = ? AND linked_po_id IS NULL',
+      [id]
+    );
+    if (Number(result?.affectedRows ?? 0) === 1) return res.json({ ok: true });
+
+    const [[row]] = await pool.query(
+      'SELECT linked_po_id AS linkedPoId FROM supplier_advances WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: 'Pending supplier advance not found.' });
+    return res.status(409).json({ error: 'This supplier advance cannot be deleted because a PO has already been made.' });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/operations/advances', async (req, res) => {
   try {
     const pool = getMysqlPool();

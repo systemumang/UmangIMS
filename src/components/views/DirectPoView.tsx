@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 		import GstRateSelect from '@/src/components/common/GstRateSelect';
 		import SupplierCreateModal from '@/src/components/common/SupplierCreateModal';
 		import { createDirectPo } from '@/src/lib/purchaseRequests';
+	import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 	import { fetchInventorySheet } from '@/src/lib/inventory';
 	import {
 	  fetchFirms,
@@ -409,7 +410,7 @@ export default function DirectPoView({
                 <div>
                   <div className='text-xs font-bold uppercase tracking-wider text-primary'>Pending Supplier Advance</div>
                   <div className='text-sm text-on-surface mt-1'>
-                    {initialSupplierAdvance.supplierName} | {initialSupplierAdvance.paymentMode} | {initialSupplierAdvance.advanceDate}
+                    {initialSupplierAdvance.supplierName} | {initialSupplierAdvance.paymentMode} | {formatDateDDMMYYYYOnly(initialSupplierAdvance.advanceDate)}
                   </div>
                 </div>
                 <div className='text-lg font-bold text-primary tabular-nums'>
