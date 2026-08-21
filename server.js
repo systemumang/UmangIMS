@@ -6459,7 +6459,6 @@ app.get('/api/supplier-advances/:id/eligible-pos', async (req, res) => {
       [String(advanceRow.firmId ?? ''), String(advanceRow.supplierId ?? '')]
     );
 
-    const pendingAmount = Number(advanceRow.advanceAmount ?? 0);
     const pos = (Array.isArray(rows) ? rows : []).map((row) => {
       const totalAmount = Number(row.totalAmount ?? 0);
       const existingAdvanceAmount = Number(row.existingAdvanceAmount ?? 0);
@@ -6473,7 +6472,6 @@ app.get('/api/supplier-advances/:id/eligible-pos', async (req, res) => {
         totalAmount,
         existingAdvanceAmount,
         availableAdvanceAmount,
-        canLink: totalAmount > 0 && availableAdvanceAmount + 1e-9 >= pendingAmount,
       };
     });
     res.json({ pos });
@@ -6553,32 +6551,19 @@ app.post('/api/supplier-advances/:id/link-po', async (req, res) => {
       throw fail('Only Open or Partial POs can be linked to a pending supplier advance.');
     }
 
-    const [[totalRow]] = await conn.query(
-      'SELECT COALESCE(SUM(total_amount), 0) AS totalAmount FROM purchase_order_items WHERE po_id = ?',
-      [poId]
-    );
     const [[advanceSummaryRow]] = await conn.query(
       `
-      SELECT COUNT(*) AS advanceCount, COALESCE(SUM(advance_amount), 0) AS rowAdvanceAmount
+      SELECT COUNT(*) AS advanceCount
       FROM po_advances
       WHERE po_id = ?
       `,
       [poId]
     );
-    const poTotalAmount = Number(totalRow?.totalAmount ?? 0);
     const advanceCount = Number(advanceSummaryRow?.advanceCount ?? 0);
     const legacyAdvanceAmount = Math.max(0, Number(poRow.legacyAdvanceAmount ?? 0));
-    const existingAdvanceAmount = advanceCount > 0
-      ? Number(advanceSummaryRow?.rowAdvanceAmount ?? 0)
-      : legacyAdvanceAmount;
     const pendingAmount = Number(advanceRow.advanceAmount ?? 0);
-    const availableAmount = Math.max(0, poTotalAmount - existingAdvanceAmount);
     if (!Number.isFinite(pendingAmount) || pendingAmount <= 0) {
       throw fail('Supplier advance amount must be greater than zero.');
-    }
-    if (poTotalAmount <= 0) throw fail('The selected PO has no value available for advance linking.', 409);
-    if (pendingAmount > availableAmount + 1e-9) {
-      throw fail(`Advance amount exceeds the PO available amount of ${availableAmount.toFixed(3)}.`, 409);
     }
 
     if (advanceCount === 0 && legacyAdvanceAmount > 0) {
@@ -9006,13 +8991,6 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    }
 
 	    if (supplierAdvanceRow) {
-	      const poTotalAmount = outItems.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0);
-	      if (effectiveAdvanceAmount > poTotalAmount + 1e-9) {
-	        throw badDirectPoRequest(
-	          `Advance amount exceeds the PO amount of ${poTotalAmount.toFixed(3)}.`,
-	          409
-	        );
-	      }
 	      const [linkResult] = await directPoConn.query(
 	        `
 	        UPDATE supplier_advances

@@ -219,7 +219,7 @@ export default function SupplierAdvancesView({
   };
 
   const linkToExistingPo = async (po: SupplierAdvanceEligiblePo) => {
-    if (!linkAdvance || !po.canLink) return;
+    if (!linkAdvance) return;
     const confirmed = window.confirm(`Link this supplier advance to PO ${po.poNumber}?`);
     if (!confirmed) return;
     setLinkingPoId(po.poId);
@@ -400,7 +400,7 @@ export default function SupplierAdvancesView({
                   ) : !filteredEligiblePos.length ? (
                     <tr><td colSpan={8} className='px-3 py-8 border text-center text-on-surface-variant'>No matching existing POs found.</td></tr>
                   ) : filteredEligiblePos.map((po) => (
-                    <tr key={po.poId} className={po.canLink ? 'hover:bg-surface-container-high/40' : 'bg-surface-container-low/50'}>
+                    <tr key={po.poId} className='hover:bg-surface-container-high/40'>
                       <td className='px-3 py-2 border font-semibold'>{po.poNumber}</td>
                       <td className='px-3 py-2 border'>{formatDateDDMMYYYYOnly(po.orderDate) || '-'}</td>
                       <td className='px-3 py-2 border whitespace-normal break-words'>{po.projectName || '-'}</td>
@@ -409,9 +409,9 @@ export default function SupplierAdvancesView({
                       <td className='px-3 py-2 border text-right tabular-nums'>{Number(po.existingAdvanceAmount).toFixed(3)}</td>
                       <td className='px-3 py-2 border text-right tabular-nums font-semibold'>{Number(po.availableAdvanceAmount).toFixed(3)}</td>
                       <td className='px-3 py-2 border text-center'>
-                        <button type='button' className={po.canLink ? 'btn-primary btn-sm whitespace-nowrap' : 'btn btn-sm whitespace-nowrap'}
-                          disabled={!po.canLink || Boolean(linkingPoId)} onClick={() => linkToExistingPo(po)}>
-                          {linkingPoId === po.poId ? 'Linking...' : po.canLink ? 'Link Advance' : 'Insufficient Balance'}
+                        <button type='button' className='btn-primary btn-sm whitespace-nowrap'
+                          disabled={Boolean(linkingPoId)} onClick={() => linkToExistingPo(po)}>
+                          {linkingPoId === po.poId ? 'Linking...' : 'Link Advance'}
                         </button>
                       </td>
                     </tr>

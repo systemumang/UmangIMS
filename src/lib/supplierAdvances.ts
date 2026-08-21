@@ -31,7 +31,6 @@ export type SupplierAdvanceEligiblePo = {
   totalAmount: number;
   existingAdvanceAmount: number;
   availableAdvanceAmount: number;
-  canLink: boolean;
 };
 
 async function requireOk<T>(response: Response, fallbackMessage: string): Promise<T> {
