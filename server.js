@@ -9617,6 +9617,132 @@ app.delete('/api/pos/:id', async (req, res) => {
   }
 });
 
+// Temporary one-time maintenance route. Remove immediately after the confirmed purge.
+app.post('/api/internal/one-time-purge-po-00764', async (req, res) => {
+  const expectedToken = 'e38a3d45-d5ce-4427-aeb7-128fcd96b989';
+  const targetPoNumber = 'UC/PO/26-27/00764';
+  if (String(req.headers['x-purge-token'] ?? '') !== expectedToken) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  if (String(req.body?.confirmPoNumber ?? '').trim() !== targetPoNumber) {
+    return res.status(400).json({ error: 'Exact PO number confirmation is required.' });
+  }
+
+  let conn = null;
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [[poRow]] = await conn.query(
+      'SELECT id, pr_id AS prId, po_source AS sourceType FROM purchase_orders WHERE po_number = ? LIMIT 1 FOR UPDATE',
+      [targetPoNumber]
+    );
+    if (!poRow) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Target PO not found.' });
+    }
+
+    const poId = String(poRow.id);
+    const prId = poRow.prId != null ? String(poRow.prId) : '';
+    const deleted = {};
+    const addDeleted = (table, result) => {
+      deleted[table] = (deleted[table] ?? 0) + Number(result?.affectedRows ?? 0);
+    };
+    const idsFrom = (rows) =>
+      (Array.isArray(rows) ? rows : []).map((row) => String(row.id ?? '').trim()).filter(Boolean);
+    const placeholdersFor = (ids) => ids.map(() => '?').join(', ');
+    const deleteByValue = async (table, column, value) => {
+      const [result] = await conn.query('DELETE FROM ' + table + ' WHERE ' + column + ' = ?', [value]);
+      addDeleted(table, result);
+    };
+    const deleteByIds = async (table, column, ids) => {
+      if (!ids.length) return;
+      const [result] = await conn.query(
+        'DELETE FROM ' + table + ' WHERE ' + column + ' IN (' + placeholdersFor(ids) + ')',
+        ids
+      );
+      addDeleted(table, result);
+    };
+    const selectIdsByValue = async (table, column, value) => {
+      const [rows] = await conn.query('SELECT id FROM ' + table + ' WHERE ' + column + ' = ? FOR UPDATE', [value]);
+      return idsFrom(rows);
+    };
+    const selectIdsByIds = async (table, column, ids) => {
+      if (!ids.length) return [];
+      const [rows] = await conn.query(
+        'SELECT id FROM ' + table + ' WHERE ' + column + ' IN (' + placeholdersFor(ids) + ') FOR UPDATE',
+        ids
+      );
+      return idsFrom(rows);
+    };
+
+    const grnIds = await selectIdsByValue('grns', 'po_id', poId);
+    const invoiceIds = await selectIdsByValue('invoices', 'po_id', poId);
+    const creditVoucherIds = await selectIdsByValue('credit_vouchers', 'po_id', poId);
+    const courierIds = await selectIdsByValue('couriers', 'po_id', poId);
+    const grnItemIds = await selectIdsByIds('grn_items', 'grn_id', grnIds);
+    const invoiceItemIds = await selectIdsByIds('invoice_items', 'invoice_id', invoiceIds);
+
+    await deleteByValue('payments', 'po_id', poId);
+    await deleteByValue('po_advance_invoice_adjustments', 'po_id', poId);
+    await deleteByIds('credit_voucher_grns', 'credit_voucher_id', creditVoucherIds);
+    await deleteByIds('credit_voucher_grns', 'grn_id', grnIds);
+    await deleteByIds('credit_voucher_items', 'credit_voucher_id', creditVoucherIds);
+    await deleteByIds('credit_vouchers', 'id', creditVoucherIds);
+    await deleteByIds('grn_invoice_item_links', 'grn_item_id', grnItemIds);
+    await deleteByIds('grn_invoice_item_links', 'invoice_item_id', invoiceItemIds);
+    await deleteByIds('invoice_items', 'invoice_id', invoiceIds);
+    await deleteByIds('invoices', 'id', invoiceIds);
+    await deleteByIds('qc_records', 'grn_id', grnIds);
+    await deleteByIds('grn_items', 'grn_id', grnIds);
+    await deleteByIds('grns', 'id', grnIds);
+    await deleteByIds('courier_updates', 'courier_id', courierIds);
+    await deleteByIds('couriers', 'id', courierIds);
+    await deleteByValue('supplier_advances', 'linked_po_id', poId);
+    await deleteByValue('po_advances', 'po_id', poId);
+    await deleteByValue('purchase_order_items', 'po_id', poId);
+    await deleteByValue('purchase_orders', 'id', poId);
+
+    let prDeleted = false;
+    if (prId && String(poRow.sourceType ?? '').trim().toUpperCase() === 'DIRECT') {
+      const [[remainingPoRow]] = await conn.query(
+        'SELECT COUNT(*) AS count FROM purchase_orders WHERE pr_id = ?',
+        [prId]
+      );
+      if (Number(remainingPoRow?.count ?? 0) === 0) {
+        const rfqIds = await selectIdsByValue('rfqs', 'pr_id', prId);
+        await deleteByIds('rfq_items', 'rfq_id', rfqIds);
+        await deleteByIds('rfqs', 'id', rfqIds);
+        await deleteByValue('purchase_requisition_items', 'pr_id', prId);
+        await deleteByValue('purchase_requisitions', 'id', prId);
+        prDeleted = true;
+      }
+    }
+
+    await conn.commit();
+    res.json({
+      ok: true,
+      targetPoNumber,
+      poId,
+      prId: prId || null,
+      prDeleted,
+      connectedIds: { grnIds, invoiceIds, creditVoucherIds, courierIds },
+      deleted,
+    });
+  } catch (e) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    try {
+      if (conn) conn.release();
+    } catch {}
+  }
+});
+
 // Download PO PDF
 app.get('/api/pos/:id.pdf', async (req, res) => {
   try {
