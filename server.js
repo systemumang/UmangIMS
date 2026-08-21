@@ -9688,6 +9688,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      SELECT
 	        iname.name AS itemName,
 	        it.specifications_json AS specificationsJson,
+	        COALESCE(poi.description, it.description) AS description,
 	        u.name AS unitName,
 	        poi.quantity AS quantity,
 	        poi.rate AS rate,
@@ -9763,10 +9764,11 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		      const discPct = Number(r.discountPercent ?? 0);
 		      const taxAmt = Number(r.taxAmount ?? 0);
 		      const discAmt = (qty * rate * discPct) / 100;
-		      return {
-		        label: itemNameOnly,
-		        specs,
-		        unitName,
+	      return {
+	        label: itemNameOnly,
+	        specs,
+	        description: String(r.description ?? '').trim(),
+	        unitName,
 		        quantity: qty,
 		        rate: rate,
 		        discountPercent: discPct,
@@ -9785,9 +9787,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    });
 		    const showDimColumns = items.some((it) => it.areaUnit === 'sqft' || it.areaUnit === 'sqm');
 		    const showDiscColumn = items.some((it) => Number(it.discountPercent ?? 0) > 0);
-		    const showGstColumn = items.some((it) => Number(it.taxPercent ?? 0) > 0);
-		    const showDiscAmountColumn = items.some((it) => Number(it.discountAmount ?? 0) > 0);
-		    const showGstAmountColumn = items.some((it) => Number(it.taxAmount ?? 0) > 0);
+	    const showGstColumn = items.some((it) => Number(it.taxPercent ?? 0) > 0);
+	    const showDiscAmountColumn = items.some((it) => Number(it.discountAmount ?? 0) > 0);
+	    const showGstAmountColumn = items.some((it) => Number(it.taxAmount ?? 0) > 0);
+	    const showDescriptionColumn = items.some((it) => String(it.description ?? '').trim());
 
     const doc = await PDFDocument.create();
     let page = doc.addPage([595.28, 841.89]); // A4
@@ -10020,9 +10023,10 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    const tableRight = pageWidth - margin;
 	    const tableWidth = tableRight - tableLeft;
 		    // Columns tuned for A4 width so headers don't overflow.
-		    // Sl No | Item | (L | B | Pcs | Dim Unit) | Qty | Unit | Rate | Taxable Amt | Disc % | Disc Amt | GST % | GST Amt | Total Amt
+		    // Sl No | Item | Description? | (L | B | Pcs | Dim Unit) | Qty | Unit | Rate | Taxable Amt | Disc % | Disc Amt | GST % | GST Amt | Total Amt
 			    const colBounds = (() => {
 			      const serialW = 22;
+			      const descriptionW = showDescriptionColumn ? 72 : 0;
 			      const dimW = 22;
 			      const pcsW = 24;
 			      const dimUnitW = 28;
@@ -10040,6 +10044,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 
 			      const fixedExceptItem =
 			        serialW +
+			        descriptionW +
 			        (showDimColumns ? dimW + dimW + pcsW + dimUnitW : 0) +
 			        qtyW +
 			        qtyUnitW +
@@ -10059,6 +10064,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 			      const widths = [
 			        serialW,
 			        itemW,
+			        ...(showDescriptionColumn ? [descriptionW] : []),
 			        ...(showDimColumns ? [dimW, dimW, pcsW, dimUnitW] : []),
 			        qtyW,
 			        qtyUnitW,
@@ -10085,6 +10091,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	      serialRight: colBounds[1],
 	      itemLeft: colBounds[1],
 	      itemRight: colBounds[2],
+	      descriptionRight: null,
 	      lengthRight: null,
 	      breadthRight: null,
 	      pcsRight: null,
@@ -10103,6 +10110,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		    // Compute rights based on which optional columns are present.
 		    {
 		      let i = 2; // itemRight index
+		      if (showDescriptionColumn) col.descriptionRight = colBounds[++i];
 	      if (showDimColumns) {
 	        col.lengthRight = colBounds[++i];
 	        col.breadthRight = colBounds[++i];
@@ -10166,13 +10174,17 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	    // Keep header labels inside their cells (pdf-lib doesn't clip text).
 	    drawHeaderCell(['Sl', 'No'], col.serialLeft, col.serialRight, { size: 7 });
 	    drawHeaderCell('Item', col.itemLeft, col.itemRight, { align: 'left', size: 8 });
+	    const itemContentRight = showDescriptionColumn ? col.descriptionRight : col.itemRight;
+	    if (showDescriptionColumn) {
+	      drawHeaderCell('Description', col.itemRight, col.descriptionRight, { align: 'left', size: 7 });
+	    }
 	    if (showDimColumns) {
-	      drawHeaderCell('L', col.itemRight, col.lengthRight, { size: 8 });
+	      drawHeaderCell('L', itemContentRight, col.lengthRight, { size: 8 });
 	      drawHeaderCell('B', col.lengthRight, col.breadthRight, { size: 8 });
 	      drawHeaderCell('Pcs', col.breadthRight, col.pcsRight, { size: 7 });
 	      drawHeaderCell(['Dim', 'Unit'], col.pcsRight, col.dimUnitRight, { size: 7 });
 	    }
-		    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : col.itemRight, col.qtyRight, { align: 'right', size: 8 });
+		    drawHeaderCell('Qty', showDimColumns ? col.dimUnitRight : itemContentRight, col.qtyRight, { align: 'right', size: 8 });
 		    drawHeaderCell('Unit', col.qtyRight, col.qtyUnitRight, { align: 'left', size: 8 });
 		    drawHeaderCell('Rate', col.qtyUnitRight, col.rateRight, { align: 'right', size: 8 });
 		    if (showGstAmountColumn) {
@@ -10206,8 +10218,16 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        .filter(Boolean)
 	        .join(', ');
 	      const specLines = specText ? wrapLines(`- ${specText}`, font, 7, col.itemRight - col.itemLeft - 8) : [];
+	      const descriptionLines = showDescriptionColumn && it.description
+	        ? wrapLines(it.description, font, 7, col.descriptionRight - col.itemRight - 8)
+	        : [];
 	      const remarkLines = it.remarks ? wrapLines(it.remarks, font, 7, col.remarksRight - col.totalAmtRight - 8) : [];
-	      const rowHeight = Math.max(18, labelLines.length * 11 + (specLines.length ? specLines.length * 10 + 2 : 0) + 8, remarkLines.length * 10 + 8);
+	      const rowHeight = Math.max(
+	        18,
+	        labelLines.length * 11 + (specLines.length ? specLines.length * 10 + 2 : 0) + 8,
+	        descriptionLines.length * 10 + 8,
+	        remarkLines.length * 10 + 8
+	      );
       const taxAmount = Number(it.taxAmount ?? 0);
       const cgstAmount = isInterState ? 0 : taxAmount / 2;
       const sgstAmount = isInterState ? 0 : taxAmount / 2;
@@ -10228,6 +10248,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 		          labelY -= 10;
 		        }
 		      }
+	      if (descriptionLines.length) {
+	        let descriptionY = rowTop - 6;
+	        for (const line of descriptionLines) {
+	          drawAt(line, col.itemRight + 4, descriptionY, { size: 7 });
+	          descriptionY -= 10;
+	        }
+	      }
 	      if (showDimColumns) {
 	        drawRight(it.dimLength > 0 ? formatNumber(it.dimLength) : '-', col.lengthRight - 4, rowTop - 6, { size: 8 });
 	        drawRight(it.dimBreadth > 0 ? formatNumber(it.dimBreadth) : '-', col.breadthRight - 4, rowTop - 6, { size: 8 });
