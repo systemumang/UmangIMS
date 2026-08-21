@@ -483,6 +483,8 @@ export async function createDirectPo(input: {
   paymentMode?: string | null;
   advanceAmount?: number;
   advanceDate?: string | null;
+  supplierAdvanceId?: string;
+  supplierAdvanceLinkedBy?: string;
   shippingAddress?: string;
   termsConditions?: string;
   items: Array<{

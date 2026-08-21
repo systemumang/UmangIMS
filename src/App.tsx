@@ -6,6 +6,7 @@ const PowerBIDashboardView = lazy(() => import('./components/views/PowerBIDashbo
 const InventoryView = lazy(() => import('./components/views/InventoryView'));
 const PurchasingView = lazy(() => import('./components/views/PurchasingView'));
 const OperationsView = lazy(() => import('./components/views/OperationsView'));
+const SupplierAdvancesView = lazy(() => import('./components/views/SupplierAdvancesView'));
 const NewPurchaseRequestView = lazy(() => import('./components/views/NewPurchaseRequestView'));
 const PurchaseRequestDetailView = lazy(() => import('./components/views/PurchaseRequestDetailView'));
 const MastersView = lazy(() => import('./components/views/MastersView'));
@@ -67,6 +68,7 @@ import {
   fetchOperationsPos,
   fetchOperationsPrs,
 } from '@/src/lib/operations';
+import { fetchPendingSupplierAdvances, type SupplierAdvanceRow } from '@/src/lib/supplierAdvances';
 	import {
 	  fetchQueueApprovePr,
 	  fetchQueueCheckPo,
@@ -176,7 +178,8 @@ export default function App() {
 	        const [quotationExpanded, setQuotationExpanded] = useState(false);
 	        const [reportsExpanded, setReportsExpanded] = useState(false);
         const [courierTrackingExpanded, setCourierTrackingExpanded] = useState(false);
-	        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
+		        const [operationsTab, setOperationsTab] = useState<PurchaseMastersTab>('prs');
+        const [directPoSupplierAdvance, setDirectPoSupplierAdvance] = useState<SupplierAdvanceRow | null>(null);
         const [vendorPoOnlyByView, setVendorPoOnlyByView] = useState({
           operations: false,
           queueDraftPo: false,
@@ -287,8 +290,9 @@ export default function App() {
 	    const ac = new AbortController();
 		    Promise.all([
 	      fetchOperationsPrs(undefined, ac.signal).then((r) => ['prs', r.length] as const),
-	      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
-	      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
+		      fetchOperationsPos(undefined, ac.signal).then((r) => ['pos', r.length] as const),
+          fetchPendingSupplierAdvances(undefined, ac.signal).then((r) => ['supplierAdvances', r.length] as const),
+		      fetchOperationsAdvances(undefined, ac.signal).then((r) => ['pendingAdjustments', r.length] as const),
 	      fetchOperationsGrns(undefined, ac.signal).then((r) => ['grns', r.length] as const),
 	      fetchOperationsInvoices(undefined, ac.signal).then((r) => ['invoices', r.length] as const),
         fetchQueueExcessPaidInvoices(undefined, ac.signal).then((r) => ['excessPaidInvoices', r.length] as const),
@@ -851,6 +855,7 @@ export default function App() {
 		        }}
 		        onDirectPo={() => {
 	          setSelectedRequestId(null);
+              setDirectPoSupplierAdvance(null);
 	          setMastersExpanded(false);
 		          setStockMasterExpanded(false);
 		          setPendingExpanded(false);
@@ -937,6 +942,7 @@ export default function App() {
 	                        }}
 	                        onDirectPo={() => {
 	                          setSelectedRequestId(null);
+                            setDirectPoSupplierAdvance(null);
                             hideSidebarAfterViewChange();
 	                          setView('directPo');
 	                        }}
@@ -954,7 +960,10 @@ export default function App() {
 
 					          {view === 'directPo' ? (
 					            <DirectPoView
+                          initialSupplierAdvance={directPoSupplierAdvance}
+                          currentUserName={String(currentUser?.name ?? currentUser?.loginId ?? '').trim() || 'system'}
 					              onCreated={(mode) => {
+                            setDirectPoSupplierAdvance(null);
 					                setSelectedRequestId(null);
 					                setMastersExpanded(false);
 							                setStockMasterExpanded(false);
@@ -967,9 +976,16 @@ export default function App() {
 							                  setView('queueCheckPo');
 	                              }
 						              }}
-				              onCancel={() => {
-				                setView('dashboard');
-				              }}
+					              onCancel={() => {
+                            if (directPoSupplierAdvance) {
+                              setDirectPoSupplierAdvance(null);
+                              setOperationsTab('supplierAdvances');
+                              setPurchaseMastersExpanded(true);
+                              setView('operations');
+                            } else {
+					                  setView('dashboard');
+                            }
+					              }}
 				            />
 				          ) : null}
 	          {view === 'purchasing' ? (
@@ -1021,16 +1037,29 @@ export default function App() {
               }}
             />
 		          ) : null}
-				          {view === 'operations' ? (
-                <OperationsView
-                  key={operationsTab}
-                  onViewPr={openPrDetail}
-                  initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab}
-                  currentUser={currentUser}
-                  vendorPoOnly={vendorPoOnlyByView.operations}
-                  onVendorPoOnlyChange={(value) => setVendorPoOnlyByView((previous) => ({ ...previous, operations: value }))}
-                />
-              ) : null}
+					          {view === 'operations' ? (
+                  operationsTab === 'supplierAdvances' ? (
+                    <SupplierAdvancesView
+                      currentUser={currentUser}
+                      onMakePo={(advance) => {
+                        setDirectPoSupplierAdvance(advance);
+                        setSelectedRequestId(null);
+                        setPurchaseMastersExpanded(false);
+                        hideSidebarAfterViewChange();
+                        setView('directPo');
+                      }}
+                    />
+                  ) : (
+	                  <OperationsView
+	                    key={operationsTab}
+	                    onViewPr={openPrDetail}
+	                    initialTab={operationsTab === 'excessPaidInvoices' ? 'invoices' : operationsTab}
+	                    currentUser={currentUser}
+	                    vendorPoOnly={vendorPoOnlyByView.operations}
+	                    onVendorPoOnlyChange={(value) => setVendorPoOnlyByView((previous) => ({ ...previous, operations: value }))}
+	                  />
+                  )
+	              ) : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
 		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} currentUser={currentUser} /> : null}
 

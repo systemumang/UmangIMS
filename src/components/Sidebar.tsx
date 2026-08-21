@@ -102,11 +102,12 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'stockSummary', label: 'Projectwise Material Consumption Summary' },
 ];
 
-export type PurchaseMastersTab = 'prs' | 'pos' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
+export type PurchaseMastersTab = 'prs' | 'pos' | 'supplierAdvances' | 'pendingAdjustments' | 'grns' | 'invoices' | 'excessPaidInvoices' | 'creditVouchers' | 'payments';
 
 export const purchaseMastersMenuItems: Array<{ key: PurchaseMastersTab; label: string }> = [
   { key: 'prs', label: 'Requisitions' },
   { key: 'pos', label: 'Purchase Orders' },
+  { key: 'supplierAdvances', label: 'Advances Pending PO' },
   { key: 'pendingAdjustments', label: 'Pending Advance Adjustment' },
   { key: 'grns', label: 'GRN' },
   { key: 'invoices', label: 'Invoices' },

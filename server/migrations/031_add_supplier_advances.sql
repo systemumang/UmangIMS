@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS supplier_advances (
+  id VARCHAR(255) PRIMARY KEY,
+  firm_id VARCHAR(255) NOT NULL,
+  supplier_id VARCHAR(255) NOT NULL,
+  advance_date DATE NOT NULL,
+  advance_amount DOUBLE NOT NULL DEFAULT 0,
+  payment_mode VARCHAR(32) NOT NULL,
+  payment_copy TEXT NULL,
+  remarks TEXT NULL,
+  linked_po_id VARCHAR(255) NULL,
+  linked_at DATETIME NULL,
+  linked_by VARCHAR(255) NULL,
+  created_by VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by VARCHAR(255) NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_supplier_advances_pending (linked_po_id, advance_date),
+  KEY idx_supplier_advances_firm (firm_id),
+  KEY idx_supplier_advances_supplier (supplier_id),
+  CONSTRAINT fk_supplier_advances_firm FOREIGN KEY (firm_id) REFERENCES firms(id),
+  CONSTRAINT fk_supplier_advances_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+  CONSTRAINT fk_supplier_advances_po FOREIGN KEY (linked_po_id) REFERENCES purchase_orders(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

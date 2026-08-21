@@ -440,6 +440,32 @@ function getMysqlPool() {
       `);
 
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS supplier_advances (
+          id VARCHAR(255) PRIMARY KEY,
+          firm_id VARCHAR(255) NOT NULL,
+          supplier_id VARCHAR(255) NOT NULL,
+          advance_date DATE NOT NULL,
+          advance_amount DOUBLE NOT NULL DEFAULT 0,
+          payment_mode VARCHAR(32) NOT NULL,
+          payment_copy TEXT NULL,
+          remarks TEXT NULL,
+          linked_po_id VARCHAR(255) NULL,
+          linked_at DATETIME NULL,
+          linked_by VARCHAR(255) NULL,
+          created_by VARCHAR(255) NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_by VARCHAR(255) NULL,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          KEY idx_supplier_advances_pending (linked_po_id, advance_date),
+          KEY idx_supplier_advances_firm (firm_id),
+          KEY idx_supplier_advances_supplier (supplier_id),
+          FOREIGN KEY (firm_id) REFERENCES firms(id),
+          FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+          FOREIGN KEY (linked_po_id) REFERENCES purchase_orders(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS po_advance_invoice_adjustments (
           id VARCHAR(255) PRIMARY KEY,
           po_id VARCHAR(255) NOT NULL,
@@ -6230,6 +6256,126 @@ app.get('/api/operations/payments', async (req, res) => {
   }
 });
 
+app.get('/api/operations/supplier-advances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const f = readQueueFilters(req);
+    const where = ['sa.linked_po_id IS NULL'];
+    const params = [];
+
+    if (f.firmId) {
+      where.push('sa.firm_id = ?');
+      params.push(f.firmId);
+    }
+    if (f.supplierId) {
+      where.push('sa.supplier_id = ?');
+      params.push(f.supplierId);
+    }
+    if (f.from) {
+      where.push('DATE(sa.advance_date) >= ?');
+      params.push(f.from);
+    }
+    if (f.to) {
+      where.push('DATE(sa.advance_date) <= ?');
+      params.push(f.to);
+    }
+    if (f.q) {
+      where.push('(sa.id LIKE ? OR f.name LIKE ? OR s.name LIKE ? OR sa.payment_mode LIKE ? OR sa.remarks LIKE ?)');
+      const like = `%${f.q}%`;
+      params.push(like, like, like, like, like);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        sa.id,
+        sa.firm_id AS firmId,
+        f.name AS firmName,
+        f.sort_name AS firmShortName,
+        sa.supplier_id AS supplierId,
+        s.name AS supplierName,
+        sa.advance_date AS advanceDate,
+        sa.advance_amount AS advanceAmount,
+        sa.payment_mode AS paymentMode,
+        sa.payment_copy AS paymentCopy,
+        sa.remarks,
+        sa.created_by AS createdBy,
+        sa.created_at AS createdAt
+      FROM supplier_advances sa
+      JOIN firms f ON f.id = sa.firm_id
+      JOIN suppliers s ON s.id = sa.supplier_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY sa.advance_date DESC, sa.created_at DESC
+      `,
+      params
+    );
+
+    const out = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      firmId: String(r.firmId ?? ''),
+      firmName: String(r.firmName ?? ''),
+      firmShortName: r.firmShortName != null ? String(r.firmShortName) : '',
+      supplierId: String(r.supplierId ?? ''),
+      supplierName: String(r.supplierName ?? ''),
+      advanceDate: toIsoDate(r.advanceDate) || '',
+      advanceAmount: Number(r.advanceAmount ?? 0),
+      paymentMode: r.paymentMode != null ? String(r.paymentMode) : '',
+      paymentCopy: r.paymentCopy != null ? String(r.paymentCopy) : '',
+      remarks: r.remarks != null ? String(r.remarks) : '',
+      createdBy: r.createdBy != null ? String(r.createdBy) : '',
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+    }));
+    res.json({ rows: out });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/supplier-advances', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const firmId = String(req.body?.firmId ?? '').trim();
+    const supplierId = String(req.body?.supplierId ?? '').trim();
+    const advanceDate = toIsoDate(String(req.body?.advanceDate ?? '').trim());
+    const advanceAmount = Number(req.body?.advanceAmount ?? 0);
+    const paymentMode = String(req.body?.paymentMode ?? '').trim();
+    const paymentCopy = String(req.body?.paymentCopy ?? '').trim() || null;
+    const remarks = String(req.body?.remarks ?? '').trim() || null;
+    const createdBy = String(req.body?.createdBy ?? '').trim() || 'system';
+
+    if (!firmId) return res.status(400).json({ error: 'Firm is required.' });
+    if (!supplierId) return res.status(400).json({ error: 'Supplier is required.' });
+    if (!advanceDate) return res.status(400).json({ error: 'Advance Date is required.' });
+    if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) {
+      return res.status(400).json({ error: 'Advance Amount must be greater than zero.' });
+    }
+    if (!paymentMode) return res.status(400).json({ error: 'Payment Mode is required.' });
+
+    const [[firmRow]] = await pool.query('SELECT id FROM firms WHERE id = ? LIMIT 1', [firmId]);
+    if (!firmRow) return res.status(400).json({ error: 'Firm not found.' });
+    const [[supplierRow]] = await pool.query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (!supplierRow) return res.status(400).json({ error: 'Supplier not found.' });
+
+    const id = crypto.randomUUID();
+    await pool.query(
+      `
+      INSERT INTO supplier_advances
+        (id, firm_id, supplier_id, advance_date, advance_amount, payment_mode, payment_copy, remarks, created_by, created_at, updated_at)
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [id, firmId, supplierId, advanceDate, advanceAmount, paymentMode, paymentCopy, remarks, createdBy]
+    );
+
+    res.status(201).json({ ok: true, id });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 app.get('/api/operations/advances', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -8138,6 +8284,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 
 // Create Direct PO (not linked to any PR)
 		app.post('/api/pos', async (req, res) => {
+		  let directPoConn = null;
 		  try {
 		    const pool = getMysqlPool();
 		    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
@@ -8165,10 +8312,15 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		    const autoAdvanceDate = new Date().toISOString().slice(0, 10);
 		    const advanceDate = advanceAmount > 0 ? (normalizedAdvanceDateInput ?? autoAdvanceDate) : null;
 		    const shippingAddress = req.body?.shippingAddress != null ? String(req.body.shippingAddress).trim() : null;
-			    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
-			    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+				    const termsConditions = req.body?.termsConditions != null ? String(req.body.termsConditions).trim() : null;
+				    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+            const supplierAdvanceId = String(req.body?.supplierAdvanceId ?? '').trim();
+            const supplierAdvanceLinkedBy = String(req.body?.supplierAdvanceLinkedBy ?? '').trim() || 'system';
 
         if (mode === 'draft') {
+          if (supplierAdvanceId) {
+            return res.status(400).json({ error: 'A PO linked to a pending supplier advance must be created, not saved as a draft.' });
+          }
           const resolvedSupplier = await resolveSupplierInput(pool, supplierIdRaw, supplierNameRaw);
           const detail = await insertPoDraft(pool, {
             sourceType: 'DIRECT',
@@ -8250,9 +8402,56 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	    const poId = crypto.randomUUID();
 	    const poNumber = await allocateDocNumber(pool, firmId, 'PO', new Date());
 
-	    const directPrId = crypto.randomUUID();
-	    const directPrNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
-	    const directRemarks = JSON.stringify({
+		    const directPrId = crypto.randomUUID();
+		    const directPrNumber = await allocateDocNumber(pool, firmId, 'PR', new Date());
+        const badDirectPoRequest = (message, statusCode = 400) => {
+          const error = new Error(message);
+          error.statusCode = statusCode;
+          return error;
+        };
+
+        directPoConn = await pool.getConnection();
+        await directPoConn.beginTransaction();
+
+        let supplierAdvanceRow = null;
+        if (supplierAdvanceId) {
+          const [[row]] = await directPoConn.query(
+            `
+            SELECT
+              id,
+              firm_id AS firmId,
+              supplier_id AS supplierId,
+              advance_date AS advanceDate,
+              advance_amount AS advanceAmount,
+              payment_mode AS paymentMode,
+              payment_copy AS paymentCopy,
+              remarks,
+              linked_po_id AS linkedPoId
+            FROM supplier_advances
+            WHERE id = ?
+            LIMIT 1
+            FOR UPDATE
+            `,
+            [supplierAdvanceId]
+          );
+          if (!row) throw badDirectPoRequest('Pending supplier advance not found.', 404);
+          if (row.linkedPoId) throw badDirectPoRequest('This supplier advance is already linked to a PO.', 409);
+          if (String(row.firmId ?? '') !== firmId) {
+            throw badDirectPoRequest('The selected Firm does not match the pending supplier advance.');
+          }
+          if (String(row.supplierId ?? '') !== supplierId) {
+            throw badDirectPoRequest('The selected Supplier does not match the pending supplier advance.');
+          }
+          supplierAdvanceRow = row;
+        }
+
+        const effectiveAdvanceAmount = supplierAdvanceRow
+          ? Math.max(0, num(supplierAdvanceRow.advanceAmount, 0))
+          : advanceAmount;
+        const effectiveAdvanceDate = supplierAdvanceRow
+          ? toIsoDate(supplierAdvanceRow.advanceDate)
+          : advanceDate;
+		    const directRemarks = JSON.stringify({
         department,
         directPo: true,
         requiredDate,
@@ -8260,7 +8459,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
       });
 	    const directRequestType = projectId ? 'Project' : 'Stock';
 
-	    await pool.query(
+	    await directPoConn.query(
 	      `
 	      INSERT INTO purchase_requisitions
 	        (id, pr_number, firm_id, store_id, project_id, requested_by, status, remarks, created_by, created_at, updated_at, request_type)
@@ -8280,7 +8479,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	      ]
 	    );
 
-			    await pool.query(
+			    await directPoConn.query(
 				      `
 					      INSERT INTO purchase_orders
 					        (id, po_number, firm_id, store_id, project_id, supplier_id, pr_id, po_type, po_source, status, order_date, payment_terms, payment_type, payment_mode, advance_amount, advance_date, remarks, requested_by, required_date, created_by, created_at, updated_at, shipping_address, terms_conditions)
@@ -8299,8 +8498,8 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 				        paymentTerms,
 	              paymentType,
 	              paymentMode,
-			          advanceAmount,
-		          advanceDate,
+			          effectiveAdvanceAmount,
+		          effectiveAdvanceDate,
 	              remarksInput || null,
                 requestedBy,
                 requiredDate,
@@ -8309,14 +8508,35 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	        termsConditions,
 	      ]
 	    );
-	    if (advanceAmount > 0 && advanceDate) {
-	      await pool.query(
+	    if (effectiveAdvanceAmount > 0 && effectiveAdvanceDate) {
+          if (supplierAdvanceRow) {
+            await directPoConn.query(
+              `
+              INSERT INTO po_advances
+                (id, po_id, advance_date, advance_amount, payment_mode, payment_copy, remarks, created_by, created_at, updated_at)
+              VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+              `,
+              [
+                crypto.randomUUID(),
+                poId,
+                effectiveAdvanceDate,
+                effectiveAdvanceAmount,
+                String(supplierAdvanceRow.paymentMode ?? '').trim() || null,
+                String(supplierAdvanceRow.paymentCopy ?? '').trim() || null,
+                String(supplierAdvanceRow.remarks ?? '').trim() || null,
+                supplierAdvanceLinkedBy,
+              ]
+            );
+          } else {
+	      await directPoConn.query(
 	        `
 	        INSERT INTO po_advances (id, po_id, advance_date, advance_amount, created_by, created_at, updated_at)
 	        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
 	        `,
-	        [crypto.randomUUID(), poId, advanceDate, advanceAmount, 'system']
+	        [crypto.randomUUID(), poId, effectiveAdvanceDate, effectiveAdvanceAmount, 'system']
 	      );
+          }
 	    }
 
 	    const outItems = [];
@@ -8326,19 +8546,19 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		        const itemNameId = String(row?.itemNameId ?? '').trim();
 		          const specsObj = normalizeSpecsObject(row?.specs);
 		          const specIds = Object.keys(specsObj);
-		          if (!itemNameId) return res.status(400).json({ error: 'Each item requires itemId (or itemNameId+specs)' });
+			          if (!itemNameId) throw badDirectPoRequest('Each item requires itemId (or itemNameId+specs)');
 
-		          const [[iname]] = await pool.query('SELECT type FROM item_names WHERE id=? LIMIT 1', [itemNameId]);
+			          const [[iname]] = await directPoConn.query('SELECT type FROM item_names WHERE id=? LIMIT 1', [itemNameId]);
 		          const specificationsJson = stableJsonStringify(specsObj);
 		          const uniqueKey = `${itemNameId}:${sha256(specificationsJson).slice(0, 16)}`;
 
-          const [[found]] = await pool.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
+          const [[found]] = await directPoConn.query('SELECT id FROM items WHERE unique_key=? LIMIT 1', [uniqueKey]);
           if (found?.id) {
             itemId = String(found.id);
           } else {
             const newId = crypto.randomUUID();
             const itemCode = `IT-${newId.slice(0, 8).toUpperCase()}`;
-            const [[meta]] = await pool.query(
+            const [[meta]] = await directPoConn.query(
               `
               SELECT u.name AS unitName
               FROM item_names n
@@ -8349,7 +8569,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
               [itemNameId]
             );
             const unitName = meta?.unitName != null ? String(meta.unitName) : null;
-            await pool.query(
+            await directPoConn.query(
               `
               INSERT INTO items (id, item_name_id, item_code, specifications_json, unique_key, description, unit, reorder_level, created_by, created_at, updated_at)
               VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, NOW(), NOW())
@@ -8361,7 +8581,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	        }
 
 		      if (itemId) {
-		        const [[typeRow]] = await pool.query(
+		        const [[typeRow]] = await directPoConn.query(
 		          `
 		          SELECT n.type AS type
 		          FROM items it
@@ -8372,18 +8592,18 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		          [itemId]
 		        );
 		        const itemType = String(typeRow?.type ?? '').trim() || 'Goods';
-		        if (poType === 'Goods' && itemType === 'Services') return res.status(400).json({ error: 'PO Type is Goods. Service item is not allowed.' });
-		        if (poType === 'Services' && itemType === 'Goods') return res.status(400).json({ error: 'PO Type is Services. Goods item is not allowed.' });
+		        if (poType === 'Goods' && itemType === 'Services') throw badDirectPoRequest('PO Type is Goods. Service item is not allowed.');
+		        if (poType === 'Services' && itemType === 'Goods') throw badDirectPoRequest('PO Type is Services. Goods item is not allowed.');
 		      }
 
 		      const quantityInput = Number(row?.quantity ?? 0);
 		      const rate = Number(row?.rate ?? 0);
 		      const discountPercent = row?.discountPercent != null ? Number(row.discountPercent) : null;
 		      const taxPercent = row?.taxPercent != null ? Number(row.taxPercent) : null;
-		      if (!itemId) return res.status(400).json({ error: 'Each item requires itemId' });
+		      if (!itemId) throw badDirectPoRequest('Each item requires itemId');
 
 		      // Fetch unit for dimension logic
-		      const [[unitRow]] = await pool.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
+		      const [[unitRow]] = await directPoConn.query('SELECT unit FROM items WHERE id = ? LIMIT 1', [itemId]);
 		      const unitNameForRow = unitRow?.unit != null ? String(unitRow.unit) : null;
 			      const areaUnit = normalizeAreaUnitName(unitNameForRow);
 		      const dimUnit = baseDimUnitForAreaUnit(areaUnit);
@@ -8397,12 +8617,12 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      const quantityRaw = areaUnit ? computeAreaQty(dimLength, dimBreadth, dimPcs) : quantityInput;
 		      const quantity = round2(quantityRaw);
 		      if (areaUnit) {
-		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each area-unit PO item requires valid length, breadth and PCs' });
+		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) throw badDirectPoRequest('Each area-unit PO item requires valid length, breadth and PCs');
 		      } else {
-		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) return res.status(400).json({ error: 'Each item requires valid quantity' });
+		        if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) throw badDirectPoRequest('Each item requires valid quantity');
 		      }
 
-		      if (!Number.isFinite(rate) || rate <= 0) return res.status(400).json({ error: 'Each item requires valid rate' });
+		      if (!Number.isFinite(rate) || rate <= 0) throw badDirectPoRequest('Each item requires valid rate');
 
 		      const disc = Number.isFinite(discountPercent) ? Math.max(0, discountPercent) : 0;
 		      const tax = Number.isFinite(taxPercent) ? Math.max(0, taxPercent) : 0;
@@ -8414,7 +8634,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      // Create a placeholder PR item so PR-based screens can still show item/spec details.
 		      let prSpecText = '';
 		      try {
-		        const [[itRow]] = await pool.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
+		        const [[itRow]] = await directPoConn.query('SELECT specifications_json AS specificationsJson FROM items WHERE id = ? LIMIT 1', [itemId]);
 		        const rawSpecs = itRow?.specificationsJson != null ? String(itRow.specificationsJson) : '';
 		        if (rawSpecs.trim()) {
 		          try {
@@ -8442,7 +8662,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      } catch {}
 
 		      const prItemId = crypto.randomUUID();
-		      await pool.query(
+		      await directPoConn.query(
 		        `
 		        INSERT INTO purchase_requisition_items
 		          (id, pr_id, item_id, requested_qty, approved_qty, required_date, remarks, status, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, approved_dim_length, approved_dim_breadth, approved_dim_pcs, approved_dim_unit)
@@ -8470,7 +8690,7 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 		      );
 
 		      const poItemId = crypto.randomUUID();
-		      await pool.query(
+		      await directPoConn.query(
 		        `
 		        INSERT INTO purchase_order_items
 		          (id, po_id, item_id, description, quantity, rate, discount_percent, tax_percent, goods_amount, tax_amount, total_amount, created_by, created_at, updated_at, dim_length, dim_breadth, dim_pcs, dim_unit, remarks, line_order)
@@ -8499,8 +8719,8 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	          ]
 		      );
 
-      outItems.push({
-        poId,
+	      outItems.push({
+	        poId,
         itemId,
         description: validTextOrNull(row?.description) || undefined,
         item: '',
@@ -8511,11 +8731,33 @@ app.post('/api/pos/:id/grn', async (req, res) => {
         taxPercent: tax || undefined,
         goodsAmount,
         taxAmount,
-        totalAmount,
-      });
-    }
+	        totalAmount,
+	      });
+	    }
 
-    res.status(201).json({
+	    if (supplierAdvanceRow) {
+	      const [linkResult] = await directPoConn.query(
+	        `
+	        UPDATE supplier_advances
+	        SET linked_po_id = ?,
+	            linked_at = NOW(),
+	            linked_by = ?,
+	            updated_by = ?,
+	            updated_at = NOW()
+	        WHERE id = ? AND linked_po_id IS NULL
+	        `,
+	        [poId, supplierAdvanceLinkedBy, supplierAdvanceLinkedBy, supplierAdvanceId]
+	      );
+	      if (Number(linkResult?.affectedRows ?? 0) !== 1) {
+	        throw badDirectPoRequest('The supplier advance could not be linked because it is no longer pending.', 409);
+	      }
+	    }
+
+	    await directPoConn.commit();
+	    directPoConn.release();
+	    directPoConn = null;
+
+	    res.status(201).json({
 	      po: {
 	        po: {
 	          id: poId,
@@ -8527,8 +8769,8 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	          supplierId,
 	          supplier: supplierName,
 		          paymentTerms,
-	            advanceAmount,
-            advanceDate,
+	            advanceAmount: effectiveAdvanceAmount,
+            advanceDate: effectiveAdvanceDate,
 	          shippingAddress: shippingAddress || undefined,
 	          termsConditions: termsConditions || undefined,
 	          status: 'Open',
@@ -8537,10 +8779,17 @@ app.post('/api/pos/:id/grn', async (req, res) => {
 	        items: outItems,
       },
     });
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
+	  } catch (e) {
+	    if (directPoConn) {
+	      try {
+	        await directPoConn.rollback();
+	      } catch {}
+	      directPoConn.release();
+	    }
+	    const statusCode = Number(e?.statusCode ?? 500);
+	    res.status(Number.isFinite(statusCode) ? statusCode : 500).json({ error: e instanceof Error ? e.message : String(e) });
+	  }
+	});
 
 app.get('/api/pos/:id/advances', async (req, res) => {
   try {

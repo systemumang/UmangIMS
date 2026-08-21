@@ -25,7 +25,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 	  type Supplier,
 	  type User,
 		} from '@/src/lib/masters';
-	import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
+		import { sanitizeDecimalInput, sanitizePercentInput } from '@/src/lib/numberInput';
+    import { type SupplierAdvanceRow } from '@/src/lib/supplierAdvances';
 
 function normalizeAreaUnitName(unitName: string) {
   const u = String(unitName ?? '').trim().toLowerCase();
@@ -80,7 +81,17 @@ type Line = {
   remarks: string;
 };
 
-export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode?: 'draft' | 'issue') => void; onCancel: () => void }) {
+export default function DirectPoView({
+  onCreated,
+  onCancel,
+  initialSupplierAdvance,
+  currentUserName = 'system',
+}: {
+  onCreated: (mode?: 'draft' | 'issue') => void;
+  onCancel: () => void;
+  initialSupplierAdvance?: SupplierAdvanceRow | null;
+  currentUserName?: string;
+}) {
   const inputClass =
     'w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface-variant placeholder:text-on-surface-variant shadow-sm outline-none focus:border-outline-variant focus:ring-2 focus:ring-outline-variant/15';
 
@@ -94,10 +105,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
   const [specs, setSpecs] = useState<Specification[]>([]);
   const [specValueOptions, setSpecValueOptions] = useState<Record<string, SpecificationValue[]>>({});
 
-  const [firmId, setFirmId] = useState('');
+  const [firmId, setFirmId] = useState(() => String(initialSupplierAdvance?.firmId ?? ''));
   const [storeId, setStoreId] = useState('');
   const [projectId, setProjectId] = useState<string>('');
-  const [supplierId, setSupplierId] = useState('');
+  const [supplierId, setSupplierId] = useState(() => String(initialSupplierAdvance?.supplierId ?? ''));
   const [poType, setPoType] = useState<'Goods' | 'Services'>('Goods');
   const [remarks, setRemarks] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
@@ -356,8 +367,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 		        requestedBy: requestedBy || undefined,
 		        requiredDate: requiredDateIso || undefined,
 			          paymentTerms: paymentTerms.trim(),
-			        termsConditions: firmTermsConditions || undefined,
-			        items: picked,
+				        termsConditions: firmTermsConditions || undefined,
+                supplierAdvanceId: initialSupplierAdvance?.id || undefined,
+                supplierAdvanceLinkedBy: currentUserName,
+				        items: picked,
 			      });
 		      onCreated(mode);
 	    } catch (e) {
@@ -376,7 +389,8 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
             <button type="button" className="btn btn-sm" disabled={saving} onClick={onCancel}>
               Back
             </button>
-            <button type="button" className="btn btn-sm" disabled={saving} onClick={() => save('draft')}>
+            <button type='button' className='btn btn-sm' disabled={saving || Boolean(initialSupplierAdvance)} onClick={() => save('draft')}
+              title={initialSupplierAdvance ? 'Create the PO to link this supplier advance.' : undefined}>
               {saving ? 'Saving...' : 'Save Draft'}
             </button>
             <button type="button" className="btn-primary btn-sm" disabled={!canSave || saving} onClick={() => save('issue')}>
@@ -386,9 +400,23 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 	        </div>
 
 	        <div className="p-4 space-y-4">
-          {error ? (
-            <div className="p-3 rounded-lg border border-error/30 bg-error/10 text-error text-sm">{error}</div>
-          ) : null}
+	          {error ? (
+	            <div className="p-3 rounded-lg border border-error/30 bg-error/10 text-error text-sm">{error}</div>
+	          ) : null}
+
+            {initialSupplierAdvance ? (
+              <div className='rounded-xl border border-primary/30 bg-primary/5 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2'>
+                <div>
+                  <div className='text-xs font-bold uppercase tracking-wider text-primary'>Pending Supplier Advance</div>
+                  <div className='text-sm text-on-surface mt-1'>
+                    {initialSupplierAdvance.supplierName} | {initialSupplierAdvance.paymentMode} | {initialSupplierAdvance.advanceDate}
+                  </div>
+                </div>
+                <div className='text-lg font-bold text-primary tabular-nums'>
+                  {Number(initialSupplierAdvance.advanceAmount ?? 0).toFixed(3)}
+                </div>
+              </div>
+            ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             <label className="space-y-1">
@@ -409,9 +437,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 
             <label className="space-y-1">
               <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Firm</div>
-	              <SearchableSelect
-	                value={firmId}
-	                options={firmOptions}
+		              <SearchableSelect
+		                value={firmId}
+		                options={firmOptions}
+                    disabled={Boolean(initialSupplierAdvance)}
                 onChange={(v) => {
                   setFirmId(v);
                   setProjectId('');
@@ -463,9 +492,10 @@ export default function DirectPoView({ onCreated, onCancel }: { onCreated: (mode
 
             <label className="space-y-1 md:col-span-2">
 		              <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Supplier</div>
-		              <SearchableSelect
-                value={supplierId}
-                options={supplierOptions}
+			              <SearchableSelect
+	                value={supplierId}
+	                options={supplierOptions}
+                  disabled={Boolean(initialSupplierAdvance)}
                 onChange={(v) => {
                   setSupplierId(v);
                   const s = suppliers.find((x) => x.id === v);
