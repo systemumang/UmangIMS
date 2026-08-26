@@ -2354,6 +2354,7 @@ app.get('/api/workflow/:id', async (req, res) => {
       const [poItemRows] = await pool.query(
         `
         SELECT
+          poi.id AS id,
           poi.po_id AS poId,
           poi.item_id AS itemId,
           iname.name AS item,
@@ -2407,8 +2408,8 @@ app.get('/api/workflow/:id', async (req, res) => {
       };
 
       const poItems = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
-        id: String(r.poItemId ?? r.id ?? ''),
-        poItemId: String(r.poItemId ?? r.id ?? ''),
+        id: String(r.id ?? ''),
+        poItemId: String(r.id ?? ''),
         poId: String(r.poId ?? ''),
         itemId: String(r.itemId ?? ''),
         item: String(r.item ?? ''),
@@ -5537,7 +5538,16 @@ app.get('/api/operations/pos/:id', async (req, res) => {
       FROM purchase_order_items poi
       LEFT JOIN grn_items gi
         ON gi.po_item_id = poi.id
-        OR (gi.po_item_id IS NULL AND gi.po_id = poi.po_id AND gi.item_id = poi.item_id)
+        OR (
+          gi.po_item_id IS NULL
+          AND EXISTS (
+            SELECT 1
+            FROM grns g2
+            WHERE g2.id = gi.grn_id
+              AND g2.po_id = poi.po_id
+          )
+          AND gi.item_id = poi.item_id
+        )
       LEFT JOIN qc_records qc
         ON qc.grn_id = gi.grn_id
         AND qc.item_id = gi.item_id
