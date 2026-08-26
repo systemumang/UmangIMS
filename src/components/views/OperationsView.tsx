@@ -2246,14 +2246,14 @@ export default function OperationsView({
 	                                  <tbody>
 	                                    {(grnDetail?.grn?.items ?? []).length ? (
 	                                      (grnDetail?.grn?.items ?? [])
-	                                .filter((it: any) => !selectedNestedRowId || it.itemId === selectedNestedRowId)
+	                                .filter((it: any, idx: number) => !selectedNestedRowId || String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx) === selectedNestedRowId)
 	                                .map((it: any, idx: number) => (
 	                                        <tr
 	                                key={`${String(r.grnId ?? '')}-grn-it-${idx}`}
-	                                className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+	                                className={cn("cursor-pointer", selectedNestedRowId === String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx) && "bg-primary/10")}
 	                                onClick={(e) => {
 	                                e.stopPropagation();
-	                                setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+	                                setSelectedNestedRowId(prev => prev === String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx) ? null : String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx));
 	                                }}
 		                                >
 			                                          <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">
@@ -2384,10 +2384,10 @@ export default function OperationsView({
 		                      return (
 		                                            <tr
 		                      key={`${String(r.poId ?? '')}-it-${idx}`}
-		                      className={cn("cursor-pointer", selectedNestedRowId === it.itemId && "bg-primary/10")}
+		                      className={cn("cursor-pointer", selectedNestedRowId === String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx) && "bg-primary/10")}
 		                      onClick={(e) => {
 		                      e.stopPropagation();
-		                      setSelectedNestedRowId(prev => prev === it.itemId ? null : it.itemId);
+		                      setSelectedNestedRowId(prev => prev === String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx) ? null : String(it?.id ?? it?.poItemId ?? it?.itemId ?? idx));
 		                      }}
 			                      >
 				                                              <td className="px-3 py-2 border border-outline-variant whitespace-normal break-words">

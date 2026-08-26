@@ -593,7 +593,7 @@ function getMysqlPool() {
       await ensureColumn('users', 'deleted_by', 'VARCHAR(255) NULL');
       await ensureColumn('purchase_requisition_items', 'priority_id', 'VARCHAR(255) NULL');
 
-      // Area-unit dimensions (Sq Ft / Sq Mtr) for PR → Approval → PO → GRN → Invoice workflows.
+      // Area-unit dimensions (Sq Ft / Sq Mtr) for PR â†’ Approval â†’ PO â†’ GRN â†’ Invoice workflows.
       await ensureColumn('purchase_requisition_items', 'dim_length', 'DOUBLE NULL');
       await ensureColumn('purchase_requisition_items', 'dim_breadth', 'DOUBLE NULL');
       await ensureColumn('purchase_requisition_items', 'dim_pcs', 'INT NULL');
@@ -2407,6 +2407,8 @@ app.get('/api/workflow/:id', async (req, res) => {
       };
 
       const poItems = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
+        id: String(r.poItemId ?? r.id ?? ''),
+        poItemId: String(r.poItemId ?? r.id ?? ''),
         poId: String(r.poId ?? ''),
         itemId: String(r.itemId ?? ''),
         item: String(r.item ?? ''),
@@ -2537,7 +2539,7 @@ app.get('/api/queues/approve-pr', async (req, res) => {
   }
 });
 
-// The rest of the queues are wired so the UI doesn’t error; return empty until implemented fully.
+// The rest of the queues are wired so the UI doesnâ€™t error; return empty until implemented fully.
 app.get('/api/queues/create-po', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -3263,7 +3265,7 @@ app.get('/api/queues/link-invoice-grn', async (req, res) => {
 	      where.push('(g.grn_number LIKE ? OR g.id LIKE ? OR po.po_number LIKE ? OR pr.pr_number LIKE ? OR s.name LIKE ?)');
 	      params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
 	    }
-	    // If supplier is configured for Credit Voucher (invoice not required), do not show invoice↔GRN linking queue.
+	    // If supplier is configured for Credit Voucher (invoice not required), do not show invoiceâ†”GRN linking queue.
 	    where.push('COALESCE(s.credit_voucher_applicable, 0) = 0');
 
 	    const [rows] = await pool.query(
@@ -4363,7 +4365,7 @@ app.get('/api/invoices/:id/grn-link-summary', async (req, res) => {
   }
 });
 
-// Pending invoice links for a GRN (used by Link Invoice ↔ GRN queue modal)
+// Pending invoice links for a GRN (used by Link Invoice â†” GRN queue modal)
 app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -4524,7 +4526,7 @@ app.get('/api/grns/:id/pending-invoice-links', async (req, res) => {
   }
 });
 
-// GRN item ↔ invoice linking (summary for a PR)
+// GRN item â†” invoice linking (summary for a PR)
 app.get('/api/requests/:id/grn-item-invoice-links', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -5528,21 +5530,25 @@ app.get('/api/operations/pos/:id', async (req, res) => {
     const [qtyRows] = await pool.query(
       `
       SELECT
-        gi.item_id AS itemId,
+        poi.id AS poItemId,
         COALESCE(SUM(gi.received_qty), 0) AS grnQty,
         COALESCE(SUM(qc.accepted_qty), 0) AS acceptedQty,
         COALESCE(SUM(qc.rejected_qty), 0) AS rejectedQty
-      FROM grns g
-      INNER JOIN grn_items gi ON gi.grn_id = g.id
-      LEFT JOIN qc_records qc ON qc.grn_id = g.id AND qc.item_id = gi.item_id
-      WHERE g.po_id = ?
-      GROUP BY gi.item_id
+      FROM purchase_order_items poi
+      LEFT JOIN grn_items gi
+        ON gi.po_item_id = poi.id
+        OR (gi.po_item_id IS NULL AND gi.po_id = poi.po_id AND gi.item_id = poi.item_id)
+      LEFT JOIN qc_records qc
+        ON qc.grn_id = gi.grn_id
+        AND qc.item_id = gi.item_id
+      WHERE poi.po_id = ?
+      GROUP BY poi.id
       `,
       [poId]
     );
-    const qtyByItemId = new Map();
+    const qtyByPoItemId = new Map();
     for (const r of Array.isArray(qtyRows) ? qtyRows : []) {
-      qtyByItemId.set(String(r.itemId ?? ''), {
+      qtyByPoItemId.set(String(r.poItemId ?? ''), {
         grnQty: Number(r.grnQty ?? 0),
         acceptedQty: Number(r.acceptedQty ?? 0),
         rejectedQty: Number(r.rejectedQty ?? 0),
@@ -5550,7 +5556,8 @@ app.get('/api/operations/pos/:id', async (req, res) => {
     }
     if (Array.isArray(po?.items)) {
       po.items = po.items.map((it) => {
-        const q = qtyByItemId.get(String(it?.itemId ?? '')) ?? { grnQty: 0, acceptedQty: 0, rejectedQty: 0 };
+        const poItemId = String((it as any)?.poItemId ?? (it as any)?.id ?? '').trim();
+        const q = qtyByPoItemId.get(poItemId) ?? { grnQty: 0, acceptedQty: 0, rejectedQty: 0 };
         return { ...it, ...q };
       });
     }
@@ -7449,7 +7456,7 @@ app.get('/api/requests/:id/qc-records', async (req, res) => {
   }
 });
 
-// GRN item ↔ invoice linking (links for a GRN item)
+// GRN item â†” invoice linking (links for a GRN item)
 app.get('/api/grn-items/:id/invoice-links', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -7488,7 +7495,7 @@ app.get('/api/grn-items/:id/invoice-links', async (req, res) => {
   }
 });
 
-// GRN item ↔ invoice linking (set links for a GRN item)
+// GRN item â†” invoice linking (set links for a GRN item)
 app.post('/api/grn-items/:id/invoice-links', async (req, res) => {
   try {
     const pool = getMysqlPool();
@@ -14450,7 +14457,7 @@ function convertAreaQty(qty, fromDimUnit, toDimUnit) {
   const toU = String(toDimUnit ?? '').trim().toLowerCase();
   if (!Number.isFinite(q)) return NaN;
   if (!fromU || !toU || fromU === toU) return q;
-  // Convert area units via m² <-> ft²
+  // Convert area units via mÂ² <-> ftÂ²
   const M2_TO_FT2 = 10.7639104167;
   if (fromU === 'm' && toU === 'ft') return q * M2_TO_FT2;
   if (fromU === 'ft' && toU === 'm') return q / M2_TO_FT2;
