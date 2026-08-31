@@ -225,7 +225,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
 
         const poItems = wf.po?.items ?? [];
         const nextLines = poItems
-          .map((poi) => {
+          .map((poi, idx) => {
             const itemId = String((poi as any).itemId ?? '');
             const poItemId = String((poi as any).id ?? '').trim();
             if (!itemId) return null;
@@ -240,11 +240,12 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
             const pcs = String((poi as any).dimPcs ?? (poi as any).dim_pcs ?? '1').trim() || '1';
             const inputUnit = (poDimUnit === 'm' ? 'm' : 'ft') as 'ft' | 'm';
             const qtyPoUnit = isAreaUnit ? convertAreaQty(computeAreaQty(Number(length), Number(breadth), Number(pcs)), inputUnit, poDimUnit) : pendingQty;
-	            return {
-	              itemId,
+            return {
+              lineKey: poItemId || `${itemId}-${idx}`,
+              itemId,
 	              item: String((poi as any).item ?? pending?.item ?? ''),
 	              specificationsJson: (poi as any).specificationsJson != null ? String((poi as any).specificationsJson) : undefined,
-	              pendingQty,
+              pendingQty,
 	              poQty: Number((poi as any).quantity ?? 0),
 	              poRate: Number((poi as any).rate ?? 0),
 	              discountPercent: Number((poi as any).discountPercent ?? 0),
@@ -945,7 +946,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                     const v = e.target.value === 'm' ? 'm' : 'ft';
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       const poDimUnit = String(next[lineIdx]?.poDimUnit ?? '').trim();
                                       const length = String(next[lineIdx]?.length ?? '');
@@ -970,7 +971,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   onChange={(e) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       const length = e.target.value;
                                       const breadth = String(next[lineIdx]?.breadth ?? '');
@@ -995,7 +996,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   onChange={(e) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       const breadth = e.target.value;
                                       const length = String(next[lineIdx]?.length ?? '');
@@ -1020,7 +1021,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   onChange={(e) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       const pcs = e.target.value;
                                       const length = String(next[lineIdx]?.length ?? '');
@@ -1046,7 +1047,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   onChange={(e) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       next[lineIdx] = { ...next[lineIdx]!, invoiceQty: sanitizeDecimalInput(e.target.value) };
                                       return next;
@@ -1069,7 +1070,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                               onChange={(e) =>
                                 setLines((prev) => {
                                   const next = prev.slice();
-                                  const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                  const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                   if (lineIdx === -1) return prev;
                                   next[lineIdx] = { ...next[lineIdx]!, invRate: sanitizeDecimalInput(e.target.value) };
                                   return next;
@@ -1089,7 +1090,7 @@ export default function EnterInvoiceQueueView({ onViewPr }: { onViewPr: (prId: s
                                   onChange={(val) =>
                                     setLines((prev) => {
                                       const next = prev.slice();
-                                      const lineIdx = next.findIndex(x => x.itemId === ln.itemId);
+                                      const lineIdx = next.findIndex((x) => x.lineKey === ln.lineKey);
                                       if (lineIdx === -1) return prev;
                                       next[lineIdx] = { ...next[lineIdx]!, gstPercent: val };
                                       return next;
