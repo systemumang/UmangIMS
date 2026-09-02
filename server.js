@@ -4783,6 +4783,8 @@ async function fetchPoHeaderAndItems(pool, poId) {
   if (!poRow) return null;
   const draftPayload = parseJsonObject(poRow.draftPayload, {});
   const isDraft = String(poRow.status ?? '').trim().toLowerCase() === 'draft';
+  const poNumber = String(poRow.poNumber ?? '').trim().toUpperCase();
+  const isEventToGrnPo = poNumber === 'UC/PO/26-27/00728';
 
   const [poItemRows] = await pool.query(
     `
@@ -4877,7 +4879,14 @@ async function fetchPoHeaderAndItems(pool, poId) {
     }
   };
 
-  const items = (Array.isArray(poItemRows) ? poItemRows : []).map((r) => ({
+  const items = (Array.isArray(poItemRows) ? poItemRows : [])
+    .filter((r) => {
+      if (!isEventToGrnPo) return true;
+      const item = String(r.item ?? '').trim().toLowerCase();
+      const description = String(r.description ?? '').trim().toLowerCase();
+      return item !== 'event' && !description.includes('event');
+    })
+    .map((r) => ({
     id: String(r.id ?? ''),
     poId: String(r.poId ?? ''),
     itemId: String(r.itemId ?? ''),
@@ -4924,7 +4933,15 @@ async function fetchPoHeaderAndItems(pool, poId) {
         }))
       : [];
 
-  return { po, items: items.length ? items : draftItems };
+  const filteredDraftItems = isEventToGrnPo
+    ? draftItems.filter((r) => {
+        const item = String(r.item ?? '').trim().toLowerCase();
+        const description = String(r.description ?? '').trim().toLowerCase();
+        return item !== 'event' && !description.includes('event');
+      })
+    : draftItems;
+
+  return { po: { ...po, flowLabel: isEventToGrnPo ? 'GRN' : 'PO' }, items: items.length ? items : filteredDraftItems };
 }
 
 async function resolveSupplierInput(pool, supplierIdRaw, supplierNameRaw) {
@@ -9946,12 +9963,13 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 
 	    const logoImage = await loadLogoImage(poRow.firmLogoUrl);
 	    const poNumber = String(poRow.poNumber ?? poRow.id ?? '').trim();
+    const documentLabel = poNumber.toUpperCase() === 'UC/PO/26-27/00728' ? 'GRN' : 'PURCHASE ORDER';
 	    const centerXFor = (text, size, bold = false) => {
 	      const f = bold ? fontBold : font;
 	      const t = toPdfText(text);
 	      return Math.max(margin, (pageWidth - f.widthOfTextAtSize(t, size)) / 2);
 	    };
-	    drawText('PURCHASE ORDER', { bold: true, size: 16, x: centerXFor('PURCHASE ORDER', 16, true), wrap: false });
+	    drawText(documentLabel, { bold: true, size: 16, x: centerXFor(documentLabel, 16, true), wrap: false });
 	    drawText(`${poNumber || '-'}`, { bold: true, size: 11, x: margin, wrap: false });
 	    drawText(`Date: ${formatDate(poRow.orderDate)}`, { size: 9, x: margin, wrap: false });
     if (logoImage) {
@@ -9983,7 +10001,7 @@ app.get('/api/pos/:id.pdf', async (req, res) => {
 	        ay -= 10;
 	      }
 		      const payY = Math.max(partyBoxBottom + 10, topY - 68 - Math.max(0, (shown.length - 1) * 10));
-		      drawAt(`Payment Terms: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, payY, { bold: true, size: 8 });
+		      drawAt(`${documentLabel === 'GRN' ? 'GRN Terms' : 'Payment Terms'}: ${String(poRow.paymentTerms ?? '').trim() || '-'}`, margin + 8, payY, { bold: true, size: 8 });
 		    }
 
 	    const firmX = margin + halfWidth + 10;

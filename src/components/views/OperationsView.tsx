@@ -2345,12 +2345,12 @@ export default function OperationsView({
 			                      {(tab === 'pos' || tab === 'draftPos') && isExpanded ? (
 		                        <tr>
 		                      <td colSpan={10} className="px-3 py-3 border border-outline-variant bg-surface-container-low">
-		                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading PO items...</div> : null}
+		                            {detailLoading ? <div className="text-sm text-on-surface-variant">Loading GRN items...</div> : null}
 		                            {!detailLoading && detailError ? <div className="text-sm text-error">{detailError}</div> : null}
 		                            {!detailLoading && !detailError ? (
 		                      <div className="space-y-2">
 		                      <div className="text-xs text-on-surface-variant">
-		                      Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | Payment Terms: {detail?.po?.po?.paymentTerms ?? '-'}
+		                      Supplier: {detail?.po?.po?.supplier ?? r.supplierName ?? '-'} | {detail?.po?.po?.flowLabel === 'GRN' ? 'GRN Terms' : 'Payment Terms'}: {detail?.po?.po?.paymentTerms ?? '-'}
 		                      </div>
 		                      <div className="overflow-x-auto">
 		                      <table className="w-full min-w-[1470px] table-fixed text-left border-collapse border border-outline-variant text-sm">
