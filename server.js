@@ -1,5 +1,4 @@
 import express from 'express';
-import { correctPoNumbers } from './server/correct-po-numbers.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
@@ -17235,15 +17234,24 @@ app.use((_req, res) => {
   });
 });
 
-const correctionPool = getMysqlPool();
-if (correctionPool) {
-  await ensureDocSequencesTable(correctionPool);
-  console.log('PO number correction:', await correctPoNumbers(correctionPool));
+// Maintenance must not prevent the HTTP server from starting. In particular,
+// database errors or a rejected PO correction must not take the whole site down.
+async function runStartupPoCorrection() {
+  try {
+    const correctionPool = getMysqlPool();
+    if (!correctionPool) return;
+    const { correctPoNumbers } = await import('./server/correct-po-numbers.js');
+    await ensureDocSequencesTable(correctionPool);
+    console.log('PO number correction:', await correctPoNumbers(correctionPool));
+  } catch (error) {
+    console.error('PO number correction failed; server remains available:', error);
+  }
 }
 
 app.listen(port, () => {
   // Keep log simple for Hostinger runtime logs.
   console.log(`Server listening on port ${port}`);
+  void runStartupPoCorrection();
   void runScheduledSpecValueRepair();
   const repairTimer = setInterval(() => void runScheduledSpecValueRepair(), SPEC_VALUE_REPAIR_INTERVAL_MS);
   repairTimer.unref?.();
