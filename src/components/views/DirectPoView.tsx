@@ -317,6 +317,10 @@ export default function DirectPoView({
   const addLine = () => setLines((prev) => [...prev, { itemId: '', itemNameId: '', specs: {}, description: '', quantity: '', rate: '', discountPercent: '', taxPercent: '', unit: '', length: '', breadth: '', pcs: '1', remarks: '' }]);
 
   const save = async (mode: 'draft' | 'issue' = 'issue') => {
+    if (!firmId) {
+      setError('Firm is required to save.');
+      return;
+    }
     if (mode === 'issue' && !canSave) return;
     setSaving(true);
     setError(null);
@@ -390,7 +394,7 @@ export default function DirectPoView({
             <button type="button" className="btn btn-sm" disabled={saving} onClick={onCancel}>
               Back
             </button>
-            <button type='button' className='btn btn-sm' disabled={saving || Boolean(initialSupplierAdvance)} onClick={() => save('draft')}
+            <button type='button' className='btn btn-sm' disabled={!firmId || saving || Boolean(initialSupplierAdvance)} onClick={() => save('draft')}
               title={initialSupplierAdvance ? 'Create the PO to link this supplier advance.' : undefined}>
               {saving ? 'Saving...' : 'Save Draft'}
             </button>
