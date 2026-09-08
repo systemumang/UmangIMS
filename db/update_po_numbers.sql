@@ -1,0 +1,6 @@
+-- The guarded, transactional correction is implemented in server/correct-po-numbers.js.
+-- It runs automatically at server startup, or manually with:
+-- node scripts/update_po_numbers.js
+-- Do not run unconditional number-based UPDATEs: overlapping old/new numbers
+-- make those scripts unsafe to repeat. The implementation identifies orders by PR,
+-- validates all five records, and updates only the UC firm's sequence.

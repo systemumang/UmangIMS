@@ -1,4 +1,5 @@
 import express from 'express';
+import { correctPoNumbers } from './server/correct-po-numbers.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
@@ -17233,6 +17234,12 @@ app.use((_req, res) => {
     if (!res.headersSent) res.status(error.statusCode ?? 500).send('Unable to serve frontend build output. Check the application runtime log.');
   });
 });
+
+const correctionPool = getMysqlPool();
+if (correctionPool) {
+  await ensureDocSequencesTable(correctionPool);
+  console.log('PO number correction:', await correctPoNumbers(correctionPool));
+}
 
 app.listen(port, () => {
   // Keep log simple for Hostinger runtime logs.
