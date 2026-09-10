@@ -9507,6 +9507,8 @@ app.put('/api/pos/:id', async (req, res) => {
       if (itemId && cancelledQty > 0) cancelByItemId.set(itemId, { cancelledQty, reason });
     }
 
+    const keptPoItemIds = new Set();
+
     for (const [lineIndex, row] of items.entries()) {
       const itemId = await resolveDraftPoItemId(pool, row, poType);
       if (!itemId) return res.status(400).json({ error: 'Each item requires item selection.' });
@@ -9585,6 +9587,7 @@ app.put('/api/pos/:id', async (req, res) => {
           `,
           [...updateWithItemId, poId, poItemId]
         );
+        if (Number(result?.affectedRows ?? 0) > 0) keptPoItemIds.add(poItemId);
       } else {
         [result] = await pool.query(
           `
@@ -9611,9 +9614,17 @@ app.put('/api/pos/:id', async (req, res) => {
           `,
           updateWithItemId.slice(1).concat([poId, itemId])
         );
+        if (Number(result?.affectedRows ?? 0) > 0) {
+          const [matchedRows] = await pool.query('SELECT id FROM purchase_order_items WHERE po_id = ? AND item_id = ?', [poId, itemId]);
+          for (const matched of Array.isArray(matchedRows) ? matchedRows : []) {
+            const matchedId = String(matched?.id ?? '').trim();
+            if (matchedId) keptPoItemIds.add(matchedId);
+          }
+        }
       }
 
       if (!Number(result?.affectedRows ?? 0)) {
+        const newPoItemId = crypto.randomUUID();
         await pool.query(
           `
           INSERT INTO purchase_order_items
@@ -9621,10 +9632,48 @@ app.put('/api/pos/:id', async (req, res) => {
           VALUES
             (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW())
           `,
-          [crypto.randomUUID(), poId, ...updateWithItemId, updatedBy]
+          [newPoItemId, poId, ...updateWithItemId, updatedBy]
         );
+        keptPoItemIds.add(newPoItemId);
       }
     }
+
+    const keptIds = Array.from(keptPoItemIds).filter(Boolean);
+    if (keptIds.length) {
+      const keepPlaceholders = keptIds.map(() => '?').join(',');
+      const [blockedRemovedRows] = await pool.query(
+        `
+        SELECT poi.id, COALESCE(NULLIF(TRIM(poi.description), ''), it.item_code, poi.item_id) AS label
+        FROM purchase_order_items poi
+        LEFT JOIN items it ON it.id = poi.item_id
+        WHERE poi.po_id = ?
+          AND poi.id NOT IN (${keepPlaceholders})
+          AND (
+            EXISTS (
+              SELECT 1
+              FROM grn_items gi
+              LEFT JOIN grns g ON g.id = gi.grn_id
+              WHERE gi.po_item_id = poi.id
+                 OR (gi.po_item_id IS NULL AND g.po_id = poi.po_id AND gi.item_id = poi.item_id)
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM invoices inv
+              JOIN invoice_items ii ON ii.invoice_id = inv.id
+              WHERE inv.po_id = poi.po_id AND ii.item_id = poi.item_id
+            )
+          )
+        LIMIT 1
+        `,
+        [poId, ...keptIds]
+      );
+      if (Array.isArray(blockedRemovedRows) && blockedRemovedRows.length) {
+        const label = String(blockedRemovedRows[0]?.label ?? 'selected item').trim() || 'selected item';
+        return res.status(400).json({ error: `Cannot remove ${label}; it is already used in GRN or invoice.` });
+      }
+      await pool.query(`DELETE FROM purchase_order_items WHERE po_id = ? AND id NOT IN (${keepPlaceholders})`, [poId, ...keptIds]);
+    }
+
     const detail = await fetchPoHeaderAndItems(pool, poId);
     if (!detail) return res.status(404).json({ error: 'PO not found' });
     res.json({ po: detail });
