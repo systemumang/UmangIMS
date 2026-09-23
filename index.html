@@ -11,24 +11,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <div
-      id="app-build-marker"
-      style="
-        position: fixed;
-        right: 8px;
-        bottom: 8px;
-        z-index: 99999;
-        font: 11px/1.2 monospace;
-        color: #334155;
-        background: rgba(255, 255, 255, 0.92);
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        padding: 4px 6px;
-        pointer-events: none;
-      "
-    >
-      Build: __APP_BUILD__
-    </div>
     <script>
       window.__APP_BUILD__ = '__APP_BUILD__';
       console.info('IMS build loaded:', window.__APP_BUILD__);
