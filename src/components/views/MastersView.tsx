@@ -363,7 +363,7 @@ export default function MastersView({
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
       const [customerNameFilter, setCustomerNameFilter] = useState('');
-      const [itemStockFilter, setItemStockFilter] = useState<'all' | 'inStock' | 'fastMoving' | 'slowMoving' | 'ideal' | 'pendingRo'>('all');
+      const [itemStockFilter, setItemStockFilter] = useState<'all' | 'inStock' | 'slowMoving' | 'ideal' | 'pendingRo'>('all');
       const [stockSummaryByItemId, setStockSummaryByItemId] = useState<Record<string, StockSummaryRow>>({});
 
 		  useEffect(() => {
@@ -739,7 +739,6 @@ export default function MastersView({
           const reorderLevel = Number(reorderLevelRaw ?? 0);
           if (itemStockFilter === 'inStock' && closingStock <= 0) return false;
           // Movement categories use the current stock position against the item's re-order level.
-          if (itemStockFilter === 'fastMoving' && !(reorderLevel > 0 && closingStock < reorderLevel)) return false;
           if (itemStockFilter === 'slowMoving' && !(reorderLevel > 0 && closingStock > reorderLevel)) return false;
           if (itemStockFilter === 'ideal' && !(reorderLevel > 0 && closingStock === reorderLevel)) return false;
           if (itemStockFilter === 'pendingRo' && hasReorderLevel) return false;
@@ -6113,14 +6112,13 @@ export default function MastersView({
 	                options={[
                   { value: 'all', label: 'All Items' },
                   { value: 'inStock', label: 'In Stock' },
-                  { value: 'fastMoving', label: 'Fast-moving' },
                   { value: 'slowMoving', label: 'Slow-moving' },
                   { value: 'ideal', label: 'Ideal' },
                   { value: 'pendingRo', label: 'Pending RO' },
                 ]}
                 onChange={(value) =>
                   setItemStockFilter(
-                    value === 'inStock' || value === 'fastMoving' || value === 'slowMoving' || value === 'ideal' || value === 'pendingRo'
+                    value === 'inStock' || value === 'slowMoving' || value === 'ideal' || value === 'pendingRo'
                       ? value
                       : 'all'
                   )

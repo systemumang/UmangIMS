@@ -96,6 +96,7 @@ const PendingSupplierRateView = lazy(() => import('./components/views/PendingSup
 const QuotationMasterView = lazy(() => import('./components/views/QuotationMasterView'));
 const ExpensesReportView = lazy(() => import('./components/views/ExpensesReportView'));
 const PendingOrderReportView = lazy(() => import('./components/views/PendingOrderReportView'));
+const FastMovingItemsReportView = lazy(() => import('./components/views/FastMovingItemsReportView'));
 const CourierTrackingView = lazy(() => import('./components/views/CourierTrackingView'));
 
 function isStaleChunkError(error: unknown) {
@@ -141,6 +142,7 @@ export default function App() {
 		    | 'reports'
 		    | 'reportExpenses'
 		    | 'reportPendingOrder'
+    | 'reportFastMovingItems'
 		    | 'stockMaster'
 		    | 'issueMaster'
 		    | 'returnMaster'
@@ -386,6 +388,7 @@ export default function App() {
 				    if (view === 'quotationMaster') return { title: 'Quotation Master', showSearch: false };
 				    if (view === 'reportExpenses') return { title: 'Reports', subtitle: 'Expenses', showSearch: false };
 				    if (view === 'reportPendingOrder') return { title: 'Reports', subtitle: 'Pending for Order', showSearch: false };
+    if (view === 'reportFastMovingItems') return { title: 'Reports', subtitle: 'Fast Moving Items', showSearch: false };
             if (view === 'couriers') return { title: 'Courier Tracking', subtitle: 'Couriers', showSearch: false };
             if (view === 'pendingReceipt') return { title: 'Courier Tracking', subtitle: 'Pending Courier', showSearch: false };
 				    if (view === 'stockMaster') {
@@ -444,7 +447,7 @@ export default function App() {
           if (view === 'queueExcessPaidInvoices') return 'operations';
 			    if (isPendingQueueView(view)) return 'pendingTasks';
 			    if (view === 'pendingSupplierRate' || view === 'quotationMaster') return 'quotation';
-			    if (view === 'reportExpenses' || view === 'reportPendingOrder') return 'reports';
+			    if (view === 'reportExpenses' || view === 'reportPendingOrder' || view === 'reportFastMovingItems') return 'reports';
 			    return view as NavView;
 			  }, [currentUser, view]);
 
@@ -583,7 +586,7 @@ export default function App() {
 			        reportsExpanded={reportsExpanded}
                 courierTrackingExpanded={courierTrackingExpanded}
 				        activeQuotationView={view === 'pendingSupplierRate' || view === 'quotationMaster' ? view : undefined}
-			        activeReportView={view === 'reportExpenses' || view === 'reportPendingOrder' ? view : undefined}
+			        activeReportView={view === 'reportExpenses' || view === 'reportPendingOrder' || view === 'reportFastMovingItems' ? view : undefined}
                 activeCourierView={view === 'couriers' || view === 'pendingReceipt' ? view : undefined}
 				        activeOperationsTab={operationsTab}
 				        isNewPurchaseRequestActive={view === 'newPurchaseRequest'}
@@ -728,7 +731,7 @@ export default function App() {
 	                setSettingsExpanded(false);
 					        setPurchaseMastersExpanded(false);
 					        setQuotationExpanded(next === 'pendingSupplierRate' || next === 'quotationMaster');
-				        setReportsExpanded(next === 'reportExpenses' || next === 'reportPendingOrder');
+				        setReportsExpanded(next === 'reportExpenses' || next === 'reportPendingOrder' || next === 'reportFastMovingItems');
                     setCourierTrackingExpanded(next === 'couriers' || next === 'pendingReceipt');
 				        hideSidebarAfterViewChange();
 				        setView(next);
@@ -1077,6 +1080,7 @@ export default function App() {
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
 	            {view === 'reportExpenses' ? <ExpensesReportView /> : null}
 	            {view === 'reportPendingOrder' ? <PendingOrderReportView /> : null}
+            {view === 'reportFastMovingItems' ? <FastMovingItemsReportView /> : null}
                 {view === 'couriers' ? <CourierTrackingView mode="all" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
                 {view === 'pendingReceipt' ? <CourierTrackingView mode="pending" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
 	              {view === 'settingsCatalogue' ? <SettingsCatalogueView /> : null}

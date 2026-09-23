@@ -37,6 +37,7 @@ export type NavView =
   | 'reports'
   | 'reportExpenses'
   | 'reportPendingOrder'
+  | 'reportFastMovingItems'
   | 'stockMaster'
   | 'material'
   | 'materialRequest'
@@ -139,9 +140,10 @@ export const courierMenuItems: Array<{ key: 'couriers' | 'pendingReceipt'; label
   { key: 'pendingReceipt', label: 'Pending Courier' },
 ];
 
-export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder'; label: string }> = [
+export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems'; label: string }> = [
   { key: 'reportExpenses', label: 'Expenses' },
   { key: 'reportPendingOrder', label: 'Pending for Order' },
+  { key: 'reportFastMovingItems', label: 'Fast Moving Items' },
 ];
 
 export const materialMenuItems: Array<{ key: NavView; label: string }> = [
@@ -213,7 +215,7 @@ export default function Sidebar({
   stockCounts?: Partial<Record<StockCountKey, number>>;
   quotationExpanded?: boolean;
   activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
-  activeReportView?: 'reportExpenses' | 'reportPendingOrder';
+  activeReportView?: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems';
   activeCourierView?: 'couriers' | 'pendingReceipt';
   isNewPurchaseRequestActive?: boolean;
   onNavigate: (view: NavView) => void;
@@ -223,7 +225,7 @@ export default function Sidebar({
   onNavigateMaterialView?: (view: NavView) => void;
   onNavigateSettingsView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
-  onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder') => void;
+  onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems') => void;
   onNavigateCourierView?: (view: 'couriers' | 'pendingReceipt') => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
@@ -308,7 +310,7 @@ export default function Sidebar({
 			    return false;
 			  };
 
-			  const isReportViewAllowed = (k: 'reportExpenses' | 'reportPendingOrder') => {
+			  const isReportViewAllowed = (k: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems') => {
 			    if (!hasAny) return true;
 			    if (allowed.has(`reports:${k}`)) return true;
 			    if (allowed.has('reports')) return true;
