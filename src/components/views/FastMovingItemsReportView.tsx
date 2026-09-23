@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Spinner from '@/src/components/common/Spinner';
 import { fetchItemNames, fetchItems, type Item, type ItemName } from '@/src/lib/masters';
+import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
 import { listIssues, type StockTransaction } from '@/src/lib/stockMaster';
 
 type FastMovingRow = {
@@ -23,6 +24,7 @@ export default function FastMovingItemsReportView() {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [itemNames, setItemNames] = useState<ItemName[]>([]);
+  const [stockRows, setStockRows] = useState<StockSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fromDate, setFromDate] = useState('');
@@ -41,6 +43,7 @@ export default function FastMovingItemsReportView() {
         setIssues(nextIssues);
         setItems(nextItems);
         setItemNames(nextItemNames);
+        setStockRows(nextStockRows);
       })
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : String(e));
@@ -62,6 +65,8 @@ export default function FastMovingItemsReportView() {
       ])
     );
   }, [itemNames, items]);
+
+  const stockByItemId = useMemo(() => new Map(stockRows.map((row) => [String(row.itemId), row])), [stockRows]);
 
   const categories = useMemo(
     () => Array.from(new Set(Array.from(categoryByItemId.values()))).sort((a, b) => a.localeCompare(b)),
@@ -92,7 +97,7 @@ export default function FastMovingItemsReportView() {
       }
     }
     return Array.from(grouped.values());
-  }, [categoryByItemId, fromDate, issues, toDate]);
+  }, [categoryByItemId, fromDate, issues, stockByItemId, toDate]);
 
   const filteredRows = useMemo(() => {
     const itemQuery = itemNameFilter.trim().toLocaleLowerCase();
@@ -166,7 +171,7 @@ export default function FastMovingItemsReportView() {
         <div className="p-4 text-sm text-error">{error}</div>
       ) : (
         <div className="overflow-auto">
-          <table className="min-w-[760px] w-full text-sm border-collapse border border-black">
+          <table className="min-w-[1200px] w-full text-sm border-collapse border border-black">
             <thead className="bg-primary text-on-primary text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-3 py-2 text-right border border-black w-16">Rank</th>
@@ -174,6 +179,10 @@ export default function FastMovingItemsReportView() {
                 <th className="px-3 py-2 text-left border border-black">Category</th>
                 <th className="px-3 py-2 text-right border border-black">Issue Quantity</th>
                 <th className="px-3 py-2 text-right border border-black">Issue Entries</th>
+                <th className="px-3 py-2 text-right border border-black">Current Stock</th>
+                <th className="px-3 py-2 text-right border border-black">PO in Progress</th>
+                <th className="px-3 py-2 text-right border border-black">Re-Order Level</th>
+                <th className="px-3 py-2 text-right border border-black">Shortfall</th>
               </tr>
             </thead>
             <tbody>
@@ -184,9 +193,13 @@ export default function FastMovingItemsReportView() {
                   <td className="px-3 py-2 border border-black">{row.category}</td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums font-bold">{qty(row.issueQuantity)}</td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums">{row.issueCount}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.currentStock)}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.poInProgress)}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.reorderLevel)}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums font-bold text-error">{qty(row.shortfall)}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={5} className="px-3 py-8 border border-black text-center text-on-surface-variant italic">No issued items match the selected filters</td></tr>
+                <tr><td colSpan={9} className="px-3 py-8 border border-black text-center text-on-surface-variant italic">No issued items match the selected filters</td></tr>
               )}
             </tbody>
           </table>
