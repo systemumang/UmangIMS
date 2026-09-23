@@ -75,10 +75,6 @@ export default function SlowMovingItemsReportView() {
     [stockRows]
   );
 
-  const categories = useMemo(
-    () => Array.from(new Set(Array.from(categoryByItemId.values()))).sort((a, b) => a.localeCompare(b)),
-    [categoryByItemId]
-  );
 
   const allRows = useMemo(() => {
     const grouped = new Map<string, SlowMovingRow>();
@@ -105,6 +101,11 @@ export default function SlowMovingItemsReportView() {
     }
     return Array.from(grouped.values());
   }, [categoryByItemId, fromDate, issues, stockByItemId, stockByItemLabel, toDate]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(allRows.map((row) => row.category))).sort((a, b) => a.localeCompare(b)),
+    [allRows]
+  );
 
   const filteredRows = useMemo(() => {
     const itemQuery = itemNameFilter.trim().toLocaleLowerCase();
