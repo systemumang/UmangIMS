@@ -38,6 +38,7 @@ export type NavView =
   | 'reportExpenses'
   | 'reportPendingOrder'
   | 'reportFastMovingItems'
+  | 'reportSlowMovingItems'
   | 'stockMaster'
   | 'material'
   | 'materialRequest'
@@ -140,10 +141,11 @@ export const courierMenuItems: Array<{ key: 'couriers' | 'pendingReceipt'; label
   { key: 'pendingReceipt', label: 'Pending Courier' },
 ];
 
-export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems'; label: string }> = [
+export const reportsMenuItems: Array<{ key: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems' | 'reportSlowMovingItems'; label: string }> = [
   { key: 'reportExpenses', label: 'Expenses' },
   { key: 'reportPendingOrder', label: 'Pending for Order' },
   { key: 'reportFastMovingItems', label: 'Fast Moving Items' },
+  { key: 'reportSlowMovingItems', label: 'Slow Moving Items' },
 ];
 
 export const materialMenuItems: Array<{ key: NavView; label: string }> = [
@@ -215,7 +217,7 @@ export default function Sidebar({
   stockCounts?: Partial<Record<StockCountKey, number>>;
   quotationExpanded?: boolean;
   activeQuotationView?: 'pendingSupplierRate' | 'quotationMaster';
-  activeReportView?: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems';
+  activeReportView?: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems' | 'reportSlowMovingItems';
   activeCourierView?: 'couriers' | 'pendingReceipt';
   isNewPurchaseRequestActive?: boolean;
   onNavigate: (view: NavView) => void;
@@ -225,7 +227,7 @@ export default function Sidebar({
   onNavigateMaterialView?: (view: NavView) => void;
   onNavigateSettingsView?: (view: NavView) => void;
       onNavigatePurchaseMasters?: (tab: PurchaseMastersTab) => void;
-  onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems') => void;
+  onNavigateReportView?: (view: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems' | 'reportSlowMovingItems') => void;
   onNavigateCourierView?: (view: 'couriers' | 'pendingReceipt') => void;
 	  onNewPurchaseRequest: () => void;
   onDirectPo?: () => void;
@@ -310,7 +312,7 @@ export default function Sidebar({
 			    return false;
 			  };
 
-			  const isReportViewAllowed = (k: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems') => {
+			  const isReportViewAllowed = (k: 'reportExpenses' | 'reportPendingOrder' | 'reportFastMovingItems' | 'reportSlowMovingItems') => {
 			    if (!hasAny) return true;
 			    if (allowed.has(`reports:${k}`)) return true;
 			    if (allowed.has('reports')) return true;
