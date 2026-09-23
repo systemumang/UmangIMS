@@ -37,8 +37,8 @@ export default function SlowMovingItemsReportView() {
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.all([listIssues(), fetchItems(), fetchItemNames()])
-      .then(([nextIssues, nextItems, nextItemNames]) => {
+    Promise.all([listIssues(), fetchItems(), fetchItemNames(), fetchStockSummary()])
+      .then(([nextIssues, nextItems, nextItemNames, nextStockRows]) => {
         if (!active) return;
         setIssues(nextIssues);
         setItems(nextItems);
