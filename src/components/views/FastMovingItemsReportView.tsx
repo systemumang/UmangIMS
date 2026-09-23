@@ -21,6 +21,10 @@ function issueDate(issue: StockTransaction) {
   return String(issue.date ?? '').slice(0, 10);
 }
 
+function stockLookupKey(value: unknown) {
+  return String(value ?? '').toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export default function FastMovingItemsReportView() {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -71,7 +75,7 @@ export default function FastMovingItemsReportView() {
 
   const stockByItemId = useMemo(() => new Map(stockRows.map((row) => [String(row.itemId), row])), [stockRows]);
   const stockByItemLabel = useMemo(
-    () => new Map(stockRows.map((row) => [String(row.item ?? '').trim().toLocaleLowerCase(), row])),
+    () => new Map(stockRows.map((row) => [stockLookupKey(row.item), row])),
     [stockRows]
   );
 
