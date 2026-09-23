@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import Spinner from '@/src/components/common/Spinner';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { fetchExpenseReport, type ExpenseReportRow } from '@/src/lib/reports';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 import { inputClass, labelClass } from './queues/shared';
@@ -41,6 +43,23 @@ export default function ExpensesReportView() {
 
   const total = rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
+  const exportToExcel = () => {
+    if (!rows.length) return;
+    const header = ['Date', 'Invoice No', 'Expenses', 'Supplier', 'Amount'];
+    const exportRows = rows.map((row) => ({
+      'Date': row.date ? formatDateDDMMYYYYOnly(row.date) : '',
+      'Invoice No': row.invoiceNo || '',
+      'Expenses': row.expenses || '',
+      'Supplier': row.supplier || '',
+      'Amount': Number(row.amount || 0),
+    }));
+    downloadTextFile(
+      `expenses-report-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(header, exportRows),
+      'text/csv; charset=utf-8'
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant flex flex-wrap items-end gap-3">
@@ -69,7 +88,19 @@ export default function ExpensesReportView() {
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
         <div className="px-4 py-3 border-b border-outline-variant flex items-center justify-between gap-3">
           <div className="text-sm font-semibold text-on-surface">Expenses</div>
-          <div className="text-sm font-bold text-on-surface">Total: {money(total)}</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-bold text-on-surface">Total: {money(total)}</div>
+            <button
+              type="button"
+              className="btn btn-sm flex items-center gap-1.5"
+              onClick={exportToExcel}
+              disabled={!rows.length || loading}
+              title="Download Excel"
+            >
+              <Download size={14} />
+              <span>Download Excel</span>
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="p-10 flex justify-center"><Spinner /></div>

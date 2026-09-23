@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import Spinner from '@/src/components/common/Spinner';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { fetchPendingOrderReport, type PendingOrderReportRow } from '@/src/lib/reports';
 
 function qty(value: number) {
@@ -50,12 +52,40 @@ export default function PendingOrderReportView() {
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, page, pageSize]);
 
+  const exportToExcel = () => {
+    if (!filteredRows.length) return;
+    const header = ['Item', 'Category', 'Current Balance', 'PO In Progress', 'Re-Order Level', 'Shortfall'];
+    const exportRows = filteredRows.map((row) => ({
+      'Item': row.item || '',
+      'Category': row.category || '',
+      'Current Balance': Number(row.currentBalance || 0),
+      'PO In Progress': Number(row.poInProgress || 0),
+      'Re-Order Level': Number(row.reorderLevel || 0),
+      'Shortfall': Number(row.shortfall || 0),
+    }));
+    downloadTextFile(
+      `pending-order-report-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(header, exportRows),
+      'text/csv; charset=utf-8'
+    );
+  };
+
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
       <div className="px-4 py-3 border-b border-outline-variant flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm font-semibold text-on-surface">Pending for Order</div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="text-sm text-on-surface-variant">Showing: {filteredRows.length}</div>
+          <button
+            type="button"
+            className="btn btn-sm flex items-center gap-1.5"
+            onClick={exportToExcel}
+            disabled={!filteredRows.length || loading}
+            title="Download Excel"
+          >
+            <Download size={14} />
+            <span>Download Excel</span>
+          </button>
           <input
             className="h-9 w-56 rounded-lg border border-outline-variant/40 bg-surface-container-low px-3 text-sm outline-none"
             value={filterQuery}

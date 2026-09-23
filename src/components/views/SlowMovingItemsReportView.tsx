@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import Spinner from '@/src/components/common/Spinner';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { fetchItemNames, fetchItems, type Item, type ItemName } from '@/src/lib/masters';
 import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
 import { listIssues, type StockTransaction } from '@/src/lib/stockMaster';
@@ -11,6 +13,10 @@ type SlowMovingRow = {
   category: string;
   issueQuantity: number;
   issueCount: number;
+  currentStock: number;
+  poInProgress: number;
+  reorderLevel: number;
+  shortfall: number;
 };
 
 function qty(value: number) {
@@ -146,6 +152,37 @@ export default function SlowMovingItemsReportView() {
     setLimit(100);
   };
 
+  const exportToExcel = () => {
+    if (!visibleRows.length) return;
+    const header = [
+      'Rank',
+      'Item',
+      'Category',
+      'Issue Quantity',
+      'Issue Entries',
+      'Current Stock',
+      'PO in Progress',
+      'Re-Order Level',
+      'Shortfall',
+    ];
+    const exportRows = visibleRows.map((row, index) => ({
+      'Rank': index + 1,
+      'Item': row.item || '',
+      'Category': row.category || '',
+      'Issue Quantity': Number(row.issueQuantity || 0),
+      'Issue Entries': Number(row.issueCount || 0),
+      'Current Stock': Number(row.currentStock || 0),
+      'PO in Progress': Number(row.poInProgress || 0),
+      'Re-Order Level': Number(row.reorderLevel || 0),
+      'Shortfall': Number(row.shortfall || 0),
+    }));
+    downloadTextFile(
+      `slow-moving-items-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(header, exportRows),
+      'text/csv; charset=utf-8'
+    );
+  };
+
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
       <div className="px-4 py-3 border-b border-outline-variant flex flex-wrap items-center justify-between gap-3">
@@ -153,7 +190,19 @@ export default function SlowMovingItemsReportView() {
           <div className="text-sm font-semibold text-on-surface">Slow Moving Items</div>
           <div className="text-xs text-on-surface-variant mt-0.5">Ranked by lowest Issue Quantity</div>
         </div>
-        <div className="text-sm text-on-surface-variant">Showing: {pageRows.length} / {visibleRows.length}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-on-surface-variant">Showing: {pageRows.length} / {visibleRows.length}</div>
+          <button
+            type="button"
+            className="btn btn-sm flex items-center gap-1.5"
+            onClick={exportToExcel}
+            disabled={!visibleRows.length || loading}
+            title="Download Excel"
+          >
+            <Download size={14} />
+            <span>Download Excel</span>
+          </button>
+        </div>
       </div>
 
       <div className="p-4 border-b border-outline-variant grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
