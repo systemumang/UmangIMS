@@ -363,7 +363,7 @@ export default function MastersView({
 	      const [cityStateFilters, setCityStateFilters] = useState<string[]>([]);
 	      const [cityNameFilters, setCityNameFilters] = useState<string[]>([]);
       const [customerNameFilter, setCustomerNameFilter] = useState('');
-      const [itemStockFilter, setItemStockFilter] = useState<'all' | 'inStock'>('all');
+      const [itemStockFilter, setItemStockFilter] = useState<'all' | 'inStock' | 'fastMoving' | 'slowMoving' | 'ideal'>('all');
       const [stockSummaryByItemId, setStockSummaryByItemId] = useState<Record<string, StockSummaryRow>>({});
 
 		  useEffect(() => {
@@ -734,7 +734,12 @@ export default function MastersView({
         const goodsOnly = items.filter((it) => goodsItemNameIds.has(String(it.itemNameId ?? '')));
         const visible = goodsOnly.filter((it) => {
           const closingStock = Number(stockSummaryByItemId[String(it.id)]?.closingStock ?? 0);
+          const reorderLevel = Number((it as any).reorderLevel ?? 0);
           if (itemStockFilter === 'inStock' && closingStock <= 0) return false;
+          // Movement categories use the current stock position against the item's re-order level.
+          if (itemStockFilter === 'fastMoving' && !(reorderLevel > 0 && closingStock < reorderLevel)) return false;
+          if (itemStockFilter === 'slowMoving' && !(reorderLevel > 0 && closingStock > reorderLevel)) return false;
+          if (itemStockFilter === 'ideal' && !(reorderLevel > 0 && closingStock === reorderLevel)) return false;
           if (!listQueryKey) return true;
           const full = formatItemInline(it.itemName, it.specificationsJson, specNameLookup);
           if (listField === 'all')
@@ -6102,8 +6107,20 @@ export default function MastersView({
 	              <SearchableSelect
 	                className="w-40"
 	                value={itemStockFilter}
-	                options={[{ value: 'all', label: 'All Items' }, { value: 'inStock', label: 'In Stock' }]}
-	                onChange={(value) => setItemStockFilter(value === 'inStock' ? 'inStock' : 'all')}
+	                options={[
+                  { value: 'all', label: 'All Items' },
+                  { value: 'inStock', label: 'In Stock' },
+                  { value: 'fastMoving', label: 'Fast-moving' },
+                  { value: 'slowMoving', label: 'Slow-moving' },
+                  { value: 'ideal', label: 'Ideal' },
+                ]}
+                onChange={(value) =>
+                  setItemStockFilter(
+                    value === 'inStock' || value === 'fastMoving' || value === 'slowMoving' || value === 'ideal'
+                      ? value
+                      : 'all'
+                  )
+                }
 	                placeholder="Filter stock..."
 	              />
 	              <input
