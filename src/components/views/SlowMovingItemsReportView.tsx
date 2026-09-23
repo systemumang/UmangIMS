@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Pagination from '@/src/components/common/Pagination';
 import Spinner from '@/src/components/common/Spinner';
 import { fetchItemNames, fetchItems, type Item, type ItemName } from '@/src/lib/masters';
 import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
@@ -32,6 +33,8 @@ export default function SlowMovingItemsReportView() {
   const [itemNameFilter, setItemNameFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [limit, setLimit] = useState(100);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +70,10 @@ export default function SlowMovingItemsReportView() {
   }, [itemNames, items]);
 
   const stockByItemId = useMemo(() => new Map(stockRows.map((row) => [String(row.itemId), row])), [stockRows]);
+  const stockByItemLabel = useMemo(
+    () => new Map(stockRows.map((row) => [String(row.item ?? '').trim().toLocaleLowerCase(), row])),
+    [stockRows]
+  );
 
   const categories = useMemo(
     () => Array.from(new Set(Array.from(categoryByItemId.values()))).sort((a, b) => a.localeCompare(b)),
@@ -97,7 +104,7 @@ export default function SlowMovingItemsReportView() {
       }
     }
     return Array.from(grouped.values());
-  }, [categoryByItemId, fromDate, issues, stockByItemId, toDate]);
+  }, [categoryByItemId, fromDate, issues, stockByItemId, stockByItemLabel, toDate]);
 
   const filteredRows = useMemo(() => {
     const itemQuery = itemNameFilter.trim().toLocaleLowerCase();
@@ -111,6 +118,15 @@ export default function SlowMovingItemsReportView() {
   }, [allRows, categoryFilter, itemNameFilter]);
 
   const visibleRows = useMemo(() => (limit > 0 ? filteredRows.slice(0, limit) : filteredRows), [filteredRows, limit]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, itemNameFilter, categoryFilter, limit, pageSize]);
+
+  const pageRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return visibleRows.slice(start, start + pageSize);
+  }, [page, pageSize, visibleRows]);
 
   const clearFilters = () => {
     setFromDate('');
@@ -127,7 +143,7 @@ export default function SlowMovingItemsReportView() {
           <div className="text-sm font-semibold text-on-surface">Slow Moving Items</div>
           <div className="text-xs text-on-surface-variant mt-0.5">Ranked by lowest Issue Quantity</div>
         </div>
-        <div className="text-sm text-on-surface-variant">Showing: {visibleRows.length} / {filteredRows.length}</div>
+        <div className="text-sm text-on-surface-variant">Showing: {pageRows.length} / {visibleRows.length}</div>
       </div>
 
       <div className="p-4 border-b border-outline-variant grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
@@ -160,6 +176,14 @@ export default function SlowMovingItemsReportView() {
             <option value={0}>All Items</option>
           </select>
         </label>
+        <label className="text-xs font-medium text-on-surface-variant">
+          Rows
+          <select className="mt-1 w-full h-9 rounded-lg border border-outline-variant/40 bg-surface-container-low px-2 text-sm outline-none" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            <option value={20}>20 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+          </select>
+        </label>
         <div className="flex items-end">
           <button type="button" className="btn btn-sm w-full h-9" onClick={clearFilters}>Clear Filters</button>
         </div>
@@ -186,9 +210,9 @@ export default function SlowMovingItemsReportView() {
               </tr>
             </thead>
             <tbody>
-              {visibleRows.length ? visibleRows.map((row, index) => (
+              {pageRows.length ? pageRows.map((row, index) => (
                 <tr key={row.itemId}>
-                  <td className="px-3 py-2 border border-black text-right tabular-nums font-semibold">{index + 1}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums font-semibold">{(page - 1) * pageSize + index + 1}</td>
                   <td className="px-3 py-2 border border-black font-semibold">{row.item}</td>
                   <td className="px-3 py-2 border border-black">{row.category}</td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums font-bold">{qty(row.issueQuantity)}</td>
@@ -205,6 +229,11 @@ export default function SlowMovingItemsReportView() {
           </table>
         </div>
       )}
+      {!loading && !error ? (
+        <div className="px-4 py-3 border-t border-outline-variant">
+          <Pagination totalItems={visibleRows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+        </div>
+      ) : null}
     </div>
   );
 }
