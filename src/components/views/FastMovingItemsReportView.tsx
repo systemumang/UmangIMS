@@ -91,12 +91,17 @@ export default function FastMovingItemsReportView() {
         const itemId = String(line.itemId ?? '').trim() || String(line.item ?? '').trim();
         if (!itemId) continue;
         const item = String(line.item ?? '').trim() || '-';
+        const stock = stockByItemId.get(itemId) ?? stockByItemLabel.get(stockLookupKey(item));
         const current = grouped.get(itemId) ?? {
           itemId,
           item,
           category: categoryByItemId.get(itemId) ?? 'Uncategorised',
           issueQuantity: 0,
           issueCount: 0,
+          currentStock: Number(stock?.currentBalance ?? stock?.closingStock ?? 0),
+          poInProgress: Number(stock?.poInProgress ?? 0),
+          reorderLevel: Number(stock?.reorderLevel ?? 0),
+          shortfall: Number(stock?.shortfall ?? 0),
         };
         current.issueQuantity += quantity;
         current.issueCount += 1;
