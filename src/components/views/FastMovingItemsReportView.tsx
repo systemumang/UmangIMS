@@ -156,7 +156,7 @@ export default function FastMovingItemsReportView() {
         <div className="text-sm text-on-surface-variant">Showing: {pageRows.length} / {visibleRows.length}</div>
       </div>
 
-      <div className="p-4 border-b border-outline-variant grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+      <div className="p-4 border-b border-outline-variant grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
         <label className="text-xs font-medium text-on-surface-variant">
           From Date
           <input type="date" className="mt-1 w-full h-9 rounded-lg border border-outline-variant/40 bg-surface-container-low px-2 text-sm outline-none" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
