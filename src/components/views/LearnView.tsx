@@ -1,203 +1,184 @@
 import React, { useState } from 'react';
 import {
-  GraduationCap,
-  BookOpen,
   Briefcase,
-  CheckCircle2,
   Printer,
   ChevronDown,
   ChevronRight,
-  AlertCircle,
-  Lightbulb,
-  FileText,
-  Sparkles,
-  HelpCircle,
+  CheckCircle2,
   Target,
-  ArrowRight,
-  RotateCcw,
-  Check,
-  X,
-  Clock,
+  FileText,
   Layers,
+  GraduationCap,
 } from 'lucide-react';
-import {
-  LEARN_MODULES,
-  REAL_CASE_STUDIES,
-  PRACTICE_EXERCISES,
-  LearnModule,
-  CaseStudy,
-  PracticeExercise,
-} from '@/src/lib/learnData';
-import {
-  triggerPrintFullManual,
-  triggerPrintCaseStudies,
-  triggerPrintPracticeExercises,
-} from '@/src/components/learn/LearnPdfPrinter';
-
-type TabKey = 'modules' | 'casestudies' | 'exercises' | 'pdf';
+import { REAL_CASE_STUDIES, CaseStudy } from '@/src/lib/learnData';
+import { triggerPrintCaseStudies } from '@/src/components/learn/LearnPdfPrinter';
 
 export default function LearnView() {
-  const [activeTab, setActiveTab] = useState<TabKey>('modules');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [expandedModuleId, setExpandedModuleId] = useState<string | null>('mod-1');
   const [expandedCaseStudyId, setExpandedCaseStudyId] = useState<string | null>('cs-1');
-
-  // Exercise interactive state
-  const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
-  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
-  const [completedChecklist, setCompletedChecklist] = useState<Record<string, boolean>>({});
-
-  const categories = ['All', 'Masters', 'Procurement', 'Inventory', 'Finance', 'Reports'];
-
-  const filteredModules = LEARN_MODULES.filter(
-    (m) => selectedCategory === 'All' || m.category === selectedCategory
-  );
-
-  const handleOptionSelect = (qId: string, optIdx: number) => {
-    setUserAnswers((prev) => ({ ...prev, [qId]: optIdx }));
-  };
-
-  const handleCheckQuestion = (qId: string) => {
-    setCheckedQuestions((prev) => ({ ...prev, [qId]: true }));
-  };
-
-  const handleToggleChecklist = (checkId: string) => {
-    setCompletedChecklist((prev) => ({ ...prev, [checkId]: !prev[checkId] }));
-  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Hero Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-8 shadow-xl border border-blue-800">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-8 shadow-xl border border-emerald-800">
         <div className="relative z-10 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-600/30 backdrop-blur border border-blue-400/30 rounded-xl">
-              <GraduationCap className="w-8 h-8 text-blue-300" />
+            <div className="p-3 bg-emerald-600/30 backdrop-blur border border-emerald-400/30 rounded-xl">
+              <GraduationCap className="w-8 h-8 text-emerald-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-400/30">
-                  Staff Onboarding & Training
+                <span className="text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                  Practical Practice & Onboarding
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">
-                IMS Learning & Practice Hub
+                IMS Real Case Studies
               </h1>
             </div>
           </div>
 
           <p className="text-slate-300 max-w-3xl text-sm md:text-base leading-relaxed">
-            Master every feature, operational workflow, and edge-case scenario of the Inventory Management System. Walk through feature modules, practice with real industrial case studies, and export printable training manuals.
+            Practice each feature of IMS with real-world industrial scenarios. These step-by-step case studies cover all permutations and combinations—from purchase requisitions and supplier rate comparisons to partial deliveries, quality rejections, direct POs, and inter-site stock transfers.
           </p>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-blue-700/50">
-            <div className="flex items-center gap-6 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-blue-400" />
-                <span><strong className="text-white font-semibold">8</strong> Operational Modules</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-emerald-400" />
-                <span><strong className="text-white font-semibold">3</strong> Real Case Studies</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-amber-400" />
-                <span><strong className="text-white font-semibold">3</strong> Practice Workbooks</span>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-emerald-700/50">
+            <div className="flex items-center gap-2 text-xs text-emerald-200">
+              <Briefcase className="w-4 h-4 text-emerald-400" />
+              <span><strong className="text-white font-semibold">{REAL_CASE_STUDIES.length}</strong> End-to-End Real World Scenarios</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={triggerPrintFullManual}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition-all hover:scale-[1.02] active:scale-95"
-              >
-                <Printer size={15} />
-                <span>Download / Print Manual PDF</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={triggerPrintCaseStudies}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <Printer size={15} />
+              <span>Download / Print Case Studies PDF</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Tab Navigation */}
-      <div className="flex border-b border-slate-200 bg-white rounded-xl shadow-sm p-1.5 gap-1 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab('modules')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-            activeTab === 'modules'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-        >
-          <BookOpen size={16} />
-          <span>1. Feature Modules ({LEARN_MODULES.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('casestudies')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-            activeTab === 'casestudies'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-        >
-          <Briefcase size={16} />
-          <span>2. Real Case Studies ({REAL_CASE_STUDIES.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('exercises')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-            activeTab === 'exercises'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-        >
-          <Target size={16} />
-          <span>3. Interactive Practice Exercises</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('pdf')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-            activeTab === 'pdf'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-        >
-          <Printer size={16} />
-          <span>4. PDF & Printable Workbooks</span>
-        </button>
-      </div>
-
-      {/* TAB 1: FEATURE MODULES */}
-      {activeTab === 'modules' && (
-        <div className="space-y-6">
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-semibold text-slate-500 mr-2">Category Filter:</span>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  selectedCategory === cat
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
+      {/* Case Studies Cards List */}
+      <div className="space-y-6">
+        {REAL_CASE_STUDIES.map((cs) => {
+          const isExpanded = expandedCaseStudyId === cs.id;
+          return (
+            <div
+              key={cs.id}
+              className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:border-slate-300"
+            >
+              {/* Header Row */}
+              <div
+                onClick={() => setExpandedCaseStudyId(isExpanded ? null : cs.id)}
+                className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
               >
-                {cat}
-              </button>
-            ))}
-          </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      {cs.complexity} Level
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">⏱ Est. Duration: {cs.duration}</span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">{cs.title}</h3>
+                  <p className="text-xs text-slate-600">{cs.industryScenario}</p>
+                </div>
 
-          {/* Module List */}
+                <div className="flex items-center gap-3 shrink-0 ml-4">
+                  <span className="text-xs font-semibold text-emerald-700 hidden md:inline">
+                    {isExpanded ? 'Hide Details' : 'View Workflow'}
+                  </span>
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Breakdown */}
+              {isExpanded && (
+                <div className="p-6 space-y-6 bg-slate-50/40">
+                  {/* Objective & Given Parameters */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-2xs space-y-2">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Target size={14} className="text-emerald-600" />
+                        Objective
+                      </h4>
+                      <p className="text-xs text-slate-700 leading-relaxed">{cs.objective}</p>
+                    </div>
+
+                    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-2xs space-y-2">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText size={14} className="text-blue-600" />
+                        Given Scenario Data
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {Object.entries(cs.givenData).map(([k, v]) => (
+                          <div key={k} className="bg-slate-50 p-2 border border-slate-200 rounded">
+                            <span className="font-semibold text-slate-700 block text-[11px]">{k}:</span>
+                            <span className="text-slate-900 font-mono text-[11px]">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Workflow Table */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
+                      <Layers size={14} className="text-emerald-600" />
+                      Step-by-Step Execution Workflow
+                    </h4>
+
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-2xs">
+                      <table className="w-full text-xs text-left text-slate-700">
+                        <thead className="bg-slate-100 text-slate-900 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                          <tr>
+                            <th className="p-3 w-1/6">Phase</th>
+                            <th className="p-3 w-1/4">Action Required</th>
+                            <th className="p-3 w-1/5">IMS Module</th>
+                            <th className="p-3 w-1/4">Key Decision / Logic</th>
+                            <th className="p-3 w-1/5">Expected Result</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {cs.workflowSteps.map((w, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/80">
+                              <td className="p-3 font-bold text-slate-900 bg-slate-50/50">{w.phase}</td>
+                              <td className="p-3">{w.actionRequired}</td>
+                              <td className="p-3 font-mono text-[11px] text-blue-700 bg-blue-50/30 font-semibold">{w.systemModule}</td>
+                              <td className="p-3 text-slate-800">{w.keyDecision}</td>
+                              <td className="p-3 font-medium text-emerald-800 bg-emerald-50/30">{w.expectedOutcome}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Permutations Covered */}
+                  <div className="flex items-center gap-2 flex-wrap pt-2">
+                    <span className="text-xs font-bold text-slate-600">Permutations & Rules Covered:</span>
+                    {cs.permutationsCovered.map((perm, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1"
+                      >
+                        <CheckCircle2 size={12} className="text-emerald-600" />
+                        {perm}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
           <div className="space-y-4">
             {filteredModules.map((mod) => {
               const isExpanded = expandedModuleId === mod.id;
