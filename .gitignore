@@ -10,6 +10,7 @@ tmp/
 *.log
 .env*
 !.env.example
+.playwright-cli/
 
 # App data: keep databases out, allow spreadsheets/exports
 data/**

@@ -19,6 +19,7 @@ import {
   Truck,
   LogOut,
   Settings,
+  GraduationCap,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
@@ -55,7 +56,8 @@ export type NavView =
   | 'stockSummary'
   | 'courierTracking'
   | 'couriers'
-  | 'pendingReceipt';
+  | 'pendingReceipt'
+  | 'learn';
 export type PendingQueueKey =
   | 'queueApprovePr'
   | 'queueCreatePo'
@@ -129,6 +131,7 @@ export const topLevelMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'quotation', label: 'Quotation' },
   { key: 'courierTracking', label: 'Courier Tracking' },
   { key: 'settings', label: 'Settings' },
+  { key: 'learn', label: 'Learn IMS' },
 ];
 
 export const quotationMenuItems: Array<{ key: 'pendingSupplierRate' | 'quotationMaster'; label: string }> = [
@@ -238,7 +241,7 @@ export default function Sidebar({
 			}) {
 		  const allowed = useMemo(() => new Set((menuAccessKeys ?? []).map((x) => String(x))), [menuAccessKeys]);
 		  const hasAny = allowed.size > 0;
-		  const isAllowed = (key: string) => (!hasAny ? true : allowed.has(String(key)));
+		  const isAllowed = (key: string) => (key === 'learn' ? true : !hasAny ? true : allowed.has(String(key)));
 		  const isMasterTabAllowed = (tab: MastersTab) => {
 		    if (!hasAny) return true;
 		    if (allowed.has(`masters:${tab}`)) return true;
@@ -652,6 +655,21 @@ export default function Sidebar({
 	                </button>
 	              ))}
             </div>
+          ) : null}
+
+          {isAllowed('learn') ? (
+            <motion.button
+              whileHover={{ x: 4 }}
+              type="button"
+              onClick={() => onNavigate('learn')}
+              className={cn(viewRowClass, activeView === 'learn' ? activeRowClass : '')}
+            >
+              <GraduationCap className="mr-3 text-white" size={18} />
+              <span className="flex-1 font-semibold">Learn IMS</span>
+              <span className="ml-2 text-[10px] bg-amber-400 text-slate-900 font-bold px-1.5 py-0.5 rounded uppercase shadow-sm">
+                Learn & Practice
+              </span>
+            </motion.button>
           ) : null}
 	        </nav>
 
