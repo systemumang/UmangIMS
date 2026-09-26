@@ -3092,6 +3092,8 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        po.supplier_id AS supplierId,
 	        s.name AS supplierName,
 	        po.created_at AS createdAt,
+          po.order_date AS orderDate,
+          COALESCE(po.required_date, pr.required_date) AS requiredDate,
           po.last_follow_up_date AS lastFollowUpDate,
           po.last_follow_up_remarks AS lastFollowUpRemarks,
           po.last_follow_up_by AS lastFollowUpBy,
@@ -3133,10 +3135,22 @@ app.get('/api/queues/create-grn', async (req, res) => {
       params
     );
 
+    const todayStr = new Date().toISOString().slice(0, 10);
     let out = (Array.isArray(rows) ? rows : []).map((r) => {
 	      const pendingQty = Math.max(0, Number(r.pendingQty ?? 0));
 	      const poQty = Math.max(0, Number(r.poQty ?? 0));
 	      const grnQty = Math.max(0, Number(r.grnQty ?? 0));
+        const orderDate = toIsoDate(r.orderDate) || toIsoDate(r.createdAt) || null;
+        const requiredDate = toIsoDate(r.requiredDate) || null;
+
+        let delayDays = null;
+        const refDate = requiredDate || orderDate;
+        if (refDate) {
+          const diffMs = new Date(todayStr).getTime() - new Date(refDate).getTime();
+          const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          delayDays = days > 0 ? days : 0;
+        }
+
 	      return {
         poId: String(r.poId ?? ''),
         poNumber: String(r.poNumber ?? r.poId ?? ''),
@@ -3153,6 +3167,9 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        grnQty,
 	        pendingQty,
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+        orderDate,
+        requiredDate,
+        delayDays,
 	        pendingReason: 'Pending GRN',
 	        priority: r.priority ? String(r.priority) : null,
           lastFollowUpDate: toIsoDate(r.lastFollowUpDate) || null,

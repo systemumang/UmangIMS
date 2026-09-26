@@ -383,30 +383,36 @@ export default function CreateGrnQueueView({
       ) : (
         <QueueCard title={viewLabel} subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1780px] table-fixed text-left border-collapse border border-outline-variant">
+	            <table className="w-full min-w-[2260px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>
-	                <col className="w-[150px]" />
+	                <col className="w-[140px]" />
+                  <col className="w-[110px]" />
 	                <col className="w-[130px]" />
+	                <col className="w-[170px]" />
 	                <col className="w-[180px]" />
-	                <col className="w-[180px]" />
+	                <col className="w-[90px]" />
+	                <col className="w-[90px]" />
 	                <col className="w-[100px]" />
-	                <col className="w-[100px]" />
-	                <col className="w-[110px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[110px]" />
                   <col className="w-[130px]" />
-                  <col className="w-[220px]" />
-                  <col className="w-[140px]" />
+                  <col className="w-[200px]" />
                   <col className="w-[130px]" />
-	                <col className="w-[220px]" />
+                  <col className="w-[130px]" />
+	                <col className="w-[330px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Date</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Supplier</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PO Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">{receiptLabel} Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Pending Qty</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Required Date</th>
+                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Delay Days</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Follow Up Date</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Follow Up Remarks</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Last Follow Up By</th>
@@ -437,6 +443,9 @@ export default function CreateGrnQueueView({
                       <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">
                         {formatPoNumber(r.poNumber ?? r.poId)}
                       </td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
+                        {r.orderDate ? formatDateDDMMYYYYOnly(r.orderDate) : r.createdAt ? formatDateDDMMYYYYOnly(r.createdAt) : '-'}
+                      </td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
@@ -444,9 +453,25 @@ export default function CreateGrnQueueView({
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2((r as any).grnQty ?? 0)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{formatMax2(r.pendingQty)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
+                        {r.requiredDate ? formatDateDDMMYYYYOnly(r.requiredDate) : '-'}
+                      </td>
+                      <td className="px-3 py-2 text-sm border border-outline-variant">
+                        {r.delayDays != null ? (
+                          r.delayDays > 0 ? (
+                            <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                              {r.delayDays} Days
+                            </span>
+                          ) : (
+                            <span className="text-emerald-700 font-medium">0 Days</span>
+                          )
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
                         {r.lastFollowUpDate ? formatDateDDMMYYYYOnly(r.lastFollowUpDate) : '-'}
                       </td>
-                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant whitespace-normal break-words max-w-[220px]" title={r.lastFollowUpRemarks || ''}>
+                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant whitespace-normal break-words max-w-[200px]" title={r.lastFollowUpRemarks || ''}>
                         {r.lastFollowUpRemarks || '-'}
                       </td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">
@@ -474,12 +499,21 @@ export default function CreateGrnQueueView({
                           >
                             Follow Up PO
                           </button>
+                          <a
+                            href={`/api/pos/${encodeURIComponent(String(r.poId ?? ''))}.pdf?t=${Date.now()}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-secondary btn-sm"
+                            download
+                          >
+                            Download PO
+                          </a>
                         </div>
                       </td>
                     </tr>
                     {isExpanded ? (
                       <tr>
-                        <td colSpan={12} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
+                        <td colSpan={15} className="px-3 py-3 border border-outline-variant bg-surface-container-lowest">
                           {isExpandedLoading ? <div className="text-sm text-on-surface-variant">Loading PO item details...</div> : null}
                           {!isExpandedLoading && expandedError ? <div className="text-sm text-error">{expandedError}</div> : null}
                           {!isExpandedLoading && !expandedError ? (
@@ -562,7 +596,7 @@ export default function CreateGrnQueueView({
                   )})
                 ) : (
                   <tr>
-                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={12}>
+                    <td className="px-3 py-5 text-sm text-on-surface-variant border border-outline-variant" colSpan={15}>
                       No records.
                     </td>
                   </tr>

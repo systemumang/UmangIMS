@@ -146,6 +146,9 @@ export type CreateGrnQueueRow = {
   grnQty?: number;
   pendingQty: number;
   createdAt: string;
+  orderDate?: string | null;
+  requiredDate?: string | null;
+  delayDays?: number | null;
   pendingReason: string;
   priority?: string | null;
   lastFollowUpDate?: string | null;
