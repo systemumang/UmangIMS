@@ -3093,7 +3093,7 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        s.name AS supplierName,
 	        po.created_at AS createdAt,
           po.order_date AS orderDate,
-          COALESCE(po.required_date, pr.required_date) AS requiredDate,
+          COALESCE(po.required_date, MIN(pri.required_date)) AS requiredDate,
           po.last_follow_up_date AS lastFollowUpDate,
           po.last_follow_up_remarks AS lastFollowUpRemarks,
           po.last_follow_up_by AS lastFollowUpBy,
