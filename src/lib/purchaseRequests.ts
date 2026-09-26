@@ -84,6 +84,21 @@ export type Po = {
   cancelReason?: string | null;
   cancelledBy?: string | null;
   cancelledAt?: string | null;
+  lastFollowUpDate?: string | null;
+  lastFollowUpRemarks?: string | null;
+  lastFollowUpBy?: string | null;
+  nextFollowUpDate?: string | null;
+};
+
+export type PoFollowUp = {
+  id: string;
+  poId: string;
+  followUpDate: string;
+  followUpRemarks?: string | null;
+  nextFollowUpDate?: string | null;
+  followUpBy: string;
+  followUpByName?: string;
+  createdAt: string;
 };
 
 export type PoItem = {
@@ -983,6 +998,29 @@ export async function fetchGrnsByPoId(poId: string, signal?: AbortSignal): Promi
   const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/grns`, { signal });
   const data = await requireOk<{ grns?: GrnWithItems[] }>(res, 'Failed to load GRNs');
   return Array.isArray(data.grns) ? data.grns : [];
+}
+
+export async function fetchPoFollowUps(poId: string, signal?: AbortSignal): Promise<PoFollowUp[]> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/follow-ups`, { signal });
+  const data = await requireOk<{ followUps?: PoFollowUp[] }>(res, 'Failed to fetch PO follow-ups');
+  return Array.isArray(data.followUps) ? data.followUps : [];
+}
+
+export async function createPoFollowUp(
+  poId: string,
+  payload: {
+    followUpDate: string;
+    followUpRemarks?: string | null;
+    nextFollowUpDate?: string | null;
+    followUpBy: string;
+  }
+): Promise<{ success: boolean; id: string }> {
+  const res = await fetch(`/api/pos/${encodeURIComponent(poId)}/follow-ups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return requireOk<{ success: boolean; id: string }>(res, 'Failed to save PO follow-up');
 }
 
 export async function fetchGrnsByPrId(prId: string, signal?: AbortSignal): Promise<GrnWithItems[]> {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { createGrnForPo, fetchPendingGrnItems, fetchPos, type Po, type PoItem } from '@/src/lib/purchaseRequests';
+import { createGrnForPo, createPoFollowUp, fetchPendingGrnItems, fetchPoFollowUps, fetchPos, type Po, type PoFollowUp, type PoItem } from '@/src/lib/purchaseRequests';
 import { fetchQueueCreateGrn, type CreateGrnQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { cn } from '@/src/lib/utils';
@@ -161,6 +161,96 @@ export default function CreateGrnQueueView({
   const [expandedErrorByPoId, setExpandedErrorByPoId] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
+  // Follow-up state
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const [activeFollowUpRow, setActiveFollowUpRow] = useState<CreateGrnQueueRow | null>(null);
+  const [followUpDate, setFollowUpDate] = useState(todayIsoDate());
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+  const [nextFollowUpDate, setNextFollowUpDate] = useState('');
+  const [followUpByUserId, setFollowUpByUserId] = useState('');
+  const [followUpHistory, setFollowUpHistory] = useState<PoFollowUp[]>([]);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpSaving, setFollowUpSaving] = useState(false);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+
+  function openFollowUpModal(r: CreateGrnQueueRow) {
+    setActiveFollowUpRow(r);
+    setFollowUpDate(todayIsoDate());
+    setFollowUpRemarks('');
+    setNextFollowUpDate(r.nextFollowUpDate || '');
+    setFollowUpByUserId(masters.users[0]?.id || '');
+    setFollowUpError(null);
+    setFollowUpModalOpen(true);
+  }
+
+  function closeFollowUpModal() {
+    setFollowUpModalOpen(false);
+    setActiveFollowUpRow(null);
+    setFollowUpRemarks('');
+    setNextFollowUpDate('');
+    setFollowUpError(null);
+    setFollowUpHistory([]);
+  }
+
+  useEffect(() => {
+    if (!followUpModalOpen || !activeFollowUpRow) return;
+    const ac = new AbortController();
+    setFollowUpLoading(true);
+    setFollowUpError(null);
+    fetchPoFollowUps(activeFollowUpRow.poId, ac.signal)
+      .then(setFollowUpHistory)
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        setFollowUpError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setFollowUpLoading(false));
+    return () => ac.abort();
+  }, [activeFollowUpRow, followUpModalOpen]);
+
+  useEffect(() => {
+    if (!followUpModalOpen) return;
+    if (masters.loading || !masters.users.length) return;
+    if (!followUpByUserId) setFollowUpByUserId(masters.users[0]!.id);
+  }, [followUpByUserId, masters.loading, masters.users, followUpModalOpen]);
+
+  async function handleSaveFollowUp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!activeFollowUpRow) return;
+    if (!followUpByUserId) {
+      setFollowUpError('Please select Follow Up By user');
+      return;
+    }
+    setFollowUpSaving(true);
+    setFollowUpError(null);
+    try {
+      await createPoFollowUp(activeFollowUpRow.poId, {
+        followUpDate,
+        followUpRemarks: followUpRemarks.trim() || null,
+        nextFollowUpDate: nextFollowUpDate || null,
+        followUpBy: followUpByUserId,
+      });
+      const userName = masters.users.find((u) => u.id === followUpByUserId)?.name || followUpByUserId;
+      setRows((prev) =>
+        prev.map((row) =>
+          row.poId === activeFollowUpRow.poId
+            ? {
+                ...row,
+                lastFollowUpDate: followUpDate,
+                lastFollowUpRemarks: followUpRemarks.trim() || null,
+                lastFollowUpBy: userName,
+                nextFollowUpDate: nextFollowUpDate || null,
+              }
+            : row
+        )
+      );
+      closeFollowUpModal();
+    } catch (err) {
+      setFollowUpError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setFollowUpSaving(false);
+    }
+  }
+
   function closeModal() {
     setModalOpen(false);
     setActive(null);
@@ -293,16 +383,16 @@ export default function CreateGrnQueueView({
       ) : (
         <QueueCard title={viewLabel} subtitle={`${rows.length} pending`} hideHeader>
           <div className="overflow-x-auto">
-	            <table className="w-full min-w-[1260px] table-fixed text-left border-collapse border border-outline-variant">
+	            <table className="w-full min-w-[1360px] table-fixed text-left border-collapse border border-outline-variant">
 	              <colgroup>
-	                <col className="w-[150px]" />
-	                <col className="w-[140px]" />
+	                <col className="w-[160px]" />
+	                <col className="w-[130px]" />
+	                <col className="w-[180px]" />
 	                <col className="w-[190px]" />
-	                <col className="w-[200px]" />
-	                <col className="w-[120px]" />
-	                <col className="w-[120px]" />
-	                <col className="w-[120px]" />
-	                <col className="w-[140px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[110px]" />
+	                <col className="w-[240px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
@@ -336,7 +426,15 @@ export default function CreateGrnQueueView({
                         isExpanded || selectedRowId === r.poId ? 'bg-primary/10' : 'hover:bg-surface-container-high/40'
                       )}
                     >
-                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{formatPoNumber(r.poNumber ?? r.poId)}</td>
+                      <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">
+                        <div>{formatPoNumber(r.poNumber ?? r.poId)}</div>
+                        {r.lastFollowUpDate || r.nextFollowUpDate ? (
+                          <div className="text-[10px] font-normal text-amber-700 mt-0.5 space-y-0.5">
+                            {r.lastFollowUpDate ? <div>Last FU: {formatDateDDMMYYYYOnly(r.lastFollowUpDate)}</div> : null}
+                            {r.nextFollowUpDate ? <div>Next FU: {formatDateDDMMYYYYOnly(r.nextFollowUpDate)}</div> : null}
+                          </div>
+                        ) : null}
+                      </td>
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{formatPrNumber((r as any).prNumber ?? r.prId)}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                       <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.supplierName || '-'}</td>
@@ -354,6 +452,13 @@ export default function CreateGrnQueueView({
                             }}
                           >
                             {viewLabel}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={() => openFollowUpModal(r)}
+                          >
+                            Follow Up PO
                           </button>
                         </div>
                       </td>
@@ -901,6 +1006,170 @@ export default function CreateGrnQueueView({
                 )}
               </tbody>
             </table>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={followUpModalOpen}
+        title={`PO Follow Up - ${activeFollowUpRow ? formatPoNumber(activeFollowUpRow.poNumber ?? activeFollowUpRow.poId) : ''}`}
+        onClose={() => (followUpSaving ? null : closeFollowUpModal())}
+        contentClassName="p-4 space-y-4 max-w-3xl mx-auto"
+        titleClassName="text-amber-700 text-base font-bold"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" disabled={followUpSaving} onClick={closeFollowUpModal}>
+              Cancel
+            </button>
+            <button type="button" className="btn-primary" disabled={followUpSaving} onClick={handleSaveFollowUp}>
+              {followUpSaving ? 'Saving...' : 'Save Follow Up'}
+            </button>
+          </div>
+        }
+      >
+        {followUpError ? (
+          <div className="bg-error-container/40 rounded-xl border border-outline-variant/5 p-3 text-sm text-on-surface">
+            {followUpError}
+          </div>
+        ) : null}
+
+        {activeFollowUpRow ? (
+          <div className="space-y-4">
+            {/* Last Follow-Up Summary */}
+            <div className="bg-surface-container-high/60 border border-outline-variant rounded-xl p-3 space-y-2">
+              <div className="text-xs font-bold text-on-surface uppercase tracking-wider">
+                Last Follow-Up Details
+              </div>
+              {activeFollowUpRow.lastFollowUpDate || activeFollowUpRow.lastFollowUpRemarks ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-surface-container-lowest p-2 rounded border border-outline-variant">
+                    <span className="text-on-surface-variant font-semibold block text-[10px]">Last Follow Up Date</span>
+                    <span className="text-on-surface font-bold">
+                      {activeFollowUpRow.lastFollowUpDate ? formatDateDDMMYYYYOnly(activeFollowUpRow.lastFollowUpDate) : '-'}
+                    </span>
+                  </div>
+                  <div className="bg-surface-container-lowest p-2 rounded border border-outline-variant">
+                    <span className="text-on-surface-variant font-semibold block text-[10px]">Follow Up By</span>
+                    <span className="text-on-surface font-bold">
+                      {activeFollowUpRow.lastFollowUpBy ? displayUserName(activeFollowUpRow.lastFollowUpBy) : '-'}
+                    </span>
+                  </div>
+                  <div className="bg-surface-container-lowest p-2 rounded border border-outline-variant">
+                    <span className="text-on-surface-variant font-semibold block text-[10px]">Next Follow Up Date</span>
+                    <span className="text-amber-700 font-bold">
+                      {activeFollowUpRow.nextFollowUpDate ? formatDateDDMMYYYYOnly(activeFollowUpRow.nextFollowUpDate) : '-'}
+                    </span>
+                  </div>
+                  <div className="bg-surface-container-lowest p-2 rounded border border-outline-variant sm:col-span-2 md:col-span-1">
+                    <span className="text-on-surface-variant font-semibold block text-[10px]">Last Remarks</span>
+                    <span className="text-on-surface font-medium italic break-words">
+                      {activeFollowUpRow.lastFollowUpRemarks || '-'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-on-surface-variant italic">No previous follow-ups recorded for this PO.</div>
+              )}
+            </div>
+
+            {/* New Follow-Up Form */}
+            <form onSubmit={handleSaveFollowUp} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
+              <div className="text-xs font-bold text-primary uppercase tracking-wider">Record New Follow-Up</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+                    Follow Up Date
+                  </label>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={followUpDate}
+                    disabled={followUpSaving}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+                    Follow Up By
+                  </label>
+                  <select
+                    className={inputClass}
+                    value={followUpByUserId}
+                    disabled={followUpSaving || masters.loading}
+                    onChange={(e) => setFollowUpByUserId(e.target.value)}
+                  >
+                    <option value="">{masters.loading ? 'Loading users...' : 'Select user'}</option>
+                    {masters.users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+                    Next Follow Up Date
+                  </label>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={nextFollowUpDate}
+                    disabled={followUpSaving}
+                    onChange={(e) => setNextFollowUpDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+                  Follow Up Remarks
+                </label>
+                <textarea
+                  className={cn(inputClass, 'h-20 py-2')}
+                  rows={3}
+                  placeholder="Enter response from supplier, call notes, expected dispatch date..."
+                  value={followUpRemarks}
+                  disabled={followUpSaving}
+                  onChange={(e) => setFollowUpRemarks(e.target.value)}
+                />
+              </div>
+            </form>
+
+            {/* Follow Up History Timeline */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-on-surface uppercase tracking-wider">
+                Follow-Up History ({followUpHistory.length})
+              </div>
+              {followUpLoading ? (
+                <div className="text-xs text-on-surface-variant">Loading history...</div>
+              ) : followUpHistory.length ? (
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                  {followUpHistory.map((fu) => (
+                    <div key={fu.id} className="bg-surface-container-low border border-outline-variant p-2.5 rounded-lg text-xs space-y-1">
+                      <div className="flex items-center justify-between text-on-surface-variant font-medium">
+                        <span className="font-bold text-on-surface">
+                          {formatDateDDMMYYYYOnly(fu.followUpDate)} — {fu.followUpByName || displayUserName(fu.followUpBy)}
+                        </span>
+                        {fu.nextFollowUpDate ? (
+                          <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
+                            Next: {formatDateDDMMYYYYOnly(fu.nextFollowUpDate)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {fu.followUpRemarks ? (
+                        <p className="text-on-surface text-xs leading-relaxed whitespace-pre-wrap">{fu.followUpRemarks}</p>
+                      ) : (
+                        <p className="text-on-surface-variant italic text-[11px]">No remarks entered.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-on-surface-variant italic">No historical follow-ups found.</div>
+              )}
+            </div>
           </div>
         ) : null}
       </Modal>

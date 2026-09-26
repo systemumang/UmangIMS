@@ -399,6 +399,10 @@ function getMysqlPool() {
 	      await ensureColumn('purchase_orders', 'requested_by', 'VARCHAR(255) NULL');
 	      await ensureColumn('purchase_orders', 'required_date', 'DATE NULL');
 	      await ensureColumn('purchase_orders', 'remarks', 'TEXT NULL');
+      await ensureColumn('purchase_orders', 'last_follow_up_date', 'DATE NULL');
+      await ensureColumn('purchase_orders', 'last_follow_up_remarks', 'TEXT NULL');
+      await ensureColumn('purchase_orders', 'last_follow_up_by', 'VARCHAR(255) NULL');
+      await ensureColumn('purchase_orders', 'next_follow_up_date', 'DATE NULL');
 
 	      const tryAlterNullable = async (table, column, def) => {
 	        try {
@@ -435,6 +439,21 @@ function getMysqlPool() {
           created_by VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS po_follow_ups (
+          id VARCHAR(255) PRIMARY KEY,
+          po_id VARCHAR(255) NOT NULL,
+          follow_up_date DATE NOT NULL,
+          follow_up_remarks TEXT NULL,
+          next_follow_up_date DATE NULL,
+          follow_up_by VARCHAR(255) NOT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          KEY idx_po_follow_ups_po_id (po_id),
+          KEY idx_po_follow_ups_date (follow_up_date),
           FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
@@ -3073,6 +3092,11 @@ app.get('/api/queues/create-grn', async (req, res) => {
 	        po.supplier_id AS supplierId,
 	        s.name AS supplierName,
 	        po.created_at AS createdAt,
+          po.last_follow_up_date AS lastFollowUpDate,
+          po.last_follow_up_remarks AS lastFollowUpRemarks,
+          po.last_follow_up_by AS lastFollowUpBy,
+          u_fu.name AS lastFollowUpByName,
+          po.next_follow_up_date AS nextFollowUpDate,
 		        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
 		        COALESCE(SUM(COALESCE(poi.quantity, 0)), 0) AS poQty,
 			        COALESCE(MAX(grnt.grnQty), 0) AS grnQty,
@@ -3100,6 +3124,7 @@ app.get('/api/queues/create-grn', async (req, res) => {
       LEFT JOIN firms f ON f.id = po.firm_id
       LEFT JOIN projects proj ON proj.id = po.project_id
       LEFT JOIN suppliers s ON s.id = po.supplier_id
+      LEFT JOIN users u_fu ON u_fu.id = po.last_follow_up_by
       WHERE ${where.join(' AND ')}
       GROUP BY po.id
       HAVING pendingQty > 1e-9
@@ -3130,6 +3155,10 @@ app.get('/api/queues/create-grn', async (req, res) => {
         createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
 	        pendingReason: 'Pending GRN',
 	        priority: r.priority ? String(r.priority) : null,
+          lastFollowUpDate: toIsoDate(r.lastFollowUpDate) || null,
+          lastFollowUpRemarks: r.lastFollowUpRemarks ? String(r.lastFollowUpRemarks) : null,
+          lastFollowUpBy: r.lastFollowUpByName ? String(r.lastFollowUpByName) : r.lastFollowUpBy ? String(r.lastFollowUpBy) : null,
+          nextFollowUpDate: toIsoDate(r.nextFollowUpDate) || null,
 	      };
     });
 
@@ -10803,6 +10832,95 @@ app.get('/api/pos/:id/pending-grn-items', async (req, res) => {
     }));
 
     res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Follow Ups for a PO
+app.get('/api/pos/:id/follow-ups', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'id is required' });
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        fu.id AS id,
+        fu.po_id AS poId,
+        fu.follow_up_date AS followUpDate,
+        fu.follow_up_remarks AS followUpRemarks,
+        fu.next_follow_up_date AS nextFollowUpDate,
+        fu.follow_up_by AS followUpBy,
+        COALESCE(u.name, fu.follow_up_by) AS followUpByName,
+        fu.created_at AS createdAt
+      FROM po_follow_ups fu
+      LEFT JOIN users u ON u.id = fu.follow_up_by
+      WHERE fu.po_id = ?
+      ORDER BY fu.follow_up_date DESC, fu.created_at DESC
+      `,
+      [poId]
+    );
+
+    const followUps = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r.id ?? ''),
+      poId: String(r.poId ?? ''),
+      followUpDate: toIsoDate(r.followUpDate) || '',
+      followUpRemarks: r.followUpRemarks ? String(r.followUpRemarks) : null,
+      nextFollowUpDate: toIsoDate(r.nextFollowUpDate) || null,
+      followUpBy: String(r.followUpBy ?? ''),
+      followUpByName: String(r.followUpByName ?? ''),
+      createdAt: toIsoDateTime(r.createdAt) || new Date().toISOString(),
+    }));
+
+    res.json({ followUps });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/pos/:id/follow-ups', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const poId = String(req.params.id ?? '').trim();
+    if (!poId) return res.status(400).json({ error: 'poId is required' });
+
+    const body = req.body || {};
+    const followUpDate = toIsoDate(body.followUpDate) || toIsoDate(new Date());
+    const followUpRemarks = String(body.followUpRemarks ?? '').trim() || null;
+    const nextFollowUpDate = body.nextFollowUpDate ? toIsoDate(body.nextFollowUpDate) : null;
+    const followUpBy = String(body.followUpBy ?? '').trim();
+
+    if (!followUpBy) {
+      return res.status(400).json({ error: 'Follow Up By user is required' });
+    }
+
+    const followUpId = crypto.randomUUID();
+
+    await pool.query(
+      `
+      INSERT INTO po_follow_ups (id, po_id, follow_up_date, follow_up_remarks, next_follow_up_date, follow_up_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [followUpId, poId, followUpDate, followUpRemarks, nextFollowUpDate, followUpBy]
+    );
+
+    await pool.query(
+      `
+      UPDATE purchase_orders
+      SET last_follow_up_date = ?,
+          last_follow_up_remarks = ?,
+          last_follow_up_by = ?,
+          next_follow_up_date = ?
+      WHERE id = ?
+      `,
+      [followUpDate, followUpRemarks, followUpBy, nextFollowUpDate, poId]
+    );
+
+    res.json({ success: true, id: followUpId, message: 'Follow-up recorded successfully' });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

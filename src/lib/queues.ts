@@ -148,6 +148,10 @@ export type CreateGrnQueueRow = {
   createdAt: string;
   pendingReason: string;
   priority?: string | null;
+  lastFollowUpDate?: string | null;
+  lastFollowUpRemarks?: string | null;
+  lastFollowUpBy?: string | null;
+  nextFollowUpDate?: string | null;
 };
 
 export async function fetchQueueCreateGrn(filters?: QueueFilters, signal?: AbortSignal): Promise<CreateGrnQueueRow[]> {
