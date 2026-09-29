@@ -249,7 +249,6 @@ export default function PhysicalStockFormView({
           </div>
           <div>
             <h2 className="text-xl font-bold text-on-surface">Physical Stock Entry</h2>
-            <p className="text-xs text-on-surface-variant">Record physical count of items in store</p>
           </div>
         </div>
         {onCancel ? (
