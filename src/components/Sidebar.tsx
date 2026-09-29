@@ -52,6 +52,8 @@ export type NavView =
   | 'returnMaster'
   | 'damageMaster'
   | 'transferMaster'
+  | 'physicalStock'
+  | 'physicalStockMaster'
   | 'projectUtilization'
   | 'stockSummary'
   | 'courierTracking'
@@ -102,6 +104,7 @@ export const stockMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'returnMaster', label: 'Return Master' },
   { key: 'damageMaster', label: 'Damage Master' },
   { key: 'transferMaster', label: 'Transfer Master' },
+  { key: 'physicalStockMaster', label: 'Physical Stock Master' },
   { key: 'projectUtilization', label: 'Projectwise Consumption' },
   { key: 'stockSummary', label: 'Projectwise Material Consumption Summary' },
 ];
@@ -161,7 +164,7 @@ export const settingsMenuItems: Array<{ key: NavView; label: string }> = [
   { key: 'docSequences', label: 'Doc Sequences' },
 ];
 
-export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
+export type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer' | 'physicalStock';
 export type StockCountKey = 'inventory' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster';
 
 export default function Sidebar({
@@ -322,7 +325,7 @@ export default function Sidebar({
 			    return false;
 			  };
 
-	  const stockViewsWithoutCounts = new Set<NavView>(['inventory', 'projectUtilization', 'stockSummary']);
+	  const stockViewsWithoutCounts = new Set<NavView>(['inventory', 'physicalStock', 'physicalStockMaster', 'projectUtilization', 'stockSummary']);
 
   const borderClass = 'border-2 border-[#1f2937]';
 	  const baseRowClass = `flex items-center px-4 py-2.5 rounded-md transition-colors font-sans text-sm tracking-wide w-full text-left ${borderClass}`;

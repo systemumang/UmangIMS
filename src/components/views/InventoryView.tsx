@@ -8,6 +8,21 @@ import { Modal, inputClass, labelClass } from './queues/shared';
 
 const ALL_FIRMS_VALUE = '__all_firms__';
 
+function formatStockDate(dtStr?: string | null) {
+  if (!dtStr) return '-';
+  try {
+    const d = new Date(dtStr);
+    if (isNaN(d.getTime())) return dtStr;
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dtStr;
+  }
+}
+
 export default function InventoryView() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -23,7 +38,23 @@ export default function InventoryView() {
   const [search, setSearch] = useState('');
   const [itemNameFilterId, setItemNameFilterId] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sortBy, setSortBy] = useState<'itemName' | 'firm' | 'store' | 'opening' | 'reorderLevel' | 'purchase' | 'issue' | 'returns' | 'damage' | 'transferIn' | 'transferOut' | 'balance' | 'unit'>('itemName');
+  const [sortBy, setSortBy] = useState<
+    | 'itemName'
+    | 'firm'
+    | 'store'
+    | 'opening'
+    | 'reorderLevel'
+    | 'purchase'
+    | 'issue'
+    | 'returns'
+    | 'damage'
+    | 'transferIn'
+    | 'transferOut'
+    | 'balance'
+    | 'physicalStock'
+    | 'physicalStockTakenOn'
+    | 'unit'
+  >('itemName');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [photoModal, setPhotoModal] = useState<{ title: string; photos: string[] } | null>(null);
 
@@ -136,7 +167,8 @@ export default function InventoryView() {
     const byCategory = !categoryFilter || meta.category === categoryFilter;
 
     const balance = Number((r as any).balance ?? 0);
-    const hasPositiveBalance = balance > 0;
+    const physStock = r.physicalStock != null ? Number(r.physicalStock) : null;
+    const hasPositiveBalance = balance > 0 || (physStock !== null && physStock > 0);
 
     if (!selectedStoreName) return bySearch && byItemName && byCategory && hasPositiveBalance;
     const rowStore = getStoreLabel(r).toLowerCase();
@@ -160,6 +192,16 @@ export default function InventoryView() {
         return dir * strCmp(getStoreLabel(a), getStoreLabel(b));
       case 'unit':
         return dir * strCmp(String(a.unit ?? ''), String(b.unit ?? ''));
+      case 'physicalStock': {
+        const av = a.physicalStock != null ? Number(a.physicalStock) : -1;
+        const bv = b.physicalStock != null ? Number(b.physicalStock) : -1;
+        return dir * (av - bv);
+      }
+      case 'physicalStockTakenOn': {
+        const av = a.physicalStockTakenOn ? new Date(a.physicalStockTakenOn).getTime() : 0;
+        const bv = b.physicalStockTakenOn ? new Date(b.physicalStockTakenOn).getTime() : 0;
+        return dir * (av - bv);
+      }
       case 'opening':
       case 'reorderLevel':
       case 'purchase':
@@ -247,6 +289,8 @@ export default function InventoryView() {
 		      'Transfer In',
 		      'Transfer Out',
 		      'Closing Balance',
+		      'Physical Stock',
+		      'Physical Stock Taken On',
 		      'Re-Order Level',
 		      'Unit',
 		    ];
@@ -270,6 +314,8 @@ export default function InventoryView() {
 		          Number((r as any).transferIn ?? 0),
 		          Number((r as any).transferOut ?? 0),
 		          Number(r.balance ?? 0),
+		          r.physicalStock != null ? Number(r.physicalStock) : '',
+		          r.physicalStockTakenOn ? formatStockDate(r.physicalStockTakenOn) : '',
 		          Number((r as any).reorderLevel ?? 0),
 		          String(r.unit ?? ''),
 		        ].map(esc).join(',')
@@ -311,6 +357,8 @@ export default function InventoryView() {
 		                <th>Tr In</th>
 		                <th>Tr Out</th>
 		                <th>Closing</th>
+		                <th>Physical Stock</th>
+		                <th>Taken On</th>
 		                <th>Re-Order</th>
 		                <th>Unit</th>
 		              </tr>
@@ -330,6 +378,8 @@ export default function InventoryView() {
 		                    `<td class="num">${Number((r as any).transferIn ?? 0)}</td>`,
 		                    `<td class="num">${Number((r as any).transferOut ?? 0)}</td>`,
 		                    `<td class="num">${Number(r.balance ?? 0)}</td>`,
+		                    `<td class="num">${r.physicalStock != null ? Number(r.physicalStock) : '-'}</td>`,
+		                    `<td>${r.physicalStockTakenOn ? formatStockDate(r.physicalStockTakenOn) : '-'}</td>`,
 		                    `<td class="num">${Number((r as any).reorderLevel ?? 0)}</td>`,
 		                    `<td>${String(r.unit ?? '').replace(/</g, '&lt;')}</td>`,
 		                  ];
@@ -519,6 +569,16 @@ export default function InventoryView() {
                       <span>Closing Balance</span><ArrowUpDown size={12} />
                     </button>
                   </th>
+                  <th className="p-0 border-b border-black border-r border-black text-right font-bold text-emerald-600">
+                    <button type="button" onClick={() => onSort('physicalStock')} className="w-full px-3 py-3 flex items-center justify-end gap-1">
+                      <span>Physical Stock</span><ArrowUpDown size={12} />
+                    </button>
+                  </th>
+                  <th className="p-0 border-b border-black border-r border-black text-center font-bold">
+                    <button type="button" onClick={() => onSort('physicalStockTakenOn')} className="w-full px-3 py-3 flex items-center justify-center gap-1">
+                      <span>Physical Stock Taken On</span><ArrowUpDown size={12} />
+                    </button>
+                  </th>
                   <th className="p-0 border-b border-black border-r border-black text-right">
                     <button type="button" onClick={() => onSort('reorderLevel')} className="w-full px-3 py-3 flex items-center justify-end gap-1">
                       <span>Re-Order Level</span><ArrowUpDown size={12} />
@@ -537,7 +597,7 @@ export default function InventoryView() {
 	              <tbody className="divide-y divide-outline-variant">
 		                {filteredRows.length === 0 ? (
 		                  <tr>
-					                    <td colSpan={16} className="p-8 text-center text-on-surface-variant italic">No items found</td>
+					                    <td colSpan={18} className="p-8 text-center text-on-surface-variant italic">No items found</td>
 			                  </tr>
 			                ) : (
 			                  sortedRows.map((r, idx) => (
@@ -569,6 +629,12 @@ export default function InventoryView() {
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).transferIn ?? 0)}</td>
 		                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).transferOut ?? 0)}</td>
 		                      <td className="p-3 border-r border-black text-on-surface font-bold text-right text-primary">{r.balance}</td>
+		                      <td className="p-3 border-r border-black font-bold text-right text-emerald-600 dark:text-emerald-400">
+		                        {r.physicalStock != null ? Number(r.physicalStock).toLocaleString('en-IN', { maximumFractionDigits: 4 }) : '-'}
+		                      </td>
+		                      <td className="p-3 border-r border-black text-on-surface-variant text-center whitespace-nowrap" title={r.physicalStockTakenBy ? `Taken by: ${r.physicalStockTakenBy}` : ''}>
+		                        {r.physicalStockTakenOn ? formatStockDate(r.physicalStockTakenOn) : '-'}
+		                      </td>
 				                      <td className="p-3 border-r border-black text-on-surface-variant text-right">{Number((r as any).reorderLevel ?? 0)}</td>
 				                      <td className="p-3 border-r border-black text-on-surface-variant text-center">{r.unit || '-'}</td>
 	                            <td className="p-3 border-r border-black text-center">

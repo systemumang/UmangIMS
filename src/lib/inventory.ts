@@ -25,6 +25,9 @@ export type InventorySheetRow = {
   damage: number;
   returns: number;
   balance: number;
+  physicalStock?: number | null;
+  physicalStockTakenOn?: string | null;
+  physicalStockTakenBy?: string | null;
 };
 
 export type OpeningBalanceRow = {

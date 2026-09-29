@@ -595,6 +595,23 @@ function getMysqlPool() {
         console.error('Unable to normalize oversized advance adjustments:', e);
       }
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS physical_stock_master (
+          id VARCHAR(255) PRIMARY KEY,
+          firm_id VARCHAR(255) NOT NULL,
+          store_id VARCHAR(255) NOT NULL,
+          item_id VARCHAR(255) NOT NULL,
+          physical_stock DECIMAL(15, 4) NOT NULL,
+          taken_by VARCHAR(255) NOT NULL,
+          taken_on DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          remarks TEXT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          KEY idx_ps_firm_store (firm_id, store_id),
+          KEY idx_ps_item (item_id),
+          KEY idx_ps_taken_on (taken_on)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
       await ensureColumn('invoices', 'payment_mode', "VARCHAR(16) NOT NULL DEFAULT 'Credit'");
       await ensureColumn('invoices', 'payment_amount', 'DOUBLE NOT NULL DEFAULT 0');
       await ensureColumn('invoices', 'tally_entry_date', 'DATE NULL');
@@ -2044,7 +2061,7 @@ app.get('/api/requests.xlsx', async (_req, res) => {
         pr.id,
         pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.project_id AS projectId,
         proj.name AS projectName,
         pr.store_id AS storeId,
@@ -2513,7 +2530,7 @@ app.get('/api/queues/approve-pr', async (req, res) => {
 	        pr.id AS prId,
 	        pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.request_type AS requestType,
         pr.project_id AS projectId,
         proj.name AS projectName,
@@ -2595,7 +2612,7 @@ app.get('/api/queues/create-po', async (req, res) => {
 	        pr.id AS prId,
         pr.pr_number AS prNumber,
         pr.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.project_id AS projectId,
         proj.name AS projectName,
         pr.created_at AS requisitionDate,
@@ -2700,7 +2717,7 @@ app.get('/api/queues/check-po', async (req, res) => {
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
@@ -2789,7 +2806,7 @@ app.get('/api/queues/send-po', async (req, res) => {
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
@@ -2886,7 +2903,7 @@ app.get('/api/queues/enter-invoice', async (req, res) => {
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
@@ -2986,7 +3003,7 @@ app.get('/api/queues/enter-credit-voucher', async (req, res) => {
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
@@ -3085,7 +3102,7 @@ app.get('/api/queues/create-grn', async (req, res) => {
         po.pr_id AS prId,
         pr.pr_number AS prNumber,
         po.firm_id AS firmId,
-        f.name AS firmName,
+        COALESCE(NULLIF(TRIM(f.sort_name), ''), f.name) AS firmName,
         pr.remarks AS prRemarks,
         po.project_id AS projectId,
         proj.name AS projectName,
@@ -15455,6 +15472,53 @@ app.get('/api/inventory/sheet', async (req, res) => {
     );
     mergeInventoryQuantity(damageTransactionRows, 'damageQty', 'damage');
 
+    // Ensure items with physical stock entries are included in aggMap
+    const [psAggRows] = await pool.query(
+      `
+      SELECT ps.store_id AS storeId, ps.item_id AS itemId
+      FROM physical_stock_master ps
+      WHERE ps.firm_id = ?
+      GROUP BY ps.store_id, ps.item_id
+      `,
+      [firmId]
+    );
+    for (const r of Array.isArray(psAggRows) ? psAggRows : []) {
+      const storeId = String(r.storeId ?? '');
+      const itemId = String(r.itemId ?? '');
+      if (!storeId || !itemId) continue;
+      const key = keyOf(storeId, itemId);
+      if (!aggMap.has(key)) {
+        aggMap.set(key, { opening: 0, purchase: 0, returns: 0, issue: 0, damage: 0, transferIn: 0, transferOut: 0 });
+      }
+    }
+
+    // Get latest physical stock count for each (store_id, item_id)
+    const [psLatestRows] = await pool.query(
+      `
+      SELECT ps.store_id AS storeId, ps.item_id AS itemId, ps.physical_stock AS physicalStock, ps.taken_on AS physicalStockTakenOn, ps.taken_by AS physicalStockTakenBy
+      FROM physical_stock_master ps
+      INNER JOIN (
+        SELECT store_id, item_id, MAX(id) AS max_id
+        FROM physical_stock_master
+        WHERE firm_id = ?
+        GROUP BY store_id, item_id
+      ) latest ON ps.id = latest.max_id
+      `,
+      [firmId]
+    );
+    const psMap = new Map();
+    for (const r of Array.isArray(psLatestRows) ? psLatestRows : []) {
+      const storeId = String(r.storeId ?? '');
+      const itemId = String(r.itemId ?? '');
+      if (storeId && itemId) {
+        psMap.set(keyOf(storeId, itemId), {
+          physicalStock: r.physicalStock != null ? num(r.physicalStock) : null,
+          physicalStockTakenOn: r.physicalStockTakenOn ? String(r.physicalStockTakenOn) : null,
+          physicalStockTakenBy: r.physicalStockTakenBy ? String(r.physicalStockTakenBy) : null,
+        });
+      }
+    }
+
     const storeIds = Array.from(storeById.keys());
     const itemIds = Array.from(itemById.keys());
 
@@ -15469,6 +15533,7 @@ app.get('/api/inventory/sheet', async (req, res) => {
         transferIn: 0,
         transferOut: 0,
 	      };
+      const ps = psMap.get(keyOf(storeId, itemId)) ?? { physicalStock: null, physicalStockTakenOn: null, physicalStockTakenBy: null };
       const opening = num(agg.opening, 0);
       const reorderLevel = num(meta.reorderLevel, 0);
       const purchase = num(agg.purchase, 0);
@@ -15509,6 +15574,9 @@ app.get('/api/inventory/sheet', async (req, res) => {
         damage,
         returns,
         balance,
+        physicalStock: ps.physicalStock,
+        physicalStockTakenOn: ps.physicalStockTakenOn,
+        physicalStockTakenBy: ps.physicalStockTakenBy,
       };
     };
 
@@ -15522,6 +15590,127 @@ app.get('/api/inventory/sheet', async (req, res) => {
         : [];
 
     res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Physical Stock API endpoints
+app.post('/api/physical-stock', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const { firmId, storeId, itemId, physicalStock, takenBy, takenOn, remarks } = req.body ?? {};
+
+    if (!firmId || !storeId || !itemId) {
+      return res.status(400).json({ error: 'Firm, Store, and Item are required.' });
+    }
+    const numStock = Number(physicalStock);
+    if (isNaN(numStock) || numStock < 0) {
+      return res.status(400).json({ error: 'Valid Physical Stock quantity is required.' });
+    }
+    if (!takenBy || !String(takenBy).trim()) {
+      return res.status(400).json({ error: 'Taken By is required.' });
+    }
+
+    const id = `PHYS-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const takenOnDt = takenOn ? new Date(takenOn) : new Date();
+    const formattedTakenOn = isNaN(takenOnDt.getTime()) ? new Date().toISOString().slice(0, 19).replace('T', ' ') : takenOnDt.toISOString().slice(0, 19).replace('T', ' ');
+
+    await pool.query(
+      `
+      INSERT INTO physical_stock_master (id, firm_id, store_id, item_id, physical_stock, taken_by, taken_on, remarks, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `,
+      [id, firmId, storeId, itemId, numStock, String(takenBy).trim(), formattedTakenOn, remarks ? String(remarks).trim() : null]
+    );
+
+    res.json({ ok: true, id });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.get('/api/physical-stock', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+
+    const firmId = String(req.query.firmId ?? '').trim();
+    const storeId = String(req.query.storeId ?? '').trim();
+    const itemId = String(req.query.itemId ?? '').trim();
+    const fromDate = String(req.query.fromDate ?? '').trim();
+    const toDate = String(req.query.toDate ?? '').trim();
+
+    const where = ['1=1'];
+    const params = [];
+
+    if (firmId) {
+      where.push('ps.firm_id = ?');
+      params.push(firmId);
+    }
+    if (storeId) {
+      where.push('ps.store_id = ?');
+      params.push(storeId);
+    }
+    if (itemId) {
+      where.push('ps.item_id = ?');
+      params.push(itemId);
+    }
+    if (fromDate) {
+      where.push('DATE(ps.taken_on) >= ?');
+      params.push(fromDate);
+    }
+    if (toDate) {
+      where.push('DATE(ps.taken_on) <= ?');
+      params.push(toDate);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ps.id,
+        ps.firm_id AS firmId,
+        f.name AS firmName,
+        f.sort_name AS firmSortName,
+        ps.store_id AS storeId,
+        s.name AS storeName,
+        ps.item_id AS itemId,
+        i.item_code AS itemCode,
+        iname.name AS itemName,
+        i.specifications_json AS specificationsJson,
+        i.unit AS unit,
+        ps.physical_stock AS physicalStock,
+        ps.taken_by AS takenBy,
+        ps.taken_on AS takenOn,
+        ps.remarks,
+        ps.created_at AS createdAt
+      FROM physical_stock_master ps
+      LEFT JOIN firms f ON f.id = ps.firm_id
+      LEFT JOIN stores s ON s.id = ps.store_id
+      LEFT JOIN items i ON i.id = ps.item_id
+      LEFT JOIN item_names iname ON iname.id = i.item_name_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY ps.taken_on DESC, ps.created_at DESC
+      `,
+      params
+    );
+
+    res.json({ records: rows ?? [] });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete('/api/physical-stock/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    if (!id) return res.status(400).json({ error: 'ID is required.' });
+
+    await pool.query('DELETE FROM physical_stock_master WHERE id = ?', [id]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }

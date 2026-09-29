@@ -33,6 +33,8 @@ const IssueMasterView = lazy(() => import('./components/views/IssueMasterView'))
 const ReturnMasterView = lazy(() => import('./components/views/ReturnMasterView'));
 const DamageMasterView = lazy(() => import('./components/views/DamageMasterView'));
 const TransferMasterView = lazy(() => import('./components/views/TransferMasterView'));
+const PhysicalStockView = lazy(() => import('./components/views/PhysicalStockView'));
+const PhysicalStockMasterView = lazy(() => import('./components/views/PhysicalStockMasterView'));
 const ProjectwiseUtilizationView = lazy(() => import('./components/views/ProjectwiseUtilizationView'));
 const StockSummaryView = lazy(() => import('./components/views/StockSummaryView'));
 const DirectPoView = lazy(() => import('./components/views/DirectPoView'));
@@ -151,6 +153,8 @@ export default function App() {
 		    | 'returnMaster'
 		    | 'damageMaster'
 		    | 'transferMaster'
+		    | 'physicalStock'
+		    | 'physicalStockMaster'
 		    | 'projectUtilization'
         | 'settingsCatalogue';
 			  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
@@ -400,12 +404,15 @@ export default function App() {
 			      if (stockMasterTab === 'return') return { title: 'Stock Master', subtitle: 'Return', showSearch: false };
 			      if (stockMasterTab === 'damage') return { title: 'Stock Master', subtitle: 'Damage', showSearch: false };
 			      if (stockMasterTab === 'transfer') return { title: 'Stock Master', subtitle: 'Transfer', showSearch: false };
+			      if (stockMasterTab === 'physicalStock') return { title: 'Stock Master', subtitle: 'Physical Stock', showSearch: false };
 		      return { title: 'Stock Master', showSearch: false };
 		    }
 		    if (view === 'issueMaster') return { title: 'Issue Master', showSearch: false };
 		    if (view === 'returnMaster') return { title: 'Return Master', showSearch: false };
 		    if (view === 'damageMaster') return { title: 'Damage Master', showSearch: false };
 		    if (view === 'transferMaster') return { title: 'Transfer Master', showSearch: false };
+		    if (view === 'physicalStockMaster') return { title: 'Physical Stock Master', showSearch: false };
+		    if (view === 'physicalStock') return { title: 'Physical Stock Form', showSearch: false };
 		    if (view === 'projectUtilization') return { title: 'Projectwise Consumption', showSearch: false };
 		    if (view === 'stockSummary') return { title: 'Projectwise Material Consumption Summary', showSearch: false };
 		    if (view === 'masters') {
@@ -1112,12 +1119,15 @@ export default function App() {
 		              {stockMasterTab === 'return' ? <ReturnView onCreated={() => setView('returnMaster')} onCancel={() => setView('returnMaster')} /> : null}
 		              {stockMasterTab === 'damage' ? <DamageView onCreated={() => setView('damageMaster')} onCancel={() => setView('damageMaster')} /> : null}
 		              {stockMasterTab === 'transfer' ? <StockTransferView onCreated={() => setView('transferMaster')} onCancel={() => setView('transferMaster')} /> : null}
+		              {stockMasterTab === 'physicalStock' ? <PhysicalStockView initialMode="form" onCreated={() => setView('physicalStockMaster')} /> : null}
 		            </>
 		          ) : null}
               {view === 'issueMaster' ? <IssueMasterView onAdd={() => { setStockMasterTab('itemIssue'); setView('stockMaster'); }} /> : null}
               {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
               {view === 'damageMaster' ? <DamageMasterView onAdd={() => { setStockMasterTab('damage'); setView('stockMaster'); }} /> : null}
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
+              {view === 'physicalStockMaster' ? <PhysicalStockMasterView onAdd={() => { setStockMasterTab('physicalStock'); setView('stockMaster'); }} /> : null}
+              {view === 'physicalStock' ? <PhysicalStockView initialMode="form" onCreated={() => setView('physicalStockMaster')} /> : null}
               {view === 'projectUtilization' ? <ProjectwiseUtilizationView /> : null}
               {view === 'stockSummary' ? <StockSummaryView /> : null}
 		          {view === 'queueApprovePr' ? <ApprovePrQueueView onViewPr={openPrDetail} /> : null}
