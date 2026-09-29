@@ -5,7 +5,7 @@ import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
-import { Package, ArrowLeft, CheckCircle, ListFilter } from 'lucide-react';
+import { Package, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function PhysicalStockFormView({
   onSuccess,
@@ -472,70 +472,6 @@ export default function PhysicalStockFormView({
           </button>
         </div>
       </form>
-
-      {/* Store Inventory Items Quick Reference Sheet */}
-      {selectedStoreId && storeInventoryRows.length > 0 ? (
-        <div className="pt-6 border-t border-border space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
-              <ListFilter size={16} className="text-primary" />
-              <span>Items in Store ({storeInventoryRows.length})</span>
-            </div>
-            <span className="text-xs text-on-surface-variant">Click any item row to select and record stock</span>
-          </div>
-
-          <div className="border border-border rounded-lg overflow-hidden max-h-72 overflow-y-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-surface-hover/80 border-b border-border text-on-surface-variant font-bold sticky top-0 bg-surface">
-                <tr>
-                  <th className="p-2.5">Item Name & Specifications</th>
-                  <th className="p-2.5 text-right">Closing Balance</th>
-                  <th className="p-2.5 text-right">Physical Stock</th>
-                  <th className="p-2.5 text-center">Unit</th>
-                  <th className="p-2.5 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {storeInventoryRows.map((r) => {
-                  const label = formatItemInline(r.itemName, r.specifications, specNameMap, specValueMap);
-                  const isSelected = String(r.itemId) === selectedItemId;
-                  return (
-                    <tr
-                      key={String(r.itemId)}
-                      className={`hover:bg-surface-hover/40 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-primary/10 font-semibold' : ''
-                      }`}
-                      onClick={() => selectItemFromRow(r)}
-                    >
-                      <td className="p-2.5 text-on-surface font-medium">
-                        {r.itemCode ? <span className="font-mono text-primary mr-1">[{r.itemCode}]</span> : null}
-                        {label}
-                      </td>
-                      <td className="p-2.5 text-right font-bold text-primary">{r.balance ?? 0}</td>
-                      <td className="p-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {r.physicalStock != null ? r.physicalStock : '-'}
-                      </td>
-                      <td className="p-2.5 text-center text-on-surface-variant">{r.unit || '-'}</td>
-                      <td className="p-2.5 text-center">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectItemFromRow(r);
-                          }}
-                          className="px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded text-[11px] font-semibold transition-colors"
-                        >
-                          Select
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
