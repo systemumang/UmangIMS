@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchUsers, type Firm, type Store, type Item, type User } from '@/src/lib/masters';
 import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
@@ -15,6 +15,7 @@ export default function PhysicalStockFormView({
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [itemNameMap, setItemNameMap] = useState<Record<string, string>>({});
   const [specNameMap, setSpecNameMap] = useState<Record<string, string>>({});
 
@@ -37,14 +38,28 @@ export default function PhysicalStockFormView({
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications()])
-      .then(([firmData, storeData, itemData, itemNameData, specData]) => {
+    Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications(), fetchUsers()])
+      .then(([firmData, storeData, itemData, itemNameData, specData, userData]) => {
         setFirms(firmData);
         if (firmData.length > 0) {
           setSelectedFirmId(firmData[0].id);
         }
         setStores(storeData);
         setItems(itemData);
+        setUsers(userData);
+
+        try {
+          const raw = sessionStorage.getItem('ims.currentUser');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.name) {
+              const matchedUser = userData.find((u) => u.name === parsed.name || u.id === parsed.id);
+              if (matchedUser) {
+                setTakenBy(matchedUser.name);
+              }
+            }
+          }
+        } catch {}
 
         const inMap: Record<string, string> = {};
         for (const iname of itemNameData) {
@@ -296,14 +311,19 @@ export default function PhysicalStockFormView({
             <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
               Taken By <span className="text-error">*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={takenBy}
               onChange={(e) => setTakenBy(e.target.value)}
-              placeholder="Person who verified stock"
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
               required
-            />
+            >
+              <option value="">Select User</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.name}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Taken On (Timestamp) */}
