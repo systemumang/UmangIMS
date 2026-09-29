@@ -20,12 +20,36 @@ function stripEmbeddedIds(value: string) {
     .trim();
 }
 
-export function formatSpecsLines(specificationsJson?: string, specNameById?: Record<string, string>) {
+export function formatSpecsLines(
+  specificationsJson?: string,
+  specNameById?: Record<string, string>,
+  specValueTextById?: Record<string, string>
+) {
   try {
     const raw = String(specificationsJson ?? '').trim();
     if (!raw || raw === '[]' || raw === '{}') return [];
     const obj = JSON.parse(raw);
-    
+
+    const resolveKey = (rawKey: string) => {
+      const k = String(rawKey ?? '').trim();
+      return (
+        specNameById?.[k] ||
+        specNameById?.[k.toLowerCase()] ||
+        specNameById?.[k.toUpperCase()] ||
+        stripEmbeddedIds(k)
+      );
+    };
+
+    const resolveVal = (rawVal: string) => {
+      const v = String(rawVal ?? '').trim();
+      const resolved =
+        specValueTextById?.[v] ||
+        specValueTextById?.[v.toLowerCase()] ||
+        specValueTextById?.[v.toUpperCase()] ||
+        v;
+      return stripEmbeddedIds(resolved);
+    };
+
     if (Array.isArray(obj)) {
       return obj
         .map((s: any) => {
@@ -38,9 +62,8 @@ export function formatSpecsLines(specificationsJson?: string, specNameById?: Rec
             s?.specificationMasterId ||
             s?.id ||
             '';
-          const rawName = String(rawNameCandidate ?? '').trim();
-          const name = (rawName && specNameById?.[rawName]) || stripEmbeddedIds(rawName);
-          const val = stripEmbeddedIds(s.specificationValue || s.value || '');
+          const name = resolveKey(rawNameCandidate);
+          const val = resolveVal(s.specificationValue || s.value || '');
           const safeKey = isUuidLike(name) ? '' : name;
           const safeValue = isUuidLike(val) ? '' : val;
           if (!safeKey && !safeValue) return '';
@@ -56,9 +79,8 @@ export function formatSpecsLines(specificationsJson?: string, specNameById?: Rec
       const entries = Object.entries(obj);
       return entries
         .map(([k, v]) => {
-          const rawKey = String(k ?? '').trim();
-          const key = specNameById?.[rawKey] ?? stripEmbeddedIds(rawKey);
-          const value = stripEmbeddedIds(String(v ?? '').trim());
+          const key = resolveKey(String(k ?? ''));
+          const value = resolveVal(String(v ?? ''));
           const safeKey = isUuidLike(key) ? '' : key;
           const safeValue = isUuidLike(value) ? '' : value;
           if (!safeKey && !safeValue) return '';
@@ -79,9 +101,14 @@ export function formatSpecsLines(specificationsJson?: string, specNameById?: Rec
   }
 }
 
-export function formatItemInline(itemName: string, specificationsJson?: string, specNameById?: Record<string, string>) {
+export function formatItemInline(
+  itemName: string,
+  specificationsJson?: string,
+  specNameById?: Record<string, string>,
+  specValueTextById?: Record<string, string>
+) {
   const base = String(itemName ?? '').trim();
-  const specs = formatSpecsLines(specificationsJson, specNameById);
+  const specs = formatSpecsLines(specificationsJson, specNameById, specValueTextById);
   return [base, ...specs]
     .map((s) => String(s ?? '').trim())
     .filter(Boolean)

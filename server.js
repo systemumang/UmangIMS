@@ -13250,8 +13250,17 @@ app.get('/api/masters/specification-values', async (req, res) => {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
     const specificationId = String(req.query.specificationId ?? '').trim();
-    if (!specificationId) return res.status(400).json({ error: 'specificationId is required' });
     const itemNameId = String(req.query.itemNameId ?? '').trim();
+    const where = ['1=1'];
+    const params = [];
+    if (specificationId) {
+      where.push('sv.specification_id = ?');
+      params.push(specificationId);
+    }
+    if (itemNameId) {
+      where.push('(sv.item_name_id = ? OR sv.item_name_id IS NULL)');
+      params.push(itemNameId);
+    }
     const [rows] = await pool.query(
       `
       SELECT
@@ -13260,26 +13269,17 @@ app.get('/api/masters/specification-values', async (req, res) => {
         sv.item_name_id AS itemNameId,
         iname.name AS itemName,
         sv.value,
-        sv.is_active AS isActive,
-        (
-          SELECT COUNT(*)
-          FROM items it
-          WHERE JSON_VALID(it.specifications_json)
-            AND JSON_UNQUOTE(JSON_EXTRACT(it.specifications_json, CONCAT('$.', sv.specification_id))) = sv.value
-        ) AS usageCount
+        sv.is_active AS isActive
       FROM specification_values sv
       LEFT JOIN item_names iname ON iname.id = sv.item_name_id
-      WHERE sv.specification_id=?
-        ${itemNameId ? 'AND (sv.item_name_id = ? OR sv.item_name_id IS NULL)' : ''}
+      WHERE ${where.join(' AND ')}
       ORDER BY sv.value
       `,
-      itemNameId ? [specificationId, itemNameId] : [specificationId]
+      params
     );
     const specificationValues = (rows || []).map((r) => ({
       ...r,
       isActive: Boolean(r.isActive),
-      usageCount: Number(r.usageCount ?? 0),
-      isUsed: Number(r.usageCount ?? 0) > 0,
     }));
     res.json({ specificationValues });
   } catch (e) {

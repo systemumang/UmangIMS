@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchUsers, type Firm, type Store, type Item, type User } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchSpecificationValues, fetchUsers, type Firm, type Store, type Item, type User } from '@/src/lib/masters';
 import { fetchInventorySheet, type InventorySheetRow } from '@/src/lib/inventory';
 import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -20,6 +20,7 @@ export default function PhysicalStockFormView({
   const [users, setUsers] = useState<User[]>([]);
   const [itemNameMap, setItemNameMap] = useState<Record<string, string>>({});
   const [specNameMap, setSpecNameMap] = useState<Record<string, string>>({});
+  const [specValueMap, setSpecValueMap] = useState<Record<string, string>>({});
 
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -43,8 +44,8 @@ export default function PhysicalStockFormView({
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications(), fetchUsers()])
-      .then(([firmData, storeData, itemData, itemNameData, specData, userData]) => {
+    Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications(), fetchSpecificationValues(), fetchUsers()])
+      .then(([firmData, storeData, itemData, itemNameData, specData, specValData, userData]) => {
         setFirms(firmData);
         if (firmData.length > 0) {
           setSelectedFirmId(firmData[0].id);
@@ -77,6 +78,13 @@ export default function PhysicalStockFormView({
           spMap[spec.id] = spec.name;
         }
         setSpecNameMap(spMap);
+
+        const svMap: Record<string, string> = {};
+        for (const sv of specValData) {
+          svMap[sv.id] = sv.value;
+          svMap[sv.id.toLowerCase()] = sv.value;
+        }
+        setSpecValueMap(svMap);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load initial data.'))
       .finally(() => setLoading(false));
@@ -128,7 +136,7 @@ export default function PhysicalStockFormView({
 
     // 1. First populate from Store Inventory Rows
     for (const r of storeInventoryRows) {
-      const fullLabel = formatItemInline(r.itemName, r.specifications, specNameMap);
+      const fullLabel = formatItemInline(r.itemName, r.specifications, specNameMap, specValueMap);
       optionsMap.set(String(r.itemId), {
         value: String(r.itemId),
         label: fullLabel,
@@ -139,7 +147,7 @@ export default function PhysicalStockFormView({
     for (const item of items) {
       if (!optionsMap.has(item.id)) {
         const nameStr = itemNameMap[item.itemNameId] || 'Unknown Item';
-        const fullLabel = formatItemInline(nameStr, item.specificationsJson, specNameMap);
+        const fullLabel = formatItemInline(nameStr, item.specificationsJson, specNameMap, specValueMap);
         optionsMap.set(item.id, {
           value: item.id,
           label: fullLabel,
@@ -148,7 +156,7 @@ export default function PhysicalStockFormView({
     }
 
     return Array.from(optionsMap.values());
-  }, [storeInventoryRows, items, itemNameMap, specNameMap]);
+  }, [storeInventoryRows, items, itemNameMap, specNameMap, specValueMap]);
 
   // Find selected item details from master or inventory sheet
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
@@ -156,14 +164,14 @@ export default function PhysicalStockFormView({
 
   const formattedSelectedItemLabel = useMemo(() => {
     if (selectedInventoryRow) {
-      return formatItemInline(selectedInventoryRow.itemName, selectedInventoryRow.specifications, specNameMap);
+      return formatItemInline(selectedInventoryRow.itemName, selectedInventoryRow.specifications, specNameMap, specValueMap);
     }
     if (selectedItemObj) {
       const nameStr = itemNameMap[selectedItemObj.itemNameId] || 'Unknown Item';
-      return formatItemInline(nameStr, selectedItemObj.specificationsJson, specNameMap);
+      return formatItemInline(nameStr, selectedItemObj.specificationsJson, specNameMap, specValueMap);
     }
     return '';
-  }, [selectedInventoryRow, selectedItemObj, itemNameMap, specNameMap]);
+  }, [selectedInventoryRow, selectedItemObj, itemNameMap, specNameMap, specValueMap]);
 
   const selectItemFromRow = (row: InventorySheetRow) => {
     setSelectedItemId(String(row.itemId));
@@ -489,7 +497,7 @@ export default function PhysicalStockFormView({
               </thead>
               <tbody className="divide-y divide-border/60">
                 {storeInventoryRows.map((r) => {
-                  const label = formatItemInline(r.itemName, r.specifications, specNameMap);
+                  const label = formatItemInline(r.itemName, r.specifications, specNameMap, specValueMap);
                   const isSelected = String(r.itemId) === selectedItemId;
                   return (
                     <tr

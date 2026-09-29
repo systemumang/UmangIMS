@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Save, ArrowUpDown } from 'lucide-react';
-import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, type Firm, type Store, type Item } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchSpecificationValues, type Firm, type Store, type Item } from '@/src/lib/masters';
 import { fetchInventorySheet, fetchOpeningBalances, saveOpeningBalances, type InventorySheetRow } from '@/src/lib/inventory';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import Spinner from '@/src/components/common/Spinner';
@@ -27,6 +27,7 @@ export default function InventoryView() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [specNameById, setSpecNameById] = useState<Record<string, string>>({});
+  const [specValueById, setSpecValueById] = useState<Record<string, string>>({});
   const [goodsItemIds, setGoodsItemIds] = useState<Set<string>>(new Set());
   const [itemMetaById, setItemMetaById] = useState<Record<string, { itemNameId: string; category: string }>>({});
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
@@ -78,9 +79,15 @@ export default function InventoryView() {
         setGoodsItemIds(new Set());
         setItemMetaById({});
       });
-    fetchSpecifications()
-      .then((list) => setSpecNameById(Object.fromEntries(list.map((s) => [s.id, s.name]))))
-      .catch(() => setSpecNameById({}));
+    Promise.all([fetchSpecifications(), fetchSpecificationValues()])
+      .then(([specList, specValList]) => {
+        setSpecNameById(Object.fromEntries(specList.map((s) => [s.id, s.name])));
+        setSpecValueById(Object.fromEntries(specValList.map((sv) => [sv.id, sv.value])));
+      })
+      .catch(() => {
+        setSpecNameById({});
+        setSpecValueById({});
+      });
   }, []);
 
   useEffect(() => {
@@ -154,7 +161,7 @@ export default function InventoryView() {
 
   const selectedStoreName = stores.find((s) => s.id === selectedStoreFilterId)?.name ?? '';
   const filteredRows = adjustedRows.filter((r) => {
-    const fullLabel = getFullSheetItemLabel(r, specNameById).toLowerCase();
+    const fullLabel = getFullSheetItemLabel(r, specNameById, specValueById).toLowerCase();
     const firmLabel = getFirmLabel(r).toLowerCase();
     const storeLabel = getStoreLabel(r).toLowerCase();
     const meta = itemMetaById[String(r.itemId ?? '')] ?? { itemNameId: '', category: '' };
@@ -185,7 +192,7 @@ export default function InventoryView() {
     const strCmp = (x: string, y: string) => x.localeCompare(y);
     switch (sortBy) {
       case 'itemName':
-        return dir * strCmp(getFullSheetItemLabel(a, specNameById), getFullSheetItemLabel(b, specNameById));
+        return dir * strCmp(getFullSheetItemLabel(a, specNameById, specValueById), getFullSheetItemLabel(b, specNameById, specValueById));
       case 'firm':
         return dir * strCmp(getFirmLabel(a), getFirmLabel(b));
       case 'store':
@@ -224,10 +231,10 @@ export default function InventoryView() {
     const map = new Map<string, string>();
     for (const r of adjustedRows) {
       const meta = itemMetaById[String(r.itemId ?? '')];
-      if (meta?.itemNameId) map.set(meta.itemNameId, String(r.itemName ?? '').trim() || getFullSheetItemLabel(r, specNameById));
+      if (meta?.itemNameId) map.set(meta.itemNameId, String(r.itemName ?? '').trim() || getFullSheetItemLabel(r, specNameById, specValueById));
     }
     return Array.from(map, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
-  }, [adjustedRows, itemMetaById, specNameById]);
+  }, [adjustedRows, itemMetaById, specNameById, specValueById]);
   const categoryOptions = useMemo(() => {
     const set = new Set(Object.values(itemMetaById).map((m) => m.category).filter(Boolean));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -303,7 +310,7 @@ export default function InventoryView() {
 	    for (const r of sortedRows) {
 	      lines.push(
 		        [
-		          getFullSheetItemLabel(r, specNameById),
+		          getFullSheetItemLabel(r, specNameById, specValueById),
 		          getFirmLabel(r),
 		          getStoreLabel(r),
 		          Number(r.opening ?? 0),
@@ -367,7 +374,7 @@ export default function InventoryView() {
 	              ${sortedRows
 	                .map((r) => {
 		                  const cols = [
-		                    `<td>${String(getFullSheetItemLabel(r, specNameById)).replace(/</g, '&lt;')}</td>`,
+		                    `<td>${String(getFullSheetItemLabel(r, specNameById, specValueById)).replace(/</g, '&lt;')}</td>`,
 		                    `<td>${String(getFirmLabel(r)).replace(/</g, '&lt;')}</td>`,
 		                    `<td>${String(getStoreLabel(r)).replace(/</g, '&lt;')}</td>`,
 		                    `<td class="num">${Number(r.opening ?? 0)}</td>`,
@@ -615,9 +622,9 @@ export default function InventoryView() {
 			                    >
 	                      <td
 	                        className="p-3 border-r border-black text-on-surface font-semibold whitespace-normal break-words"
-	                        title={getFullSheetItemLabel(r, specNameById)}
+	                        title={getFullSheetItemLabel(r, specNameById, specValueById)}
 	                      >
-		                        {getFullSheetItemLabel(r, specNameById)}
+		                        {getFullSheetItemLabel(r, specNameById, specValueById)}
 		                      </td>
 	                      <td className="p-3 border-r border-black text-on-surface-variant">{getFirmLabel(r)}</td>
 	                      <td className="p-3 border-r border-black text-on-surface-variant">{getStoreLabel(r)}</td>
@@ -647,7 +654,7 @@ export default function InventoryView() {
 	                                    className="text-primary underline text-xs"
 	                                    onClick={() =>
 	                                      setPhotoModal({
-	                                        title: getFullSheetItemLabel(r, specNameById),
+	                                        title: getFullSheetItemLabel(r, specNameById, specValueById),
 	                                        photos,
 	                                      })
 	                                    }
@@ -902,8 +909,12 @@ function getFullItemLabel(item: Item, specNameById?: Record<string, string>) {
   return formatItemInline(item.itemName, item.specificationsJson, specNameById);
 }
 
-function getFullSheetItemLabel(row: InventorySheetRow, specNameById?: Record<string, string>) {
-  return formatItemInline(row.itemName, row.specifications, specNameById);
+function getFullSheetItemLabel(
+  row: InventorySheetRow,
+  specNameById?: Record<string, string>,
+  specValueById?: Record<string, string>
+) {
+  return formatItemInline(row.itemName, row.specifications, specNameById, specValueById);
 }
 
 function getStoreLabel(row: InventorySheetRow) {

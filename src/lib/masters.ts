@@ -903,12 +903,13 @@ export async function deleteSpecification(id: string, input?: { deletedBy?: stri
 }
 
 export async function fetchSpecificationValues(
-  specificationId: string,
+  specificationId?: string,
   arg?: AbortSignal | { signal?: AbortSignal; itemNameId?: string }
 ): Promise<SpecificationValue[]> {
   const signal = (arg as any)?.aborted !== undefined ? (arg as AbortSignal) : (arg as any)?.signal;
   const itemNameId = (arg as any)?.itemNameId ? String((arg as any).itemNameId) : '';
-  const qs = new URLSearchParams({ specificationId: String(specificationId) });
+  const qs = new URLSearchParams();
+  if (specificationId) qs.set('specificationId', String(specificationId));
   if (itemNameId) qs.set('itemNameId', itemNameId);
   const res = await fetch(`/api/masters/specification-values?${qs.toString()}`, { signal });
   const data = await requireOk<{ specificationValues?: SpecificationValue[] }>(res, 'Failed to load specification values');
