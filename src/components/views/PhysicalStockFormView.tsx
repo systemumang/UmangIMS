@@ -129,12 +129,9 @@ export default function PhysicalStockFormView({
     // 1. First populate from Store Inventory Rows
     for (const r of storeInventoryRows) {
       const fullLabel = formatItemInline(r.itemName, r.specifications, specNameMap);
-      const codeStr = r.itemCode ? `[${r.itemCode}] ` : '';
-      const unitStr = r.unit ? ` (${r.unit})` : '';
-      const balanceStr = ` - Closing Balance: ${r.balance ?? 0}`;
       optionsMap.set(String(r.itemId), {
         value: String(r.itemId),
-        label: `${codeStr}${fullLabel}${unitStr}${balanceStr}`,
+        label: fullLabel,
       });
     }
 
@@ -143,11 +140,9 @@ export default function PhysicalStockFormView({
       if (!optionsMap.has(item.id)) {
         const nameStr = itemNameMap[item.itemNameId] || 'Unknown Item';
         const fullLabel = formatItemInline(nameStr, item.specificationsJson, specNameMap);
-        const codeStr = item.itemCode ? `[${item.itemCode}] ` : '';
-        const unitStr = item.unit ? ` (${item.unit})` : '';
         optionsMap.set(item.id, {
           value: item.id,
-          label: `${codeStr}${fullLabel}${unitStr}`,
+          label: fullLabel,
         });
       }
     }
