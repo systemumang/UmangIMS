@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Trash2, ArrowUpDown, RefreshCw, Calendar } from 'lucide-react';
-import { fetchFirms, fetchStores, type Firm, type Store } from '@/src/lib/masters';
+import { fetchFirms, fetchStores, fetchSpecifications, fetchSpecificationValues, type Firm, type Store } from '@/src/lib/masters';
 import { fetchPhysicalStockMaster, deletePhysicalStockEntry, type PhysicalStockRecord } from '@/src/lib/physicalStock';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import Spinner from '@/src/components/common/Spinner';
 
 export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void } = {}) {
   const [records, setRecords] = useState<PhysicalStockRecord[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [specNameMap, setSpecNameMap] = useState<Record<string, string>>({});
+  const [specValueMap, setSpecValueMap] = useState<Record<string, string>>({});
 
   const [search, setSearch] = useState('');
   const [selectedFirmId, setSelectedFirmId] = useState('');
@@ -41,10 +44,12 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
   };
 
   useEffect(() => {
-    Promise.all([fetchFirms(), fetchStores()])
-      .then(([firmList, storeList]) => {
+    Promise.all([fetchFirms(), fetchStores(), fetchSpecifications(), fetchSpecificationValues()])
+      .then(([firmList, storeList, specList, specValList]) => {
         setFirms(firmList);
         setStores(storeList);
+        setSpecNameMap(Object.fromEntries(specList.map((s) => [s.id, s.name])));
+        setSpecValueMap(Object.fromEntries(specValList.map((sv) => [sv.id, sv.value])));
       })
       .catch(() => {});
   }, []);
@@ -65,6 +70,7 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
 
       const code = (r.itemCode || '').toLowerCase();
       const name = (r.itemName || '').toLowerCase();
+      const fullItem = formatItemInline(r.itemName || '', r.specificationsJson, specNameMap, specValueMap).toLowerCase();
       const firm = (r.firmSortName || r.firmName || '').toLowerCase();
       const store = (r.storeName || '').toLowerCase();
       const person = (r.takenBy || '').toLowerCase();
@@ -73,13 +79,14 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
       return (
         code.includes(q) ||
         name.includes(q) ||
+        fullItem.includes(q) ||
         firm.includes(q) ||
         store.includes(q) ||
         person.includes(q) ||
         remark.includes(q)
       );
     });
-  }, [records, search]);
+  }, [records, search, specNameMap, specValueMap]);
 
   const sortedRecords = useMemo(() => {
     return [...filteredRecords].sort((a, b) => {
@@ -310,7 +317,6 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
-                  <th className="p-3">Specifications</th>
                   <th
                     className="p-3 text-right cursor-pointer select-none hover:text-on-surface"
                     onClick={() => onSort('physicalStock')}
@@ -346,10 +352,7 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
                     <td className="p-3 text-on-surface">{row.storeName || '-'}</td>
                     <td className="p-3 text-on-surface font-medium">
                       {row.itemCode ? <span className="font-mono text-xs text-primary mr-1">[{row.itemCode}]</span> : null}
-                      {row.itemName || '-'}
-                    </td>
-                    <td className="p-3 text-on-surface-variant max-w-xs truncate" title={parseSpecs(row.specificationsJson)}>
-                      {parseSpecs(row.specificationsJson) || '-'}
+                      {formatItemInline(row.itemName || '', row.specificationsJson, specNameMap, specValueMap)}
                     </td>
                     <td className="p-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
                       {Number(row.physicalStock).toLocaleString('en-IN', { maximumFractionDigits: 4 })}
