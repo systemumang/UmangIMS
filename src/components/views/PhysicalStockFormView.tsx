@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchUsers, type Firm, type Store, type Item, type User } from '@/src/lib/masters';
+import { fetchInventorySheet, type InventorySheetRow } from '@/src/lib/inventory';
 import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
+import { formatItemInline } from '@/src/lib/itemLabel';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
-import { Package, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Package, ArrowLeft, CheckCircle, ListFilter } from 'lucide-react';
 
 export default function PhysicalStockFormView({
   onSuccess,
@@ -21,6 +23,9 @@ export default function PhysicalStockFormView({
 
   const [selectedFirmId, setSelectedFirmId] = useState<string>('');
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [inventoryRows, setInventoryRows] = useState<InventorySheetRow[]>([]);
+  const [loadingInventory, setLoadingInventory] = useState<boolean>(false);
+
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [physicalStock, setPhysicalStock] = useState<string>('');
   const [takenBy, setTakenBy] = useState<string>('');
@@ -89,29 +94,90 @@ export default function PhysicalStockFormView({
     }
   }, [selectedFirmId, stores]);
 
-  const selectedItemObj = items.find((i) => i.id === selectedItemId);
-
-  const getItemLabel = (item: Item) => {
-    const code = item.itemCode ? `[${item.itemCode}] ` : '';
-    const name = itemNameMap[item.itemNameId] || 'Unknown Item';
-    let specStr = '';
-    if (item.specificationsJson) {
-      try {
-        const parsed = JSON.parse(item.specificationsJson);
-        if (typeof parsed === 'object' && parsed !== null) {
-          specStr = Object.entries(parsed)
-            .map(([k, v]) => `${specNameMap[k] || k}: ${v}`)
-            .join(' | ');
-        }
-      } catch {}
+  // Load Inventory Sheet rows whenever selectedFirmId changes
+  useEffect(() => {
+    if (!selectedFirmId) {
+      setInventoryRows([]);
+      return;
     }
-    return `${code}${name}${specStr ? ` (${specStr})` : ''} - Unit: ${item.unit || 'Pcs'}`;
-  };
+    setLoadingInventory(true);
+    fetchInventorySheet(selectedFirmId, undefined, undefined, { includeEmpty: true })
+      .then((rows) => setInventoryRows(rows))
+      .catch(() => setInventoryRows([]))
+      .finally(() => setLoadingInventory(false));
+  }, [selectedFirmId]);
 
-  const itemOptions = items.map((item) => ({
-    value: item.id,
-    label: getItemLabel(item),
-  }));
+  // Selected Store Name
+  const selectedStoreObj = stores.find((s) => s.id === selectedStoreId);
+  const selectedStoreName = selectedStoreObj?.name ?? '';
+
+  // Filter inventory rows for current store
+  const storeInventoryRows = useMemo(() => {
+    if (!selectedStoreId || !selectedStoreName) return inventoryRows;
+    const targetStore = selectedStoreName.toLowerCase();
+    return inventoryRows.filter((r) => {
+      const rowStore = String(r.storeName || r.store || '').toLowerCase();
+      if (!rowStore) return true;
+      return rowStore.split(',').map((s) => s.trim()).includes(targetStore);
+    });
+  }, [inventoryRows, selectedStoreId, selectedStoreName]);
+
+  // Build Item Options formatted exactly like Inventory View ("Item Name - Spec1: Val1 - Spec2: Val2")
+  const itemOptions = useMemo(() => {
+    const optionsMap = new Map<string, { value: string; label: string }>();
+
+    // 1. First populate from Store Inventory Rows
+    for (const r of storeInventoryRows) {
+      const fullLabel = formatItemInline(r.itemName, r.specifications, specNameMap);
+      const codeStr = r.itemCode ? `[${r.itemCode}] ` : '';
+      const unitStr = r.unit ? ` (${r.unit})` : '';
+      const balanceStr = ` - Closing Balance: ${r.balance ?? 0}`;
+      optionsMap.set(String(r.itemId), {
+        value: String(r.itemId),
+        label: `${codeStr}${fullLabel}${unitStr}${balanceStr}`,
+      });
+    }
+
+    // 2. Fall back / append remaining master items
+    for (const item of items) {
+      if (!optionsMap.has(item.id)) {
+        const nameStr = itemNameMap[item.itemNameId] || 'Unknown Item';
+        const fullLabel = formatItemInline(nameStr, item.specificationsJson, specNameMap);
+        const codeStr = item.itemCode ? `[${item.itemCode}] ` : '';
+        const unitStr = item.unit ? ` (${item.unit})` : '';
+        optionsMap.set(item.id, {
+          value: item.id,
+          label: `${codeStr}${fullLabel}${unitStr}`,
+        });
+      }
+    }
+
+    return Array.from(optionsMap.values());
+  }, [storeInventoryRows, items, itemNameMap, specNameMap]);
+
+  // Find selected item details from master or inventory sheet
+  const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  const selectedInventoryRow = storeInventoryRows.find((r) => String(r.itemId) === selectedItemId);
+
+  const formattedSelectedItemLabel = useMemo(() => {
+    if (selectedInventoryRow) {
+      return formatItemInline(selectedInventoryRow.itemName, selectedInventoryRow.specifications, specNameMap);
+    }
+    if (selectedItemObj) {
+      const nameStr = itemNameMap[selectedItemObj.itemNameId] || 'Unknown Item';
+      return formatItemInline(nameStr, selectedItemObj.specificationsJson, specNameMap);
+    }
+    return '';
+  }, [selectedInventoryRow, selectedItemObj, itemNameMap, specNameMap]);
+
+  const selectItemFromRow = (row: InventorySheetRow) => {
+    setSelectedItemId(String(row.itemId));
+    if (row.physicalStock != null) {
+      setPhysicalStock(String(row.physicalStock));
+    } else {
+      setPhysicalStock('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,8 +238,8 @@ export default function PhysicalStockFormView({
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-surface-card rounded-xl border border-border shadow-sm">
-      <div className="flex items-center justify-between pb-4 mb-6 border-b border-border">
+    <div className="max-w-5xl mx-auto p-6 bg-surface-card rounded-xl border border-border shadow-sm space-y-6">
+      <div className="flex items-center justify-between pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg text-primary">
             <Package size={22} />
@@ -196,13 +262,13 @@ export default function PhysicalStockFormView({
       </div>
 
       {error ? (
-        <div className="mb-6 p-4 bg-error/10 border border-error/30 text-error rounded-lg text-sm">
+        <div className="p-4 bg-error/10 border border-error/30 text-error rounded-lg text-sm">
           {error}
         </div>
       ) : null}
 
       {successMsg ? (
-        <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm flex items-center gap-2">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm flex items-center gap-2">
           <CheckCircle size={18} />
           {successMsg}
         </div>
@@ -253,30 +319,57 @@ export default function PhysicalStockFormView({
 
         {/* Item Selection */}
         <div>
-          <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
-            Select Item <span className="text-error">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+              Select Item <span className="text-error">*</span>
+            </label>
+            {loadingInventory ? (
+              <span className="text-xs text-primary flex items-center gap-1">
+                <Spinner size="sm" /> Loading Store Items...
+              </span>
+            ) : null}
+          </div>
           <SearchableSelect
             options={itemOptions}
             value={selectedItemId}
-            onChange={(val) => setSelectedItemId(val)}
-            placeholder="Search by Item Code, Name, or Specification..."
+            onChange={(val) => {
+              setSelectedItemId(val);
+              const inv = storeInventoryRows.find((r) => String(r.itemId) === val);
+              if (inv && inv.physicalStock != null) {
+                setPhysicalStock(String(inv.physicalStock));
+              }
+            }}
+            placeholder="Search by Item Name, Specification, or Item Code..."
           />
         </div>
 
-        {selectedItemObj ? (
-          <div className="p-3 bg-surface border border-border/60 rounded-lg text-xs space-y-1">
-            <div>
-              <span className="font-semibold text-on-surface-variant">Item Code:</span>{' '}
-              <span className="text-on-surface font-mono">{selectedItemObj.itemCode || '-'}</span>
+        {/* Item Summary Card */}
+        {selectedItemObj || selectedInventoryRow ? (
+          <div className="p-4 bg-surface border border-border rounded-xl space-y-2 text-xs">
+            <div className="font-bold text-sm text-on-surface text-primary">
+              {formattedSelectedItemLabel || selectedInventoryRow?.itemName || 'Item Details'}
             </div>
-            <div>
-              <span className="font-semibold text-on-surface-variant">Item Name:</span>{' '}
-              <span className="text-on-surface font-medium">{itemNameMap[selectedItemObj.itemNameId] || '-'}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-on-surface-variant">Unit:</span>{' '}
-              <span className="text-on-surface">{selectedItemObj.unit || '-'}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1 border-t border-border/60">
+              <div>
+                <span className="text-on-surface-variant font-medium block">Item Code:</span>
+                <span className="font-mono text-on-surface">{selectedInventoryRow?.itemCode || selectedItemObj?.itemCode || '-'}</span>
+              </div>
+              <div>
+                <span className="text-on-surface-variant font-medium block">Unit:</span>
+                <span className="text-on-surface">{selectedInventoryRow?.unit || selectedItemObj?.unit || 'Pcs'}</span>
+              </div>
+              <div>
+                <span className="text-on-surface-variant font-medium block">System Closing Balance:</span>
+                <span className="font-bold text-primary text-sm">
+                  {selectedInventoryRow?.balance ?? 0} {selectedInventoryRow?.unit || selectedItemObj?.unit || ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-on-surface-variant font-medium block">Last Physical Stock:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                  {selectedInventoryRow?.physicalStock != null ? `${selectedInventoryRow.physicalStock}` : 'Not recorded'}
+                </span>
+              </div>
             </div>
           </div>
         ) : null}
@@ -298,9 +391,9 @@ export default function PhysicalStockFormView({
                 className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
-              {selectedItemObj?.unit ? (
+              {selectedInventoryRow?.unit || selectedItemObj?.unit ? (
                 <span className="absolute right-3 top-2.5 text-xs text-on-surface-variant font-medium pointer-events-none">
-                  {selectedItemObj.unit}
+                  {selectedInventoryRow?.unit || selectedItemObj?.unit}
                 </span>
               ) : null}
             </div>
@@ -376,6 +469,70 @@ export default function PhysicalStockFormView({
           </button>
         </div>
       </form>
+
+      {/* Store Inventory Items Quick Reference Sheet */}
+      {selectedStoreId && storeInventoryRows.length > 0 ? (
+        <div className="pt-6 border-t border-border space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
+              <ListFilter size={16} className="text-primary" />
+              <span>Items in Store ({storeInventoryRows.length})</span>
+            </div>
+            <span className="text-xs text-on-surface-variant">Click any item row to select and record stock</span>
+          </div>
+
+          <div className="border border-border rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-surface-hover/80 border-b border-border text-on-surface-variant font-bold sticky top-0 bg-surface">
+                <tr>
+                  <th className="p-2.5">Item Name & Specifications</th>
+                  <th className="p-2.5 text-right">Closing Balance</th>
+                  <th className="p-2.5 text-right">Physical Stock</th>
+                  <th className="p-2.5 text-center">Unit</th>
+                  <th className="p-2.5 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {storeInventoryRows.map((r) => {
+                  const label = formatItemInline(r.itemName, r.specifications, specNameMap);
+                  const isSelected = String(r.itemId) === selectedItemId;
+                  return (
+                    <tr
+                      key={String(r.itemId)}
+                      className={`hover:bg-surface-hover/40 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-primary/10 font-semibold' : ''
+                      }`}
+                      onClick={() => selectItemFromRow(r)}
+                    >
+                      <td className="p-2.5 text-on-surface font-medium">
+                        {r.itemCode ? <span className="font-mono text-primary mr-1">[{r.itemCode}]</span> : null}
+                        {label}
+                      </td>
+                      <td className="p-2.5 text-right font-bold text-primary">{r.balance ?? 0}</td>
+                      <td className="p-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {r.physicalStock != null ? r.physicalStock : '-'}
+                      </td>
+                      <td className="p-2.5 text-center text-on-surface-variant">{r.unit || '-'}</td>
+                      <td className="p-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectItemFromRow(r);
+                          }}
+                          className="px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded text-[11px] font-semibold transition-colors"
+                        >
+                          Select
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
