@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, ClipboardList, BookOpen } from 'lucide-react';
 import { type PendingQueueKey, pendingQueueItems } from '../Sidebar';
 
-type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer';
+type StockMasterTab = 'itemIssue' | 'return' | 'damage' | 'transfer' | 'physicalStock';
 
 export default function DashboardView({
   onNewPurchaseRequest,
@@ -112,6 +112,15 @@ export default function DashboardView({
           >
             <Plus size={16} />
             Transfer
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm shadow-sm transition-colors bg-gradient-to-br from-primary to-primary-dim text-on-primary"
+            onClick={() => onNavigateStockMasterTab('physicalStock')}
+          >
+            <Plus size={16} />
+            Physical Stock
           </button>
         </div>
       </div>

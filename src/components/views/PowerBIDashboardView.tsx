@@ -100,7 +100,7 @@ export default function PowerBIDashboardView({
   onNavigatePendingQueue: (key: PendingQueueKey) => void;
   onNewPurchaseRequest: () => void;
   onDirectPo: () => void;
-  onNavigateStock: (view: 'inventory' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster') => void;
+  onNavigateStock: (view: 'inventory' | 'issueMaster' | 'returnMaster' | 'damageMaster' | 'transferMaster' | 'physicalStock' | 'physicalStockMaster') => void;
 }) {
   const [pendingCounts, setPendingCounts] = useState<Record<PendingQueueKey, number>>(() => ({} as any));
   const [pendingLoading, setPendingLoading] = useState(true);
@@ -339,6 +339,10 @@ export default function PowerBIDashboardView({
 				            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('transferMaster')}>
 				              <Boxes size={14} />
 				              Transfer
+				            </button>
+				            <button type="button" className="btn btn-sm whitespace-nowrap border-2 border-[#111827] hover:border-[#0f172a]" onClick={() => onNavigateStock('physicalStock')}>
+				              <ClipboardCheck size={14} />
+				              Physical Stock
 				            </button>
 		          </div>
 		        </div>
