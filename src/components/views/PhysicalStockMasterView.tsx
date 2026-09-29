@@ -351,7 +351,6 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
                     </td>
                     <td className="p-3 text-on-surface">{row.storeName || '-'}</td>
                     <td className="p-3 text-on-surface font-medium">
-                      {row.itemCode ? <span className="font-mono text-xs text-primary mr-1">[{row.itemCode}]</span> : null}
                       {formatItemInline(row.itemName || '', row.specificationsJson, specNameMap, specValueMap)}
                     </td>
                     <td className="p-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
