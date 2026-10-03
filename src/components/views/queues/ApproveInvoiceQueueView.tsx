@@ -280,7 +280,7 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
               />
               <div className="text-xs text-on-surface-variant truncate min-w-0">{signedBillFileName || 'No file chosen'}</div>
             </div>
-            <div className={cn('text-xs', signedBillUrl ? 'text-on-surface' : 'text-error')}>{signedBillUrl ? 'Uploaded — ready to approve' : 'Required before approval'}</div>
+            {signedBillUrl ? <div className="text-xs text-on-surface">Uploaded — ready to approve</div> : null}
           </label>
           <div className="mt-4 rounded-lg border border-outline-variant p-3 bg-surface-container-low">
             <div className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Invoice Details</div>
