@@ -6,6 +6,7 @@ import { formatPoNumber } from '@/src/lib/docNumbers';
 import { formatItemInline } from '@/src/lib/itemLabel';
 import { fetchSpecifications, type Specification } from '@/src/lib/masters';
 import { cn } from '@/src/lib/utils';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import { ExportCsvButton, LoadingCard, Modal, QueueCard, QueueFiltersBar, useQueueMasters } from './shared';
 
 export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId: string) => void }) {
@@ -51,6 +52,9 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
   const [detailLoading, setDetailLoading] = useState(false);
   const [approvedBy, setApprovedBy] = useState('');
   const [approveDate, setApproveDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [signedBillUrl, setSignedBillUrl] = useState('');
+  const [signedBillFileName, setSignedBillFileName] = useState('');
+  const [uploadingSignedBill, setUploadingSignedBill] = useState(false);
 
   const specNameById = useMemo(() => Object.fromEntries(specs.map((s) => [s.id, s.name])), [specs]);
 
@@ -63,6 +67,9 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
     setDetailLoading(false);
     setApprovedBy('');
     setApproveDate(new Date().toISOString().slice(0, 10));
+    setSignedBillUrl('');
+    setSignedBillFileName('');
+    setUploadingSignedBill(false);
   }
 
   useEffect(() => {
@@ -198,21 +205,21 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={saving || !active || !approvedBy.trim() || !approveDate}
+              disabled={saving || uploadingSignedBill || !active || !approvedBy.trim() || !approveDate || !signedBillUrl}
               onClick={() => {
                 if (!active) return;
                 setSaving(true);
                 setModalError(null);
                 const selectedUser = masters.users.find((u) => u.id === approvedBy);
                 const approvedByName = String(selectedUser?.name ?? '').trim();
-                updateQueueApproveInvoice(active.invoiceId, { approvedBy: approvedByName, approveDate })
+                updateQueueApproveInvoice(active.invoiceId, { approvedBy: approvedByName, approveDate, signedBillUrl })
                   .then(() => fetchQueueApproveInvoice(filters).then(setRows))
                   .then(() => closeModal())
                   .catch((e) => setModalError(e instanceof Error ? e.message : String(e)))
                   .finally(() => setSaving(false));
               }}
             >
-              {saving ? 'Saving...' : 'Approve'}
+              {uploadingSignedBill ? 'Uploading...' : saving ? 'Saving...' : 'Approve & Push'}
             </button>
           </>
         }
@@ -244,6 +251,37 @@ export default function ApproveInvoiceQueueView({ onViewPr }: { onViewPr: (prId:
             />
 	          </label>
 	        </div>
+          <label className="space-y-1">
+            <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Upload Signed Bill <span className="text-error">*</span></div>
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="btn btn-sm cursor-pointer select-none whitespace-nowrap" htmlFor="signed-bill-upload">
+                {uploadingSignedBill ? 'Uploading...' : 'Choose File'}
+              </label>
+              <input
+                id="signed-bill-upload"
+                type="file"
+                accept="application/pdf,image/*"
+                disabled={saving || uploadingSignedBill}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  setUploadingSignedBill(true);
+                  setModalError(null);
+                  uploadFileToServer(file)
+                    .then((result) => {
+                      setSignedBillUrl(result.url);
+                      setSignedBillFileName(result.fileName || file.name);
+                    })
+                    .catch((err) => setModalError(err instanceof Error ? err.message : String(err)))
+                    .finally(() => setUploadingSignedBill(false));
+                }}
+              />
+              <div className="text-xs text-on-surface-variant truncate min-w-0">{signedBillFileName || 'No file chosen'}</div>
+            </div>
+            <div className={cn('text-xs', signedBillUrl ? 'text-on-surface' : 'text-error')}>{signedBillUrl ? 'Uploaded — ready to approve' : 'Required before approval'}</div>
+          </label>
           <div className="mt-4 rounded-lg border border-outline-variant p-3 bg-surface-container-low">
             <div className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Invoice Details</div>
             {detailLoading ? (

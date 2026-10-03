@@ -283,7 +283,7 @@ export async function fetchQueueApproveInvoice(filters?: QueueFilters, signal?: 
 
 export async function updateQueueApproveInvoice(
   invoiceId: string,
-  input: { approvedBy: string; approveDate: string }
+  input: { approvedBy: string; approveDate: string; signedBillUrl: string }
 ): Promise<{ ok?: boolean }> {
   const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/approve-entry`, {
     method: 'PUT',

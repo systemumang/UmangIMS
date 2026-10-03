@@ -5358,6 +5358,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
       inv.tally_entry_date AS tallyEntryDate,
       COALESCE(adj.adjustedAmount, 0) AS adjustedAmount,
       inv.document_url AS documentUrl,
+      inv.signed_bill_url AS signedBillUrl,
       inv.cn_copy_url AS cnCopyUrl,
       inv.eway_bill_url AS ewayBillUrl,
       inv.eway_bill_number AS ewayBillNumber,
@@ -5439,6 +5440,7 @@ async function fetchInvoiceHeaderAndItems(pool, invoiceId) {
     adjustedAmount: Number(invRow.adjustedAmount ?? 0),
     tallyEntryDate: toIsoDate(invRow.tallyEntryDate) || undefined,
     documentUrl: invRow.documentUrl != null ? String(invRow.documentUrl) : undefined,
+    signedBillUrl: invRow.signedBillUrl != null ? String(invRow.signedBillUrl) : undefined,
     cnCopyUrl: invRow.cnCopyUrl != null ? String(invRow.cnCopyUrl) : undefined,
     ewayBillUrl: invRow.ewayBillUrl != null ? String(invRow.ewayBillUrl) : undefined,
     ewayBillNumber: invRow.ewayBillNumber != null ? String(invRow.ewayBillNumber) : undefined,
@@ -7097,6 +7099,7 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
         inv.tally_entry_date AS tallyEntryDate,
         inv.status AS status,
         inv.document_url AS documentUrl,
+      inv.signed_bill_url AS signedBillUrl,
         inv.cn_copy_url AS cnCopyUrl,
         inv.eway_bill_number AS ewayBillNumber,
         inv.cn_number AS cnNumber,
@@ -7187,6 +7190,7 @@ app.get('/api/requests/:id/invoices', async (req, res) => {
           paymentMode: r.paymentMode != null ? String(r.paymentMode) : 'Credit',
           tallyEntryDate: toIsoDate(r.tallyEntryDate) || undefined,
           documentUrl: r.documentUrl != null ? String(r.documentUrl) : undefined,
+          signedBillUrl: r.signedBillUrl != null ? String(r.signedBillUrl) : undefined,
           cnCopyUrl: r.cnCopyUrl != null ? String(r.cnCopyUrl) : undefined,
           ewayBillNumber: r.ewayBillNumber != null ? String(r.ewayBillNumber) : undefined,
           cnNumber: r.cnNumber != null ? String(r.cnNumber) : undefined,
@@ -17308,13 +17312,15 @@ app.put('/api/invoices/:id/approve-entry', async (req, res) => {
     if (!invoiceId) return res.status(400).json({ error: 'invoice id is required' });
     const approvedBy = String(req.body?.approvedBy ?? '').trim();
     const approveDate = String(req.body?.approveDate ?? '').trim();
+    const signedBillUrl = String(req.body?.signedBillUrl ?? '').trim();
     if (!approvedBy) return res.status(400).json({ error: 'approvedBy is required' });
     if (!approveDate) return res.status(400).json({ error: 'approveDate is required' });
+    if (!signedBillUrl) return res.status(400).json({ error: 'A signed bill upload is required before approval' });
     await pool.query(
       `UPDATE invoices
-       SET approved_by=?, approved_at=?, status='approved', updated_by=?, updated_at=NOW()
+       SET approved_by=?, approved_at=?, signed_bill_url=?, status='approved', updated_by=?, updated_at=NOW()
        WHERE id=?`,
-      [approvedBy, approveDate, approvedBy, invoiceId]
+      [approvedBy, approveDate, signedBillUrl, approvedBy, invoiceId]
     );
     res.json({ ok: true });
   } catch (e) {

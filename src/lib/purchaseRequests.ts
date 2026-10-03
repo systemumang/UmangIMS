@@ -148,6 +148,7 @@ export type PoItem = {
       tallyEntryDate?: string;
 		  holdReason?: string;
 		  documentUrl?: string;
+		  signedBillUrl?: string;
 		  cnCopyUrl?: string;
 		  ewayBillUrl?: string;
 		  ewayBillNumber?: string;

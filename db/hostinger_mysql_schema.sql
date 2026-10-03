@@ -162,6 +162,7 @@ CREATE TABLE invoices (
   other_charges DOUBLE,
   status VARCHAR(255) NOT NULL CHECK (status IN ('pending','verified','hold','approved')),
   document_url TEXT,
+  signed_bill_url TEXT,
   created_by VARCHAR(255),
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_by VARCHAR(255),
