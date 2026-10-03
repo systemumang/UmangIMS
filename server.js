@@ -17316,6 +17316,22 @@ app.put('/api/invoices/:id/approve-entry', async (req, res) => {
     if (!approvedBy) return res.status(400).json({ error: 'approvedBy is required' });
     if (!approveDate) return res.status(400).json({ error: 'approveDate is required' });
     if (!signedBillUrl) return res.status(400).json({ error: 'A signed bill upload is required before approval' });
+
+    // A deployed app can receive new code before the SQL migration is run. Ensure this
+    // required approval field exists so an uploaded signed bill can still be approved.
+    const [signedBillColumn] = await pool.query(
+      `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'signed_bill_url'
+       LIMIT 1`
+    );
+    if (!signedBillColumn.length) {
+      try {
+        await pool.query('ALTER TABLE invoices ADD COLUMN signed_bill_url TEXT');
+      } catch (schemaError) {
+        if (schemaError?.code !== 'ER_DUP_FIELDNAME') throw schemaError;
+      }
+    }
+
     await pool.query(
       `UPDATE invoices
        SET approved_by=?, approved_at=?, signed_bill_url=?, status='approved', updated_by=?, updated_at=NOW()
