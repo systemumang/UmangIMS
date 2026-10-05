@@ -16431,13 +16431,23 @@ app.get('/api/credit-vouchers/:id.pdf', async (req, res) => {
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
+    // Standard PDF fonts only support a limited character set. Keep the
+    // voucher printable even when names/specifications contain Unicode.
+    const toPdfText = (value) => String(value ?? '')
+      .replace(/\u20b9/g, 'Rs.')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/[\u2022\u00b7]/g, '-')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+      .replace(/[ \t]+/g, ' ');
     const drawText = (text, x, y, size = 10, useBold = false) => {
       page.drawText(toPdfText(text), { x, y, size, font: useBold ? bold : font, color: rgb(0, 0, 0) });
     };
     const textWidth = (text, size = 10, useBold = false) =>
-      (useBold ? bold : font).widthOfTextAtSize(String(text ?? ''), size);
+      (useBold ? bold : font).widthOfTextAtSize(toPdfText(text), size);
     const wrapText = (text, maxWidth, size = 8.5) => {
-      const words = String(text ?? '').trim().split(/\s+/).filter(Boolean);
+      const words = toPdfText(text).trim().split(/\s+/).filter(Boolean);
       if (!words.length) return ['-'];
       const lines = [];
       let current = words[0];
