@@ -2236,6 +2236,42 @@ app.get('/api/requests/:id', async (req, res) => {
   }
 });
 
+app.delete('/api/requests/:id', async (req, res) => {
+  const pool = getMysqlPool();
+  if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+  const prId = String(req.params.id ?? '').trim();
+  if (!prId) return res.status(400).json({ error: 'id is required' });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[pr]] = await conn.query('SELECT status FROM purchase_requisitions WHERE id = ? FOR UPDATE', [prId]);
+    if (!pr) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'PR not found' });
+    }
+    if (String(pr.status ?? '').toLowerCase() !== 'pending') {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Only pending PRs can be deleted.' });
+    }
+    const [[linkedPo]] = await conn.query('SELECT id FROM purchase_orders WHERE pr_id = ? LIMIT 1', [prId]);
+    if (linkedPo) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'This PR has a linked PO and cannot be deleted.' });
+    }
+    await conn.query('DELETE FROM purchase_requisitions WHERE id = ?', [prId]);
+    await conn.commit();
+    return res.json({ ok: true });
+  } catch (e) {
+    try {
+      await conn.rollback();
+    } catch {}
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    conn.release();
+  }
+});
+
 // Workflow summary for invoice/grn/qc/payment screens
 app.get('/api/workflow/:id', async (req, res) => {
   try {

@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { approvePr, fetchRequest, rejectPr, statusPillClass, type PurchaseRequestDetail } from '@/src/lib/purchaseRequests';
+import { approvePr, deletePurchaseRequest, fetchRequest, rejectPr, statusPillClass, type PurchaseRequestDetail } from '@/src/lib/purchaseRequests';
 import { fetchQueueApprovePr, type ApprovePrQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatPrNumber } from '@/src/lib/docNumbers';
 import { cn } from '@/src/lib/utils';
@@ -127,6 +128,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
   const [expandedStockByItemId, setExpandedStockByItemId] = useState<Record<string, number>>({});
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [modalStockByItemId, setModalStockByItemId] = useState<Record<string, number>>({});
+  const [deletingPrId, setDeletingPrId] = useState<string | null>(null);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -177,6 +179,21 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [page, pageSize, rows]);
+
+  async function handleDeletePr(row: ApprovePrQueueRow) {
+    const prLabel = formatPrNumber(row.prNumber || row.prId);
+    if (!window.confirm(`Delete PR ${prLabel}? This cannot be undone.`)) return;
+    setDeletingPrId(row.prId);
+    try {
+      await deletePurchaseRequest(row.prId);
+      setRows((current) => current.filter((item) => item.prId !== row.prId));
+      setExpandedPrId((current) => (current === row.prId ? null : current));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeletingPrId(null);
+    }
+  }
 
   useEffect(() => {
     if (!modalOpen || !activePrId) return;
@@ -298,7 +315,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Request Type</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Requested By</th>
-				                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
+                          <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Required By</th>
 				                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
 	                </tr>
               </thead>
@@ -315,7 +332,7 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
 	                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestType ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
 		                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requestedBy || '-'}</td>
-				                      <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+                              <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requiredDate ? formatDateDDMMYYYYOnly(r.requiredDate) : '-'}</td>
 		                      <td className="px-3 py-2 border border-outline-variant">
 	                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
 	                          <button
@@ -338,7 +355,19 @@ export default function ApprovePrQueueView({ onViewPr }: { onViewPr: (prId: stri
                               setModalOpen(true);
                             }}
                           >
-	                            Reject
+                            Reject
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger btn-sm"
+                            title="Delete PR"
+                            aria-label={`Delete PR ${formatPrNumber(r.prNumber || r.prId)}`}
+                            disabled={deletingPrId !== null}
+                            onClick={() => {
+                              void handleDeletePr(r);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
 	                          </button>
 	                        </div>
 	                      </td>

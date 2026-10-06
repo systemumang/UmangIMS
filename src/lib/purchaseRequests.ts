@@ -345,6 +345,11 @@ export async function fetchRequest(id: string, signal?: AbortSignal): Promise<Pu
   return data.request;
 }
 
+export async function deletePurchaseRequest(prId: string) {
+  const res = await fetch(`/api/requests/${encodeURIComponent(prId)}`, { method: 'DELETE' });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete PR');
+}
+
 export async function createPurchaseRequest(input: {
   firmId: string;
   store?: string;
