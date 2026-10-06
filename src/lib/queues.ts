@@ -91,6 +91,7 @@ export type CreatePoQueueRow = {
   requiredDate: string;
   remainingQty: number;
   poCount: number;
+  hasLinkedItems: boolean;
   pendingReason: string;
   priority?: string | null;
 };

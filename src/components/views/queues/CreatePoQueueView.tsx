@@ -130,12 +130,11 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   }, [page, pageSize, rows]);
 
   async function handleDeletePr(row: CreatePoQueueRow) {
-    if (row.poCount > 0) {
-      window.alert('This PR has linked POs and cannot be deleted.');
-      return;
-    }
     const prLabel = String(row.prNumber || row.prId);
-    if (!window.confirm(`Delete PR ${prLabel}? This cannot be undone.`)) return;
+    const confirmation = row.hasLinkedItems
+      ? `Cancel the remaining quantity for PR ${prLabel}? Existing POs will be kept.`
+      : `Delete PR ${prLabel}? This cannot be undone.`;
+    if (!window.confirm(confirmation)) return;
     setDeletingPrId(row.prId);
     try {
       await deletePurchaseRequest(row.prId);
@@ -404,9 +403,9 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                               <button
                                 type="button"
                                 className="btn-danger btn-sm"
-                                title={r.poCount > 0 ? 'Cannot delete PR with linked POs' : 'Delete PR'}
-                                aria-label={`Delete PR ${r.prNumber || r.prId}`}
-                                disabled={r.poCount > 0 || deletingPrId !== null}
+                                title={r.hasLinkedItems ? 'Cancel remaining quantity; keep linked POs' : 'Delete PR'}
+                                aria-label={`${r.hasLinkedItems ? 'Cancel remaining quantity for' : 'Delete'} PR ${r.prNumber || r.prId}`}
+                                disabled={deletingPrId !== null}
                                 onClick={() => void handleDeletePr(r)}
                               >
                                 <Trash2 className="h-4 w-4" />

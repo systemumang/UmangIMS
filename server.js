@@ -2254,10 +2254,36 @@ app.delete('/api/requests/:id', async (req, res) => {
       await conn.rollback();
       return res.status(409).json({ error: 'Only pending or approved PRs can be deleted.' });
     }
-    const [[linkedPo]] = await conn.query('SELECT id FROM purchase_orders WHERE pr_id = ? LIMIT 1', [prId]);
-    if (linkedPo) {
+    const [[linkedItem]] = await conn.query(
+      `
+      SELECT 1 AS linked
+      FROM purchase_requisition_items pri
+      INNER JOIN purchase_orders po ON po.pr_id = pri.pr_id
+      INNER JOIN purchase_order_items poi ON poi.po_id = po.id AND poi.item_id = pri.item_id
+      WHERE pri.pr_id = ?
+      LIMIT 1
+      `,
+      [prId]
+    );
+    if (linkedItem) {
+      await conn.query("UPDATE purchase_requisitions SET status='cancelled', updated_at=NOW() WHERE id = ?", [prId]);
+      await conn.commit();
+      return res.json({ ok: true, cancelledRemaining: true });
+    }
+    await conn.query(
+      `
+      DELETE FROM purchase_orders
+      WHERE pr_id = ?
+        AND NOT EXISTS (SELECT 1 FROM purchase_order_items poi WHERE poi.po_id = purchase_orders.id)
+        AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.po_id = purchase_orders.id)
+        AND NOT EXISTS (SELECT 1 FROM grns g WHERE g.po_id = purchase_orders.id)
+      `,
+      [prId]
+    );
+    const [[remainingPo]] = await conn.query('SELECT id FROM purchase_orders WHERE pr_id = ? LIMIT 1', [prId]);
+    if (remainingPo) {
       await conn.rollback();
-      return res.status(409).json({ error: 'This PR has a linked PO and cannot be deleted.' });
+      return res.status(409).json({ error: 'A linked PO has dependent records and cannot be removed.' });
     }
     await conn.query('DELETE FROM purchase_requisitions WHERE id = ?', [prId]);
     await conn.commit();
@@ -2655,6 +2681,13 @@ app.get('/api/queues/create-po', async (req, res) => {
 	        pr.remarks AS remarks,
 	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
 	        COUNT(DISTINCT po.id) AS poCount,
+        EXISTS (
+          SELECT 1
+          FROM purchase_requisition_items linked_pri
+          INNER JOIN purchase_orders linked_po ON linked_po.pr_id = linked_pri.pr_id
+          INNER JOIN purchase_order_items linked_poi ON linked_poi.po_id = linked_po.id AND linked_poi.item_id = linked_pri.item_id
+          WHERE linked_pri.pr_id = pr.id
+        ) AS hasLinkedItems,
           MIN(pri.required_date) AS requiredDate,
         COALESCE(
           SUM(
@@ -2702,6 +2735,7 @@ app.get('/api/queues/create-po', async (req, res) => {
         requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || '',
         remainingQty,
         poCount: Number(r.poCount ?? 0),
+        hasLinkedItems: Number(r.hasLinkedItems ?? 0) > 0,
 	        pendingReason: remainingQty > 0 ? 'Pending PO' : 'No pending qty',
 	        priority: r.priority ? String(r.priority) : null,
 	      };
