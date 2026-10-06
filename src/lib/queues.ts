@@ -88,6 +88,7 @@ export type CreatePoQueueRow = {
   projectId?: string | null;
   projectName?: string | null;
   requisitionDate: string;
+  requiredDate: string;
   remainingQty: number;
   poCount: number;
   pendingReason: string;

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
-import { createPo, createRfq, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
+import { createPo, createRfq, deletePurchaseRequest, fetchLastSupplierByItemIds, fetchPos, fetchRequest } from '@/src/lib/purchaseRequests';
 import { fetchInventorySheet } from '@/src/lib/inventory';
 import { fetchQueueCreatePo, type CreatePoQueueRow, type QueueFilters } from '@/src/lib/queues';
 import { formatItemInline } from '@/src/lib/itemLabel';
@@ -90,6 +91,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
   const [rows, setRows] = useState<CreatePoQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingPrId, setDeletingPrId] = useState<string | null>(null);
   const pageSize = 20;
   const [page, setPage] = useState(1);
 
@@ -126,6 +128,25 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [page, pageSize, rows]);
+
+  async function handleDeletePr(row: CreatePoQueueRow) {
+    if (row.poCount > 0) {
+      window.alert('This PR has linked POs and cannot be deleted.');
+      return;
+    }
+    const prLabel = String(row.prNumber || row.prId);
+    if (!window.confirm(`Delete PR ${prLabel}? This cannot be undone.`)) return;
+    setDeletingPrId(row.prId);
+    try {
+      await deletePurchaseRequest(row.prId);
+      setRows((current) => current.filter((item) => item.prId !== row.prId));
+      setExpandedPrId((current) => (current === row.prId ? '' : current));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeletingPrId(null);
+    }
+  }
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalKind, setModalKind] = useState<'po' | 'rfq'>('po');
@@ -322,14 +343,14 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
 		                <col className="w-[140px]" />
 		                <col className="w-[160px]" />
 		                <col className="w-[140px]" />
-		                <col className="w-[240px]" />
+                    <col className="w-[270px]" />
 	              </colgroup>
               <thead>
                 <tr className="bg-surface-container-high">
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">PR</th>
                   <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Firm</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Project</th>
-		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Req Date</th>
+                      <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Required By</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Priority</th>
 		                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Remaining Qty</th>
 	                  <th className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant">Actions</th>
@@ -353,7 +374,7 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                           <td className="px-3 py-2 text-sm text-primary font-semibold border border-outline-variant">{r.prNumber ?? r.prId}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.firmName}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.projectName ?? '-'}</td>
-                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requisitionDate ? formatDateDDMMYYYYOnly(r.requisitionDate) : '-'}</td>
+                          <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{r.requiredDate ? formatDateDDMMYYYYOnly(r.requiredDate) : '-'}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant">{String((r as any).priority ?? '').trim() || '-'}</td>
                           <td className="px-3 py-2 text-sm text-on-surface-variant border border-outline-variant tabular-nums">{r.remainingQty}</td>
                           <td className="px-3 py-2 border border-outline-variant" onClick={(e) => e.stopPropagation()}>
@@ -379,6 +400,16 @@ export default function CreatePoQueueView({ onViewPr }: { onViewPr: (prId: strin
                                 }}
                               >
                                 RFQ
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-danger btn-sm"
+                                title={r.poCount > 0 ? 'Cannot delete PR with linked POs' : 'Delete PR'}
+                                aria-label={`Delete PR ${r.prNumber || r.prId}`}
+                                disabled={r.poCount > 0 || deletingPrId !== null}
+                                onClick={() => void handleDeletePr(r)}
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </td>

@@ -2250,9 +2250,9 @@ app.delete('/api/requests/:id', async (req, res) => {
       await conn.rollback();
       return res.status(404).json({ error: 'PR not found' });
     }
-    if (String(pr.status ?? '').toLowerCase() !== 'pending') {
+    if (!['pending', 'approved'].includes(String(pr.status ?? '').toLowerCase())) {
       await conn.rollback();
-      return res.status(409).json({ error: 'Only pending PRs can be deleted.' });
+      return res.status(409).json({ error: 'Only pending or approved PRs can be deleted.' });
     }
     const [[linkedPo]] = await conn.query('SELECT id FROM purchase_orders WHERE pr_id = ? LIMIT 1', [prId]);
     if (linkedPo) {
@@ -2655,6 +2655,7 @@ app.get('/api/queues/create-po', async (req, res) => {
 	        pr.remarks AS remarks,
 	        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS priority,
 	        COUNT(DISTINCT po.id) AS poCount,
+          MIN(pri.required_date) AS requiredDate,
         COALESCE(
           SUM(
             GREATEST(
@@ -2698,6 +2699,7 @@ app.get('/api/queues/create-po', async (req, res) => {
         projectId: r.projectId ? String(r.projectId) : null,
         projectName: r.projectName ? String(r.projectName) : null,
         requisitionDate: toIsoDateTime(r.requisitionDate) || new Date().toISOString(),
+        requiredDate: toIsoDate(r.requiredDate) || toIsoDate(r.requisitionDate) || '',
         remainingQty,
         poCount: Number(r.poCount ?? 0),
 	        pendingReason: remainingQty > 0 ? 'Pending PO' : 'No pending qty',
