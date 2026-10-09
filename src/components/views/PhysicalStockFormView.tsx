@@ -417,7 +417,7 @@ export default function PhysicalStockFormView({
               <span className={takenBy.length ? '' : 'text-on-surface-variant'}>{takenBy.length ? takenBy.join(', ') : 'Select users'}</span>
               <ChevronDown size={16} className="shrink-0" />
             </button>
-            {takenByOpen ? <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-surface-card shadow-lg p-1">
+            {takenByOpen ? <div className="mt-2 max-h-56 overflow-y-auto px-1">
               {users.map((u) => {
                 const checked = takenBy.includes(u.name);
                 return <label key={u.id} className="flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-surface-hover text-sm text-on-surface"><input type="checkbox" checked={checked} onChange={() => setTakenBy((current) => checked ? current.filter((name) => name !== u.name) : [...current, u.name])} className="h-4 w-4 accent-primary" />{u.name}</label>;
