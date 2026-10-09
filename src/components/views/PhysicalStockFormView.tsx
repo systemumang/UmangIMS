@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecifications, fetchSpecificationValues, fetchUsers, type Firm, type Store, type Item, type User } from '@/src/lib/masters';
 import { fetchInventorySheet, type InventorySheetRow } from '@/src/lib/inventory';
 import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
@@ -32,6 +32,7 @@ export default function PhysicalStockFormView({
   const [physicalStock, setPhysicalStock] = useState<string>('');
   const [takenBy, setTakenBy] = useState<string[]>([]);
   const [takenByOpen, setTakenByOpen] = useState(false);
+  const takenByPickerRef = useRef<HTMLDivElement>(null);
   const [verifiedBy, setVerifiedBy] = useState<string>('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [takenOn, setTakenOn] = useState<string>(() => {
@@ -46,6 +47,15 @@ export default function PhysicalStockFormView({
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  useEffect(() => {
+    const closeTakenByPicker = (event: MouseEvent) => {
+      if (takenByPickerRef.current && !takenByPickerRef.current.contains(event.target as Node)) {
+        setTakenByOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', closeTakenByPicker);
+    return () => document.removeEventListener('mousedown', closeTakenByPicker);
+  }, []);
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications(), fetchSpecificationValues(), fetchUsers()])
@@ -409,7 +419,7 @@ export default function PhysicalStockFormView({
           </div>
 
           {/* Taken By */}
-          <div className="relative">
+          <div ref={takenByPickerRef} className="relative">
             <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
               Taken By <span className="text-error">*</span>
             </label>
