@@ -15671,11 +15671,33 @@ app.get('/api/inventory/sheet', async (req, res) => {
   }
 });
 
+async function ensurePhysicalStockVerificationColumns(pool) {
+  const [columns] = await pool.query(
+    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'physical_stock_master'
+       AND COLUMN_NAME IN ('verified_by', 'photo_url')`
+  );
+  const existing = new Set((columns ?? []).map((column) => column.COLUMN_NAME));
+  for (const [name, definition] of [
+    ['verified_by', 'VARCHAR(255) NULL'],
+    ['photo_url', 'TEXT NULL'],
+  ]) {
+    if (!existing.has(name)) {
+      try {
+        await pool.query(`ALTER TABLE physical_stock_master ADD COLUMN ${name} ${definition}`);
+      } catch (schemaError) {
+        if (schemaError?.code !== 'ER_DUP_FIELDNAME') throw schemaError;
+      }
+    }
+  }
+}
+
 // Physical Stock API endpoints
 app.post('/api/physical-stock', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensurePhysicalStockVerificationColumns(pool);
     const { firmId, storeId, itemId, physicalStock, takenBy, verifiedBy, photoUrl, takenOn, remarks } = req.body ?? {};
 
     if (!firmId || !storeId || !itemId) {
@@ -15711,6 +15733,7 @@ app.get('/api/physical-stock', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    await ensurePhysicalStockVerificationColumns(pool);
 
     const firmId = String(req.query.firmId ?? '').trim();
     const storeId = String(req.query.storeId ?? '').trim();
