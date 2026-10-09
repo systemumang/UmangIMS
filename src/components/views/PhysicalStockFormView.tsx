@@ -3,9 +3,10 @@ import { fetchFirms, fetchStores, fetchItems, fetchItemNames, fetchSpecification
 import { fetchInventorySheet, type InventorySheetRow } from '@/src/lib/inventory';
 import { createPhysicalStockEntry } from '@/src/lib/physicalStock';
 import { formatItemInline } from '@/src/lib/itemLabel';
+import { uploadFileToServer } from '@/src/lib/uploads';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import Spinner from '@/src/components/common/Spinner';
-import { Package, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Package, ArrowLeft, CheckCircle, ChevronDown } from 'lucide-react';
 
 export default function PhysicalStockFormView({
   onSuccess,
@@ -29,7 +30,10 @@ export default function PhysicalStockFormView({
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [physicalStock, setPhysicalStock] = useState<string>('');
-  const [takenBy, setTakenBy] = useState<string>('');
+  const [takenBy, setTakenBy] = useState<string[]>([]);
+  const [takenByOpen, setTakenByOpen] = useState(false);
+  const [verifiedBy, setVerifiedBy] = useState<string>('');
+  const [photo, setPhoto] = useState<File | null>(null);
   const [takenOn, setTakenOn] = useState<string>(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -61,7 +65,7 @@ export default function PhysicalStockFormView({
             if (parsed?.name) {
               const matchedUser = userData.find((u) => u.name === parsed.name || u.id === parsed.id);
               if (matchedUser) {
-                setTakenBy(matchedUser.name);
+                setTakenBy([matchedUser.name]);
               }
             }
           }
@@ -204,19 +208,22 @@ export default function PhysicalStockFormView({
       setError('Please enter a valid physical stock quantity (0 or greater).');
       return;
     }
-    if (!takenBy.trim()) {
-      setError('Please enter who took the physical stock (Taken By).');
+    if (takenBy.length === 0) {
+      setError('Please select at least one person who took the physical stock.');
       return;
     }
 
     setSaving(true);
     try {
+      const photoUrl = photo ? (await uploadFileToServer(photo)).url : undefined;
       await createPhysicalStockEntry({
         firmId: selectedFirmId,
         storeId: selectedStoreId,
         itemId: selectedItemId,
         physicalStock: stockVal,
-        takenBy: takenBy.trim(),
+        takenBy: takenBy.join(', '),
+        verifiedBy: verifiedBy || undefined,
+        photoUrl,
         takenOn: takenOn ? new Date(takenOn).toISOString() : new Date().toISOString(),
         remarks: remarks.trim() || undefined,
       });
@@ -402,23 +409,20 @@ export default function PhysicalStockFormView({
           </div>
 
           {/* Taken By */}
-          <div>
+          <div className="relative">
             <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
               Taken By <span className="text-error">*</span>
             </label>
-            <select
-              value={takenBy}
-              onChange={(e) => setTakenBy(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-              required
-            >
-              <option value="">Select User</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.name}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <button type="button" onClick={() => setTakenByOpen((open) => !open)} className="w-full min-h-10 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface text-left focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-between gap-2" aria-expanded={takenByOpen}>
+              <span className={takenBy.length ? '' : 'text-on-surface-variant'}>{takenBy.length ? takenBy.join(', ') : 'Select users'}</span>
+              <ChevronDown size={16} className="shrink-0" />
+            </button>
+            {takenByOpen ? <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-surface-card shadow-lg p-1">
+              {users.map((u) => {
+                const checked = takenBy.includes(u.name);
+                return <label key={u.id} className="flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-surface-hover text-sm text-on-surface"><input type="checkbox" checked={checked} onChange={() => setTakenBy((current) => checked ? current.filter((name) => name !== u.name) : [...current, u.name])} className="h-4 w-4 accent-primary" />{u.name}</label>;
+              })}
+            </div> : null}
           </div>
 
           {/* Taken On (Timestamp) */}
@@ -433,6 +437,21 @@ export default function PhysicalStockFormView({
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
               required
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Verified By</label>
+            <select value={verifiedBy} onChange={(e) => setVerifiedBy(e.target.value)} className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="">Select User</option>
+              {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Photo</label>
+            <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} className="w-full px-3 py-1.5 bg-surface border border-border rounded-lg text-sm text-on-surface file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:rounded file:text-primary file:font-medium" />
+            <p className="mt-1 text-xs text-on-surface-variant">Optional image, up to 5 MB.</p>
           </div>
         </div>
 

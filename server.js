@@ -15676,7 +15676,7 @@ app.post('/api/physical-stock', async (req, res) => {
   try {
     const pool = getMysqlPool();
     if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
-    const { firmId, storeId, itemId, physicalStock, takenBy, takenOn, remarks } = req.body ?? {};
+    const { firmId, storeId, itemId, physicalStock, takenBy, verifiedBy, photoUrl, takenOn, remarks } = req.body ?? {};
 
     if (!firmId || !storeId || !itemId) {
       return res.status(400).json({ error: 'Firm, Store, and Item are required.' });
@@ -15695,10 +15695,10 @@ app.post('/api/physical-stock', async (req, res) => {
 
     await pool.query(
       `
-      INSERT INTO physical_stock_master (id, firm_id, store_id, item_id, physical_stock, taken_by, taken_on, remarks, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      INSERT INTO physical_stock_master (id, firm_id, store_id, item_id, physical_stock, taken_by, verified_by, photo_url, taken_on, remarks, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
       `,
-      [id, firmId, storeId, itemId, numStock, String(takenBy).trim(), formattedTakenOn, remarks ? String(remarks).trim() : null]
+      [id, firmId, storeId, itemId, numStock, String(takenBy).trim(), verifiedBy ? String(verifiedBy).trim() : null, photoUrl ? String(photoUrl).trim() : null, formattedTakenOn, remarks ? String(remarks).trim() : null]
     );
 
     res.json({ ok: true, id });
@@ -15758,6 +15758,8 @@ app.get('/api/physical-stock', async (req, res) => {
         i.unit AS unit,
         ps.physical_stock AS physicalStock,
         ps.taken_by AS takenBy,
+        ps.verified_by AS verifiedBy,
+        ps.photo_url AS photoUrl,
         ps.taken_on AS takenOn,
         ps.remarks,
         ps.created_at AS createdAt

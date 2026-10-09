@@ -12,6 +12,8 @@ export type PhysicalStockRecord = {
   unit?: string;
   physicalStock: number;
   takenBy: string;
+  verifiedBy?: string;
+  photoUrl?: string;
   takenOn: string;
   remarks?: string;
   createdAt?: string;
@@ -23,6 +25,8 @@ export type CreatePhysicalStockPayload = {
   itemId: string;
   physicalStock: number;
   takenBy: string;
+  verifiedBy?: string;
+  photoUrl?: string;
   takenOn?: string;
   remarks?: string;
 };

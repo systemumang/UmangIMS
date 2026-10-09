@@ -22,7 +22,7 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [sortBy, setSortBy] = useState<'takenOn' | 'firm' | 'store' | 'item' | 'physicalStock' | 'takenBy'>('takenOn');
+  const [sortBy, setSortBy] = useState<'takenOn' | 'firm' | 'store' | 'item' | 'physicalStock' | 'takenBy' | 'verifiedBy'>('takenOn');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const loadData = async () => {
@@ -106,6 +106,8 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
           return dir * (Number(a.physicalStock || 0) - Number(b.physicalStock || 0));
         case 'takenBy':
           return dir * strCmp(a.takenBy || '', b.takenBy || '');
+        case 'verifiedBy':
+          return dir * strCmp(a.verifiedBy || '', b.verifiedBy || '');
         default:
           return 0;
       }
@@ -336,6 +338,10 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
+                  <th className="p-3 cursor-pointer select-none hover:text-on-surface" onClick={() => onSort('verifiedBy')}>
+                    <div className="flex items-center gap-1">Verified By <ArrowUpDown size={12} /></div>
+                  </th>
+                  <th className="p-3">Photo</th>
                   <th className="p-3">Remarks</th>
                   <th className="p-3 text-center">Actions</th>
                 </tr>
@@ -358,6 +364,8 @@ export default function PhysicalStockMasterView({ onAdd }: { onAdd?: () => void 
                     </td>
                     <td className="p-3 text-on-surface-variant">{row.unit || 'Pcs'}</td>
                     <td className="p-3 font-medium text-on-surface">{row.takenBy || '-'}</td>
+                    <td className="p-3 text-on-surface">{row.verifiedBy || '-'}</td>
+                    <td className="p-3">{row.photoUrl ? <a href={row.photoUrl} target="_blank" rel="noreferrer" className="text-primary underline font-medium">View</a> : '-'}</td>
                     <td className="p-3 text-on-surface-variant max-w-xs truncate" title={row.remarks || ''}>
                       {row.remarks || '-'}
                     </td>
