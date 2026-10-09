@@ -48,14 +48,15 @@ export default function PhysicalStockFormView({
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    const closeTakenByPicker = (event: MouseEvent) => {
+    if (!takenByOpen) return;
+    const closeTakenByPicker = (event: PointerEvent) => {
       if (takenByPickerRef.current && !takenByPickerRef.current.contains(event.target as Node)) {
         setTakenByOpen(false);
       }
     };
-    document.addEventListener('mousedown', closeTakenByPicker);
-    return () => document.removeEventListener('mousedown', closeTakenByPicker);
-  }, []);
+    document.addEventListener('pointerdown', closeTakenByPicker, true);
+    return () => document.removeEventListener('pointerdown', closeTakenByPicker, true);
+  }, [takenByOpen]);
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchFirms(), fetchStores(), fetchItems(), fetchItemNames(), fetchSpecifications(), fetchSpecificationValues(), fetchUsers()])
@@ -419,7 +420,7 @@ export default function PhysicalStockFormView({
           </div>
 
           {/* Taken By */}
-          <div ref={takenByPickerRef} className="relative">
+          <div ref={takenByPickerRef} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setTakenByOpen(false); }}>
             <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
               Taken By <span className="text-error">*</span>
             </label>
