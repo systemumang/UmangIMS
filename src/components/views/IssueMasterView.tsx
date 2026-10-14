@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Trash2, ArrowUpDown } from 'lucide-react';
+import { Search, Trash2, ArrowUpDown, Download } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { listIssues, deleteIssue, updateIssue, type StockTransaction } from '@/src/lib/stockMaster';
 import { fetchFirms, fetchItems, fetchStores, fetchDepartments, fetchProjects, type Firm, type Item, type Store, type Department, type Project } from '@/src/lib/masters';
+import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 
 export default function IssueMasterView({
   onAdd,
@@ -28,6 +29,9 @@ export default function IssueMasterView({
   const [toDate, setToDate] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
+  const [issueTypeFilter, setIssueTypeFilter] = useState('');
+  const [issuedToFilter, setIssuedToFilter] = useState('');
+  const [issuedByFilter, setIssuedByFilter] = useState('');
   const [sortBy, setSortBy] = useState<
     'date' | 'issueType' | 'issuedTo' | 'firm' | 'department' | 'items' | 'total'
   >('date');
@@ -61,6 +65,11 @@ export default function IssueMasterView({
   const firmOptions = firms
     .slice()
     .sort((a, b) => (String(a.sortName ?? '').trim() || a.name).localeCompare(String(b.sortName ?? '').trim() || b.name));
+
+  const filterOptions = (values: Array<string | null | undefined>) =>
+    Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }));
 
   const storeOptionsForFirm = (firmIdRaw?: string | null) => {
     const raw = String(firmIdRaw ?? '').trim();
@@ -241,6 +250,9 @@ export default function IssueMasterView({
       if (toDate && rowDate > toDate) return false;
       if (departmentFilter && String(i.department ?? '') !== departmentFilter) return false;
       if (projectFilter && String(i.projectId ?? '') !== projectFilter) return false;
+      if (issueTypeFilter && String(i.issueType ?? '') !== issueTypeFilter) return false;
+      if (issuedToFilter && String(i.issuedTo ?? '') !== issuedToFilter) return false;
+      if (issuedByFilter && String(i.person ?? '') !== issuedByFilter) return false;
 
       const matchesSelectedItem = (i.items ?? []).some(matchesSelectedItemLine);
       if (!matchesSelectedItem) return false;
@@ -307,6 +319,23 @@ export default function IssueMasterView({
       0
     );
 
+    const downloadExcel = () => {
+      const headers = ['SL No.', 'Issue Date', 'Issue Type / Project No.', 'Issued To', 'Issue By', 'Firm', 'Department', 'Item Details', 'Material Req No.', 'Issue Qty'];
+      const rows = displayRows.map(({ row, item }, index) => ({
+        'SL No.': index + 1,
+        'Issue Date': formatDate(row.date),
+        'Issue Type / Project No.': getIssueTypeDisplay(row),
+        'Issued To': row.issuedTo ?? '',
+        'Issue By': row.person ?? '',
+        Firm: getFirmDisplay(row.firmId),
+        Department: row.department ?? '',
+        'Item Details': item ? `${getReadableItemLabel(item.itemId, item.item)} - ${Number(item.quantity) || 0}` : getItemsDisplay(row),
+        'Material Req No.': row.materialRequestNo ?? '',
+        'Issue Qty': item ? Number(item.quantity) || 0 : row.items.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0),
+      }));
+      downloadTextFile(`issue-master-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, rows), 'text/csv; charset=utf-8');
+    };
+
 	  return (
 	    <div className="space-y-4">
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
@@ -340,6 +369,18 @@ export default function IssueMasterView({
             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Project No.</div>
             <SearchableSelect value={projectFilter} options={projects.map((p) => ({ value: p.id, label: p.name }))} onChange={setProjectFilter} placeholder="All projects" allowClear />
           </label>
+          <label className="space-y-1 min-w-40">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issue Type</div>
+            <SearchableSelect value={issueTypeFilter} options={filterOptions(issues.map((issue) => issue.issueType))} onChange={setIssueTypeFilter} placeholder="All issue types" allowClear />
+          </label>
+          <label className="space-y-1 min-w-40">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issue To</div>
+            <SearchableSelect value={issuedToFilter} options={filterOptions(issues.map((issue) => issue.issuedTo))} onChange={setIssuedToFilter} placeholder="All recipients" allowClear />
+          </label>
+          <label className="space-y-1 min-w-40">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issue By</div>
+            <SearchableSelect value={issuedByFilter} options={filterOptions(issues.map((issue) => issue.person))} onChange={setIssuedByFilter} placeholder="All issuers" allowClear />
+          </label>
           <label className="space-y-1">
             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">From Date</div>
             <input type="date" className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -367,6 +408,7 @@ export default function IssueMasterView({
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('date')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issue Date</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black w-72 max-w-72"><button type="button" onClick={() => onSort('issueType')} className="w-full px-3 py-3 flex items-center justify-between gap-2 whitespace-normal"><span>Issue Type / Project No.</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('issuedTo')} className="w-full px-3 py-3 flex items-center justify-between"><span>Issued To</span><ArrowUpDown size={12} /></button></th>
+                <th className="p-3 border-b border-r border-black">Issue By</th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('firm')} className="w-full px-3 py-3 flex items-center justify-between"><span>Firm</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('department')} className="w-full px-3 py-3 flex items-center justify-between"><span>Department</span><ArrowUpDown size={12} /></button></th>
                 <th className="p-0 border-b border-r border-black"><button type="button" onClick={() => onSort('items')} className="w-full px-3 py-3 flex items-center justify-between"><span>Item Details</span><ArrowUpDown size={12} /></button></th>
@@ -378,7 +420,7 @@ export default function IssueMasterView({
 	            <tbody className="divide-y divide-outline-variant">
               {displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-4 text-center text-on-surface-variant text-sm">
+                  <td colSpan={11} className="p-4 text-center text-on-surface-variant text-sm">
                     No issues found
                   </td>
                 </tr>
@@ -394,6 +436,7 @@ export default function IssueMasterView({
                   <td className="p-3 border-r border-black text-on-surface-variant">{formatDate(row.date)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant w-72 max-w-72 whitespace-normal break-words">{getIssueTypeDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.issuedTo ?? '-'}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant">{row.person ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department || '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant whitespace-pre-line min-w-64 align-top leading-5">{item ? `${getReadableItemLabel(item.itemId, item.item)} - ${Number(item.quantity) || 0}` : getItemsDisplay(row)}</td>
@@ -419,6 +462,12 @@ export default function IssueMasterView({
             </tbody>
 		          </table>
 		        </div>
+	        <div className="flex justify-end border-t border-outline-variant bg-surface-container-low px-4 py-3">
+            <button type="button" className="btn btn-sm flex items-center gap-1.5" onClick={downloadExcel} disabled={!displayRows.length}>
+              <Download size={14} />
+              Download Excel
+            </button>
+          </div>
 	      </div>
 	      {viewItem ? (
 	        <div className="fixed inset-0 z-50 flex items-stretch justify-center p-0 bg-black/50">
