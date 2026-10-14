@@ -10,6 +10,7 @@ const SupplierAdvancesView = lazy(() => import('./components/views/SupplierAdvan
 const NewPurchaseRequestView = lazy(() => import('./components/views/NewPurchaseRequestView'));
 const PurchaseRequestDetailView = lazy(() => import('./components/views/PurchaseRequestDetailView'));
 const MastersView = lazy(() => import('./components/views/MastersView'));
+const VehicleMasterView = lazy(() => import('./components/views/VehicleMasterView'));
 const ApprovePrQueueView = lazy(() => import('./components/views/queues/ApprovePrQueueView'));
 const CreatePoQueueView = lazy(() => import('./components/views/queues/CreatePoQueueView'));
 const CheckPoQueueView = lazy(() => import('./components/views/queues/CheckPoQueueView'));
@@ -58,6 +59,7 @@ import { listDamages, listIssues, listReturns, listTransfers } from '@/src/lib/s
   fetchStores,
   fetchSuppliers,
   fetchTransporters,
+  fetchVehicles,
   fetchUnits,
   fetchUsers,
 } from '@/src/lib/masters';
@@ -351,6 +353,7 @@ export default function App() {
 	      fetchCities(ac.signal).then((r) => ['cities', r.length] as const),
 	      fetchCustomers(ac.signal).then((r) => ['customers', r.length] as const),
 		      fetchTransporters(ac.signal).then((r) => ['transporters', r.length] as const),
+	      fetchVehicles(ac.signal).then((r) => ['vehicles', r.length] as const),
 		      fetchProjects(ac.signal).then((r) => ['projects', r.length] as const),
 		      fetchUnits(ac.signal).then((r) => ['units', r.length] as const),
 		      fetchPriorities(ac.signal).then((r) => ['priorities', r.length] as const),
@@ -1077,7 +1080,7 @@ export default function App() {
                   )
 	              ) : null}
 		          {view === 'inventory' ? <InventoryView /> : null}
-		          {view === 'masters' ? <MastersView tab={mastersTab} onTabChange={setMastersTab} currentUser={currentUser} /> : null}
+	          {view === 'masters' ? (mastersTab === 'vehicles' ? <VehicleMasterView currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : <MastersView tab={mastersTab} onTabChange={setMastersTab} currentUser={currentUser} />) : null}
 
 		          {view === 'materialRequest' ? <RequestMaterialView /> : null}
 	          {view === 'materialPendingIssue' ? (

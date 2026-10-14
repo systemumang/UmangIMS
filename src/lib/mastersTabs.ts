@@ -8,6 +8,7 @@ export type MastersTab =
   | 'cities'
   | 'customers'
   | 'transporters'
+  | 'vehicles'
   | 'projects'
   | 'units'
   | 'priorities'
@@ -33,6 +34,7 @@ export const MASTERS_TABS: Array<{ key: MastersTab; label: string }> = [
   { key: 'stores', label: 'Stores' },
   { key: 'suppliers', label: 'Suppliers' },
   { key: 'transporters', label: 'Transporters' },
+  { key: 'vehicles', label: 'Vehicles' },
   { key: 'units', label: 'Units' },
   { key: 'users', label: 'Users' },
 ];

@@ -713,6 +713,29 @@ export async function deleteTransporter(id: string, input?: { deletedBy?: string
   return requireOk<{ ok: boolean }>(res, 'Failed to delete transporter');
 }
 
+export type Vehicle = { id: string; vehicleNo: string };
+
+export async function fetchVehicles(signal?: AbortSignal): Promise<Vehicle[]> {
+  const res = await fetch('/api/masters/vehicles', { signal });
+  const data = await requireOk<{ vehicles?: Vehicle[] }>(res, 'Failed to load vehicles');
+  return Array.isArray(data.vehicles) ? data.vehicles.slice().sort((a, b) => a.vehicleNo.localeCompare(b.vehicleNo)) : [];
+}
+
+export async function createVehicle(input: { vehicleNo: string; createdBy?: string }) {
+  const res = await fetch('/api/masters/vehicles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  return requireOk<{ vehicle?: Vehicle }>(res, 'Failed to create vehicle');
+}
+
+export async function updateVehicle(id: string, input: { vehicleNo: string; updatedBy?: string }) {
+  const res = await fetch(`/api/masters/vehicles/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  return requireOk<{ vehicle?: Vehicle }>(res, 'Failed to update vehicle');
+}
+
+export async function deleteVehicle(id: string) {
+  const res = await fetch(`/api/masters/vehicles/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete vehicle');
+}
+
 export async function fetchItemNames(signal?: AbortSignal): Promise<ItemName[]> {
   const res = await fetch('/api/masters/item-names', { signal });
   const data = await requireOk<{ itemNames?: ItemName[] }>(res, 'Failed to load item names');

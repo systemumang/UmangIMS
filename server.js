@@ -398,6 +398,16 @@ function getMysqlPool() {
       await ensureColumn('courier_updates', 'collected_by', 'VARCHAR(255) NULL');
       await ensureColumn('courier_updates', 'vehicle_no', 'VARCHAR(255) NULL');
       await ensureColumn('courier_updates', 'any_damage', 'VARCHAR(8) NULL');
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS vehicles (
+          id VARCHAR(255) PRIMARY KEY,
+          vehicle_no VARCHAR(255) NOT NULL UNIQUE,
+          created_by VARCHAR(255) NULL,
+          updated_by VARCHAR(255) NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
       const dropUniqueIndexesForExactColumns = async (table, columnSets) => {
 	        const [rows] = await pool.query(`SHOW INDEX FROM ${table}`);
 	        const byName = new Map();
@@ -12182,6 +12192,54 @@ app.delete('/api/masters/transporters/:id', async (req, res) => {
     if (await sendDeleteInUseError(res, pool, id, e, 'transporter')) return;
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
+});
+
+// --- Masters: Vehicles ---
+app.get('/api/masters/vehicles', async (_req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [rows] = await pool.query('SELECT id, vehicle_no AS vehicleNo FROM vehicles ORDER BY vehicle_no');
+    res.json({ vehicles: rows });
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }); }
+});
+
+app.post('/api/masters/vehicles', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const vehicleNo = String(req.body?.vehicleNo ?? '').trim().toUpperCase();
+    if (!vehicleNo) return res.status(400).json({ error: 'Vehicle No. is required' });
+    const id = crypto.randomUUID();
+    await pool.query('INSERT INTO vehicles (id, vehicle_no, created_by, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [id, vehicleNo, req.body?.createdBy != null ? String(req.body.createdBy).trim() || null : null]);
+    res.status(201).json({ vehicle: { id, vehicleNo } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    res.status(message.includes('Duplicate') || message.includes('ER_DUP_ENTRY') ? 400 : 500).json({ error: message.includes('Duplicate') || message.includes('ER_DUP_ENTRY') ? 'Vehicle No. already exists' : message });
+  }
+});
+
+app.put('/api/masters/vehicles/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const id = String(req.params.id ?? '').trim();
+    const vehicleNo = String(req.body?.vehicleNo ?? '').trim().toUpperCase();
+    if (!id || !vehicleNo) return res.status(400).json({ error: 'Vehicle No. is required' });
+    const [result] = await pool.query('UPDATE vehicles SET vehicle_no=?, updated_by=?, updated_at=NOW() WHERE id=?', [vehicleNo, req.body?.updatedBy != null ? String(req.body.updatedBy).trim() || null : null, id]);
+    if (!Number(result?.affectedRows ?? 0)) return res.status(404).json({ error: 'Vehicle not found' });
+    res.json({ vehicle: { id, vehicleNo } });
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }); }
+});
+
+app.delete('/api/masters/vehicles/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const [result] = await pool.query('DELETE FROM vehicles WHERE id=?', [String(req.params.id ?? '').trim()]);
+    if (!Number(result?.affectedRows ?? 0)) return res.status(404).json({ error: 'Vehicle not found' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }); }
 });
 
 // --- Masters: Users ---

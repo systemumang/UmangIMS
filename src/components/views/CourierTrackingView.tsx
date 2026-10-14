@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Eye, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import AvailableDocumentLink from '@/src/components/common/AvailableDocumentLink';
-import { fetchProjects, fetchSuppliers, fetchUsers, type Project, type Supplier, type User } from '@/src/lib/masters';
+import { fetchProjects, fetchSuppliers, fetchUsers, fetchVehicles, type Project, type Supplier, type User, type Vehicle } from '@/src/lib/masters';
 import { fetchOperationsPos, type OperationsPoListRow } from '@/src/lib/operations';
 import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
 import { openDocument } from '@/src/lib/utils';
@@ -63,6 +63,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [pos, setPos] = useState<OperationsPoListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +116,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     [pos]
   );
   const userOptions = useMemo(() => users.map((u) => ({ value: u.name, label: u.name })), [users]);
+  const vehicleOptions = useMemo(() => vehicles.map((v) => ({ value: v.vehicleNo, label: v.vehicleNo })), [vehicles]);
   const companyOptions = useMemo(
     () => Array.from(new Set(rows.map((row) => String(row.courierCompany ?? '').trim()).filter(Boolean)))
       .sort((a, b) => a.localeCompare(b))
@@ -152,13 +154,15 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
       fetchSuppliers(ac.signal).catch(() => []),
       fetchProjects(ac.signal).catch(() => []),
       fetchUsers(ac.signal).catch(() => []),
+      fetchVehicles(ac.signal).catch(() => []),
       fetchOperationsPos(undefined, ac.signal).catch(() => []),
     ])
-      .then(([courierRows, supplierRows, projectRows, userRows, poRows]) => {
+      .then(([courierRows, supplierRows, projectRows, userRows, vehicleRows, poRows]) => {
         setRows(courierRows);
         setSuppliers(supplierRows);
         setProjects(projectRows);
         setUsers(userRows);
+        setVehicles(vehicleRows);
         setPos(poRows);
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
@@ -428,7 +432,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
               <>
                 <label className="space-y-1"><div className={labelClass}>Collected By *</div><select className={inputClass} value={collectedBy} onChange={(e) => setCollectedBy(e.target.value)}><option value="">Select user...</option>{userOptions.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
                 <label className="space-y-1"><div className={labelClass}>Received Date *</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
-                <label className="space-y-1"><div className={labelClass}>Vehicle No.</div><input className={inputClass} value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="Enter vehicle number..." /></label>
+                <div className="space-y-1"><div className={labelClass}>Vehicle No.</div><SearchableSelect value={vehicleNo} options={vehicleOptions} onChange={setVehicleNo} placeholder="Select vehicle..." allowClear controlClassName={inputClass} /></div>
                 <label className="space-y-1"><div className={labelClass}>Any Damage</div><select className={inputClass} value={anyDamage} onChange={(e) => setAnyDamage(e.target.value as 'Yes' | 'No')}><option value="No">No</option><option value="Yes">Yes</option></select></label>
               </>
             ) : null}
