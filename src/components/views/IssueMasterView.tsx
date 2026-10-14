@@ -229,6 +229,11 @@ export default function IssueMasterView({
   };
 
 	  const query = q.trim();
+	  const matchesSelectedItemLine = (line: StockTransaction['items'][number]) =>
+	    !itemFilter ||
+	    String(line.itemId ?? '').trim() === itemFilter.itemId ||
+	    normalizeSearch(line.item) === normalizeSearch(itemFilter.item);
+
 	  const filtered = issues.filter((i) => {
       const rowDate = String(i.date ?? '').slice(0, 10);
       if ((fromDate || toDate) && !rowDate) return false;
@@ -237,10 +242,7 @@ export default function IssueMasterView({
       if (departmentFilter && String(i.department ?? '') !== departmentFilter) return false;
       if (projectFilter && String(i.projectId ?? '') !== projectFilter) return false;
 
-      const matchesSelectedItem = !itemFilter || (i.items ?? []).some((line) =>
-        String(line.itemId ?? '').trim() === itemFilter.itemId ||
-        normalizeSearch(line.item) === normalizeSearch(itemFilter.item)
-      );
+      const matchesSelectedItem = (i.items ?? []).some(matchesSelectedItemLine);
       if (!matchesSelectedItem) return false;
 
       return (
@@ -291,6 +293,14 @@ export default function IssueMasterView({
 	        return 0;
 	    }
 	  });
+
+    const displayRows = itemFilter
+      ? sorted.flatMap((row) =>
+          (row.items ?? [])
+            .filter(matchesSelectedItemLine)
+            .map((item, itemIndex) => ({ row, item, itemIndex }))
+        )
+      : sorted.map((row) => ({ row, item: null, itemIndex: -1 }));
 
 	  return (
 	    <div className="space-y-4">
@@ -355,16 +365,16 @@ export default function IssueMasterView({
               </tr>
             </thead>
 	            <tbody className="divide-y divide-outline-variant">
-              {filtered.length === 0 ? (
+              {displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="p-4 text-center text-on-surface-variant text-sm">
                     No issues found
                   </td>
                 </tr>
               ) : null}
-		              {sorted.map((row, index) => (
+	              {displayRows.map(({ row, item, itemIndex }, index) => (
 		                <tr
-		                  key={row.id}
+	                  key={`${row.id}-${itemIndex}`}
 		                  className="hover:bg-surface-container-low/50 transition-colors cursor-pointer"
 		                  onClick={() => setViewItem(row)}
 		                  onDoubleClick={() => setEditItem(cloneTx(row))}
@@ -375,9 +385,9 @@ export default function IssueMasterView({
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.issuedTo ?? '-'}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{getFirmDisplay(row.firmId)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant">{row.department || '-'}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant whitespace-pre-line min-w-64 align-top leading-5">{getItemsDisplay(row)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant whitespace-pre-line min-w-64 align-top leading-5">{item ? `${getReadableItemLabel(item.itemId, item.item)} - ${Number(item.quantity) || 0}` : getItemsDisplay(row)}</td>
                   <td className="p-3 border-r border-black text-on-surface-variant font-bold text-primary">{row.materialRequestNo || '-'}</td>
-                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
+                  <td className="p-3 border-r border-black text-on-surface-variant text-right">{item ? Number(item.quantity) || 0 : row.items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)}</td>
 	                  <td className="p-3 text-right">
 	                    <div className="flex items-center justify-end gap-3">
 		                      <button
