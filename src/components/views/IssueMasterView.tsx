@@ -302,6 +302,11 @@ export default function IssueMasterView({
         )
       : sorted.map((row) => ({ row, item: null, itemIndex: -1 }));
 
+    const displayedIssueQuantity = displayRows.reduce(
+      (total, { row, item }) => total + (item ? Number(item.quantity) || 0 : row.items.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)),
+      0
+    );
+
 	  return (
 	    <div className="space-y-4">
 	      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
@@ -343,6 +348,12 @@ export default function IssueMasterView({
             <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Date</div>
             <input type="date" className="w-40 h-10 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </label>
+          <div className="space-y-1">
+            <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Issue Qty</div>
+            <div className="h-10 min-w-28 flex items-center justify-end rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-sm font-semibold text-primary tabular-nums">
+              {new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(displayedIssueQuantity)}
+            </div>
+          </div>
           <div className="relative w-64 ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
             <input type="text" placeholder="Search issues..." value={q} onChange={(e) => setQ(e.target.value)} className="w-full h-10 bg-surface-container-lowest border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm" />
