@@ -7812,6 +7812,9 @@ app.post('/api/material-requests', async (req, res) => {
     if (requestByType === 'Vendor' && !requestBySupplierId) {
       return res.status(400).json({ error: 'requestBySupplierId is required for Vendor' });
     }
+    if (!enteredByUserId) {
+      return res.status(400).json({ error: 'enteredByUserId is required' });
+    }
 
     const requestId = crypto.randomUUID();
     const requestNo = await allocateDocNumber(pool, firmId, 'MR', new Date());

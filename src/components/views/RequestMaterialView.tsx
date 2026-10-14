@@ -162,6 +162,9 @@ export default function RequestMaterialView() {
     setSaving(true);
     setError(null);
     try {
+      if (requestByType === 'Inhouse' && !requestByUserId) throw new Error('Requested By is required.');
+      if (requestByType === 'Vendor' && !requestBySupplierId) throw new Error('Requested By is required.');
+      if (!enteredByUserId) throw new Error('Entered By is required.');
       const nextErrors: string[] = [];
       const payloadItems = rows
         .map((row, idx) => {
@@ -343,7 +346,7 @@ export default function RequestMaterialView() {
 
             {requestByType === 'Inhouse' ? (
               <label className="block space-y-1">
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Requested By</span>
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Requested By *</span>
                 <SearchableSelect
                   options={users.map(u => ({ value: u.id, label: u.name }))}
                   value={requestByUserId}
@@ -363,7 +366,7 @@ export default function RequestMaterialView() {
               </label>
             )}
             <label className="block space-y-1">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Entered By</span>
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Entered By *</span>
               <SearchableSelect
                 options={users.map(u => ({ value: u.id, label: u.name }))}
                 value={enteredByUserId}
