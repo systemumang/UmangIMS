@@ -17,6 +17,9 @@ export type CourierRow = {
   lastUpdateDate?: string;
   lastUpdateBy?: string;
   lastUpdateRemarks?: string;
+  collectedBy?: string;
+  vehicleNo?: string;
+  anyDamage?: 'Yes' | 'No' | '';
   createdAt?: string;
   updatedAt?: string;
 };

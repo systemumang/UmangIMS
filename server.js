@@ -17617,6 +17617,9 @@ function mapCourierRow(r) {
     lastUpdateDate: courierDateIso(r.lastUpdateDate),
     lastUpdateBy: r.lastUpdateBy != null ? String(r.lastUpdateBy) : '',
     lastUpdateRemarks: r.lastUpdateRemarks != null ? String(r.lastUpdateRemarks) : '',
+    collectedBy: r.collectedBy != null ? String(r.collectedBy) : '',
+    vehicleNo: r.vehicleNo != null ? String(r.vehicleNo) : '',
+    anyDamage: r.anyDamage != null ? String(r.anyDamage) : '',
     createdAt: r.createdAt ? String(r.createdAt) : '',
     updatedAt: r.updatedAt ? String(r.updatedAt) : '',
   };
@@ -17641,6 +17644,27 @@ async function selectCourierRows(pool, whereSql = '', params = []) {
       c.last_update_date AS lastUpdateDate,
       c.last_update_by AS lastUpdateBy,
       c.last_update_remarks AS lastUpdateRemarks,
+      (
+        SELECT COALESCE(cu.collected_by, cu.received_by)
+        FROM courier_updates cu
+        WHERE cu.courier_id = c.id AND cu.status = 'Received'
+        ORDER BY cu.update_date DESC, cu.created_at DESC
+        LIMIT 1
+      ) AS collectedBy,
+      (
+        SELECT cu.vehicle_no
+        FROM courier_updates cu
+        WHERE cu.courier_id = c.id AND cu.status = 'Received'
+        ORDER BY cu.update_date DESC, cu.created_at DESC
+        LIMIT 1
+      ) AS vehicleNo,
+      (
+        SELECT cu.any_damage
+        FROM courier_updates cu
+        WHERE cu.courier_id = c.id AND cu.status = 'Received'
+        ORDER BY cu.update_date DESC, cu.created_at DESC
+        LIMIT 1
+      ) AS anyDamage,
       c.created_at AS createdAt,
       c.updated_at AS updatedAt
     FROM couriers c
