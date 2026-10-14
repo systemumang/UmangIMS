@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Eye, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import AvailableDocumentLink from '@/src/components/common/AvailableDocumentLink';
 import { fetchProjects, fetchSuppliers, fetchUsers, type Project, type Supplier, type User } from '@/src/lib/masters';
 import { fetchOperationsPos, type OperationsPoListRow } from '@/src/lib/operations';
 import { formatUploadSize, uploadFileToServer } from '@/src/lib/uploads';
@@ -287,7 +288,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
                   <td className={tdClass}>{row.supplierName || row.supplierId || '-'}</td>
                   <td className={`${tdClass} w-[360px] whitespace-normal break-words`}>{row.projectName || row.projectId || '-'}</td>
                   <td className={tdClass}>{row.poNumber || row.poId || '-'}</td>
-                  <td className={tdClass}>{row.courierCopyUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(row.courierCopyUrl))}>View</button> : '-'}</td>
+                  <td className={tdClass}><AvailableDocumentLink href={fileHref(row.courierCopyUrl)} /></td>
                   <td className={tdClass}>{formatDate(row.expectedDate)}</td>
                   <td className={tdClass}>{row.status}</td>
                   <td className={tdClass}>{formatDate(row.lastUpdateDate)}</td>

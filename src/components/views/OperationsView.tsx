@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Eye, FileText, IndianRupee, Pencil, Plus, Trash2 } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
+import AvailableDocumentLink from '@/src/components/common/AvailableDocumentLink';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import GstRateSelect from '@/src/components/common/GstRateSelect';
 import { cn } from '@/src/lib/utils';
@@ -2212,13 +2213,7 @@ export default function OperationsView({
                           <td className="px-3 py-2 border border-outline-variant">{r.status ?? '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">{String((r as any).mode ?? '') || '-'}</td>
                           <td className="px-3 py-2 border border-outline-variant">
-                            {String((r as any).paymentCopy ?? '').trim() ? (
-	                              <a href={uploadDocumentHref((r as any).paymentCopy)} target="_blank" rel="noreferrer" className="underline text-primary">
-                                View
-                              </a>
-                            ) : (
-                              '-'
-                            )}
+                            <AvailableDocumentLink href={uploadDocumentHref((r as any).paymentCopy)} />
                           </td>
                         </>
 		                    )}
