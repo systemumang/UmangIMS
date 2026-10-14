@@ -44,6 +44,7 @@ export default function RequestMaterialView() {
   const [requestByType, setRequestByType] = useState<'Inhouse' | 'Vendor'>('Inhouse');
   const [requestByUserId, setRequestByUserId] = useState('');
   const [requestBySupplierId, setRequestBySupplierId] = useState('');
+  const [enteredByUserId, setEnteredByUserId] = useState('');
   const [remarks, setRemarks] = useState('');
   const [rows, setRows] = useState<Row[]>([{ itemId: '', itemNameId: '', specs: {}, quantity: '' }]);
   const [rowErrors, setRowErrors] = useState<string[]>([]);
@@ -191,6 +192,7 @@ export default function RequestMaterialView() {
         requestByType,
         requestByUserId: requestByType === 'Inhouse' ? requestByUserId : null,
         requestBySupplierId: requestByType === 'Vendor' ? requestBySupplierId : null,
+        enteredByUserId: enteredByUserId || null,
         remarks,
         items: payloadItems,
       });
@@ -203,6 +205,7 @@ export default function RequestMaterialView() {
       setDepartmentId('');
       setRequestByUserId('');
       setRequestBySupplierId('');
+      setEnteredByUserId('');
       setRemarks('');
       setRows([{ itemId: '', itemNameId: '', specs: {}, quantity: '' }]);
       setRowErrors([]);
@@ -313,7 +316,7 @@ export default function RequestMaterialView() {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-outline-variant/10 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-outline-variant/10 pt-4">
             <div className="space-y-2">
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Request By Type</span>
               <div className="flex gap-4">
@@ -340,12 +343,12 @@ export default function RequestMaterialView() {
 
             {requestByType === 'Inhouse' ? (
               <label className="block space-y-1">
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">User</span>
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request By</span>
                 <SearchableSelect
                   options={users.map(u => ({ value: u.id, label: u.name }))}
                   value={requestByUserId}
                   onChange={setRequestByUserId}
-                  placeholder="Select User"
+                  placeholder="Select Request By"
                 />
               </label>
             ) : (
@@ -359,6 +362,16 @@ export default function RequestMaterialView() {
                 />
               </label>
             )}
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Enter By</span>
+              <SearchableSelect
+                options={users.map(u => ({ value: u.id, label: u.name }))}
+                value={enteredByUserId}
+                onChange={setEnteredByUserId}
+                placeholder="Select Enter By"
+                allowClear
+              />
+            </label>
           </div>
 
           <label className="block space-y-1">

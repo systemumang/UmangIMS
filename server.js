@@ -7794,6 +7794,7 @@ app.post('/api/material-requests', async (req, res) => {
     const requestByType = String(req.body?.requestByType ?? 'Inhouse').trim();
     const requestByUserId = req.body?.requestByUserId ? String(req.body.requestByUserId).trim() : null;
     const requestBySupplierId = req.body?.requestBySupplierId ? String(req.body.requestBySupplierId).trim() : null;
+    const enteredByUserId = req.body?.enteredByUserId ? String(req.body.enteredByUserId).trim() : null;
     const remarks = req.body?.remarks ? String(req.body.remarks).trim() : null;
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
@@ -7815,11 +7816,16 @@ app.post('/api/material-requests', async (req, res) => {
     const requestId = crypto.randomUUID();
     const requestNo = await allocateDocNumber(pool, firmId, 'MR', new Date());
 
+    const [enteredByColumn] = await pool.query("SHOW COLUMNS FROM material_requests LIKE 'entered_by_user_id'");
+    if (!Array.isArray(enteredByColumn) || enteredByColumn.length === 0) {
+      await pool.query('ALTER TABLE material_requests ADD COLUMN entered_by_user_id VARCHAR(255) NULL');
+    }
+
     await pool.query(
 	      `INSERT INTO material_requests
-	        (id, request_no, date, firm_id, store_id, department, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, remarks, created_by)
-	       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-	      [requestId, requestNo, date, firmId, storeId, department, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, remarks, 'system']
+        (id, request_no, date, firm_id, store_id, department, customer_id, project_id, request_by_type, request_by_user_id, request_by_supplier_id, entered_by_user_id, remarks, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [requestId, requestNo, date, firmId, storeId, department, customerId, projectId, requestByType, requestByUserId, requestBySupplierId, enteredByUserId, remarks, 'system']
 	    );
 
     for (const item of items) {

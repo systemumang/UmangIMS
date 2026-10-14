@@ -24,11 +24,13 @@ export type MaterialRequest = {
   requestByType: 'Inhouse' | 'Vendor';
   requestByUserId?: string | null;
   requestBySupplierId?: string | null;
+  enteredByUserId?: string | null;
   remarks?: string | null;
   status: string;
   customerName?: string;
   projectName?: string;
   userName?: string;
+  enteredByUserName?: string;
   supplierName?: string;
   items?: MaterialRequestItem[];
 };
@@ -48,11 +50,13 @@ function normalizeMaterialRequest(raw: any): MaterialRequest {
     requestByType: String(raw?.requestByType ?? raw?.request_by_type ?? 'Inhouse') === 'Vendor' ? 'Vendor' : 'Inhouse',
     requestByUserId: raw?.requestByUserId ?? raw?.request_by_user_id ?? null,
     requestBySupplierId: raw?.requestBySupplierId ?? raw?.request_by_supplier_id ?? null,
+    enteredByUserId: raw?.enteredByUserId ?? raw?.entered_by_user_id ?? null,
     remarks: raw?.remarks ?? null,
     status: String(raw?.status ?? ''),
     customerName: raw?.customerName ?? raw?.customer_name ?? undefined,
     projectName: raw?.projectName ?? raw?.project_name ?? undefined,
     userName: raw?.userName ?? raw?.user_name ?? undefined,
+    enteredByUserName: raw?.enteredByUserName ?? raw?.entered_by_user_name ?? undefined,
     supplierName: raw?.supplierName ?? raw?.supplier_name ?? undefined,
     items: Array.isArray(raw?.items)
       ? raw.items.map((item: any) => ({
@@ -78,6 +82,7 @@ export async function createMaterialRequest(input: {
   requestByType: 'Inhouse' | 'Vendor';
   requestByUserId?: string | null;
   requestBySupplierId?: string | null;
+  enteredByUserId?: string | null;
   remarks?: string | null;
   items: Array<{ itemId: string; specification?: string; quantity: number }>;
   createdBy?: string;
