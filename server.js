@@ -32,6 +32,24 @@ const distDir = distCandidates.find((candidate) => existsSync(path.join(candidat
 // on the host to an absolute persistent folder for production deployments.
 const legacyUploadsDir = path.join(__dirname, 'uploads');
 const uploadsDir = path.resolve(process.env.IMS_UPLOADS_DIR || path.join(__dirname, 'data', 'uploads'));
+let uploadFilesTableReady = null;
+
+async function ensureUploadFilesTable(pool) {
+  if (!uploadFilesTableReady) {
+    uploadFilesTableReady = pool.query(`
+      CREATE TABLE IF NOT EXISTS uploaded_files (
+        file_name VARCHAR(255) PRIMARY KEY,
+        content_type VARCHAR(255) NOT NULL,
+        file_data LONGBLOB NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch((error) => {
+      uploadFilesTableReady = null;
+      throw error;
+    });
+  }
+  await uploadFilesTableReady;
+}
 
 // Uploads and large payloads (PDF base64) can exceed 2mb.
 app.use(express.json({ limit: '25mb' }));
@@ -53,6 +71,24 @@ app.get('/api/uploads/:fileName', async (req, res) => {
         return res.sendFile(resolved);
       } catch {
         // Check the next supported upload folder before returning 404.
+      }
+    }
+    const pool = getMysqlPool();
+    if (pool) {
+      try {
+        await ensureUploadFilesTable(pool);
+        const [rows] = await pool.query(
+          'SELECT content_type AS contentType, file_data AS fileData FROM uploaded_files WHERE file_name = ? LIMIT 1',
+          [fileName]
+        );
+        const file = Array.isArray(rows) ? rows[0] : null;
+        if (file?.fileData) {
+          res.type(String(file.contentType || 'application/octet-stream'));
+          res.setHeader('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
+          return res.send(file.fileData);
+        }
+      } catch (error) {
+        console.error('Unable to read uploaded file from database:', error);
       }
     }
     return res.status(404).send('File not found');
@@ -1464,6 +1500,15 @@ app.post('/api/uploads', (req, res, next) => {
     } catch (error) {
       if (error?.code !== 'EEXIST') throw error;
       deduplicated = true;
+    }
+
+    const pool = getMysqlPool();
+    if (pool) {
+      await ensureUploadFilesTable(pool);
+      await pool.query(
+        'INSERT INTO uploaded_files (file_name, content_type, file_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE content_type=VALUES(content_type), file_data=VALUES(file_data)',
+        [storedName, contentType, buf]
+      );
     }
 
     const suppliedOriginalSize = Number(req.get('x-original-size'));
