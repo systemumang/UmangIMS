@@ -137,12 +137,19 @@ export default function RequestMaterialView() {
     const specIds = getItemNameSpecIds(itemNameId);
     const candidates = masterItems.filter((it) => it.itemNameId === itemNameId);
     if (!candidates.length) return null;
-    if (!specIds.length) return candidates[0] ?? null;
+    // An item name can have specification mappings left over from master-data
+    // changes even when it now represents a single item.  Do not reject a
+    // complete row in that case just because the old mapping cannot match it.
+    if (!specIds.length || candidates.length === 1) return candidates[0] ?? null;
     if (specIds.some((specId) => !String(specValues?.[specId] ?? '').trim())) return null;
     return (
       candidates.find((it) => {
         const saved = parseSpecObject(it.specificationsJson);
-        return specIds.every((specId) => String(saved[specId] ?? '').trim() === String(specValues?.[specId] ?? '').trim());
+        return specIds.every(
+          (specId) =>
+            String(saved[specId] ?? '').trim().toLocaleLowerCase() ===
+            String(specValues?.[specId] ?? '').trim().toLocaleLowerCase()
+        );
       }) ?? null
     );
   };
@@ -168,11 +175,14 @@ export default function RequestMaterialView() {
       const nextErrors: string[] = [];
       const payloadItems = rows
         .map((row, idx) => {
-          const itemId = String(row.itemId ?? '').trim();
+          // Resolve again at submit time. This avoids a valid selection being
+          // rejected if React has not yet committed the item-id state update.
+          const resolvedItem = resolveSelectedItem(row.itemNameId, row.specs);
+          const itemId = String(resolvedItem?.id ?? row.itemId ?? '').trim();
           const quantity = Number(row.quantity);
           if (!itemId) nextErrors[idx] = 'Select item and specifications.';
           else if (!Number.isFinite(quantity) || quantity <= 0) nextErrors[idx] = 'Enter valid quantity.';
-          const matched = masterItems.find((it) => it.id === itemId);
+          const matched = resolvedItem ?? masterItems.find((it) => it.id === itemId);
           return {
             itemId,
             quantity,
