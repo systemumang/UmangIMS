@@ -343,12 +343,12 @@ export default function RequestMaterialView() {
 
             {requestByType === 'Inhouse' ? (
               <label className="block space-y-1">
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Request By</span>
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Requested By</span>
                 <SearchableSelect
                   options={users.map(u => ({ value: u.id, label: u.name }))}
                   value={requestByUserId}
                   onChange={setRequestByUserId}
-                  placeholder="Select Request By"
+                  placeholder="Select Requested By"
                 />
               </label>
             ) : (
@@ -363,12 +363,12 @@ export default function RequestMaterialView() {
               </label>
             )}
             <label className="block space-y-1">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Enter By</span>
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Entered By</span>
               <SearchableSelect
                 options={users.map(u => ({ value: u.id, label: u.name }))}
                 value={enteredByUserId}
                 onChange={setEnteredByUserId}
-                placeholder="Select Enter By"
+                placeholder="Select Entered By"
                 allowClear
               />
             </label>
