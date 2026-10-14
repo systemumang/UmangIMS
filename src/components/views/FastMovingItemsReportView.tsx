@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download } from 'lucide-react';
 import Pagination from '@/src/components/common/Pagination';
 import Spinner from '@/src/components/common/Spinner';
 import { downloadTextFile, toCsv } from '@/src/lib/csvFile';
 import { fetchItemNames, fetchItems, type Item, type ItemName } from '@/src/lib/masters';
 import { fetchStockSummary, type StockSummaryRow } from '@/src/lib/reports';
-import { listDamages, listIssues, listReturns, listTransfers, type StockTransaction } from '@/src/lib/stockMaster';
+import { listIssues, type StockTransaction } from '@/src/lib/stockMaster';
 
 type FastMovingRow = {
   itemId: string;
@@ -17,16 +17,6 @@ type FastMovingRow = {
   poInProgress: number;
   reorderLevel: number;
   shortfall: number;
-};
-
-type StockMovement = {
-  id: string;
-  date: string;
-  type: 'Issue' | 'Return' | 'Damage' | 'Transfer';
-  reference: string;
-  party: string;
-  quantity: number;
-  direction: 'In' | 'Out';
 };
 
 function qty(value: number) {
@@ -41,7 +31,11 @@ function stockLookupKey(value: unknown) {
   return String(value ?? '').toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-export default function FastMovingItemsReportView() {
+export default function FastMovingItemsReportView({
+  onOpenIssueMaster,
+}: {
+  onOpenIssueMaster?: (item: { itemId: string; item: string }) => void;
+} = {}) {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [itemNames, setItemNames] = useState<ItemName[]>([]);
@@ -55,10 +49,6 @@ export default function FastMovingItemsReportView() {
   const [limit, setLimit] = useState(100);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [selectedItem, setSelectedItem] = useState<FastMovingRow | null>(null);
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
-  const [movementLoading, setMovementLoading] = useState(false);
-  const [movementError, setMovementError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -164,48 +154,6 @@ export default function FastMovingItemsReportView() {
     setItemNameFilter('');
     setCategoryFilter('');
     setLimit(100);
-  };
-
-  const openStockMovement = async (row: FastMovingRow) => {
-    setSelectedItem(row);
-    setMovementLoading(true);
-    setMovementError(null);
-    setStockMovements([]);
-    try {
-      const [returns, damages, transfers] = await Promise.all([listReturns(), listDamages(), listTransfers()]);
-      const matchesItem = (transaction: StockTransaction, line: StockTransaction['items'][number]) =>
-        String(line.itemId ?? '').trim() === row.itemId ||
-        stockLookupKey(line.item) === stockLookupKey(row.item);
-      const toMovements = (
-        transactions: StockTransaction[],
-        type: StockMovement['type'],
-        direction: StockMovement['direction']
-      ) => transactions.flatMap((transaction) =>
-        (transaction.items ?? [])
-          .filter((line) => matchesItem(transaction, line))
-          .map((line, index) => ({
-            id: `${type}-${transaction.id}-${index}`,
-            date: issueDate(transaction),
-            type,
-            reference: transaction.transactionNo || '-',
-            party: type === 'Transfer'
-              ? `${transaction.store || transaction.department || '-'} → ${transaction.toStore || transaction.toDepartment || '-'}`
-              : transaction.projectName || transaction.customerName || transaction.person || transaction.department || '-',
-            quantity: Number(line.quantity ?? 0),
-            direction,
-          }))
-      );
-      setStockMovements([
-        ...toMovements(issues, 'Issue', 'Out'),
-        ...toMovements(returns, 'Return', 'In'),
-        ...toMovements(damages, 'Damage', 'Out'),
-        ...toMovements(transfers, 'Transfer', 'Out'),
-      ].sort((a, b) => b.date.localeCompare(a.date) || b.reference.localeCompare(a.reference)));
-    } catch (e) {
-      setMovementError(e instanceof Error ? e.message : 'Failed to load stock movement.');
-    } finally {
-      setMovementLoading(false);
-    }
   };
 
   const exportToExcel = () => {
@@ -331,16 +279,20 @@ export default function FastMovingItemsReportView() {
                   <td className="px-3 py-2 border border-black font-semibold">
                     <button
                       type="button"
-                      onClick={() => void openStockMovement(row)}
+                      onClick={() => onOpenIssueMaster?.(row)}
                       className="text-left text-primary underline underline-offset-2 hover:text-primary-dim focus:outline-none focus:ring-2 focus:ring-primary rounded"
-                      title={`View stock movement for ${row.item}`}
+                      title={`View issues for ${row.item}`}
                     >
                       {row.item}
                     </button>
                   </td>
                   <td className="px-3 py-2 border border-black">{row.category}</td>
-                  <td className="px-3 py-2 border border-black text-right tabular-nums font-bold">{qty(row.issueQuantity)}</td>
-                  <td className="px-3 py-2 border border-black text-right tabular-nums">{row.issueCount}</td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums font-bold">
+                    <button type="button" onClick={() => onOpenIssueMaster?.(row)} className="text-primary underline underline-offset-2 hover:text-primary-dim" title={`View issues for ${row.item}`}>{qty(row.issueQuantity)}</button>
+                  </td>
+                  <td className="px-3 py-2 border border-black text-right tabular-nums">
+                    <button type="button" onClick={() => onOpenIssueMaster?.(row)} className="text-primary underline underline-offset-2 hover:text-primary-dim" title={`View issues for ${row.item}`}>{row.issueCount}</button>
+                  </td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.currentStock)}</td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.poInProgress)}</td>
                   <td className="px-3 py-2 border border-black text-right tabular-nums">{qty(row.reorderLevel)}</td>
@@ -356,42 +308,6 @@ export default function FastMovingItemsReportView() {
       {!loading && !error ? (
         <div className="px-4 py-3 border-t border-outline-variant">
           <Pagination totalItems={visibleRows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-        </div>
-      ) : null}
-      {selectedItem ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-xl flex flex-col">
-            <div className="flex items-start justify-between gap-4 border-b border-outline-variant px-5 py-4">
-              <div>
-                <h2 className="text-base font-semibold text-on-surface">Stock Movement</h2>
-                <p className="mt-1 text-sm text-on-surface-variant break-words">{selectedItem.item}</p>
-              </div>
-              <button type="button" onClick={() => setSelectedItem(null)} className="rounded p-1 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface" aria-label="Close stock movement">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="overflow-auto p-4">
-              {movementLoading ? <div className="p-8 flex justify-center"><Spinner /></div> : movementError ? (
-                <div className="p-4 text-sm text-error">{movementError}</div>
-              ) : stockMovements.length ? (
-                <table className="min-w-[720px] w-full text-sm border-collapse border border-black">
-                  <thead className="bg-primary text-on-primary text-xs uppercase tracking-wider">
-                    <tr><th className="px-3 py-2 text-left border border-black">Date</th><th className="px-3 py-2 text-left border border-black">Movement</th><th className="px-3 py-2 text-left border border-black">Reference</th><th className="px-3 py-2 text-left border border-black">Project / Party</th><th className="px-3 py-2 text-right border border-black">In</th><th className="px-3 py-2 text-right border border-black">Out</th></tr>
-                  </thead>
-                  <tbody>
-                    {stockMovements.map((movement) => <tr key={movement.id}>
-                      <td className="px-3 py-2 border border-black whitespace-nowrap">{movement.date || '-'}</td>
-                      <td className="px-3 py-2 border border-black">{movement.type}</td>
-                      <td className="px-3 py-2 border border-black">{movement.reference}</td>
-                      <td className="px-3 py-2 border border-black">{movement.party}</td>
-                      <td className="px-3 py-2 border border-black text-right tabular-nums text-emerald-700">{movement.direction === 'In' ? qty(movement.quantity) : '-'}</td>
-                      <td className="px-3 py-2 border border-black text-right tabular-nums text-error">{movement.direction === 'Out' ? qty(movement.quantity) : '-'}</td>
-                    </tr>)}
-                  </tbody>
-                </table>
-              ) : <div className="p-8 text-center text-sm text-on-surface-variant">No stock movement found for this item.</div>}
-            </div>
-          </div>
         </div>
       ) : null}
     </div>

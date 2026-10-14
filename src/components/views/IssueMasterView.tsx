@@ -4,7 +4,13 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { listIssues, deleteIssue, updateIssue, type StockTransaction } from '@/src/lib/stockMaster';
 import { fetchFirms, fetchItems, fetchStores, fetchDepartments, fetchProjects, type Firm, type Item, type Store, type Department, type Project } from '@/src/lib/masters';
 
-export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) {
+export default function IssueMasterView({
+  onAdd,
+  itemFilter,
+}: {
+  onAdd?: () => void;
+  itemFilter?: { itemId: string; item: string } | null;
+} = {}) {
   const [issues, setIssues] = useState<StockTransaction[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -152,6 +158,25 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
   const getItemsDisplay = (row: StockTransaction) =>
     row.items.map((it) => `${getReadableItemLabel(it.itemId, it.item)} - ${Number(it.quantity) || 0}`).join('\n') || '-';
 
+  const getSearchableItemText = (row: StockTransaction) =>
+    row.items.map((line) => {
+      const masterItem = items.find((item) => item.id === String(line.itemId ?? '').trim());
+      return [line.itemId, line.item, getReadableItemLabel(line.itemId, line.item), masterItem ? getFullItemLabel(masterItem) : ''].join(' ');
+    }).join(' ');
+
+  const normalizeSearch = (value: unknown) =>
+    String(value ?? '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  const containsSearch = (value: unknown, search: string) => {
+    const needle = normalizeSearch(search);
+    if (!needle) return true;
+    return normalizeSearch(value).includes(needle);
+  };
+
+  useEffect(() => {
+    if (itemFilter?.item) setQ(itemFilter.item);
+  }, [itemFilter]);
+
   const lastFiveDates = Array.from({ length: 5 }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() - index);
@@ -203,7 +228,7 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
     }
   };
 
-	  const query = q.toLowerCase();
+	  const query = q.trim();
 	  const filtered = issues.filter((i) => {
       const rowDate = String(i.date ?? '').slice(0, 10);
       if ((fromDate || toDate) && !rowDate) return false;
@@ -212,18 +237,24 @@ export default function IssueMasterView({ onAdd }: { onAdd?: () => void } = {}) 
       if (departmentFilter && String(i.department ?? '') !== departmentFilter) return false;
       if (projectFilter && String(i.projectId ?? '') !== projectFilter) return false;
 
+      const matchesSelectedItem = !itemFilter || (i.items ?? []).some((line) =>
+        String(line.itemId ?? '').trim() === itemFilter.itemId ||
+        normalizeSearch(line.item) === normalizeSearch(itemFilter.item)
+      );
+      if (!matchesSelectedItem) return false;
+
       return (
-        i.transactionNo.toLowerCase().includes(query) ||
-        i.firmId.toLowerCase().includes(query) ||
-        getFirmDisplay(i.firmId).toLowerCase().includes(query) ||
-        String(i.store ?? '').toLowerCase().includes(query) ||
-        getStoreDisplay(i.store).toLowerCase().includes(query) ||
-        i.person.toLowerCase().includes(query) ||
-        (i.issueType ?? '').toLowerCase().includes(query) ||
-        (i.issuedTo ?? '').toLowerCase().includes(query) ||
-        (i.department ?? '').toLowerCase().includes(query) ||
-        getProjectDisplay(i.projectId).toLowerCase().includes(query) ||
-        getItemsDisplay(i).toLowerCase().includes(query)
+        containsSearch(i.transactionNo, query) ||
+        containsSearch(i.firmId, query) ||
+        containsSearch(getFirmDisplay(i.firmId), query) ||
+        containsSearch(i.store, query) ||
+        containsSearch(getStoreDisplay(i.store), query) ||
+        containsSearch(i.person, query) ||
+        containsSearch(i.issueType, query) ||
+        containsSearch(i.issuedTo, query) ||
+        containsSearch(i.department, query) ||
+        containsSearch(getProjectDisplay(i.projectId), query) ||
+        containsSearch(getSearchableItemText(i), query)
       );
     });
 

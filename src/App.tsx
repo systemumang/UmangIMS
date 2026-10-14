@@ -159,6 +159,7 @@ export default function App() {
         | 'settingsCatalogue';
 			  const isPendingQueueView = (v: View): v is PendingQueueView => String(v).startsWith('queue');
 			  const [view, setView] = useState<View>('dashboard');
+		  const [issueMasterItemFilter, setIssueMasterItemFilter] = useState<{ itemId: string; item: string } | null>(null);
 			  const [activeMaterialRequest, setActiveMaterialRequest] = useState<any | null>(null);
 
 			  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -1092,7 +1093,7 @@ export default function App() {
 	            {view === 'quotationMaster' ? <QuotationMasterView /> : null}
 	            {view === 'reportExpenses' ? <ExpensesReportView /> : null}
 	            {view === 'reportPendingOrder' ? <PendingOrderReportView /> : null}
-            {view === 'reportFastMovingItems' ? <FastMovingItemsReportView /> : null}
+            {view === 'reportFastMovingItems' ? <FastMovingItemsReportView onOpenIssueMaster={(item) => { setIssueMasterItemFilter(item); setView('issueMaster'); }} /> : null}
             {view === 'reportSlowMovingItems' ? <SlowMovingItemsReportView /> : null}
                 {view === 'couriers' ? <CourierTrackingView mode="all" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
                 {view === 'pendingReceipt' ? <CourierTrackingView mode="pending" currentUserName={currentUser?.name || currentUser?.loginId || ''} /> : null}
@@ -1122,7 +1123,7 @@ export default function App() {
 		              {stockMasterTab === 'physicalStock' ? <PhysicalStockView initialMode="form" onCreated={() => setView('physicalStockMaster')} /> : null}
 		            </>
 		          ) : null}
-              {view === 'issueMaster' ? <IssueMasterView onAdd={() => { setStockMasterTab('itemIssue'); setView('stockMaster'); }} /> : null}
+              {view === 'issueMaster' ? <IssueMasterView itemFilter={issueMasterItemFilter} onAdd={() => { setStockMasterTab('itemIssue'); setView('stockMaster'); }} /> : null}
               {view === 'returnMaster' ? <ReturnMasterView onAdd={() => { setStockMasterTab('return'); setView('stockMaster'); }} /> : null}
               {view === 'damageMaster' ? <DamageMasterView onAdd={() => { setStockMasterTab('damage'); setView('stockMaster'); }} /> : null}
               {view === 'transferMaster' ? <TransferMasterView onAdd={() => { setStockMasterTab('transfer'); setView('stockMaster'); }} /> : null}
