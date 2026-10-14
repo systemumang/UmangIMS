@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { fetchPendingMaterialRequests, type MaterialRequest } from '@/src/lib/materialRequests';
+import { deleteMaterialRequest, fetchPendingMaterialRequests, type MaterialRequest } from '@/src/lib/materialRequests';
 import Spinner from '@/src/components/common/Spinner';
-import { ArrowUpRight, Search } from 'lucide-react';
+import { ArrowUpRight, Search, Trash2 } from 'lucide-react';
 import { formatDateDDMMYYYYOnly } from '@/src/lib/date';
 
 export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRequest) => void }) {
@@ -31,6 +31,16 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
     String(r.projectName ?? '').toLowerCase().includes(needle) ||
     String(r.userName ?? r.supplierName ?? '').toLowerCase().includes(needle)
   );
+
+  const removeRequest = async (request: MaterialRequest) => {
+    if (!confirm(`Delete material request ${request.requestNo}?`)) return;
+    try {
+      await deleteMaterialRequest(request.id);
+      setRequests((previous) => previous.filter((row) => row.id !== request.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   if (loading) return <div className="p-8 flex justify-center"><Spinner /></div>;
   if (error) return <div className="p-8 text-error">{error}</div>;
@@ -85,13 +95,10 @@ export default function PendingIssueView({ onIssue }: { onIssue: (mr: MaterialRe
                   <td className="px-3 py-2 border border-outline-variant/20 max-w-[260px] truncate" title={itemList || '-'}>{itemList || '-'}</td>
                   <td className="px-3 py-2 border border-outline-variant/20 text-right font-semibold">{pendingQty}</td>
                   <td className="px-3 py-2 border border-outline-variant/20 text-center">
-                    <button
-                      onClick={() => onIssue(mr)}
-                      className="bg-primary text-on-primary px-3 py-1.5 rounded-lg font-bold text-xs inline-flex items-center gap-1 hover:bg-primary/90 transition-colors"
-                    >
-                      <ArrowUpRight size={14} />
-                      Create Issue
-                    </button>
+                    <div className="flex justify-center gap-2">
+                      <button onClick={() => onIssue(mr)} className="bg-primary text-on-primary px-3 py-1.5 rounded-lg font-bold text-xs inline-flex items-center gap-1 hover:bg-primary/90 transition-colors"><ArrowUpRight size={14} /> Create Issue</button>
+                      <button onClick={() => void removeRequest(mr)} className="bg-red-50 text-error border border-red-200 px-2 py-1.5 rounded-lg hover:bg-red-100" title="Delete request" aria-label="Delete request"><Trash2 size={14} /></button>
+                    </div>
                   </td>
                 </tr>
               );

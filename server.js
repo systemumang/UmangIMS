@@ -7940,6 +7940,23 @@ app.get('/api/material-requests/pending', async (_req, res) => {
   }
 });
 
+app.delete('/api/material-requests/:id', async (req, res) => {
+  try {
+    const pool = getMysqlPool();
+    if (!pool) return res.status(500).json({ error: 'Database is not configured.' });
+    const requestId = String(req.params.id ?? '').trim();
+    if (!requestId) return res.status(400).json({ error: 'id is required' });
+    const [[request]] = await pool.query('SELECT id, status FROM material_requests WHERE id=? LIMIT 1', [requestId]);
+    if (!request) return res.status(404).json({ error: 'Material request not found' });
+    if (String(request.status ?? '') !== 'Pending') return res.status(400).json({ error: 'Only pending material requests can be deleted' });
+    const [[issued]] = await pool.query('SELECT COUNT(*) AS count FROM item_issues WHERE material_request_id=?', [requestId]);
+    if (Number(issued?.count ?? 0) > 0) return res.status(400).json({ error: 'This request has issued items and cannot be deleted' });
+    await pool.query('DELETE FROM material_request_items WHERE request_id=?', [requestId]);
+    await pool.query('DELETE FROM material_requests WHERE id=?', [requestId]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }); }
+});
+
 app.post('/api/requests', async (req, res) => {
 		  try {
 		    const pool = getMysqlPool();

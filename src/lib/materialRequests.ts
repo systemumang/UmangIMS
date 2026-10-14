@@ -106,3 +106,8 @@ export async function fetchPendingMaterialRequests(signal?: AbortSignal) {
   const data = await requireOk<{ requests: MaterialRequest[] }>(res, 'Failed to fetch pending material requests');
   return Array.isArray(data.requests) ? data.requests.map(normalizeMaterialRequest) : [];
 }
+
+export async function deleteMaterialRequest(id: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/material-requests/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return requireOk<{ ok: boolean }>(res, 'Failed to delete material request');
+}
