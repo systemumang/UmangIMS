@@ -67,6 +67,13 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
+  const [filterSupplierId, setFilterSupplierId] = useState('');
+  const [filterProjectId, setFilterProjectId] = useState('');
+  const [filterPoId, setFilterPoId] = useState('');
+
   const [addOpen, setAddOpen] = useState(false);
   const [detailsFor, setDetailsFor] = useState<CourierRow | null>(null);
   const [updates, setUpdates] = useState<CourierUpdateRow[]>([]);
@@ -106,6 +113,32 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     [pos]
   );
   const userOptions = useMemo(() => users.map((u) => ({ value: u.name, label: u.name })), [users]);
+  const companyOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => String(row.courierCompany ?? '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ value: name, label: name })),
+    [rows]
+  );
+  const filteredRows = useMemo(
+    () => rows.filter((row) => {
+      const courierDate = String(row.date ?? '').slice(0, 10);
+      return (!filterFromDate || courierDate >= filterFromDate)
+        && (!filterToDate || courierDate <= filterToDate)
+        && (!filterCompany || row.courierCompany === filterCompany)
+        && (!filterSupplierId || row.supplierId === filterSupplierId)
+        && (!filterProjectId || row.projectId === filterProjectId)
+        && (!filterPoId || row.poId === filterPoId);
+    }),
+    [rows, filterFromDate, filterToDate, filterCompany, filterSupplierId, filterProjectId, filterPoId]
+  );
+  const clearFilters = () => {
+    setFilterFromDate('');
+    setFilterToDate('');
+    setFilterCompany('');
+    setFilterSupplierId('');
+    setFilterProjectId('');
+    setFilterPoId('');
+  };
 
   const loadRows = () => {
     setLoading(true);
@@ -243,7 +276,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <div className="font-headline font-bold text-sm text-on-surface">{mode === 'pending' ? 'Pending Courier' : 'Couriers'}</div>
             <div className="text-xs text-on-surface-variant">Courier Tracking</div>
           </div>
-          <div className="text-xs font-semibold text-on-surface-variant">{rows.length} rows</div>
+          <div className="text-xs font-semibold text-on-surface-variant">{filteredRows.length} / {rows.length} rows</div>
         </div>
 
         {error ? <div className="m-4 text-sm text-error bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div> : null}
@@ -255,6 +288,18 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             </button>
           </div>
         ) : null}
+
+        <div className="mx-4 mt-4 rounded-lg border border-outline-variant bg-surface-container-low p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+            <label className="space-y-1"><div className={labelClass}>From Date</div><input className={inputClass} type="date" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)} /></label>
+            <label className="space-y-1"><div className={labelClass}>To Date</div><input className={inputClass} type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)} /></label>
+            <div className="space-y-1"><div className={labelClass}>Courier Company</div><SearchableSelect value={filterCompany} options={companyOptions} onChange={setFilterCompany} placeholder="All companies" allowClear controlClassName={inputClass} /></div>
+            <div className="space-y-1"><div className={labelClass}>Supplier</div><SearchableSelect value={filterSupplierId} options={supplierOptions} onChange={setFilterSupplierId} placeholder="All suppliers" allowClear controlClassName={inputClass} /></div>
+            <div className="space-y-1"><div className={labelClass}>Project</div><SearchableSelect value={filterProjectId} options={projectOptions} onChange={setFilterProjectId} placeholder="All projects" allowClear controlClassName={inputClass} /></div>
+            <div className="space-y-1"><div className={labelClass}>PO No.</div><SearchableSelect value={filterPoId} options={poOptions} onChange={setFilterPoId} placeholder="All POs" allowClear controlClassName={inputClass} /></div>
+          </div>
+          <div className="mt-3 flex justify-end"><button type="button" className="btn btn-sm" onClick={clearFilters}>Clear Filters</button></div>
+        </div>
 
         <div className="p-4 overflow-x-auto">
           <table className="w-full min-w-[1824px] border-2 border-outline-variant border-collapse table-fixed">
@@ -278,9 +323,9 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <tbody>
               {loading ? (
                 <tr><td className={`${tdClass} text-center`} colSpan={13}>Loading...</td></tr>
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr><td className={`${tdClass} text-center`} colSpan={13}>No courier rows found.</td></tr>
-              ) : rows.map((row) => (
+              ) : filteredRows.map((row) => (
                 <tr key={row.id}>
                   <td className={tdClass}>{formatDate(row.date)}</td>
                   <td className={`${tdClass} font-semibold`}>{row.courierNo}</td>
