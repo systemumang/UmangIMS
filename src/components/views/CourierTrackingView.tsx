@@ -98,8 +98,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
   const [remarks, setRemarks] = useState('');
   const [updatePhotoUrl, setUpdatePhotoUrl] = useState('');
   const [updatePhotoName, setUpdatePhotoName] = useState('');
-  const [receivedBy, setReceivedBy] = useState('');
+  const [collectedBy, setCollectedBy] = useState('');
   const [receivedDate, setReceivedDate] = useState(todayIso());
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [anyDamage, setAnyDamage] = useState<'Yes' | 'No'>('No');
 
   const inputClass = 'w-full h-10 rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary';
   const labelClass = 'text-[10px] font-bold uppercase tracking-wider text-on-surface-variant';
@@ -187,8 +189,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     setRemarks('');
     setUpdatePhotoUrl('');
     setUpdatePhotoName('');
-    setReceivedBy('');
+    setCollectedBy('');
     setReceivedDate(todayIso());
+    setVehicleNo('');
+    setAnyDamage('No');
     setFormError(null);
   };
 
@@ -238,7 +242,7 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
     if (!updateDate) return setFormError('Update Date is required.');
     if (!updatedBy.trim()) return setFormError('Update By is required.');
     if (updateStatus === 'In Progress' && !remarks.trim()) return setFormError('Remarks are required for In Progress status.');
-    if (updateStatus === 'Received' && !receivedBy.trim()) return setFormError('Received By is required for Received status.');
+    if (updateStatus === 'Received' && !collectedBy.trim()) return setFormError('Collected By is required for Received status.');
     if (updateStatus === 'Received' && !receivedDate) return setFormError('Received Date is required for Received status.');
     setSaving(true);
     try {
@@ -248,8 +252,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
         status: updateStatus,
         remarks: remarks.trim(),
         updatePhotoUrl: updatePhotoUrl || undefined,
-        receivedBy: updateStatus === 'Received' ? receivedBy.trim() : undefined,
+        collectedBy: updateStatus === 'Received' ? collectedBy.trim() : undefined,
         receivedDate: updateStatus === 'Received' ? receivedDate : undefined,
+        vehicleNo: updateStatus === 'Received' ? vehicleNo.trim() : undefined,
+        anyDamage: updateStatus === 'Received' ? anyDamage : undefined,
       });
       setUpdateFor(null);
       loadRows();
@@ -414,8 +420,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <label className="space-y-1"><div className={labelClass}>Status *</div><select className={inputClass} value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value as CourierStatus)}>{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
             {updateStatus === 'Received' ? (
               <>
-                <label className="space-y-1"><div className={labelClass}>Received By *</div><select className={inputClass} value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)}><option value="">Select user...</option>{userOptions.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
+                <label className="space-y-1"><div className={labelClass}>Collected By *</div><select className={inputClass} value={collectedBy} onChange={(e) => setCollectedBy(e.target.value)}><option value="">Select user...</option>{userOptions.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
                 <label className="space-y-1"><div className={labelClass}>Received Date *</div><input className={inputClass} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} /></label>
+                <label className="space-y-1"><div className={labelClass}>Vehicle No.</div><input className={inputClass} value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="Enter vehicle number..." /></label>
+                <label className="space-y-1"><div className={labelClass}>Any Damage</div><select className={inputClass} value={anyDamage} onChange={(e) => setAnyDamage(e.target.value as 'Yes' | 'No')}><option value="No">No</option><option value="Yes">Yes</option></select></label>
               </>
             ) : null}
             <div className="space-y-1 md:col-span-2">
@@ -464,10 +472,10 @@ export default function CourierTrackingView({ mode, currentUserName = '' }: Prop
             <div><span className="font-semibold">Expected:</span> {formatDate(detailsFor.expectedDate)}</div>
           </div>
           <table className="w-full min-w-[720px] border-2 border-outline-variant border-collapse">
-            <thead><tr><th className={thClass}>Update Date</th><th className={thClass}>Update By</th><th className={thClass}>Status</th><th className={thClass}>Received By</th><th className={thClass}>Received Date</th><th className={thClass}>Update Photo</th><th className={thClass}>Remarks</th></tr></thead>
+            <thead><tr><th className={thClass}>Update Date</th><th className={thClass}>Update By</th><th className={thClass}>Status</th><th className={thClass}>Collected By</th><th className={thClass}>Received Date</th><th className={thClass}>Vehicle No.</th><th className={thClass}>Any Damage</th><th className={thClass}>Update Photo</th><th className={thClass}>Remarks</th></tr></thead>
             <tbody>
-              {updatesLoading ? <tr><td className={`${tdClass} text-center`} colSpan={7}>Loading...</td></tr> : updates.length === 0 ? <tr><td className={`${tdClass} text-center`} colSpan={7}>No updates found.</td></tr> : updates.map((u) => (
-                <tr key={u.id}><td className={tdClass}>{formatDate(u.updateDate)}</td><td className={tdClass}>{u.updatedBy}</td><td className={tdClass}>{u.status}</td><td className={tdClass}>{u.receivedBy || '-'}</td><td className={tdClass}>{formatDate(u.receivedDate)}</td><td className={tdClass}>{u.updatePhotoUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(u.updatePhotoUrl))}>View</button> : '-'}</td><td className={`${tdClass} whitespace-pre-wrap`}>{u.remarks || '-'}</td></tr>
+              {updatesLoading ? <tr><td className={`${tdClass} text-center`} colSpan={9}>Loading...</td></tr> : updates.length === 0 ? <tr><td className={`${tdClass} text-center`} colSpan={9}>No updates found.</td></tr> : updates.map((u) => (
+                <tr key={u.id}><td className={tdClass}>{formatDate(u.updateDate)}</td><td className={tdClass}>{u.updatedBy}</td><td className={tdClass}>{u.status}</td><td className={tdClass}>{u.collectedBy || '-'}</td><td className={tdClass}>{formatDate(u.receivedDate)}</td><td className={tdClass}>{u.vehicleNo || '-'}</td><td className={tdClass}>{u.anyDamage || '-'}</td><td className={tdClass}>{u.updatePhotoUrl ? <button type="button" className="text-primary underline" onClick={() => openDocument(fileHref(u.updatePhotoUrl))}>View</button> : '-'}</td><td className={`${tdClass} whitespace-pre-wrap`}>{u.remarks || '-'}</td></tr>
               ))}
             </tbody>
           </table>

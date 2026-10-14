@@ -384,6 +384,9 @@ function getMysqlPool() {
           update_photo_url LONGTEXT NULL,
           received_by VARCHAR(255) NULL,
           received_date DATE NULL,
+          collected_by VARCHAR(255) NULL,
+          vehicle_no VARCHAR(255) NULL,
+          any_damage VARCHAR(8) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           KEY idx_courier_updates_courier_id (courier_id),
           KEY idx_courier_updates_update_date (update_date)
@@ -392,6 +395,9 @@ function getMysqlPool() {
       await ensureColumn('courier_updates', 'update_photo_url', 'LONGTEXT NULL');
       await ensureColumn('courier_updates', 'received_by', 'VARCHAR(255) NULL');
       await ensureColumn('courier_updates', 'received_date', 'DATE NULL');
+      await ensureColumn('courier_updates', 'collected_by', 'VARCHAR(255) NULL');
+      await ensureColumn('courier_updates', 'vehicle_no', 'VARCHAR(255) NULL');
+      await ensureColumn('courier_updates', 'any_damage', 'VARCHAR(8) NULL');
       const dropUniqueIndexesForExactColumns = async (table, columnSets) => {
 	        const [rows] = await pool.query(`SHOW INDEX FROM ${table}`);
 	        const byName = new Map();
@@ -17727,7 +17733,7 @@ app.get('/api/couriers/:id/updates', async (req, res) => {
     if (!courierId) return res.status(400).json({ error: 'id is required' });
     const [rows] = await pool.query(
       `
-      SELECT id, courier_id AS courierId, update_date AS updateDate, updated_by AS updatedBy, status, remarks, update_photo_url AS updatePhotoUrl, received_by AS receivedBy, received_date AS receivedDate, created_at AS createdAt
+      SELECT id, courier_id AS courierId, update_date AS updateDate, updated_by AS updatedBy, status, remarks, update_photo_url AS updatePhotoUrl, COALESCE(collected_by, received_by) AS collectedBy, received_date AS receivedDate, vehicle_no AS vehicleNo, any_damage AS anyDamage, created_at AS createdAt
       FROM courier_updates
       WHERE courier_id = ?
       ORDER BY update_date DESC, created_at DESC
@@ -17742,8 +17748,10 @@ app.get('/api/couriers/:id/updates', async (req, res) => {
       status: normalizeCourierStatus(r.status),
       remarks: r.remarks != null ? String(r.remarks) : '',
       updatePhotoUrl: r.updatePhotoUrl != null ? String(r.updatePhotoUrl) : '',
-      receivedBy: r.receivedBy != null ? String(r.receivedBy) : '',
+      collectedBy: r.collectedBy != null ? String(r.collectedBy) : '',
       receivedDate: courierDateIso(r.receivedDate),
+      vehicleNo: r.vehicleNo != null ? String(r.vehicleNo) : '',
+      anyDamage: r.anyDamage != null ? String(r.anyDamage) : 'No',
       createdAt: r.createdAt ? String(r.createdAt) : '',
     })) });
   } catch (e) {
@@ -17761,21 +17769,24 @@ app.post('/api/couriers/:id/updates', async (req, res) => {
     const status = normalizeCourierStatus(req.body?.status);
     const remarks = req.body?.remarks != null ? String(req.body.remarks).trim() : '';
     const updatePhotoUrl = req.body?.updatePhotoUrl != null ? String(req.body.updatePhotoUrl).trim() : '';
-    const receivedBy = req.body?.receivedBy != null ? String(req.body.receivedBy).trim() : '';
+    const collectedBy = req.body?.collectedBy != null ? String(req.body.collectedBy).trim() : '';
     const receivedDate = req.body?.receivedDate != null ? String(req.body.receivedDate).slice(0, 10) : '';
+    const vehicleNo = req.body?.vehicleNo != null ? String(req.body.vehicleNo).trim() : '';
+    const anyDamage = req.body?.anyDamage != null ? String(req.body.anyDamage).trim() : 'No';
     if (!courierId) return res.status(400).json({ error: 'id is required' });
     if (!updateDate) return res.status(400).json({ error: 'Update Date is required' });
     if (!updatedBy) return res.status(400).json({ error: 'Update By is required' });
     if (!COURIER_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid status' });
     if (status === 'In Progress' && !remarks) return res.status(400).json({ error: 'Remarks are required for In Progress status' });
-    if (status === 'Received' && !receivedBy) return res.status(400).json({ error: 'Received By is required for Received status' });
+    if (status === 'Received' && !collectedBy) return res.status(400).json({ error: 'Collected By is required for Received status' });
     if (status === 'Received' && !receivedDate) return res.status(400).json({ error: 'Received Date is required for Received status' });
+    if (status === 'Received' && !['Yes', 'No'].includes(anyDamage)) return res.status(400).json({ error: 'Any Damage must be Yes or No' });
     const [existingRows] = await pool.query('SELECT id FROM couriers WHERE id = ? LIMIT 1', [courierId]);
     if (!Array.isArray(existingRows) || !existingRows.length) return res.status(404).json({ error: 'Courier not found' });
     const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO courier_updates (id, courier_id, update_date, updated_by, status, remarks, update_photo_url, received_by, received_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, courierId, updateDate, updatedBy, status, remarks || null, updatePhotoUrl || null, receivedBy || null, status === 'Received' ? receivedDate : null]
+      `INSERT INTO courier_updates (id, courier_id, update_date, updated_by, status, remarks, update_photo_url, received_by, received_date, collected_by, vehicle_no, any_damage, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, courierId, updateDate, updatedBy, status, remarks || null, updatePhotoUrl || null, collectedBy || null, status === 'Received' ? receivedDate : null, status === 'Received' ? collectedBy : null, status === 'Received' ? vehicleNo : null, status === 'Received' ? anyDamage : null]
     );
     await pool.query(
       `UPDATE couriers SET status=?, last_update_date=?, last_update_by=?, last_update_remarks=?, updated_at=NOW() WHERE id=?`,
