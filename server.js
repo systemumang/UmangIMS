@@ -28,7 +28,10 @@ const distCandidates = [
   path.resolve(__dirname, '..', '..', '..', '..', 'public_html'),
 ];
 const distDir = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0];
-const uploadsDir = path.join(__dirname, 'uploads');
+// Keep uploads outside the deployed source tree by default. Set IMS_UPLOADS_DIR
+// on the host to an absolute persistent folder for production deployments.
+const legacyUploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.resolve(process.env.IMS_UPLOADS_DIR || path.join(__dirname, 'data', 'uploads'));
 
 // Uploads and large payloads (PDF base64) can exceed 2mb.
 app.use(express.json({ limit: '25mb' }));
@@ -39,13 +42,20 @@ app.get('/api/uploads/:fileName', async (req, res) => {
   try {
     const fileName = decodeURIComponent(String(req.params.fileName ?? '')).replace(/[\\/]/g, '');
     if (!fileName) return res.status(400).send('fileName is required');
-    const filePath = path.join(uploadsDir, fileName);
-    const resolved = path.resolve(filePath);
-    const uploadsRoot = path.resolve(uploadsDir);
-    if (!resolved.startsWith(`${uploadsRoot}${path.sep}`)) return res.status(400).send('Invalid fileName');
-    await fs.access(resolved);
-    res.setHeader('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
-    res.sendFile(resolved);
+    const folders = Array.from(new Set([uploadsDir, legacyUploadsDir]));
+    for (const folder of folders) {
+      const uploadsRoot = path.resolve(folder);
+      const resolved = path.resolve(path.join(uploadsRoot, fileName));
+      if (!resolved.startsWith(`${uploadsRoot}${path.sep}`)) return res.status(400).send('Invalid fileName');
+      try {
+        await fs.access(resolved);
+        res.setHeader('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
+        return res.sendFile(resolved);
+      } catch {
+        // Check the next supported upload folder before returning 404.
+      }
+    }
+    return res.status(404).send('File not found');
   } catch {
     res.status(404).send('File not found');
   }
