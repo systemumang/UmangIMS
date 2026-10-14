@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
-import Sidebar, { type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockCountKey, type StockMasterTab } from './components/Sidebar';
+import Sidebar, { purchaseMastersMenuItems, type NavView, type PendingQueueKey, type PurchaseMastersTab, type StockCountKey, type StockMasterTab } from './components/Sidebar';
 import TopBar from './components/TopBar';
 const PowerBIDashboardView = lazy(() => import('./components/views/PowerBIDashboardView'));
 const InventoryView = lazy(() => import('./components/views/InventoryView'));
@@ -391,7 +391,7 @@ export default function App() {
 				  const topBar = useMemo(() => {
 				    if (view === 'dashboard') return { title: 'Dashboard', showSearch: false };
 				    if (view === 'inventory') return { title: 'Inventory', showSearch: false };
-				    if (view === 'operations') return { title: 'Operations', showSearch: false };
+			    if (view === 'operations') return { title: purchaseMastersMenuItems.find((item) => item.key === operationsTab)?.label ?? 'Purchase Masters', showSearch: false };
 				    if (view === 'pendingSupplierRate') return { title: 'Pending Supplier Rate', showSearch: false };
 				    if (view === 'quotationMaster') return { title: 'Quotation Master', showSearch: false };
 				    if (view === 'reportExpenses') return { title: 'Reports', subtitle: 'Expenses', showSearch: false };
@@ -453,7 +453,7 @@ export default function App() {
 	      return { title: titleByKey[view], showSearch: false };
 	    }
 	    return { title: 'Purchase Requests', showSearch: true };
-		  }, [mastersTab, view, stockMasterTab]);
+		  }, [mastersTab, operationsTab, view, stockMasterTab]);
 
 			  const sidebarActive: NavView = useMemo(() => {
 			    if (view === 'newPurchaseRequest' || view === 'purchaseRequestDetail') return 'purchasing';
