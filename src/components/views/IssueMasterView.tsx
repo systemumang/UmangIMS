@@ -306,13 +306,11 @@ export default function IssueMasterView({
 	    }
 	  });
 
-    const displayRows = itemFilter
-      ? sorted.flatMap((row) =>
-          (row.items ?? [])
-            .filter(matchesSelectedItemLine)
-            .map((item, itemIndex) => ({ row, item, itemIndex }))
-        )
-      : sorted.map((row) => ({ row, item: null, itemIndex: -1 }));
+    const displayRows = sorted.flatMap((row) =>
+      (row.items ?? [])
+        .filter(matchesSelectedItemLine)
+        .map((item, itemIndex) => ({ row, item, itemIndex }))
+    );
 
     const displayedIssueQuantity = displayRows.reduce(
       (total, { row, item }) => total + (item ? Number(item.quantity) || 0 : row.items.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)),
