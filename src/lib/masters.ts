@@ -238,7 +238,9 @@ export async function deleteFirm(id: string, input?: { deletedBy?: string }) {
 }
 
 export async function fetchStores(signal?: AbortSignal): Promise<Store[]> {
-  const res = await fetch('/api/masters/stores', { signal });
+  // Bypass any stale CDN/browser entry. Stores are live master data and an
+  // empty cached 200 response prevents the issuing-store selector from loading.
+  const res = await fetch(`/api/masters/stores?_=${Date.now()}`, { signal, cache: 'no-store' });
   const data = await requireOk<{ stores?: Store[] }>(res, 'Failed to load stores');
   const rows = Array.isArray(data.stores) ? data.stores : [];
   return rows.slice().sort((a, b) => a.name.localeCompare(b.name));

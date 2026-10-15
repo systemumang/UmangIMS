@@ -54,6 +54,16 @@ async function ensureUploadFilesTable(pool) {
 // Uploads and large payloads (PDF base64) can exceed 2mb.
 app.use(express.json({ limit: '25mb' }));
 
+// Master data must always come from the application.  Caching a dynamic API
+// response at a browser or CDN edge can leave one device with an empty/stale
+// 200 response while another device receives current data.
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 app.use('/uploads', express.static(uploadsDir, { index: false }));
 
 app.get('/api/uploads/:fileName', async (req, res) => {
