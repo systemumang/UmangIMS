@@ -124,16 +124,18 @@ export type Item = {
   openingStock?: number | null;
 };
 
-async function readJsonSafe<T>(res: Response): Promise<T | null> {
+async function readJsonSafe<T>(res: Response): Promise<{ data: T | null; body: string }> {
+  const body = await res.text();
+  if (!body.trim()) return { data: null, body };
   try {
-    return (await res.json()) as T;
+    return { data: JSON.parse(body) as T, body };
   } catch {
-    return null;
+    return { data: null, body };
   }
 }
 
 async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> {
-  const data = await readJsonSafe<T & { error?: string }>(res);
+  const { data, body } = await readJsonSafe<T & { error?: string }>(res);
   if (!res.ok) {
     const serverMessage = (data as any)?.error;
     const error = new Error(serverMessage ? String(serverMessage) : `${fallbackMessage} (${res.status})`);
@@ -146,18 +148,13 @@ async function requireOk<T>(res: Response, fallbackMessage: string): Promise<T> 
   if (data === null) {
     // Common in dev when the frontend server returns index.html (200) for /api/* because the backend isn't reachable.
     let hint = '';
-    try {
-      const text = await res.clone().text();
-      const t = text.trim().toLowerCase();
-      if (t.startsWith('<!doctype') || t.startsWith('<html')) {
-        hint = ' (API returned HTML, is the backend running?)';
-      } else if (!t) {
-        hint = ' (empty response body)';
-      } else {
-        hint = ' (non-JSON response body)';
-      }
-    } catch {
-      // ignore
+    const text = body.trim().toLowerCase();
+    if (text.startsWith('<!doctype') || text.startsWith('<html')) {
+      hint = ' (API returned HTML; start the backend or check the API proxy)';
+    } else if (!text) {
+      hint = ' (empty response body)';
+    } else {
+      hint = ' (non-JSON response body)';
     }
     throw new Error(`${fallbackMessage} (${res.status})${hint}`);
   }
