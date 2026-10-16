@@ -429,7 +429,7 @@ export default function App() {
 	        if (view === 'settingsCatalogue') return { title: 'Catalogue', showSearch: false };
 	        if (view === 'gst') return { title: 'GST Rates', showSearch: false };
 	        if (view === 'docSequences') return { title: 'Doc Sequences', showSearch: false };
-          if (view === 'learn') return { title: 'Learn IMS', subtitle: 'Real Industrial Case Studies & Practical Workflows', showSearch: false };
+          if (view === 'learn') return { title: 'Learn IMS', subtitle: 'Practice everyday purchase workflows', showSearch: false };
 			    if (view === 'directPo') return { title: 'Direct PO', showSearch: false };
 			    if (view === 'newPurchaseRequest') return { title: 'New Purchase Request', showSearch: false };
 			    if (view === 'purchaseRequestDetail') return { title: 'Request Details', showSearch: false };

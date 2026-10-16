@@ -1,180 +1,103 @@
 import React, { useState } from 'react';
-import {
-  Briefcase,
-  Printer,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-  Target,
-  FileText,
-  Layers,
-  GraduationCap,
-} from 'lucide-react';
-import { REAL_CASE_STUDIES, CaseStudy } from '@/src/lib/learnData';
+import { ArrowLeft, ArrowRight, CheckCircle2, Printer } from 'lucide-react';
+import { REAL_CASE_STUDIES } from '@/src/lib/learnData';
 import { triggerPrintCaseStudies } from '@/src/components/learn/LearnPdfPrinter';
 
+const lessonTitles: Record<string, string> = {
+  'cs-1': 'Cement purchase: request to payment',
+  'cs-2': 'Emergency purchase & credit voucher',
+  'cs-3': 'Stock transfer & damage write-off',
+};
+
 export default function LearnView() {
-  const [expandedCaseStudyId, setExpandedCaseStudyId] = useState<string | null>('cs-1');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const lesson = REAL_CASE_STUDIES.find((item) => item.id === activeId);
+  const step = lesson?.workflowSteps[stepIndex];
+  const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600';
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Hero Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-8 shadow-xl border border-emerald-800">
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-600/30 backdrop-blur border border-emerald-400/30 rounded-xl">
-              <GraduationCap className="w-8 h-8 text-emerald-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
-                  Practical Practice & Onboarding
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">
-                IMS Real Case Studies
-              </h1>
-            </div>
-          </div>
-
-          <p className="text-slate-300 max-w-3xl text-sm md:text-base leading-relaxed">
-            Practice each feature of IMS with real-world industrial scenarios. These step-by-step case studies cover all permutations and combinations—from purchase requisitions and supplier rate comparisons to partial deliveries, quality rejections, direct POs, and inter-site stock transfers.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-emerald-700/50">
-            <div className="flex items-center gap-2 text-xs text-emerald-200">
-              <Briefcase className="w-4 h-4 text-emerald-400" />
-              <span><strong className="text-white font-semibold">{REAL_CASE_STUDIES.length}</strong> End-to-End Real World Scenarios</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={triggerPrintCaseStudies}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow transition-all hover:scale-[1.02] active:scale-95"
-            >
-              <Printer size={15} />
-              <span>Download / Print Case Studies PDF</span>
-            </button>
-          </div>
+    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Learn IMS</h1>
+          <p className="mt-1 text-sm text-slate-600">Practice everyday purchase workflows.</p>
         </div>
-      </div>
+        <button type="button" onClick={triggerPrintCaseStudies} className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}>
+          <Printer size={16} /> Download PDF
+        </button>
+      </header>
 
-      {/* Case Studies Cards List */}
-      <div className="space-y-6">
-        {REAL_CASE_STUDIES.map((cs) => {
-          const isExpanded = expandedCaseStudyId === cs.id;
-          return (
-            <div
-              key={cs.id}
-              className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:border-slate-300"
-            >
-              {/* Header Row */}
-              <div
-                onClick={() => setExpandedCaseStudyId(isExpanded ? null : cs.id)}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      {cs.complexity} Level
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">⏱ Est. Duration: {cs.duration}</span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900">{cs.title}</h3>
-                  <p className="text-xs text-slate-600">{cs.industryScenario}</p>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 ml-4">
-                  <span className="text-xs font-semibold text-emerald-700 hidden md:inline">
-                    {isExpanded ? 'Hide Details' : 'View Workflow'}
-                  </span>
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                  </div>
-                </div>
+      {!lesson ? (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">Choose a lesson to get started. Progress is kept while this view is open.</p>
+          {REAL_CASE_STUDIES.map((item, index) => (
+            <article key={item.id} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-2">
+                <p className="text-sm text-slate-500">Lesson {index + 1} · {item.complexity} · {item.duration.replace(' scenario', '')}</p>
+                <h2 className="text-lg font-semibold text-slate-900">{lessonTitles[item.id] || item.title}</h2>
+                <p className="text-sm text-slate-600">{item.workflowSteps.length} guided steps</p>
+                {completedIds.includes(item.id) && <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={16} /> Completed</p>}
               </div>
-
-              {/* Detailed Breakdown */}
-              {isExpanded && (
-                <div className="p-6 space-y-6 bg-slate-50/40">
-                  {/* Objective & Given Parameters */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-2xs space-y-2">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <Target size={14} className="text-emerald-600" />
-                        Objective
-                      </h4>
-                      <p className="text-xs text-slate-700 leading-relaxed">{cs.objective}</p>
-                    </div>
-
-                    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-2xs space-y-2">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <FileText size={14} className="text-blue-600" />
-                        Given Scenario Data
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        {Object.entries(cs.givenData).map(([k, v]) => (
-                          <div key={k} className="bg-slate-50 p-2 border border-slate-200 rounded">
-                            <span className="font-semibold text-slate-700 block text-[11px]">{k}:</span>
-                            <span className="text-slate-900 font-mono text-[11px]">{v}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Workflow Table */}
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                      <Layers size={14} className="text-emerald-600" />
-                      Step-by-Step Execution Workflow
-                    </h4>
-
-                    <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-2xs">
-                      <table className="w-full text-xs text-left text-slate-700">
-                        <thead className="bg-slate-100 text-slate-900 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                          <tr>
-                            <th className="p-3 w-1/6">Phase</th>
-                            <th className="p-3 w-1/4">Action Required</th>
-                            <th className="p-3 w-1/5">IMS Module</th>
-                            <th className="p-3 w-1/4">Key Decision / Logic</th>
-                            <th className="p-3 w-1/5">Expected Result</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {cs.workflowSteps.map((w, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/80">
-                              <td className="p-3 font-bold text-slate-900 bg-slate-50/50">{w.phase}</td>
-                              <td className="p-3">{w.actionRequired}</td>
-                              <td className="p-3 font-mono text-[11px] text-blue-700 bg-blue-50/30 font-semibold">{w.systemModule}</td>
-                              <td className="p-3 text-slate-800">{w.keyDecision}</td>
-                              <td className="p-3 font-medium text-emerald-800 bg-emerald-50/30">{w.expectedOutcome}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Permutations Covered */}
-                  <div className="flex items-center gap-2 flex-wrap pt-2">
-                    <span className="text-xs font-bold text-slate-600">Permutations & Rules Covered:</span>
-                    {cs.permutationsCovered.map((perm, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1"
-                      >
-                        <CheckCircle2 size={12} className="text-emerald-600" />
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <button type="button" onClick={() => { setActiveId(item.id); setStepIndex(0); }} className={`${buttonClass} shrink-0 bg-emerald-700 text-white hover:bg-emerald-800`}>
+                {completedIds.includes(item.id) ? 'Review Lesson' : 'Start Learning'} <ArrowRight size={16} />
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <button type="button" onClick={() => setActiveId(null)} className={`${buttonClass} px-0 text-slate-600 hover:text-slate-900`}><ArrowLeft size={16} /> All lessons</button>
+          <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 md:p-6">
+            <div>
+              <p className="mb-2 text-sm text-slate-500">{lesson.complexity} · {lesson.duration.replace(' scenario', '')}</p>
+              <h2 className="text-xl font-semibold text-slate-900">{lessonTitles[lesson.id] || lesson.title}</h2>
+              <p className="mt-3 text-base leading-relaxed text-slate-700">{lesson.industryScenario}</p>
             </div>
-          );
-        })}
-      </div>
+            <details key={lesson.id} className="rounded-lg border border-slate-200 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-slate-700">Scenario data & business rules</summary>
+              <div className="mt-4 space-y-4 text-sm text-slate-700">
+                <p><strong>Goal: </strong>{lesson.objective}</p>
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  {Object.entries(lesson.givenData).map(([label, value]) => <div key={label}><dt className="text-slate-500">{label}</dt><dd className="mt-1 font-medium">{value}</dd></div>)}
+                </dl>
+                <div><p className="font-medium">Business rules covered</p><ul className="mt-2 list-disc space-y-1 pl-5">{lesson.permutationsCovered.map((rule) => <li key={rule}>{rule}</li>)}</ul></div>
+              </div>
+            </details>
+          </section>
+
+          {step ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-5 md:p-6" aria-label="Lesson steps">
+              <div aria-live="polite" aria-atomic="true">
+                <p className="text-sm font-medium text-emerald-700">Step {stepIndex + 1} of {lesson.workflowSteps.length}</p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Lesson progress" aria-valuemin={0} aria-valuemax={lesson.workflowSteps.length} aria-valuenow={stepIndex + 1}><div className="h-full rounded-full bg-emerald-600" style={{ width: `${((stepIndex + 1) / lesson.workflowSteps.length) * 100}%` }} /></div>
+                <h3 className="mt-5 text-xl font-semibold text-slate-900">{step.phase.replace(/^\d+\.\s*/, '')}</h3>
+                <dl className="mt-5 space-y-5 text-base leading-relaxed">
+                  <div><dt className="font-semibold text-slate-900">Do this</dt><dd className="mt-1 text-slate-700">{step.actionRequired}</dd></div>
+                  <div><dt className="font-semibold text-slate-900">Go to</dt><dd className="mt-1 text-emerald-800">{step.systemModule}</dd></div>
+                  <div><dt className="font-semibold text-slate-900">Check</dt><dd className="mt-1 text-slate-700">{step.expectedOutcome}</dd></div>
+                </dl>
+                <details key={`${lesson.id}-${stepIndex}`} className="mt-5 border-t border-slate-100 pt-4"><summary className="cursor-pointer text-sm font-medium text-slate-600">Decision to consider</summary><p className="mt-2 text-sm leading-relaxed text-slate-700">{step.keyDecision}</p></details>
+              </div>
+              <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-5">
+                <button type="button" disabled={stepIndex === 0} onClick={() => setStepIndex((value) => value - 1)} className={`${buttonClass} border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40`}><ArrowLeft size={16} /> Previous</button>
+                <button type="button" onClick={() => {
+                  if (stepIndex === lesson.workflowSteps.length - 1) setCompletedIds((ids) => ids.includes(lesson.id) ? ids : [...ids, lesson.id]);
+                  setStepIndex((value) => value + 1);
+                }} className={`${buttonClass} bg-emerald-700 text-white hover:bg-emerald-800`}>{stepIndex === lesson.workflowSteps.length - 1 ? 'Finish Lesson' : 'Next Step'} <ArrowRight size={16} /></button>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center" aria-live="polite">
+              <CheckCircle2 className="mx-auto text-emerald-700" size={32} />
+              <h3 className="mt-3 text-xl font-semibold text-slate-900">Lesson complete</h3>
+              <p className="mt-2 text-sm text-slate-600">You have reviewed all {lesson.workflowSteps.length} steps. Choose another lesson to keep learning.</p>
+              <button type="button" onClick={() => setActiveId(null)} className={`${buttonClass} mt-5 bg-emerald-700 text-white hover:bg-emerald-800`}>Back to lessons <ArrowRight size={16} /></button>
+            </section>
+          )}
+        </div>
+      )}
     </div>
   );
 }
