@@ -28,7 +28,7 @@
     "motion": "^12.43.0",
     "mysql2": "^3.24.5",
     "pdf-lib": "^1.17.1",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwind-merge": "^3.7.0",
